@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visualizador Eleitoral • Otimizado</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/unzipit@1.4.0/dist/unzipit.min.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body data-theme="dark">
+  <div class="app">
+    <div class="panel" id="mapPanel">
+      <div id="map"></div>
+      <div class="loader-overlay" id="mapLoader">
+        Carregando dados...
+      </div>
+    </div>
+
+    <div class="panel side">
+      <div class="head">
+        <div class="title" id="panelTitle">Visualizador Eleitoral</div>
+        <button id="themeToggle" class="button ghost" title="Mudar tema" style="padding: 6px 10px;">☀️</button>
+      </div>
+
+      <div class="body">
+
+        <div class="section" id="loaderBox">
+          <h3>Carregar Dados</h3>
+
+          <div class="ctrl" style="grid-column: 1 / -1; margin-bottom: 12px;">
+            <label>Tipo de Eleição</label>
+            <div class="chip-group" id="electionChips">
+              <button class="chip-button active" data-value="2022" data-type="geral">Gerais 2022</button>
+              <button class="chip-button" data-value="2018" data-type="geral">Gerais 2018</button>
+              <button class="chip-button" data-value="2014" data-type="geral">Gerais 2014</button>
+              <button class="chip-button" data-value="2010" data-type="geral">Gerais 2010</button>
+              <button class="chip-button" data-value="2006" data-type="geral">Gerais 2006</button>
+
+              <div style="width:100%; height:1px; background:var(--border-color); margin: 4px 0;"></div>
+
+              <button class="chip-button" data-value="2024" data-type="municipal">Mun. 2024</button>
+              <button class="chip-button" data-value="2020" data-type="municipal">Mun. 2020</button>
+              <button class="chip-button" data-value="2016" data-type="municipal">Mun. 2016</button>
+              <button class="chip-button" data-value="2012" data-type="municipal">Mun. 2012</button>
+              <button class="chip-button" data-value="2008" data-type="municipal">Mun. 2008</button>
+            </div>
+          </div>
+
+          <div id="loaderBoxGeneral"
+            style="padding: 0 0 0 10px; border-left: 2px solid var(--border-color); margin-left:2px;">
+            <div class="row">
+              <div class="ctrl" style="grid-column: 1 / -1;">
+                <label>Cargo</label>
+                <div class="chip-group" id="cargoChipsGeneral">
+                  <button class="chip-button active" data-value="presidente">Presidente</button>
+                  <button class="chip-button" data-value="governador">Governador</button>
+                  <button class="chip-button" data-value="senador">Senador</button>
+                </div>
+              </div>
+              <div class="ctrl" style="grid-column: 1 / -1;">
+                <label for="selectUFGeneral">Estado (UF)</label>
+                <select id="selectUFGeneral" class="select">
+                  <option value="" disabled selected>Selecione...</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div id="loaderBoxMunicipal" class="section-hidden"
+            style="padding: 0 0 0 10px; border-left: 2px solid var(--border-color); margin-left:2px;">
+            <div class="row">
+              <div class="ctrl">
+                <label for="selectUFMunicipal">Estado (UF)</label>
+                <select id="selectUFMunicipal" class="select">
+                  <option value="" disabled selected>Selecione...</option>
+                </select>
+              </div>
+              <div class="ctrl">
+                <label for="selectMunicipio">Município</label>
+                <select id="selectMunicipio" class="select" disabled>
+                  <option value="" disabled selected>Selecione UF...</option>
+                </select>
+                <input id="searchMunicipio" class="search-input" placeholder="Buscar município..."
+                  style="margin-top: 6px;" disabled>
+              </div>
+            </div>
+          </div>
+
+          <button id="btnLoadData" class="button primary" style="width:100%; margin-top: 12px;" disabled>Carregar
+            Dados</button>
+        </div>
+
+        <div class="section section-hidden" id="filterBox">
+          <h3>Filtros da Visualização</h3>
+
+          <div class="ctrl section-hidden" id="cargoBoxMunicipal" style="margin-bottom: 10px;">
+            <label>Tipo de Eleição</label>
+            <div class="chip-group" id="cargoChipsMunicipal">
+            </div>
+          </div>
+
+          <div class="row" style="grid-template-columns: 1fr 1fr;">
+            <div class="ctrl">
+              <label for="inputCidade">Município</label>
+              <div class="combobox-container" id="boxCidade">
+                <input type="text" class="combobox-input" id="inputCidade" placeholder="Selecionar município..."
+                  autocomplete="off" disabled>
+                <svg class="combobox-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <div class="combobox-dropdown" id="listCidade"></div>
+              </div>
+            </div>
+            <div class="ctrl">
+              <label for="inputBairro">Bairro</label>
+              <div class="combobox-container" id="boxBairro">
+                <input type="text" class="combobox-input" id="inputBairro" placeholder="Selecionar bairro..."
+                  autocomplete="off" disabled>
+                <svg class="combobox-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+                <div class="combobox-dropdown" id="listBairro"></div>
+              </div>
+            </div>
+            <div class="ctrl" style="grid-column: 1 / -1;">
+              <label for="searchLocal">Buscar por Local de Votação (mín. 3 letras)</label>
+              <div class="searchwrap">
+                <input id="searchLocal" class="select" placeholder="Digite o nome do local..." disabled />
+              </div>
+            </div>
+          </div>
+
+          <!-- FILTROS CENSITÁRIOS (REFORMULADO) -->
+          <div class="filter-group" id="demographicFilters">
+            <h4 style="margin: 0 0 12px 0; font-size:0.9rem;">Filtros Demográficos (Censo)</h4>
+
+            <div class="filter-tabs">
+              <button class="tab-btn active" data-tab="tab-renda">RENDA</button>
+              <button class="tab-btn" data-tab="tab-raca">COR/RAÇA</button>
+              <button class="tab-btn" data-tab="tab-idade">IDADE</button>
+              <button class="tab-btn" data-tab="tab-genero">GÊNERO</button>
+              <button class="tab-btn" data-tab="tab-saneamento">SANEAMENTO</button>
+            </div>
+
+            <!-- RENDA TAB -->
+            <div class="tab-content" id="tab-renda">
+              <label class="slider-label">Renda Média (R$)</label>
+
+              <div class="dual-slider-container" id="sliderRendaContainer">
+                <div class="dual-track"></div>
+                <!-- Availability Bar (Fixed) -->
+                <div class="availability-bar" id="availRenda"></div>
+                <div class="dual-range" id="rendaRange"></div>
+                <div class="dual-thumb left" id="rendaThumbMin" tabindex="0"></div>
+                <div class="dual-thumb right" id="rendaThumbMax" tabindex="0"></div>
+              </div>
+
+              <div class="dual-values">
+                <span id="dispRendaMin">R$ 0</span>
+                <span id="dispRendaMax">R$ 10.000+</span>
+              </div>
+            </div>
+
+            <!-- IDADE TAB -->
+            <div class="tab-content hidden" id="tab-idade">
+              <div class="slider-box">
+                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
+                  <select id="selectIdade" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                    <option value="16-24">16 a 24 anos</option>
+                    <option value="25-34">25 a 34 anos</option>
+                    <option value="35-44">35 a 44 anos</option>
+                    <option value="45-59">45 a 59 anos</option>
+                    <option value="60-74">60 a 74 anos</option>
+                    <option value="75-100">75+ anos</option>
+                  </select>
+                  <span class="slider-value" id="dispIdosos">0%</span>
+                </div>
+                <div class="slider-wrapper">
+                  <div class="availability-bar" id="availIdade"></div>
+                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderIdosos">
+                </div>
+                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
+                  Filtra locais onde mais de <span id="valDispIdosos">0%</span> do grupo selecionado
+                  reside.
+                </small>
+              </div>
+            </div>
+
+            <!-- RAÇA TAB -->
+            <div class="tab-content hidden" id="tab-raca">
+              <div class="slider-box">
+                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
+                  <select id="selectRaca" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                    <option value="Pct Preta" selected>População Preta</option>
+                    <option value="Pct Parda">População Parda</option>
+                    <option value="Pct Branca">População Branca</option>
+                    <option value="Pct Amarela">População Amarela</option>
+                    <option value="Pct Indigena">População Indígena</option>
+                  </select>
+                  <span class="slider-value" id="dispRaca">0%</span>
+                </div>
+                <div class="slider-wrapper">
+                  <div class="availability-bar" id="availRaca"></div>
+                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderRaca">
+                </div>
+                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
+                  Maior que <span id="valDispRaca">0%</span>
+                </small>
+              </div>
+            </div>
+
+            <!-- GÊNERO TAB -->
+            <div class="tab-content hidden" id="tab-genero">
+              <div class="slider-box">
+                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
+                  <select id="selectGenero" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                    <option value="Pct Mulheres" selected>Mulheres</option>
+                    <option value="Pct Homens">Homens</option>
+                  </select>
+                  <span class="slider-value" id="dispGenero">0%</span>
+                </div>
+                <div class="slider-wrapper">
+                  <div class="availability-bar" id="availGenero"></div>
+                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderGenero">
+                </div>
+                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
+                  Maior que <span id="valDispGenero">0%</span>
+                </small>
+              </div>
+            </div>
+
+            <!-- SANEAMENTO TAB -->
+            <div class="tab-content hidden" id="tab-saneamento">
+              <div class="slider-box">
+                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
+                  <select id="selectSaneamento" class="select"
+                    style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                    <option value="Pct Esgoto Inadequado" selected>Esgoto Inadequado</option>
+                    <option value="Pct Esgoto Rede Geral">Rede Geral</option>
+                    <option value="Pct Fossa Septica">Fossa Séptica</option>
+                  </select>
+                  <span class="slider-value" id="dispSaneamento">0%</span>
+                </div>
+                <div class="slider-wrapper">
+                  <div class="availability-bar" id="availSaneamento"></div>
+                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderSaneamento">
+                </div>
+                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
+                  Mais de <span id="valDispSaneamento">0%</span> com este tipo de saneamento.
+                </small>
+              </div>
+            </div>
+
+            <!-- Extra Filters (Esgoto moved to a small utils section or keep hidden/remove? User prompt said preserve functionality but focus on the new UI. 
+                 Since Esgoto was there, I should probably keep it somewhere or add a tab? 
+                 The prompt lists: RENDA | COR/RAÇA | IDADE | GÊNERO.
+                 I'll hide Esgoto for now to fit the design or add it to "Saneamento" tab if user requested?
+                 User listed "Saneamento" in "Sliders Simples para Porcentagens: ... SANEAMENTO".
+                 So I should add a Saneamento tab or include it in one. I'll add a 5th tab or just put it below properly.
+                 Wait, the requested tabs are: [ RENDA ] [ COR/RAÇA ] [ IDADE ] [ GÊNERO ].
+                 The prompt says: "Para as abas COR/RAÇA, IDADE, GÊNERO, SANEAMENTO: Use sliders simples".
+                 So SANEAMENTO IS REQUESTED. I missed it in the Tabs list instruction but it's in the behavior description.
+                 I will add a Saneamento Tab.
+            -->
+          </div>
+
+          <!-- SANEAMENTO TAB (Appended logic) -->
+          <script>
+            // Need to append Saneamento tab button via JS or just rewrite the block above?
+            // I'll rewrite the block above to include SANEAMENTO.
+          </script>
+
+          <div class="toolbar" style="margin-top: 10px;">
+            <button id="btnApplyFilters" class="button" style="flex: 1;" disabled>Analisar/Agregar</button>
+            <button id="btnToggleInaptos" class="button toggle" title="Mostrar/Ocular Inaptos" disabled>
+              Filtrar Inaptos
+            </button>
+          </div>
+        </div>
+
+        <div class="section section-hidden" id="vizBox">
+          <h3>Visualização do Mapa</h3>
+          <div class="ctrl">
+            <label>Modo de Cor</label>
+            <div class="chip-group" id="vizModeChips">
+              <button class="chip-button active" data-value="vencedor">Vencedor (1T)</button>
+              <button class="chip-button hidden" data-value="vencedor_2t">Vencedor (2T)</button>
+              <button class="chip-button" data-value="desempenho_1t">Desempenho (1T)</button>
+              <button class="chip-button hidden" data-value="desempenho_2t">Desempenho (2T)</button>
+            </div>
+          </div>
+          <div class="ctrl section-hidden" id="vizCandidatoBox" style="margin-top: 10px;">
+            <label for="selectVizCandidato">Candidato (para modo Desempenho)</label>
+            <select id="selectVizCandidato" class="select" disabled>
+            </select>
+          </div>
+          <div class="ctrl" style="margin-top: 10px;">
+            <label for="selectVizSize">Modo de Tamanho</label>
+            <select id="selectVizSize" class="select" disabled>
+              <option value="fixo">Tamanho Fixo</option>
+              <option value="comparecimento">Proporcional (Comparecimento)</option>
+            </select>
+          </div>
+          <div class="ctrl" style="margin-top: 10px;">
+            <label for="selectVizColorStyle">Estilo de Cor</label>
+            <select id="selectVizColorStyle" class="select" disabled>
+              <option value="static">Cor Estática (Sólida)</option>
+              <option value="gradient">Degradê (Luminosidade)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section section-hidden" id="resultsBox">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 12px;">
+            <div>
+              <h3 id="resultsTitle" style="margin:0; font-size: 1rem; line-height: 1.3;">Resultados</h3>
+              <small id="resultsSubtitle"
+                style="color:var(--muted); font-size:0.8rem; display:block; margin-top:2px;"></small>
+            </div>
+            <button id="btnClearSelection" class="button ghost"
+              style="padding: 6px; width: 28px; height: 28px; display:flex; align-items:center; justify-content:center; border-radius:50%;"
+              title="Limpar seleção">
+              ✕
+            </button>
+          </div>
+
+          <!-- UNIFIED VIEW CONTAINER -->
+          <div id="unifiedResultsContainer" class="animation-fade">
+
+            <!-- ELECTION RESULTS -->
+            <div class="tabs" id="turnTabs" style="margin-bottom:12px;"></div>
+            <div id="resultsContent">
+              <div style="text-align:center; padding: 20px; color:var(--muted);">
+                <p style="margin-bottom:8px">👆</p>
+                Clique no mapa ou use filtros para ver resultados.
+              </div>
+            </div>
+            <div class="footer" id="resultsMetrics" style="margin-bottom: 20px;"></div>
+
+            <!-- NEIGHBORHOOD PROFILE (ALWAYS VISIBLE IF DATA EXISTS) -->
+            <div id="neighborhoodProfile"
+              style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
+              <div class="profile-header" style="position: relative;">
+                <button id="btnInfoCensus" class="info-button blinking" title="Informações sobre os dados">i</button>
+                <span style="display:block; font-size:0.8rem; color:var(--muted); margin-bottom: 4px;">PERFIL
+                  DA
+                  VIZINHANÇA</span>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.8rem; color:var(--muted);">Renda Média</span>
+                  <div id="profileRendaVal" class="profile-renda" style="font-size: 1rem;">R$ --</div>
+                </div>
+              </div>
+
+              <div class="profile-section">
+                <h4>Demografia (Raça/Cor)</h4>
+                <div id="profileRacaChart"></div>
+              </div>
+              <div class="profile-section">
+                <h4>Gênero</h4>
+                <div id="profileGeneroChart"></div>
+              </div>
+              <div class="profile-section">
+                <h4>Faixa Etária</h4>
+                <div id="profileIdadeChart"></div>
+              </div>
+              <div class="profile-section">
+                <h4>Saneamento</h4>
+                <div class="saneamento-grid" id="profileSaneamentoChart"></div>
+              </div>
+              <div class="profile-section">
+                <h4>Alfabetização</h4>
+                <div class="bar-chart-row">
+                  <div class="bar-track" style="background:var(--chip-b); height:16px;">
+                    <div id="profileAlfabetizacaoBar" class="bar-fill" style="width:0%; background:var(--accent);">
+                    </div>
+                  </div>
+                  <div id="profileAlfabetizacaoVal" class="bar-value" style="width:auto; margin-left:6px;">--%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="section section-hidden" id="summaryBoxContainer">
+          <h3 style="font-size: 0.9rem;">Comparativo 2022</h3>
+          <div class="summary-grid" id="summaryGrid">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <svg width="0" height="0" style="display:none;">
+    <symbol id="svg-check" viewBox="0 0 16 16">
+      <polyline points="3 8 6 11 13 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="svg-arrow" viewBox="0 0 16 16">
+      <polyline points="6 4 10 8 6 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="svg-x" viewBox="0 0 16 16">
+      <line x1="4" y1="4" x2="12" y2="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+      <line x1="12" y1="4" x2="4" y2="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+    </symbol>
+    <symbol id="svg-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+      <line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2" />
+      <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" />
+    </symbol>
+  </svg>
+
+  <div class="info-overlay" id="infoOverlay">
+    <div class="info-modal">
+      <button class="info-close" id="btnCloseInfo">✕</button>
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        Sobre os Dados Demográficos
+      </h3>
+      <p>
+        As informações apresentadas não se baseiam no perfil dos eleitores do local de votação, mas sim nas
+        características da vizinhança onde esse local está inserido. Os dados utilizados são provenientes do Censo
+        Demográfico, seja o de 2010 ou o de 2022, conforme a disponibilidade.
+      </p>
+      <p>
+        O critério adotado considera as informações demográficas do setor censitário em que se localiza o ponto de
+        votação, bem como dos setores censitários vizinhos, de modo a traçar um retrato socioeconômico do entorno
+        imediato.
+      </p>
+      <p>
+        Há casos específicos em que os locais de votação estão situados em presídios, unidades de internação,
+        internatos, Fundação CASA e instituições similares. Por razões evidentes, esses locais não são removidos do
+        mapa, sendo possível visualizar seus resultados eleitorais. No entanto, o perfil demográfico da vizinhança
+        desses pontos deve ser totalmente desconsiderado, uma vez que não representa, de forma alguma, o público
+        efetivamente votante nessas unidades.
+      </p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
