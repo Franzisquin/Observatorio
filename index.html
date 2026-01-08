@@ -28,7 +28,18 @@
 
     <div class="panel side">
       <div class="head">
-        <div class="title" id="panelTitle">Visualizador Eleitoral</div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="title" id="panelTitle">Visualizador Eleitoral</div>
+          <button id="btnAppGuide" class="button ghost" title="Guia de Uso"
+            style="padding: 0; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent);">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+          </button>
+        </div>
         <button id="themeToggle" class="button ghost" title="Mudar tema" style="padding: 6px 10px;">☀️</button>
       </div>
 
@@ -453,6 +464,118 @@
         desses pontos deve ser totalmente desconsiderado, uma vez que não representa, de forma alguma, o público
         efetivamente votante nessas unidades.
       </p>
+    </div>
+  </div>
+
+  <div class="info-overlay" id="guideOverlay">
+    <div class="info-modal wide-modal">
+      <button class="info-close" id="btnCloseGuide">✕</button>
+      <div class="guide-content">
+        <h3>Visualizador Eleitoral V. 1.0: Apresentação e Guia de Uso</h3>
+        <p>
+          Seja bem-vindo ao <strong>Visualizador Eleitoral V. 1.0</strong>. Esta ferramenta foi desenvolvida para
+          permitir a consulta detalhada dos resultados das eleições brasileiras ocorridas entre <strong>2006 e
+            2024</strong>. A plataforma abrange tanto as eleições gerais (Presidência da República, Governos Estaduais e
+          Senado Federal) quanto as eleições municipais (Prefeituras) das mais de 5.500 cidades brasileiras.
+        </p>
+
+        <h4>Agradecimentos</h4>
+        <p>
+          É fundamental expressar um agradecimento especial ao usuário <strong>fdhidalgo</strong>. Seu trabalho exímio
+          no georreferenciamento da vasta maioria dos quase 90 mil locais de votação do Brasil — de 2006 aos dias atuais
+          — foi o alicerce deste projeto. Sem o seu esforço, a realização deste visualizador não seria possível.
+        </p>
+
+        <h4>Funcionalidades e Visualização de Dados</h4>
+        <p>O visualizador oferece flexibilidade na análise dos dados, permitindo observar os resultados através de
+          diferentes recortes geográficos:</p>
+        <ul>
+          <li><strong>Locais de Votação:</strong> Visualização granular ponto a ponto.</li>
+          <li><strong>Municípios:</strong> Visão consolidada por cidade.</li>
+          <li><strong>Bairros:</strong> Agrupamento baseado nos dados fornecidos pelo Tribunal Superior Eleitoral (TSE).
+            <br><em>Nota: A precisão da localização dos bairros depende da base de dados oficial, podendo haver pequenas
+              variações.</em>
+          </li>
+        </ul>
+
+        <h4>Abrangência: Eleições Ordinárias e Suplementares</h4>
+        <p>
+          A ferramenta contempla tanto os pleitos regulares (ordinários) quanto as eleições suplementares (realizadas
+          para substituir mandatos cassados ou vacantes).
+        </p>
+        <p>
+          <em>Exemplo prático:</em> Ao acessar o ano de 2014, o usuário encontrará não apenas a eleição geral daquele
+          ano, mas também dados de pleitos suplementares correlatos, como a eleição para o Governo do Amazonas realizada
+          em 2017 (inserida no ciclo correspondente). O mesmo se aplica a eleições municipais suplementares decorrentes
+          de cassações de prefeitos.
+        </p>
+
+        <h4>Ferramentas de Interação e Filtros</h4>
+        <ul>
+          <li><strong>Soma de Votos:</strong> O usuário pode somar os votos de múltiplas seções interativamente. Utilize
+            a tecla <strong>Shift + Botão Direito</strong> do mouse para arrastar e selecionar uma área, ou
+            <strong>Shift + Clique</strong> para selecionar locais individuais consecutivamente. O sistema calculará o
+            total automaticamente.
+          </li>
+          <li><strong>Filtros Demográficos:</strong> É possível refinar a visualização com base em indicadores
+            socioeconômicos do entorno dos locais de votação, incluindo: Renda, Cor/Raça, Faixa Etária, Gênero e Nível
+            de Saneamento.</li>
+          <li><em>Exemplo de uso:</em> Analisar como áreas de alta renda em São Paulo votaram para presidente, ou o
+            comportamento eleitoral em bairros com predominância feminina.</li>
+          <li><strong>Metodologia:</strong> Para detalhes sobre como o perfil de vizinhança foi construído, clique no
+            botão azul com o ícone "i" na interface.</li>
+        </ul>
+
+        <h4>Perguntas Frequentes (FAQ)</h4>
+        <p><strong>1. Encontrei um local de votação com a localização errada.</strong><br>
+          Inconsistências geográficas podem ocorrer, especialmente em dados mais antigos (2006, 2008 e 2010). É possível
+          que um local esteja atribuído ao bairro correto, mas posicionado geograficamente de forma imprecisa (ex: um
+          local na Barra da Tijuca aparecendo em Honório Gurgel). Caso identifique um erro, por favor, preencha este
+          <a href="https://docs.google.com/forms/d/e/1FAIpQLSe0_gp18fih6RZ_8Zos7GK9pxsh2xalsexJvW5mrJtW0KoBYA/viewform?usp=dialog"
+            target="_blank" rel="noopener noreferrer">Formulário de correção</a>. O ajuste será implementado na próxima
+          atualização.
+        </p>
+
+        <p><strong>2. A soma total dos votos no site é inferior ao resultado oficial.</strong><br>
+          Sim, isso é esperado. O total apresentado no visualizador é a soma exclusiva dos locais de votação mapeados.
+          As divergências ocorrem por dois motivos principais:<br>
+          - <strong>Voto no Exterior:</strong> Os votos da diáspora brasileira não estão contemplados no mapa.<br>
+          - <strong>Cobertura:</strong> Aproximadamente 1% a 2% dos locais de votação ainda não foram georreferenciados.
+          O objetivo é reduzir essa margem em atualizações futuras.</p>
+
+        <p><strong>3. Por que não há resultados da eleição suplementar para o Governo do Tocantins (2018)?</strong><br>
+          Os dados desta eleição foram disponibilizados pelo TRE local em formato não estruturado (PDFs individuais por
+          município e turno), o que dificulta o processamento automatizado. A inclusão deste pleito está nos planos
+          futuros.<br>
+          <strong>Colaboração:</strong> Caso algum usuário possua esses dados tabulados (planilha ou .txt) por seção ou
+          local de votação, o envio para o e-mail medeirosld28@gmail.com seria de grande valia.
+        </p>
+
+        <p><strong>4. Por que as eleições suplementares municipais de 2013 a 2016 não aparecem?</strong><br>
+          O TSE não disponibiliza os dados detalhados para as eleições suplementares ocorridas especificamente durante o
+          mandato 2013-2016 (ex: Criciúma/2013 ou Mossoró/2014). Por essa limitação da fonte oficial, não é possível
+          exibir esses mapas.</p>
+
+        <p><strong>5. Por que não consigo visualizar o resultado de todo o Brasil para presidente por local de votação,
+            apenas dividido por estado?</strong><br>
+          A renderização simultânea de mais de 90 mil locais de votação na tela exigiria uma capacidade de processamento
+          que comprometeria a performance e a acessibilidade do site. Para garantir que a navegação permaneça fluida e
+          leve nesta primeira versão (V. 1.0), optou-se pela visualização segmentada por estados. A implementação de uma
+          visualização nacional completa é complexa, mas está nos planos de desenvolvimento para futuras atualizações.
+        </p>
+
+        <h4>Reporte de Erros e Contato</h4>
+        <p>
+          Este site foi desenvolvido de forma independente, com auxílio de Inteligência Artificial, e não por uma equipe
+          profissional de programação. Portanto, bugs e erros podem ocorrer.
+        </p>
+        <p>
+          Para reportar problemas, enviar sugestões ou tirar dúvidas, entre em contato através dos canais:<br>
+          <strong>X (antigo Twitter):</strong> <a href="https://x.com/luizdaniel__" target="_blank"
+            rel="noopener noreferrer">@luizdaniel__</a> (via DM)<br>
+          <strong>E-mail:</strong> medeirosld28@gmail.com
+        </p>
+      </div>
     </div>
   </div>
 
