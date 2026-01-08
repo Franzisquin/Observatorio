@@ -585,7 +585,7 @@ function setupControls() {
 
     // Se escolheu 'all', desativa a busca por local específico (muito pesado para o estado todo)
     // Se escolheu uma cidade, libera a busca por local
-    dom.searchLocal.disabled = (STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all');
+    dom.searchLocal.disabled = false;
 
     clearSelection(false);
     applyFiltersAndRedraw();
@@ -697,7 +697,7 @@ function setupControls() {
       if (cidadeCombobox) {
         cidadeCombobox.setValue("Todos os municípios");
       }
-      dom.searchLocal.disabled = true;
+      dom.searchLocal.disabled = false;
       dom.btnApplyFilters.textContent = 'Analisar/Agregar';
       dom.btnApplyFilters.disabled = true;
     } else {
@@ -1302,7 +1302,7 @@ async function onClickLoadData_General() {
 
     dom.btnApplyFilters.disabled = false;
     updateApplyButtonText();
-    dom.searchLocal.disabled = true;
+    dom.searchLocal.disabled = false;
 
     updateElectionTypeUI();
 
@@ -2365,7 +2365,7 @@ function onFeatureClick(e) {
       cidadeCombobox.setValue("Todos os municípios");
     }
 
-    dom.searchLocal.disabled = true;
+    dom.searchLocal.disabled = false;
     updateApplyButtonText();
   } else {
     const mun = dom.selectMunicipio.value;
