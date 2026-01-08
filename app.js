@@ -515,7 +515,7 @@ function setupControls() {
       // Apenas atualiza a interface, sem loading
       updateElectionTypeUI();
       populateCidadeDropdown();
-      if (currentCidadeFilter !== 'all') populateBairroDropdown();
+      if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
       updateConditionalUI();
       applyFiltersAndRedraw();
       updateSelectionUI(STATE.isFilterAggregationActive);
@@ -663,7 +663,7 @@ function setupControls() {
     btn.classList.add('active');
     updateVizModeUI();
     populateCidadeDropdown();
-    if (currentCidadeFilter !== 'all') populateBairroDropdown();
+    if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
     applyFiltersAndRedraw();
   });
   dom.selectVizSize.addEventListener('change', (e) => {
@@ -2744,7 +2744,7 @@ function handleSummaryGridInteraction(e) {
   updateElectionTypeUI();
   updateConditionalUI();
   populateCidadeDropdown();
-  if (currentCidadeFilter !== 'all') populateBairroDropdown();
+  if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
   applyFiltersAndRedraw();
   updateSelectionUI(STATE.isFilterAggregationActive);
 }
@@ -2833,7 +2833,7 @@ function setupTurnTabs(props) {
       currentTurno = 1;
       updateSelectionUI(STATE.isFilterAggregationActive);
       populateCidadeDropdown();
-      populateBairroDropdown();
+      if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
     });
     dom.turnTabs.appendChild(tab);
   }
@@ -2846,7 +2846,7 @@ function setupTurnTabs(props) {
       currentTurno = 2;
       updateSelectionUI(STATE.isFilterAggregationActive);
       populateCidadeDropdown();
-      populateBairroDropdown();
+      if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
     });
     dom.turnTabs.appendChild(tab);
   }
