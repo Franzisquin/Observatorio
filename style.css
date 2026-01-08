@@ -1357,3 +1357,13 @@ input:disabled {
   height: 8px;
   /* Thicker than track 4px */
 }
+
+/* SELECTION BOX */
+.selection-box {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background-color: rgba(59, 130, 246, 0.2);
+  z-index: 2000;
+  pointer-events: none;
+  display: none;
+}
