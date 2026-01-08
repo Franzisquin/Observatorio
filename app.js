@@ -1923,12 +1923,23 @@ function populateBairroDropdown() {
   bairros.forEach(bairro => {
     const propsList = bairroGroups[bairro];
     const aggProps = aggregatePropsList(propsList);
-    const stats = calculateWinnerStats(aggProps);
-    items.push({
-      label: bairro,
-      info: stats.text,
-      color: stats.color
-    });
+
+    // Filter out if no items
+    if (!aggProps) return;
+
+    // Check if there are valid votes for the current turn
+    const cargo = currentCargo;
+    const turnoKey = (currentVizMode.endsWith('_2t') && STATE.dataHas2T[cargo]) ? '2T' : ((currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T');
+    const { totalValidos } = getVotosValidos(aggProps, cargo, turnoKey, STATE.filterInaptos);
+
+    if (totalValidos > 0) {
+      const stats = calculateWinnerStats(aggProps);
+      items.push({
+        label: bairro,
+        info: stats.text,
+        color: stats.color
+      });
+    }
   });
 
   bairroCombobox.setItems(items, "Todos os bairros");
