@@ -111,6 +111,14 @@ let uniqueCidades = new Set();
 let uniqueBairros = new Set();
 let dom = {};
 
+// ====== MULTI-SELECTION GLOBALS ======
+let isSelectorsActive = false;
+let startSelectionPoint = null;
+let selectionBoxElement = null; // DOM Element for the box
+let isDragSelection = false; // Flag to track if last selection was drag
+
+
+
 // ====== UTILS ======
 function getProp(properties, key) {
   if (!properties) return null;
@@ -398,6 +406,9 @@ async function init() {
     console.error("Error in setupSliders:", e);
   }
 
+  // Init Shift+Drag Selector
+  setupBoxSelection();
+
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
 
@@ -405,10 +416,9 @@ function setupControls() {
   // Popular UF Geral
   dom.selectUFGeneral.innerHTML = '<option value="" disabled selected>Selecione UF</option>';
   UF_MAP.forEach((nome, sigla) => {
-    if (sigla === 'BR') return; // Skip Brazil (National)
     const opt = document.createElement('option');
     opt.value = sigla;
-    opt.textContent = `${nome} (${sigla})`;
+    opt.textContent = (sigla === 'BR') ? nome : `${nome} (${sigla})`;
     dom.selectUFGeneral.appendChild(opt);
   });
 
@@ -426,7 +436,10 @@ function setupControls() {
     let disabled = true;
     if (STATE.currentElectionType === 'geral') {
       const uf = dom.selectUFGeneral.value;
-      disabled = !uf;
+      const cargo = currentOffice;
+      disabled = !(cargo === 'presidente' || (uf && uf !== 'BR'));
+      if (cargo === 'presidente' && uf === '') dom.selectUFGeneral.value = 'BR';
+      if (cargo !== 'presidente' && uf === 'BR') dom.selectUFGeneral.value = '';
     } else {
       const uf = dom.selectUFMunicipal.value;
       const municipio = dom.selectMunicipio.value;
@@ -1194,12 +1207,10 @@ async function onClickLoadData_General() {
   const year = STATE.currentElectionYear;
 
   // Validação básica
-  if (!uf) {
-    alert("Por favor, selecione um Estado.");
-    return;
-  }
+  if (!uf && currentOffice !== 'presidente') return;
+  if (currentOffice === 'presidente' && !uf) dom.selectUFGeneral.value = 'BR';
 
-  const ufToLoad = dom.selectUFGeneral.value;
+  const ufToLoad = dom.selectUFGeneral.value || 'BR';
 
   dom.mapLoader.textContent = `Carregando dados de ${ufToLoad} (${year})...`;
   dom.mapLoader.classList.add('visible');
@@ -2386,6 +2397,7 @@ function onFeatureClick(e) {
   }
 
   if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
+  isDragSelection = false; // Is manual click
   updateSelectionUI(false);
 }
 
@@ -2405,6 +2417,177 @@ function clearSelection(updateMap = true) {
   updateNeighborhoodProfileUI();
 
 }
+
+// ====== SHIFT+DRAG SELECTION LOGIC ======
+function setupBoxSelection() {
+  const mapContainer = map.getContainer();
+
+  // Create Visual Box Element
+  selectionBoxElement = document.createElement('div');
+  selectionBoxElement.classList.add('selection-box');
+  mapContainer.appendChild(selectionBoxElement);
+
+  // Note: We use the map container for events to capture drags over the map
+  mapContainer.addEventListener('mousedown', handleMouseDown);
+  window.addEventListener('mousemove', handleMouseMove); // Window to catch drags outside map
+  window.addEventListener('mouseup', handleMouseUp);
+}
+
+function handleMouseDown(e) {
+  // Only activate if SHIFT is pressed
+  if (!e.shiftKey) return;
+
+  // Only Left Click
+  if (e.button !== 0) return;
+
+  isSelectorsActive = true;
+
+  // Disable Map Dragging while selecting to avoid conflicts
+  map.dragging.disable();
+  if (map.boxZoom) map.boxZoom.disable();
+
+  // Get start point relative to container
+  const mapContainer = map.getContainer();
+  const rect = mapContainer.getBoundingClientRect();
+
+  startSelectionPoint = {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+
+  // Reset and Show Box
+  updateSelectionBox(startSelectionPoint.x, startSelectionPoint.y, 0, 0);
+  selectionBoxElement.style.display = 'block';
+
+  // Prevent default text selection
+  e.preventDefault();
+}
+
+function handleMouseMove(e) {
+  if (!isSelectorsActive) return;
+
+  const mapContainer = map.getContainer();
+  const rect = mapContainer.getBoundingClientRect();
+
+  const currentX = e.clientX - rect.left;
+  const currentY = e.clientY - rect.top;
+
+  // Calculate box geometry
+  const x = Math.min(startSelectionPoint.x, currentX);
+  const y = Math.min(startSelectionPoint.y, currentY);
+  const width = Math.abs(currentX - startSelectionPoint.x);
+  const height = Math.abs(currentY - startSelectionPoint.y);
+
+  updateSelectionBox(x, y, width, height);
+}
+
+function handleMouseUp(e) {
+  if (!isSelectorsActive) return;
+
+  isSelectorsActive = false;
+  selectionBoxElement.style.display = 'none';
+
+  // Re-enable Map Dragging
+  map.dragging.enable();
+  if (map.boxZoom) map.boxZoom.enable();
+
+  // Perform Final Selection Logic
+  const mapContainer = map.getContainer();
+  const rect = mapContainer.getBoundingClientRect();
+  const endX = e.clientX - rect.left;
+  const endY = e.clientY - rect.top;
+
+  // If drag was very small, treat as click and let standard Shift+Click handler work? 
+  // Standard Shift+Click is handled by Leaflet layer click.
+  // We should only process BLOCK selection if distance > threshold.
+  const dist = Math.sqrt(Math.pow(endX - startSelectionPoint.x, 2) + Math.pow(endY - startSelectionPoint.y, 2));
+
+  if (dist < 5) {
+    // It was just a click. Leaflet's 'click' event on the layer will handle it.
+    // We do nothing here to avoid double-processing or clearing.
+    // But wait: mousedown preventDefault() might have blocked it?
+    // No, we only prevented default text selection. Leaflet events usually fire.
+    return;
+  }
+
+  // Convert pixel Bounds to LatLng Bounds
+  const b = selectionBoxElement.getBoundingClientRect();
+  // Relative to viewport, but we need points relative to map container for containerPointToLatLng.
+  // Actually, easier: use the start/end points we tracked relative to container.
+
+  const minX = Math.min(startSelectionPoint.x, endX);
+  const maxX = Math.max(startSelectionPoint.x, endX);
+  const minY = Math.min(startSelectionPoint.y, endY);
+  const maxY = Math.max(startSelectionPoint.y, endY);
+
+  const p1 = L.point(minX, minY);
+  const p2 = L.point(maxX, maxY);
+
+  const bounds = L.latLngBounds(
+    map.containerPointToLatLng(p1),
+    map.containerPointToLatLng(p2)
+  );
+
+  // Identify features inside bounds
+  selectFeaturesInBounds(bounds);
+}
+
+function updateSelectionBox(x, y, w, h) {
+  selectionBoxElement.style.left = x + 'px';
+  selectionBoxElement.style.top = y + 'px';
+  selectionBoxElement.style.width = w + 'px';
+  selectionBoxElement.style.height = h + 'px';
+}
+
+function selectFeaturesInBounds(bounds) {
+  if (!currentLayer) return;
+
+  let addedCount = 0;
+
+  currentLayer.eachLayer(layer => {
+    // Check if layer is visible (filtered) is implicitly handled because currentLayer only contains what's active?
+    // Wait, currentLayer contains ALL feature data usually, but `filterFeature` is used at creation or redraw.
+    // Actually currentLayer is usually a GeoJSON layer.
+    // We should check if the feature LatLng is within bounds.
+
+    if (layer.getLatLng) {
+      const latlng = layer.getLatLng();
+      if (bounds.contains(latlng)) {
+        // Check if feature is 'visible' / valid according to current filters?
+        // The map usually only shows filtered features if we rebuild layers on filter.
+        // If `currentLayer` has hidden layers, we need to check visibility.
+        // In this app, `redrawVisibleFeatures` or `applyFiltersAndRedraw` seems to rebuild or style.
+
+        // If the layer is visible on the map (opacity > 0 or added to map)
+        // Simple check: Is it rendered?
+        // Best to just check strict bounds + filter logic if possible.
+        // But existing features in 'currentLayer' ARE the filtered ones if we are efficiently managing layers. 
+        // Let's assume everything in currentLayer is valid candidate unless invisible.
+
+        // Quick fix: Just add it.
+        const id = String(getProp(layer.feature.properties, 'local_id') || getProp(layer.feature.properties, 'nr_locvot'));
+
+        // Toggle behavior or Add behavior? 
+        // "adicione a função onde de para selecionar varios locais" -> selects multiple.
+        // Usually Drag Selection ADDS to selection.
+        // Let's ADD.
+
+        if (id) {
+          selectedLocationIDs.add(id);
+          addedCount++;
+        }
+      }
+    }
+  });
+
+  if (addedCount > 0) {
+    isDragSelection = true;
+    updateSelectionUI(false); // Treat as manual selection
+    // Force style update for newly selected items
+    if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
+  }
+}
+
 
 // Função auxiliar para gerar o texto do título baseado nos filtros ativos
 function getActiveCensusFilterLabel() {
@@ -2455,6 +2638,9 @@ function updateSelectionUI(isFilterAggregation = false) {
 
   if (isFilterAggregation) {
     if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
+  } else {
+    // Also update style for manual selection!
+    if (currentLayer && currentLayer.setStyle) currentLayer.setStyle(getFeatureStyle);
   }
 
   const aggregatedProps = aggregatePropsForSelection(selectedLocationIDs);
@@ -2483,7 +2669,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       dom.resultsSubtitle.textContent = `${bairro} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
-      dom.resultsSubtitle.textContent = 'Seleção manual com Shift+Click';
+      dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
     }
 
     // Esconde comparativo em eleições municipais
@@ -2517,7 +2703,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       dom.resultsSubtitle.textContent = `${nomeCidade} • ${bairro} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
-      dom.resultsSubtitle.textContent = 'Seleção manual com Shift+Click';
+      dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
     }
 
     // --- CORREÇÃO: Exibe o container e Atualiza o ANO do título ---
