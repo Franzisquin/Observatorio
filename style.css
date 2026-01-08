@@ -1367,3 +1367,169 @@ input:disabled {
   pointer-events: none;
   display: none;
 }
+
+/* =========================================
+   MOBILE OPTIMIZATION (RESPONSIVE)
+   ========================================= */
+
+@media (max-width: 768px) {
+
+  /* 1. Layout & Structure */
+  .app {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    height: auto;
+    /* Allow scrolling main page */
+    overflow-y: auto;
+    gap: 10px;
+  }
+
+  html,
+  body {
+    height: auto;
+    /* Unlock height */
+    overflow-x: hidden;
+  }
+
+  /* Map Panel becomes the "Header" visual */
+  #mapPanel {
+    height: 55vh;
+    /* Fixed height for map */
+    min-height: 350px;
+    width: 100%;
+    border-radius: 16px;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+  }
+
+  /* Side Panel becomes standard content execution flow below map */
+  .panel.side {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    /* Space at bottom */
+  }
+
+  .body {
+    padding: 12px;
+    gap: 12px;
+    overflow: visible;
+    /* Allow expanding */
+  }
+
+  /* 2. Controls & Touch Targets */
+  .ctrl label {
+    font-size: 0.9rem;
+    /* Slightly larger for readability */
+    margin-bottom: 4px;
+  }
+
+  .button,
+  .select,
+  .search-input,
+  .combobox-input {
+    min-height: 44px;
+    /* Standard touch target size */
+    font-size: 16px !important;
+    /* Prevent iOS zoom */
+  }
+
+  .chip-button {
+    padding: 8px 14px;
+    font-size: 0.9rem;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
+  .chip-group {
+    gap: 8px;
+  }
+
+  /* 3. Typography & Spacing */
+  .title {
+    font-size: 1.1rem;
+  }
+
+  .head {
+    padding: 12px;
+  }
+
+  .section {
+    padding: 14px;
+  }
+
+  /* 4. Grids & Flex Adjustments */
+  .row {
+    grid-template-columns: 1fr;
+    /* Stack inputs */
+    gap: 12px;
+  }
+
+  .summary-grid,
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    /* Stack summary boxes */
+  }
+
+  /* 5. Modals & Overlays */
+  .info-modal {
+    width: 90%;
+    padding: 20px;
+    max-height: 85vh;
+    overflow-y: auto;
+  }
+
+  .combobox-dropdown {
+    max-height: 200px;
+    font-size: 1rem;
+  }
+
+  .combobox-item {
+    padding: 12px;
+    /* Larger click area */
+  }
+
+  /* 6. Filter & Slider Improvements */
+  .dual-thumb,
+  .simple-slider::-webkit-slider-thumb,
+  .simple-slider::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    /* Larger drag handles */
+  }
+
+  .availability-bar {
+    height: 10px;
+    /* Thicker for visibility */
+  }
+
+  .dual-slider-container {
+    height: 24px;
+    /* More spacing */
+    margin: 15px 0 25px 0;
+  }
+
+  /* 7. Neighborhood Profile */
+  .saneamento-grid {
+    grid-template-columns: 1fr;
+    /* Stack items */
+    gap: 8px;
+  }
+
+  .profile-renda {
+    font-size: 1.2rem;
+  }
+
+  .bar-chart-row {
+    font-size: 0.9rem;
+  }
+
+  /* Hide scrollbars but keep functionality if needed */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+}
