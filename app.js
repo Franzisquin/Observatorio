@@ -514,6 +514,7 @@ function setupControls() {
     if (currentDataCollection[currentCargo] || currentDataCollection[`${currentOffice}_sup`]) {
       // Apenas atualiza a interface, sem loading
       updateElectionTypeUI();
+      populateCidadeDropdown();
       if (currentCidadeFilter !== 'all') populateBairroDropdown();
       updateConditionalUI();
       applyFiltersAndRedraw();
@@ -661,6 +662,8 @@ function setupControls() {
     dom.vizModeChips.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updateVizModeUI();
+    populateCidadeDropdown();
+    if (currentCidadeFilter !== 'all') populateBairroDropdown();
     applyFiltersAndRedraw();
   });
   dom.selectVizSize.addEventListener('change', (e) => {
@@ -2740,6 +2743,7 @@ function handleSummaryGridInteraction(e) {
 
   updateElectionTypeUI();
   updateConditionalUI();
+  populateCidadeDropdown();
   if (currentCidadeFilter !== 'all') populateBairroDropdown();
   applyFiltersAndRedraw();
   updateSelectionUI(STATE.isFilterAggregationActive);
@@ -2828,6 +2832,8 @@ function setupTurnTabs(props) {
     tab.addEventListener('click', () => {
       currentTurno = 1;
       updateSelectionUI(STATE.isFilterAggregationActive);
+      populateCidadeDropdown();
+      populateBairroDropdown();
     });
     dom.turnTabs.appendChild(tab);
   }
@@ -2839,6 +2845,8 @@ function setupTurnTabs(props) {
     tab.addEventListener('click', () => {
       currentTurno = 2;
       updateSelectionUI(STATE.isFilterAggregationActive);
+      populateCidadeDropdown();
+      populateBairroDropdown();
     });
     dom.turnTabs.appendChild(tab);
   }
