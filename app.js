@@ -36,7 +36,7 @@ function getColorForCandidate(nome, partido) {
 const DEFAULT_SWATCH = "#7a8699";
 
 const UF_MAP = new Map([
-  ['BR', 'Brasil (Nacional)'], ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'],
+  ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'],
   ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'],
   ['ES', 'Espírito Santo'], ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'],
   ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'], ['PA', 'Pará'], ['PB', 'Paraíba'],
