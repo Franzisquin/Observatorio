@@ -405,9 +405,10 @@ function setupControls() {
   // Popular UF Geral
   dom.selectUFGeneral.innerHTML = '<option value="" disabled selected>Selecione UF</option>';
   UF_MAP.forEach((nome, sigla) => {
+    if (sigla === 'BR') return; // Skip Brazil (National)
     const opt = document.createElement('option');
     opt.value = sigla;
-    opt.textContent = (sigla === 'BR') ? nome : `${nome} (${sigla})`;
+    opt.textContent = `${nome} (${sigla})`;
     dom.selectUFGeneral.appendChild(opt);
   });
 
@@ -425,10 +426,7 @@ function setupControls() {
     let disabled = true;
     if (STATE.currentElectionType === 'geral') {
       const uf = dom.selectUFGeneral.value;
-      const cargo = currentOffice;
-      disabled = !(cargo === 'presidente' || (uf && uf !== 'BR'));
-      if (cargo === 'presidente' && uf === '') dom.selectUFGeneral.value = 'BR';
-      if (cargo !== 'presidente' && uf === 'BR') dom.selectUFGeneral.value = '';
+      disabled = !uf;
     } else {
       const uf = dom.selectUFMunicipal.value;
       const municipio = dom.selectMunicipio.value;
@@ -1196,10 +1194,12 @@ async function onClickLoadData_General() {
   const year = STATE.currentElectionYear;
 
   // Validação básica
-  if (!uf && currentOffice !== 'presidente') return;
-  if (currentOffice === 'presidente' && !uf) dom.selectUFGeneral.value = 'BR';
+  if (!uf) {
+    alert("Por favor, selecione um Estado.");
+    return;
+  }
 
-  const ufToLoad = dom.selectUFGeneral.value || 'BR';
+  const ufToLoad = dom.selectUFGeneral.value;
 
   dom.mapLoader.textContent = `Carregando dados de ${ufToLoad} (${year})...`;
   dom.mapLoader.classList.add('visible');
