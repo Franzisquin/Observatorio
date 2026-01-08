@@ -782,6 +782,26 @@ function setupControls() {
 
   // Toggle logic replaced by Tabs
   // Filter Inputs OLD REMOVED - NOW HANDLED BY setupSliders()
+
+  // --- GUIDE MODAL LISTENERS ---
+  const btnAppGuide = document.getElementById('btnAppGuide');
+  const guideOverlay = document.getElementById('guideOverlay');
+  const btnCloseGuide = document.getElementById('btnCloseGuide');
+
+  if (btnAppGuide && guideOverlay && btnCloseGuide) {
+    btnAppGuide.addEventListener('click', () => {
+      guideOverlay.classList.add('visible');
+    });
+
+    const closeGuide = () => {
+      guideOverlay.classList.remove('visible');
+    };
+
+    btnCloseGuide.addEventListener('click', closeGuide);
+    guideOverlay.addEventListener('click', (e) => {
+      if (e.target === guideOverlay) closeGuide();
+    });
+  }
 }
 
 // ====== FILTER TABS LOGIC RESTORED ======
