@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Visualizador Eleitoral V. 1.0</title>
+  <title>Visualizador Eleitoral • Otimizado</title>
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -29,7 +29,7 @@
     <div class="panel side">
       <div class="head">
         <div style="display:flex; align-items:center; gap:10px;">
-          <div class="title" id="panelTitle">Visualizador Eleitoral V. 1.0</div>
+          <div class="title" id="panelTitle">Visualizador Eleitoral</div>
           <button id="btnAppGuide" class="button ghost" title="Guia de Uso"
             style="padding: 0; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--accent);">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -458,6 +458,14 @@
         imediato.
       </p>
       <p>
+        É importante ressaltar que, ao somar um estado inteiro, um município ou um bairro, quando é exibido o “perfil da
+        vizinhança” do local, esse perfil não se refere à totalidade da área filtrada.
+        Assim, por exemplo, os dados do município de São Paulo divulgados pelo IBGE não necessariamente coincidirão com
+        os dados apresentados aqui.
+        O que é exibido corresponde à média (e à soma) dos dados demográficos de todos os locais de votação
+        selecionados.
+      </p>
+      <p>
         Há casos específicos em que os locais de votação estão situados em presídios, unidades de internação,
         internatos, Fundação CASA e instituições similares. Por razões evidentes, esses locais não são removidos do
         mapa, sendo possível visualizar seus resultados eleitorais. No entanto, o perfil demográfico da vizinhança
@@ -603,4 +611,3 @@
 </body>
 
 </html>
-
