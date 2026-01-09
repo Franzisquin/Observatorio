@@ -498,16 +498,34 @@
           </li>
         </ul>
 
+        <h4>Modos de Visualização e Cores</h4>
+        <p>
+          O visualizador disponibiliza dois modos de representação cromática para facilitar a análise dos resultados no
+          mapa:
+        </p>
+        <ul>
+          <li><strong>Cor Estática:</strong> Neste modo, os locais de votação são indicados por cores sólidas que
+            correspondem exclusivamente ao partido vencedor naquela seção. O esquema de cores segue o padrão amplamente
+            reconhecido (similar ao utilizado na Wikipédia) para garantir fácil identificação: por exemplo, vitórias do
+            PT são marcadas em vermelho, do PL em azul, e assim sucessivamente.</li>
+          <li><strong>Degradê:</strong> Esta opção oferece uma camada de profundidade à análise, baseada na escala de
+            votos. A cor do ponto continua indicando o partido vencedor, porém a tonalidade varia conforme a intensidade
+            da vitória. Tons mais claros representam vitórias com percentuais menores ou margens estreitas (ex: 30% dos
+            votos), enquanto tons mais escuros e saturados indicam vitórias expressivas ou hegemônicas (ex: 90% dos
+            votos).</li>
+        </ul>
+
         <h4>Abrangência: Eleições Ordinárias e Suplementares</h4>
         <p>
           A ferramenta contempla tanto os pleitos regulares (ordinários) quanto as eleições suplementares (realizadas
           para substituir mandatos cassados ou vacantes).
         </p>
         <p>
-          <em>Exemplo prático:</em> Ao acessar o ano de 2014, o usuário encontrará não apenas a eleição geral daquele
-          ano, mas também dados de pleitos suplementares correlatos, como a eleição para o Governo do Amazonas realizada
-          em 2017 (inserida no ciclo correspondente). O mesmo se aplica a eleições municipais suplementares decorrentes
-          de cassações de prefeitos.
+          <em>Exemplo prático:</em> Ao acessar o ano de 2014, na eleição para governador do estado do Amazonas, o
+          usuário encontrará não apenas a eleição geral daquele ano,
+          mas também dados de pleito suplementar ocorrido em 2017, por motivo da cassação do mandato do governador
+          eleito em 2014 no estado.
+          O mesmo se aplica a eleições municipais suplementares decorrentes de cassações de prefeitos.
         </p>
 
         <h4>Ferramentas de Interação e Filtros</h4>
@@ -539,8 +557,10 @@
         <p><strong>2. A soma total dos votos no site é inferior ao resultado oficial.</strong><br>
           Sim, isso é esperado. O total apresentado no visualizador é a soma exclusiva dos locais de votação mapeados.
           As divergências ocorrem por dois motivos principais:<br>
-          - <strong>Voto no Exterior:</strong> Os votos da diáspora brasileira não estão contemplados no mapa.<br>
-          - <strong>Cobertura:</strong> Aproximadamente 1% a 2% dos locais de votação ainda não foram georreferenciados.
+          - <strong>Voto no Exterior:</strong> Os votos da diáspora brasileira não estão contemplados no mapa. (no caso
+          das eleições presidenciais)<br>
+          - <strong>Cobertura:</strong> Aproximadamente 1% a 2% dos locais de votação ainda não foram georreferenciados,
+          então obviamente há eleições com votos a menos.
           O objetivo é reduzir essa margem em atualizações futuras.</p>
 
         <p><strong>3. Por que não há resultados da eleição suplementar para o Governo do Tocantins (2018)?</strong><br>
