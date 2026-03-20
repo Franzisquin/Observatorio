@@ -524,22 +524,7 @@ body {
   opacity: 0.8;
 }
 
-.cand[data-status="ELEITO"] {
-  border-right: 3px solid var(--ok);
-}
 
-.cand[data-status="2° TURNO"] {
-  border-right: 3px solid var(--warn);
-}
-
-.cand[data-status="NÃO ELEITO"] {
-  border-right: 3px solid var(--err);
-}
-
-.cand[data-status="INAPTO"] {
-  border-right: 3px solid var(--err);
-  border-style: dashed;
-}
 
 .toolbar {
   display: flex;
