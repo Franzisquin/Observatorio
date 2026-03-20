@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Observatório</title>
+    <meta name="description" content="Observatório — plataforma de análise eleitoral e dados políticos do Brasil." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Abril+Fatface&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="landing.css" />
+</head>
+
+<body>
+
+    <!-- STICKY NAVBAR -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-container">
+            <a href="/" class="nav-logo">Observatório</a>
+            <div class="nav-links">
+                <a href="eleicoes.html" class="nav-link">Mapa Eleitoral</a>
+                <a href="#ferramentas" class="nav-link">Ferramentas</a>
+                <a href="#sobre" class="nav-link">Sobre</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION — DARK -->
+    <section class="hero">
+        <div class="hero-bg">
+            <img src="hero_art.png" alt="" class="hero-bg-img" />
+            <div class="hero-overlay"></div>
+        </div>
+        <div class="hero-content">
+            <p class="hero-eyebrow">Análise política baseada em dados</p>
+            <h1 class="hero-title">Observatório</h1>
+            <p class="hero-subtitle">A ferramenta mais completa para visualizar os dados que moldam a democracia
+                brasileira</p>
+            <div class="hero-actions">
+                <a href="eleicoes.html" class="btn btn-gradient">Explorar o mapa</a>
+                <a href="#ferramentas" class="btn btn-ghost">Ver ferramentas</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES / TOOLS — WHITE -->
+    <section class="section section-white" id="ferramentas">
+        <div class="container">
+            <p class="section-eyebrow">Ferramentas</p>
+            <h2 class="section-title">Tudo que você precisa em um só lugar</h2>
+            <div class="features-grid">
+
+                <a href="eleicoes.html" class="feature-card" id="card-eleicoes">
+                    <div class="feature-icon icon-blue">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                            <circle cx="12" cy="10" r="3" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Eleições anteriores</h3>
+                    <p class="feature-desc">Explore resultados eleitorais de 2006 a 2024 com mapas interativos ponto a
+                        ponto, por local de votação, município e bairro.</p>
+                    <span class="feature-cta">Acessar →</span>
+                </a>
+
+                <div class="feature-card" id="card-simulador">
+                    <div class="feature-icon icon-green">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 20V10" />
+                            <path d="M18 20V4" />
+                            <path d="M6 20v-4" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Simulador de cenários</h3>
+                    <p class="feature-desc">Monte cenários hipotéticos de corridas presidenciais e estaduais com base em
+                        dados demográficos e padrões históricos.</p>
+                    <span class="feature-cta soon">Em breve</span>
+                </div>
+
+                <div class="feature-card" id="card-agregador">
+                    <div class="feature-icon icon-orange">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="20" x2="18" y2="10" />
+                            <line x1="12" y1="20" x2="12" y2="4" />
+                            <line x1="6" y1="20" x2="6" y2="14" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Agregador de pesquisas</h3>
+                    <p class="feature-desc">Pesquisas eleitorais compiladas e ponderadas, com médias móveis e
+                        visualização de tendências em tempo real.</p>
+                    <span class="feature-cta soon">Em breve</span>
+                </div>
+
+                <div class="feature-card" id="card-nowcast">
+                    <div class="feature-icon icon-purple">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Nowcast</h3>
+                    <p class="feature-desc">Projeções em tempo real do cenário eleitoral com modelos estatísticos
+                        atualizados diariamente.</p>
+                    <span class="feature-cta soon">Em breve</span>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- ABOUT — SOFT BG -->
+    <section class="section section-soft" id="sobre">
+        <div class="container container-narrow">
+            <p class="section-eyebrow">Sobre o projeto</p>
+            <h2 class="section-title">Dados abertos, análise independente</h2>
+            <p class="about-text">
+                O <strong>Observatório</strong> é uma plataforma independente dedicada à análise aprofundada da política
+                brasileira. Reunimos dados eleitorais históricos desde 2006, ferramentas de simulação de cenários,
+                agregação de pesquisas e projeções em tempo real — tudo em um só lugar, com visualizações interativas e
+                acessíveis a qualquer cidadão interessado em compreender a democracia do Brasil.
+            </p>
+            <p class="about-text">
+                Inspirado por plataformas como <em>FiveThirtyEight</em>, <em>270toWin</em> e <em>Redistricter</em>,
+                o projeto busca trazer o mesmo nível de sofisticação analítica para o contexto brasileiro, cobrindo
+                mais de 90 mil locais de votação em todo o território nacional.
+            </p>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <span class="footer-logo">Observatório</span>
+                    <p class="footer-tagline">Análise eleitoral brasileira</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Ferramentas</h4>
+                    <a href="eleicoes.html">Mapa Eleitoral</a>
+                    <a href="#">Simulador</a>
+                    <a href="#">Agregador</a>
+                    <a href="#">Nowcast</a>
+                </div>
+                <div class="footer-col">
+                    <h4>Contato</h4>
+                    <a href="https://x.com/luizdaniel__" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+                    <a href="mailto:medeirosld28@gmail.com">E-mail</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <span>&copy; 2025 Observatório. Dados abertos, análise independente.</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Sticky navbar background on scroll
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 40);
+        });
+    </script>
+
+</body>
+
+</html>
