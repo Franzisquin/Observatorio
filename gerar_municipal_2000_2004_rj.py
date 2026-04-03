@@ -66,7 +66,7 @@ def get_party_from_number():
 
 
 def get_candidate_parties_munzona(year):
-    """Carrega mapeamento candidato->partido do votacao_candidato_munzona."""
+    """Carrega mapeamento candidato->partido e nome de urna do votacao_candidato_munzona."""
     parties = {}
     munzona_path = os.path.join(DADOS_DIR, f'votacao_candidato_munzona_{year}.zip')
     if not os.path.exists(munzona_path):
@@ -76,30 +76,21 @@ def get_candidate_parties_munzona(year):
     for name in zf.namelist():
         if not (name.endswith('.csv') or name.endswith('.txt')):
             continue
+        if 'RJ' not in name.upper():
+            continue
         try:
-            df = pd.read_csv(zf.open(name), sep=';', encoding='latin-1', on_bad_lines='skip')
-            candidato_col = partido_col = uf_col = cargo_col = None
-            for c in df.columns:
-                cu = c.upper()
-                if 'NM_VOTAVEL' in cu or 'NM_CANDIDATO' in cu:
-                    candidato_col = c
-                if 'SG_PARTIDO' in cu:
-                    partido_col = c
-                if 'SG_UF' in cu:
-                    uf_col = c
-                if 'DS_CARGO' in cu:
-                    cargo_col = c
-            
-            if candidato_col and partido_col:
-                if uf_col:
-                    df = df[df[uf_col] == 'RJ']
-                if cargo_col:
-                    df = df[df[cargo_col].str.upper().str.contains('PREFEITO', na=False)]
-                for _, row in df.drop_duplicates([candidato_col]).iterrows():
-                    parties[row[candidato_col]] = row[partido_col]
-                print(f"    Partidos de {name}: {len(parties)} candidatos")
-                return parties
-        except Exception:
+            # Arquivos antigos não possuem header, posições: 13(Nome Completo), 14(Nome Urna), 15(Cargo), 23(Sigla Partido)
+            df = pd.read_csv(zf.open(name), sep=';', encoding='latin-1', header=None, on_bad_lines='skip', dtype=str)
+            df_pref = df[df[15].str.upper().str.contains('PREFEITO', na=False)]
+            for _, row in df_pref.drop_duplicates([13]).iterrows():
+                full_name = str(row[13]).strip()
+                urn_name = str(row[14]).strip() if pd.notna(row[14]) else full_name
+                partido = str(row[23]).strip()
+                parties[full_name] = {'urna': urn_name, 'partido': partido}
+            print(f"    Partidos/Urna de {name}: {len(parties)} candidatos")
+            return parties
+        except Exception as e:
+            print(f"    Erro lendo {name}: {e}")
             continue
     return parties
 
@@ -128,7 +119,7 @@ def get_candidate_parties_from_nr(year):
             if nr_partido < 10:
                 nr_partido = nr
             partido = nr_to_party.get(nr_partido, f'P{nr_partido}')
-            parties[row['NM_VOTAVEL']] = partido
+            parties[row['NM_VOTAVEL']] = {'urna': row['NM_VOTAVEL'], 'partido': partido}
         
         print(f"    Partidos via numero: {len(parties)} candidatos")
     except Exception as e:
@@ -178,6 +169,39 @@ def build_geojson_for_year(year, locations_2006, section_to_local=None):
         lv = int(p['nr_locvot'])
         loc_by_key[(z, lv)] = feat
     
+    # Get canonical municipality names to fix accents and spelling
+    import unicodedata
+    def clean_name(s):
+        return ''.join(c for c in unicodedata.normalize('NFD', str(s)) if unicodedata.category(c) != 'Mn').upper().replace(' ', '')
+    
+    lista_path = os.path.join(SITE_DIR, 'lista_municipios.json')
+    canon_muns = []
+    if os.path.exists(lista_path):
+        with open(lista_path, 'r', encoding='utf-8') as f:
+            lista = json.load(f)
+            canon_muns = lista.get('RJ', [])
+    
+    def map_mun(raw):
+        norm_raw = clean_name(raw)
+        for canon in canon_muns:
+            if norm_raw == clean_name(canon):
+                return canon
+        
+        # Hardcoded spelling differences
+        fix_map = {
+            'ARMACAODEBUZIOS': 'ARMAÇÃO DOS BÚZIOS',
+            'CAMPOS': 'CAMPOS DOS GOYTACAZES',
+            'PATIDOALFERES': 'PATY DO ALFERES',
+            'TRAJANODEMORAIS': 'TRAJANO DE MORAES',
+            'VARREESAI': 'VARRE-SAI',
+            'PARATI': 'PARATY'
+        }
+        if norm_raw in fix_map:
+            return fix_map[norm_raw]
+        return raw
+
+    df['NM_MUNICIPIO'] = df['NM_MUNICIPIO'].apply(map_mun)
+
     # Agrupar por municipio
     municipios = df['NM_MUNICIPIO'].unique()
     print(f"  Municipios com dados: {len(municipios)}")
@@ -216,19 +240,22 @@ def build_geojson_for_year(year, locations_2006, section_to_local=None):
                 elif nm_votavel in ('VOTO NULO', 'VOTO ANULADO'):
                     local_data[key]['nulos'] += votos
                 else:
-                    # Get partido
-                    partido = candidate_parties.get(nm_votavel, None)
-                    if not partido:
+                    partido_info = candidate_parties.get(nm_votavel, None)
+                    if not partido_info:
                         # Derive from number
                         nr_p = nr_votavel
                         while nr_p >= 100:
                             nr_p = nr_p // 10
                         partido = get_party_from_number().get(nr_p, f'P{nr_p}')
+                        urna = str(nm_votavel).title()
+                    else:
+                        partido = partido_info['partido']
+                        urna = str(partido_info['urna']).title()
                     
                     # Build candidate display key: "NOME (PARTIDO) (STATUS) {turno_label}"
                     # Status = ELEITO, NAO ELEITO, 2 TURNO - we don't know from section data
                     # So we'll use a simpler format
-                    cand_key = f"{nm_votavel} ({partido})"
+                    cand_key = f"{urna} ({partido})"
                     
                     if cand_key not in local_data[key]['candidates']:
                         local_data[key]['candidates'][cand_key] = 0

@@ -322,44 +322,22 @@ def get_candidate_parties(year, uf):
         try:
             zf = zipfile.ZipFile(munzona_path)
             for name in zf.namelist():
-                if name.endswith('.csv') or name.endswith('.txt'):
-                    try:
-                        df = pd.read_csv(zf.open(name), sep=';', encoding='latin-1',
-                                        on_bad_lines='skip')
-                        # Colunas podem variar
-                        candidato_col = None
-                        partido_col = None
-                        uf_col = None
-                        cargo_col = None
-                        
-                        for c in df.columns:
-                            cu = c.upper()
-                            if 'NM_VOTAVEL' in cu or 'NM_CANDIDATO' in cu:
-                                candidato_col = c
-                            if 'SG_PARTIDO' in cu:
-                                partido_col = c
-                            if 'SG_UF' in cu:
-                                uf_col = c
-                            if 'DS_CARGO' in cu or 'CD_CARGO' in cu:
-                                cargo_col = c
-                        
-                        if candidato_col and partido_col:
-                            # Filtrar por UF se possível
-                            if uf_col:
-                                df = df[df[uf_col] == uf]
-                            # Filtrar por Prefeito se possivel
-                            if cargo_col:
-                                if 'DS_CARGO' in cargo_col.upper():
-                                    df = df[df[cargo_col].str.upper().str.contains('PREFEITO', na=False)]
-                                elif 'CD_CARGO' in cargo_col.upper():
-                                    df = df[df[cargo_col] == 11]  # Código padrão de prefeito
-                            
-                            for _, row in df.drop_duplicates([candidato_col]).iterrows():
-                                parties[row[candidato_col]] = row[partido_col]
-                            print(f"    Partidos carregados de {name}: {len(parties)} candidatos")
-                            return parties
-                    except Exception as e:
+                if not (name.endswith('.csv') or name.endswith('.txt')):
+                    continue
+                if uf and f'_{uf}.' not in name.upper() and not name.upper().startswith(uf):
+                    if uf == 'RJ' and 'RJ' not in name.upper():
                         continue
+                try:
+                    df = pd.read_csv(zf.open(name), sep=';', encoding='latin-1', header=None, on_bad_lines='skip', dtype=str)
+                    df_pref = df[df[15].str.upper().str.contains('PREFEITO', na=False)]
+                    for _, row in df_pref.drop_duplicates([13]).iterrows():
+                        full_name = str(row[13]).strip()
+                        partido = str(row[23]).strip()
+                        parties[full_name] = partido
+                    print(f"    Partidos carregados de {name}: {len(parties)} candidatos")
+                    return parties
+                except Exception as e:
+                    continue
         except Exception as e:
             print(f"    Erro lendo {munzona_path}: {e}")
     
