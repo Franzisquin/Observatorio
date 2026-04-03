@@ -353,6 +353,15 @@ def build_geojson_for_year(year, locations_2006, section_to_local=None):
                 'ID_UNICO': loc_props.get('ID_UNICO'),
             }
             
+            # Copiar dados demográficos da base de 2006
+            for k, v in loc_props.items():
+                if ('Pct' in k) or ('Renda' in k) or ('Alfabe' in k):
+                    # Ensure numeric
+                    try:
+                        props[k] = float(v) if v is not None else None
+                    except (ValueError, TypeError):
+                        props[k] = v
+            
             for turno_nr, local_data in sorted(turnos_data.items()):
                 turno_label = f"{turno_nr}T"
                 if loc_key not in local_data:
