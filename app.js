@@ -24,6 +24,13 @@ const PARTY_COLORS = new Map(Object.entries({
   'PRD': '#007c3c', 'SD': '#f37021', 'PRONA': '#34b233', 'PRP': '#006db8', 'PMB': '#8e2a4e', 'Agir': '#9370db'
 }));
 
+const PARTY_ACRONYMS = new Map(Object.entries({
+  'SOLIDARIEDADE': 'SD',
+  'REPUBLICANOS': 'REP',
+  'PATRIOTA': 'PATRI',
+  'CIDADANIA': 'CID'
+}));
+
 const CUSTOM_CANDIDATE_COLORS = new Map();
 
 function getColorForCandidate(nome, partido) {
@@ -100,10 +107,6 @@ const STATE = {
     // Idade
     idadeVal: null,
     idadeMode: 'Idosos (60+)',
-
-    // Gênero
-    generoVal: null,
-    generoMode: 'Pct Mulheres',
 
     // Saneamento
     saneamentoVal: null,
@@ -365,7 +368,6 @@ async function init() {
   dom.profileSaneamentoChart = document.getElementById('profileSaneamentoChart');
   dom.profileAlfabetizacaoBar = document.getElementById('profileAlfabetizacaoBar');
   dom.profileAlfabetizacaoVal = document.getElementById('profileAlfabetizacaoVal');
-  dom.profileGeneroChart = document.getElementById('profileGeneroChart');
 
   // Census Filters DOM
   dom.selectDemoCategory = document.getElementById('selectDemoCategory');
@@ -476,6 +478,13 @@ function setupControls() {
       dom.selectMunicipio.disabled = true;
       dom.searchMunicipio.disabled = true;
       dom.searchMunicipio.value = '';
+      
+      // Hide RJ-specific years and reset to 2024 if needed
+      dom.selectYearMunicipal.querySelectorAll('.year-rj-only').forEach(opt => opt.style.display = 'none');
+      if (dom.selectYearMunicipal.value === '2000' || dom.selectYearMunicipal.value === '2004') {
+        dom.selectYearMunicipal.value = '2024';
+        STATE.currentElectionYear = '2024';
+      }
     }
   });
 
@@ -544,12 +553,21 @@ function setupControls() {
       const btn = e.target.closest('.chip-button');
       if (!btn) return;
 
+      // O botão TEMP tem seu próprio listener, ignorar aqui
+      if (btn.dataset.value === 'TEMP') return;
+
       const newTurno = parseInt(btn.dataset.value);
-      if (newTurno === currentTurno) return;
+      if (newTurno === currentTurno && currentSubType === 'ord') return;
 
       // Atualiza UI
       dom.turnoChips.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+
+      // Se estava no TEMP (suplementar/simulado), volta para ordinária
+      if (currentSubType === 'sup') {
+        currentSubType = 'ord';
+        currentCargo = `${currentOffice}_${currentSubType}`;
+      }
 
       // Atualiza Estado
       currentTurno = newTurno;
@@ -568,6 +586,26 @@ function setupControls() {
   dom.selectUFMunicipal.addEventListener('change', () => {
     const uf = dom.selectUFMunicipal.value;
     const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
+
+    // Lógica para mostrar anos exclusivos do RJ (2000, 2004)
+    const yearOptions = dom.selectYearMunicipal.querySelectorAll('.year-rj-only');
+    let needsYearReset = false;
+    yearOptions.forEach(opt => {
+      if (uf === 'RJ') {
+        opt.style.display = ''; // Mostra
+      } else {
+        opt.style.display = 'none'; // Esconde
+        // Se estava selecionado um ano que agora foi escondido, volta pro padrão (2024)
+        if (dom.selectYearMunicipal.value === opt.value) {
+          needsYearReset = true;
+        }
+      }
+    });
+    
+    if (needsYearReset) {
+      dom.selectYearMunicipal.value = "2024";
+      STATE.currentElectionYear = "2024";
+    }
 
     dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Município</option>';
     municipios.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
@@ -809,7 +847,7 @@ function setupTabs() {
   }
 
   // Lista explícita dos IDs de conteúdo do Censo
-  const censusIds = ['tab-renda', 'tab-raca', 'tab-idade', 'tab-genero', 'tab-saneamento'];
+  const censusIds = ['tab-renda', 'tab-raca', 'tab-idade', 'tab-saneamento'];
 
   dom.selectDemoCategory.addEventListener('change', (e) => {
     const targetId = e.target.value;
@@ -966,7 +1004,6 @@ function setupSliders() {
 
   setupDynamicFilter('sliderRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
   setupDynamicFilter('sliderIdosos', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
-  setupDynamicFilter('sliderGenero', 'selectGenero', 'dispGenero', 'valDispGenero', 'generoVal', 'generoMode');
   setupDynamicFilter('sliderSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
 }
 
@@ -991,8 +1028,7 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
 
   const sums = {
     'Pct Branca': 0, 'Pct Preta': 0, 'Pct Parda': 0, 'Pct Amarela': 0, 'Pct Indigena': 0,
-    'Pct Esgoto Rede Geral': 0, 'Pct Fossa Septica': 0, 'Pct Esgoto Inadequado': 0,
-    'Pct Homens': 0, 'Pct Mulheres': 0
+    'Pct Esgoto Rede Geral': 0, 'Pct Fossa Septica': 0, 'Pct Esgoto Inadequado': 0
   };
   const ageSums = {
     '16 - 24': 0, '25 - 34': 0, '35 - 44': 0, '45 - 59': 0,
@@ -1052,7 +1088,6 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
     dom.profileRacaChart.innerHTML = "";
     dom.profileIdadeChart.innerHTML = "";
     dom.profileSaneamentoChart.innerHTML = "";
-    dom.profileGeneroChart.innerHTML = "";
     dom.profileAlfabetizacaoVal.textContent = "--%";
     dom.profileAlfabetizacaoBar.style.width = "0%";
     return;
@@ -1089,12 +1124,6 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
           ${renderBar('Preta', sums['Pct Preta'], count)}
           ${renderBar('Amarela', sums['Pct Amarela'], count)}
           ${renderBar('Indígena', sums['Pct Indigena'], count)}
-       `;
-
-  // Render Gender
-  dom.profileGeneroChart.innerHTML = `
-          ${renderBar('Homens', sums['Pct Homens'], count)}
-          ${renderBar('Mulheres', sums['Pct Mulheres'], count)}
        `;
 
   // Render Idade (Novas Faixas)
@@ -1159,7 +1188,11 @@ function updateApplyButtonText() {
 function updateConditionalUI() {
   // Show/Hide Turno Selector
   if (dom.turnoContainer) {
-    if (STATE.dataHas2T[currentCargo]) {
+    const hasTurno = STATE.dataHas2T[currentCargo];
+    const hasSimulated = currentDataCollection[`${currentOffice}_sup`]
+      && STATE.currentElectionType === 'geral';
+
+    if (hasTurno || hasSimulated) {
       dom.turnoContainer.classList.remove('section-hidden');
     } else {
       dom.turnoContainer.classList.add('section-hidden');
@@ -1171,6 +1204,37 @@ function updateConditionalUI() {
           });
         }
       }
+    }
+
+    // --- TEMP CHIP: Adiciona/remove botão de simulação ao lado dos turnos ---
+    const existingTemp = dom.turnoChips?.querySelector('.chip-button[data-value="TEMP"]');
+    if (existingTemp) existingTemp.remove();
+
+    if (hasSimulated && dom.turnoChips) {
+      const btnTemp = document.createElement('button');
+      btnTemp.className = 'chip-button';
+      btnTemp.dataset.value = 'TEMP';
+      btnTemp.textContent = '⚗️ Simulação';
+      btnTemp.style.borderColor = '#f59e0b';
+      btnTemp.style.color = currentTurno === 'TEMP' ? '#000' : '';
+      if (currentTurno === 'TEMP') btnTemp.classList.add('active');
+      btnTemp.addEventListener('click', () => {
+        // Desativa todos os chips de turno
+        dom.turnoChips.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
+        btnTemp.classList.add('active');
+
+        // Troca para os dados suplementares (simulados)
+        currentTurno = 1; // O arquivo simulado usa sufixo 1T
+        currentSubType = 'sup';
+        currentCargo = `${currentOffice}_${currentSubType}`;
+        STATE.selectedCandidateMap = null;
+
+        updateSelectionUI(STATE.isFilterAggregationActive);
+        populateCidadeDropdown();
+        if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
+        applyFiltersAndRedraw();
+      });
+      dom.turnoChips.appendChild(btnTemp);
     }
   }
 
@@ -1204,6 +1268,12 @@ function updateElectionTypeUI() {
     btnSup.className = 'chip-button' + (currentSubType === 'sup' ? ' active' : '');
     btnSup.dataset.type = 'sup';
     btnSup.textContent = 'Suplementar';
+
+    // Rotular como "Simulação" para o cenário fictício SC 2022 Governador
+    const ufSel = dom.selectUFGeneral ? dom.selectUFGeneral.value : '';
+    if (ufSel === 'SC' && STATE.currentElectionYear === '2022' && currentOffice === 'governador') {
+      btnSup.textContent = '⚗️ Simulação';
+    }
     dom.cargoChipsMunicipal.appendChild(btnSup);
 
     // ESTA LINHA É CRUCIAL: Faz a caixa aparecer
@@ -1720,8 +1790,7 @@ function mergeCensusData(electionData, censusData) {
       const keysToMerge = [
         'Renda Media', 'Pct Alfabetizados',
         'Pct Esgoto Rede Geral', 'Pct Fossa Septica', 'Pct Esgoto Inadequado',
-        'Pct Branca', 'Pct Preta', 'Pct Parda', 'Pct Amarela', 'Pct Indigena',
-        'Pct Homens', 'Pct Mulheres'
+        'Pct Branca', 'Pct Preta', 'Pct Parda', 'Pct Amarela', 'Pct Indigena'
       ];
       // Idades: Pct X a Y anos
       for (const k in censusProps) {
@@ -2051,47 +2120,8 @@ function applyFiltersAndRedraw() {
   // Se tiver mais de 50.000 pontos, ativamos o modo "Enquadramento"
   const isHeavyData = geojson.features.length > 50000;
 
-  // --- PRÉ-CÁLCULO DE MIN/MAX PARA CORES DINÂMICAS ---
-  let minPct = Infinity;
-  let maxPct = -Infinity;
-  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
-
-  for (let f of geojson.features) {
-    if (filterFeature(f)) {
-      const props = f.properties;
-      const { totalValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
-      let pct = 0;
-
-      if (!STATE.selectedCandidateMap) {
-        const candidatos = STATE.candidates[currentCargo]?.[turnoKey] || [];
-        const allVotos = candidatos.map(key => {
-          if (STATE.filterInaptos && (STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key)) return -1;
-          return ensureNumber(getProp(props, key));
-        }).filter(v => v >= 0).sort((a, b) => b - a);
-
-        let votos1 = allVotos.length > 0 ? allVotos[0] : 0;
-        let votos2 = allVotos.length > 1 ? allVotos[1] : 0;
-
-        if (totalValidos > 0) {
-          pct = ((votos1 - votos2) / totalValidos) * 100;
-        }
-      } else {
-        const candidato = STATE.selectedCandidateMap;
-        const votosCand = ensureNumber(getProp(props, candidato));
-        pct = (totalValidos > 0) ? (votosCand / totalValidos) * 100 : 0;
-      }
-
-      if (pct < minPct) minPct = pct;
-      if (pct > maxPct) maxPct = pct;
-    }
-  }
-
-  if (minPct === Infinity) minPct = 0;
-  if (maxPct === -Infinity) maxPct = 0;
-  if (maxPct === minPct) { maxPct = minPct + 0.001; } // Evita divisão por zero
-
-  STATE.currentMinPct = minPct;
-  STATE.currentMaxPct = maxPct;
+  // --- PRÉ-CÁLCULO DE MIN/MAX REMOVIDO EM FAVOR DE ESCALA FIXA (0-50%) ---
+  // A cor agora usa intensidade de margem fixa na função getFeatureStyle.
   // ----------------------------------------------------
 
   if (isHeavyData) {
@@ -2262,7 +2292,6 @@ function filterFeature(feature) {
   };
 
   if (!checkSimple(STATE.censusFilters.racaVal, STATE.censusFilters.racaMode)) return false;
-  if (!checkSimple(STATE.censusFilters.generoVal, STATE.censusFilters.generoMode)) return false;
   if (!checkSimple(STATE.censusFilters.saneamentoVal, STATE.censusFilters.saneamentoMode)) return false;
 
   if (STATE.censusFilters.idadeVal !== null) {
@@ -2337,12 +2366,16 @@ function getFeatureStyle(feature) {
     }
   }
 
-  // 2. Aplicar degradê dinâmico (com base no min/max da view atual)
-  const minP = STATE.currentMinPct || 0;
-  const maxP = STATE.currentMaxPct || (minP + 0.001);
-  const relativePct = ((pctVal - minP) / (maxP - minP)) * 100;
+  // 2. Aplicar degradê fixo (0 a 50%+ de margem)
+  // pctVal já é a margem em pontos percentuais (ou percentual nominal do candidato)
+  let marginIntensity = pctVal; // 0 a 100
+  if (marginIntensity > 50) marginIntensity = 50;
+  if (marginIntensity < 0) marginIntensity = 0;
+  
+  // Transform margin (0-50) into a percentage (0-100) for the gradient function
+  const fixedRelativePct = (marginIntensity / 50) * 100;
 
-  fillColor = getUniversalGradientColor(fillColor, relativePct);
+  fillColor = getUniversalGradientColor(fillColor, fixedRelativePct);
   fillOpacity = 0.8;
 
 
@@ -2685,12 +2718,6 @@ function getActiveCensusFilterLabel() {
     return `Idade ${f.idadeMode}: Acima de ${f.idadeVal}% dos moradores`;
   }
 
-  // 4. Filtro de Gênero
-  if (f.generoVal > 0) {
-    const label = f.generoMode.replace('Pct ', ''); // "Mulheres" ou "Homens"
-    return `Gênero (${label}): Acima de ${f.generoVal}%`;
-  }
-
   // 5. Filtro de Saneamento
   if (f.saneamentoVal > 0) {
     const label = f.saneamentoMode.replace('Pct ', '');
@@ -2869,7 +2896,7 @@ function renderResultsPanel(props, cargo) {
 
     div.style.cursor = 'pointer';
     div.onclick = (e) => {
-      if (e.target.closest('.swatch') || e.target.tagName === 'INPUT') return;
+      if (e.target.closest('.swatch') || e.target.closest('.cand-indicator') || e.target.tagName === 'INPUT') return;
       STATE.selectedCandidateMap = (STATE.selectedCandidateMap === r.key) ? null : r.key;
       applyFiltersAndRedraw();
       renderResultsPanel(props, cargo);
@@ -2877,6 +2904,7 @@ function renderResultsPanel(props, cargo) {
 
     const sw = getColorForCandidate(r.nome, r.partido);
     const safeId = 'color-' + btoa(unescape(encodeURIComponent(r.nome))).replace(/=/g, '');
+    let displayParty = PARTY_ACRONYMS.get((r.partido || '').toUpperCase()) || r.partido;
 
     div.innerHTML = `
       <div class="cand-indicator" style="background:${sw}" 
@@ -2888,7 +2916,7 @@ function renderResultsPanel(props, cargo) {
         <div class="cand-name" title="${r.nome}">
           <span class="scroll-text">${r.nome}</span>
         </div>
-        <div class="cand-party" title="${r.partido}">${r.partido}</div>
+        <div class="cand-party" title="${r.partido}">${displayParty}</div>
       </div>
       <div class="cand-bar-wrapper">
         <div class="cand-bar-fill" style="background:${sw}; width: ${r.pct * 100}%;"></div>
@@ -2929,7 +2957,6 @@ function updateAvailabilityBars(geojson) {
   let minRenda = 999999, maxRenda = -1;
   let minRaca = 101, maxRaca = -1;
   let minIdade = 101, maxIdade = -1;
-  let minGenero = 101, maxGenero = -1;
   let minSaneamento = 101, maxSaneamento = -1;
 
   let hasData = false;
@@ -2944,7 +2971,6 @@ function updateAvailabilityBars(geojson) {
 
   // Capture current modes once
   const mRaca = STATE.censusFilters.racaMode;
-  const mGenero = STATE.censusFilters.generoMode;
   const mSaneamento = STATE.censusFilters.saneamentoMode;
   const mIdade = STATE.censusFilters.idadeMode;
 
@@ -2976,11 +3002,6 @@ function updateAvailabilityBars(geojson) {
     if (rac < minRaca) minRaca = rac;
     if (rac > maxRaca) maxRaca = rac;
 
-    // Gênero
-    const gen = ensureNumber(getProp(p, mGenero));
-    if (gen < minGenero) minGenero = gen;
-    if (gen > maxGenero) maxGenero = gen;
-
     // Saneamento
     const san = ensureNumber(getProp(p, mSaneamento));
     if (san < minSaneamento) minSaneamento = san;
@@ -2997,7 +3018,6 @@ function updateAvailabilityBars(geojson) {
     setBar('availRenda', 0, 0, 10000);
     setBar('availRaca', 0, 0, 100);
     setBar('availIdade', 0, 0, 100);
-    setBar('availGenero', 0, 0, 100);
     setBar('availSaneamento', 0, 0, 100);
     return;
   }
@@ -3006,14 +3026,12 @@ function updateAvailabilityBars(geojson) {
   if (minRenda > maxRenda) { minRenda = 0; maxRenda = 0; }
   if (minRaca > maxRaca) { minRaca = 0; maxRaca = 0; }
   if (minIdade > maxIdade) { minIdade = 0; maxIdade = 0; }
-  if (minGenero > maxGenero) { minGenero = 0; maxGenero = 0; }
   if (minSaneamento > maxSaneamento) { minSaneamento = 0; maxSaneamento = 0; }
 
   // Update Bars
   setBar('availRenda', minRenda, maxRenda, 10000);
   setBar('availRaca', minRaca, maxRaca, 100);
   setBar('availIdade', minIdade, maxIdade, 100);
-  setBar('availGenero', minGenero, maxGenero, 100);
   setBar('availSaneamento', minSaneamento, maxSaneamento, 100);
 }
 

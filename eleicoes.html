@@ -111,6 +111,8 @@
                 <option value="2016">2016</option>
                 <option value="2012">2012</option>
                 <option value="2008">2008</option>
+                <option value="2004" class="year-rj-only" style="display:none;">2004 (só RJ)</option>
+                <option value="2000" class="year-rj-only" style="display:none;">2000 (só RJ)</option>
               </select>
             </div>
             <div class="ctrl">
@@ -188,7 +190,7 @@
                 <option value="tab-renda" selected>Renda</option>
                 <option value="tab-raca">Cor/Raça</option>
                 <option value="tab-idade">Idade</option>
-                <option value="tab-genero">Gênero</option>
+
                 <option value="tab-saneamento">Saneamento</option>
               </select>
             </div>
@@ -259,25 +261,6 @@
               </div>
             </div>
 
-            <!-- GÊNERO TAB -->
-            <div class="tab-content hidden" id="tab-genero">
-              <div class="slider-box">
-                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
-                  <select id="selectGenero" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
-                    <option value="Pct Mulheres" selected>Mulheres</option>
-                    <option value="Pct Homens">Homens</option>
-                  </select>
-                  <span class="slider-value" id="dispGenero">0%</span>
-                </div>
-                <div class="slider-wrapper">
-                  <div class="availability-bar" id="availGenero"></div>
-                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderGenero">
-                </div>
-                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
-                  Maior que <span id="valDispGenero">0%</span>
-                </small>
-              </div>
-            </div>
 
             <!-- SANEAMENTO TAB -->
             <div class="tab-content hidden" id="tab-saneamento">
@@ -373,10 +356,7 @@
                 <h4>Demografia (Raça/Cor)</h4>
                 <div id="profileRacaChart"></div>
               </div>
-              <div class="profile-section">
-                <h4>Gênero</h4>
-                <div id="profileGeneroChart"></div>
-              </div>
+
               <div class="profile-section">
                 <h4>Faixa Etária</h4>
                 <div id="profileIdadeChart"></div>
