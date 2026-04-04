@@ -1240,12 +1240,24 @@ function updateConditionalUI() {
 
   if (STATE.currentElectionType === 'geral') {
     dom.cargoBoxMunicipal.classList.add('section-hidden');
+    if (dom.boxCidade && dom.boxCidade.parentElement) {
+      dom.boxCidade.parentElement.style.display = '';
+    }
+    if (dom.boxBairro && dom.boxBairro.parentElement) {
+      dom.boxBairro.parentElement.style.gridColumn = '';
+    }
   } else {
     // Only show municipal sub-type box if there's supplementar data
     if (!currentDataCollection[`${currentOffice}_sup`]) {
        dom.cargoBoxMunicipal.classList.add('section-hidden');
     } else {
        dom.cargoBoxMunicipal.classList.remove('section-hidden');
+    }
+    if (dom.boxCidade && dom.boxCidade.parentElement) {
+      dom.boxCidade.parentElement.style.display = 'none';
+    }
+    if (dom.boxBairro && dom.boxBairro.parentElement) {
+      dom.boxBairro.parentElement.style.gridColumn = '1 / -1';
     }
   }
 }
