@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador Eleitoral 2026</title>
+  <meta name="description" content="Simulador de cenários eleitorais presidenciais 2026 com projeção demográfica por estado." />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Abril+Fatface&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="simulador.css" />
+</head>
+
+<body data-theme="dark">
+  <!-- TOP TOOLBAR -->
+  <div class="app-toolbar">
+    <div class="toolbar-left">
+      <a href="index.html" class="toolbar-logo">Observatório</a>
+      <span class="toolbar-sep">|</span>
+      <span class="toolbar-page">Simulador Eleitoral 2026</span>
+    </div>
+    <div class="toolbar-right">
+      <a href="index.html" class="toolbar-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        Início
+      </a>
+      <a href="eleicoes.html" class="toolbar-link">
+        Visualizador
+      </a>
+      <button id="themeToggle" class="toolbar-link" title="Mudar tema">Tema</button>
+    </div>
+  </div>
+
+  <div class="app sim-app">
+    <!-- CENTER: Map -->
+    <div class="panel" id="mapPanel">
+      <div id="map"></div>
+      <div class="loader-overlay" id="mapLoader">Carregando dados...</div>
+    </div>
+
+    <!-- RIGHT PANEL: Resultados -->
+    <div class="panel side side-right">
+      <div class="head">
+        <div class="title" id="simPanelTitle">Resultados</div>
+      </div>
+      <div class="body">
+        <div id="simResultsMain">
+          <div class="results-empty" id="simEmptyState">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4; margin-bottom:12px;">
+              <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
+            </svg>
+            <p>Configure os candidatos e distribua os votos por grupo demográfico para projetar a eleição.</p>
+            <button class="sim-btn sim-btn-apply" id="btnOpenConfigMain" style="margin-top:16px;">Configurar Simulação</button>
+          </div>
+        </div>
+
+        <!-- Resultados Totais Brasil -->
+        <div id="simBrasilResults" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <h3 style="margin:0;font-size:1rem;">Brasil — Total</h3>
+              <small id="simBrasilEleitores" style="color:var(--muted);"></small>
+            </div>
+            <button class="sim-btn sim-btn-edit-small" id="btnEditSim" title="Editar simulação">Editar</button>
+          </div>
+          <div id="simBrasilBars"></div>
+          <div id="simBrasilMetrics" class="footer" style="margin-top:12px;"></div>
+        </div>
+
+        <!-- Resultado do Estado selecionado -->
+        <div id="simEstadoResults" style="display:none;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <div>
+              <h3 id="simEstadoTitle" style="margin:0;font-size:1rem;"></h3>
+              <small id="simEstadoSub" style="color:var(--muted);"></small>
+            </div>
+            <button class="sim-btn" id="btnVoltarBrasil" title="Voltar para Brasil">← Brasil</button>
+          </div>
+
+          <div class="chip-group" style="margin-bottom:12px;">
+            <button class="chip-button active" id="btnEstadoResultado" data-tab="resultado">Resultado</button>
+            <button class="chip-button" id="btnEstadoAjustar" data-tab="ajustar">Ajustar</button>
+            <button class="chip-button" id="btnEstadoLocais" data-tab="locais">Ver Locais 2022</button>
+          </div>
+
+          <div id="simEstadoTabResultado"></div>
+          <div id="simEstadoTabAjustar" style="display:none;"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- SIMULADOR CONFIG MODAL -->
+  <div class="info-overlay" id="simConfigOverlay">
+    <div class="info-modal sim-modal">
+      <div class="sim-modal-header">
+        <h3>Configuração da Simulação</h3>
+        <div class="sim-modal-actions">
+          <button class="sim-btn sim-btn-apply" id="btnAplicarSimModal">Aplicar Simulação</button>
+          <button class="info-close" id="btnCloseConfigModal">✕</button>
+        </div>
+      </div>
+      <div id="simModalContent" style="display:flex; flex-direction:row; height:100%; overflow:hidden;">
+        <!-- Left half: Candidatos -->
+        <div style="flex:1; border-right:1px solid var(--border-color); overflow-y:auto; padding:16px;">
+          <h4 style="margin-top:0;margin-bottom:12px;">Candidatos</h4>
+          <div id="simCandList"></div>
+          <button class="sim-btn sim-btn-add" id="btnAddCand" style="margin-top:8px;">+ Adicionar Candidato</button>
+          <datalist id="sim-party-list"></datalist>
+        </div>
+        <!-- Right half: Demografia -->
+        <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:24px;">
+          <div id="simDemoContent"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="simulador.js"></script>
+</body>
+
+</html>

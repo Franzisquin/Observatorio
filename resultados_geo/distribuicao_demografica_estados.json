@@ -1,0 +1,245 @@
+{
+  "AC": {
+    "eleitores": 557000,
+    "genero": {"M": 0.50, "F": 0.50},
+    "idade": {"16-29": 0.28, "30-45": 0.33, "46-59": 0.23, "60+": 0.16},
+    "educacao": {"fundamental": 0.40, "medio": 0.42, "superior": 0.18},
+    "renda": {"0-1k": 0.38, "1k-2k": 0.28, "2k-3k": 0.16, "3k-4k": 0.08, "4k-5k": 0.05, "5k+": 0.05},
+    "religiao": {"catolico": 0.55, "evangelico": 0.30, "outras": 0.03, "semReligiao": 0.12},
+    "voto2022_2t": {"lula": 0.425, "bolsonaro": 0.455, "nuloBranco": 0.05, "abstencao": 0.07}
+  },
+  "AL": {
+    "eleitores": 2230000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.27, "30-45": 0.32, "46-59": 0.23, "60+": 0.18},
+    "educacao": {"fundamental": 0.45, "medio": 0.38, "superior": 0.17},
+    "renda": {"0-1k": 0.42, "1k-2k": 0.26, "2k-3k": 0.14, "3k-4k": 0.08, "4k-5k": 0.04, "5k+": 0.06},
+    "religiao": {"catolico": 0.52, "evangelico": 0.28, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.635, "bolsonaro": 0.255, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "AP": {
+    "eleitores": 517000,
+    "genero": {"M": 0.50, "F": 0.50},
+    "idade": {"16-29": 0.30, "30-45": 0.34, "46-59": 0.22, "60+": 0.14},
+    "educacao": {"fundamental": 0.35, "medio": 0.45, "superior": 0.20},
+    "renda": {"0-1k": 0.35, "1k-2k": 0.28, "2k-3k": 0.17, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.06},
+    "religiao": {"catolico": 0.48, "evangelico": 0.35, "outras": 0.03, "semReligiao": 0.14},
+    "voto2022_2t": {"lula": 0.535, "bolsonaro": 0.345, "nuloBranco": 0.05, "abstencao": 0.07}
+  },
+  "AM": {
+    "eleitores": 2480000,
+    "genero": {"M": 0.49, "F": 0.51},
+    "idade": {"16-29": 0.30, "30-45": 0.34, "46-59": 0.22, "60+": 0.14},
+    "educacao": {"fundamental": 0.38, "medio": 0.42, "superior": 0.20},
+    "renda": {"0-1k": 0.36, "1k-2k": 0.27, "2k-3k": 0.16, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.48, "evangelico": 0.35, "outras": 0.03, "semReligiao": 0.14},
+    "voto2022_2t": {"lula": 0.495, "bolsonaro": 0.385, "nuloBranco": 0.05, "abstencao": 0.07}
+  },
+  "BA": {
+    "eleitores": 10700000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.25, "30-45": 0.31, "46-59": 0.25, "60+": 0.19},
+    "educacao": {"fundamental": 0.42, "medio": 0.38, "superior": 0.20},
+    "renda": {"0-1k": 0.38, "1k-2k": 0.26, "2k-3k": 0.15, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.53, "evangelico": 0.22, "outras": 0.06, "semReligiao": 0.19},
+    "voto2022_2t": {"lula": 0.645, "bolsonaro": 0.235, "nuloBranco": 0.04, "abstencao": 0.08}
+  },
+  "CE": {
+    "eleitores": 6500000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.26, "30-45": 0.31, "46-59": 0.24, "60+": 0.19},
+    "educacao": {"fundamental": 0.44, "medio": 0.38, "superior": 0.18},
+    "renda": {"0-1k": 0.40, "1k-2k": 0.27, "2k-3k": 0.14, "3k-4k": 0.08, "4k-5k": 0.05, "5k+": 0.06},
+    "religiao": {"catolico": 0.57, "evangelico": 0.22, "outras": 0.03, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.615, "bolsonaro": 0.270, "nuloBranco": 0.04, "abstencao": 0.075}
+  },
+  "DF": {
+    "eleitores": 2100000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.24, "30-45": 0.32, "46-59": 0.26, "60+": 0.18},
+    "educacao": {"fundamental": 0.18, "medio": 0.36, "superior": 0.46},
+    "renda": {"0-1k": 0.15, "1k-2k": 0.18, "2k-3k": 0.18, "3k-4k": 0.14, "4k-5k": 0.12, "5k+": 0.23},
+    "religiao": {"catolico": 0.40, "evangelico": 0.30, "outras": 0.06, "semReligiao": 0.24},
+    "voto2022_2t": {"lula": 0.425, "bolsonaro": 0.465, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "ES": {
+    "eleitores": 2800000,
+    "genero": {"M": 0.49, "F": 0.51},
+    "idade": {"16-29": 0.24, "30-45": 0.32, "46-59": 0.26, "60+": 0.18},
+    "educacao": {"fundamental": 0.32, "medio": 0.42, "superior": 0.26},
+    "renda": {"0-1k": 0.22, "1k-2k": 0.25, "2k-3k": 0.20, "3k-4k": 0.13, "4k-5k": 0.08, "5k+": 0.12},
+    "religiao": {"catolico": 0.42, "evangelico": 0.35, "outras": 0.04, "semReligiao": 0.19},
+    "voto2022_2t": {"lula": 0.365, "bolsonaro": 0.525, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "GO": {
+    "eleitores": 4600000,
+    "genero": {"M": 0.49, "F": 0.51},
+    "idade": {"16-29": 0.25, "30-45": 0.33, "46-59": 0.25, "60+": 0.17},
+    "educacao": {"fundamental": 0.30, "medio": 0.44, "superior": 0.26},
+    "renda": {"0-1k": 0.22, "1k-2k": 0.26, "2k-3k": 0.20, "3k-4k": 0.13, "4k-5k": 0.08, "5k+": 0.11},
+    "religiao": {"catolico": 0.38, "evangelico": 0.38, "outras": 0.04, "semReligiao": 0.20},
+    "voto2022_2t": {"lula": 0.315, "bolsonaro": 0.575, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "MA": {
+    "eleitores": 4800000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.28, "30-45": 0.32, "46-59": 0.23, "60+": 0.17},
+    "educacao": {"fundamental": 0.48, "medio": 0.36, "superior": 0.16},
+    "renda": {"0-1k": 0.45, "1k-2k": 0.25, "2k-3k": 0.13, "3k-4k": 0.07, "4k-5k": 0.04, "5k+": 0.06},
+    "religiao": {"catolico": 0.55, "evangelico": 0.25, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.645, "bolsonaro": 0.230, "nuloBranco": 0.045, "abstencao": 0.08}
+  },
+  "MT": {
+    "eleitores": 2400000,
+    "genero": {"M": 0.51, "F": 0.49},
+    "idade": {"16-29": 0.26, "30-45": 0.34, "46-59": 0.24, "60+": 0.16},
+    "educacao": {"fundamental": 0.30, "medio": 0.44, "superior": 0.26},
+    "renda": {"0-1k": 0.20, "1k-2k": 0.24, "2k-3k": 0.21, "3k-4k": 0.14, "4k-5k": 0.09, "5k+": 0.12},
+    "religiao": {"catolico": 0.42, "evangelico": 0.33, "outras": 0.04, "semReligiao": 0.21},
+    "voto2022_2t": {"lula": 0.275, "bolsonaro": 0.615, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "MS": {
+    "eleitores": 1900000,
+    "genero": {"M": 0.50, "F": 0.50},
+    "idade": {"16-29": 0.25, "30-45": 0.33, "46-59": 0.25, "60+": 0.17},
+    "educacao": {"fundamental": 0.32, "medio": 0.42, "superior": 0.26},
+    "renda": {"0-1k": 0.22, "1k-2k": 0.25, "2k-3k": 0.20, "3k-4k": 0.13, "4k-5k": 0.08, "5k+": 0.12},
+    "religiao": {"catolico": 0.42, "evangelico": 0.33, "outras": 0.04, "semReligiao": 0.21},
+    "voto2022_2t": {"lula": 0.325, "bolsonaro": 0.565, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "MG": {
+    "eleitores": 16000000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.23, "30-45": 0.31, "46-59": 0.26, "60+": 0.20},
+    "educacao": {"fundamental": 0.35, "medio": 0.40, "superior": 0.25},
+    "renda": {"0-1k": 0.25, "1k-2k": 0.25, "2k-3k": 0.19, "3k-4k": 0.12, "4k-5k": 0.08, "5k+": 0.11},
+    "religiao": {"catolico": 0.52, "evangelico": 0.28, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.475, "bolsonaro": 0.415, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "PA": {
+    "eleitores": 5700000,
+    "genero": {"M": 0.49, "F": 0.51},
+    "idade": {"16-29": 0.28, "30-45": 0.33, "46-59": 0.23, "60+": 0.16},
+    "educacao": {"fundamental": 0.40, "medio": 0.40, "superior": 0.20},
+    "renda": {"0-1k": 0.36, "1k-2k": 0.27, "2k-3k": 0.16, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.50, "evangelico": 0.30, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.535, "bolsonaro": 0.340, "nuloBranco": 0.05, "abstencao": 0.075}
+  },
+  "PB": {
+    "eleitores": 2900000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.26, "30-45": 0.31, "46-59": 0.24, "60+": 0.19},
+    "educacao": {"fundamental": 0.42, "medio": 0.38, "superior": 0.20},
+    "renda": {"0-1k": 0.40, "1k-2k": 0.26, "2k-3k": 0.14, "3k-4k": 0.08, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.55, "evangelico": 0.24, "outras": 0.03, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.585, "bolsonaro": 0.300, "nuloBranco": 0.04, "abstencao": 0.075}
+  },
+  "PR": {
+    "eleitores": 8200000,
+    "genero": {"M": 0.49, "F": 0.51},
+    "idade": {"16-29": 0.23, "30-45": 0.31, "46-59": 0.26, "60+": 0.20},
+    "educacao": {"fundamental": 0.30, "medio": 0.42, "superior": 0.28},
+    "renda": {"0-1k": 0.18, "1k-2k": 0.23, "2k-3k": 0.21, "3k-4k": 0.14, "4k-5k": 0.10, "5k+": 0.14},
+    "religiao": {"catolico": 0.48, "evangelico": 0.30, "outras": 0.04, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.325, "bolsonaro": 0.570, "nuloBranco": 0.04, "abstencao": 0.065}
+  },
+  "PE": {
+    "eleitores": 6700000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.26, "30-45": 0.31, "46-59": 0.24, "60+": 0.19},
+    "educacao": {"fundamental": 0.40, "medio": 0.40, "superior": 0.20},
+    "renda": {"0-1k": 0.36, "1k-2k": 0.26, "2k-3k": 0.16, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.08},
+    "religiao": {"catolico": 0.50, "evangelico": 0.28, "outras": 0.04, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.615, "bolsonaro": 0.265, "nuloBranco": 0.04, "abstencao": 0.08}
+  },
+  "PI": {
+    "eleitores": 2400000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.27, "30-45": 0.31, "46-59": 0.24, "60+": 0.18},
+    "educacao": {"fundamental": 0.46, "medio": 0.36, "superior": 0.18},
+    "renda": {"0-1k": 0.44, "1k-2k": 0.26, "2k-3k": 0.13, "3k-4k": 0.07, "4k-5k": 0.04, "5k+": 0.06},
+    "religiao": {"catolico": 0.62, "evangelico": 0.18, "outras": 0.03, "semReligiao": 0.17},
+    "voto2022_2t": {"lula": 0.650, "bolsonaro": 0.225, "nuloBranco": 0.04, "abstencao": 0.085}
+  },
+  "RJ": {
+    "eleitores": 12600000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.22, "30-45": 0.30, "46-59": 0.27, "60+": 0.21},
+    "educacao": {"fundamental": 0.28, "medio": 0.40, "superior": 0.32},
+    "renda": {"0-1k": 0.22, "1k-2k": 0.24, "2k-3k": 0.19, "3k-4k": 0.13, "4k-5k": 0.09, "5k+": 0.13},
+    "religiao": {"catolico": 0.38, "evangelico": 0.33, "outras": 0.08, "semReligiao": 0.21},
+    "voto2022_2t": {"lula": 0.435, "bolsonaro": 0.445, "nuloBranco": 0.04, "abstencao": 0.08}
+  },
+  "RN": {
+    "eleitores": 2400000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.26, "30-45": 0.31, "46-59": 0.24, "60+": 0.19},
+    "educacao": {"fundamental": 0.42, "medio": 0.38, "superior": 0.20},
+    "renda": {"0-1k": 0.38, "1k-2k": 0.26, "2k-3k": 0.15, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.55, "evangelico": 0.23, "outras": 0.03, "semReligiao": 0.19},
+    "voto2022_2t": {"lula": 0.595, "bolsonaro": 0.285, "nuloBranco": 0.04, "abstencao": 0.08}
+  },
+  "RS": {
+    "eleitores": 8400000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.22, "30-45": 0.30, "46-59": 0.27, "60+": 0.21},
+    "educacao": {"fundamental": 0.30, "medio": 0.42, "superior": 0.28},
+    "renda": {"0-1k": 0.20, "1k-2k": 0.24, "2k-3k": 0.20, "3k-4k": 0.14, "4k-5k": 0.09, "5k+": 0.13},
+    "religiao": {"catolico": 0.52, "evangelico": 0.22, "outras": 0.06, "semReligiao": 0.20},
+    "voto2022_2t": {"lula": 0.445, "bolsonaro": 0.445, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "RO": {
+    "eleitores": 1170000,
+    "genero": {"M": 0.51, "F": 0.49},
+    "idade": {"16-29": 0.26, "30-45": 0.34, "46-59": 0.24, "60+": 0.16},
+    "educacao": {"fundamental": 0.34, "medio": 0.42, "superior": 0.24},
+    "renda": {"0-1k": 0.24, "1k-2k": 0.26, "2k-3k": 0.20, "3k-4k": 0.12, "4k-5k": 0.08, "5k+": 0.10},
+    "religiao": {"catolico": 0.38, "evangelico": 0.38, "outras": 0.04, "semReligiao": 0.20},
+    "voto2022_2t": {"lula": 0.240, "bolsonaro": 0.650, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "RR": {
+    "eleitores": 350000,
+    "genero": {"M": 0.51, "F": 0.49},
+    "idade": {"16-29": 0.30, "30-45": 0.34, "46-59": 0.22, "60+": 0.14},
+    "educacao": {"fundamental": 0.34, "medio": 0.44, "superior": 0.22},
+    "renda": {"0-1k": 0.30, "1k-2k": 0.27, "2k-3k": 0.18, "3k-4k": 0.10, "4k-5k": 0.07, "5k+": 0.08},
+    "religiao": {"catolico": 0.45, "evangelico": 0.35, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.345, "bolsonaro": 0.530, "nuloBranco": 0.05, "abstencao": 0.075}
+  },
+  "SC": {
+    "eleitores": 5300000,
+    "genero": {"M": 0.50, "F": 0.50},
+    "idade": {"16-29": 0.23, "30-45": 0.32, "46-59": 0.26, "60+": 0.19},
+    "educacao": {"fundamental": 0.28, "medio": 0.44, "superior": 0.28},
+    "renda": {"0-1k": 0.14, "1k-2k": 0.22, "2k-3k": 0.22, "3k-4k": 0.16, "4k-5k": 0.11, "5k+": 0.15},
+    "religiao": {"catolico": 0.52, "evangelico": 0.26, "outras": 0.04, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.230, "bolsonaro": 0.665, "nuloBranco": 0.04, "abstencao": 0.065}
+  },
+  "SP": {
+    "eleitores": 34500000,
+    "genero": {"M": 0.48, "F": 0.52},
+    "idade": {"16-29": 0.23, "30-45": 0.31, "46-59": 0.26, "60+": 0.20},
+    "educacao": {"fundamental": 0.25, "medio": 0.42, "superior": 0.33},
+    "renda": {"0-1k": 0.16, "1k-2k": 0.21, "2k-3k": 0.20, "3k-4k": 0.15, "4k-5k": 0.11, "5k+": 0.17},
+    "religiao": {"catolico": 0.42, "evangelico": 0.30, "outras": 0.06, "semReligiao": 0.22},
+    "voto2022_2t": {"lula": 0.435, "bolsonaro": 0.455, "nuloBranco": 0.04, "abstencao": 0.07}
+  },
+  "SE": {
+    "eleitores": 1600000,
+    "genero": {"M": 0.47, "F": 0.53},
+    "idade": {"16-29": 0.27, "30-45": 0.32, "46-59": 0.24, "60+": 0.17},
+    "educacao": {"fundamental": 0.42, "medio": 0.38, "superior": 0.20},
+    "renda": {"0-1k": 0.38, "1k-2k": 0.26, "2k-3k": 0.15, "3k-4k": 0.09, "4k-5k": 0.05, "5k+": 0.07},
+    "religiao": {"catolico": 0.52, "evangelico": 0.26, "outras": 0.04, "semReligiao": 0.18},
+    "voto2022_2t": {"lula": 0.590, "bolsonaro": 0.290, "nuloBranco": 0.04, "abstencao": 0.08}
+  },
+  "TO": {
+    "eleitores": 1050000,
+    "genero": {"M": 0.50, "F": 0.50},
+    "idade": {"16-29": 0.27, "30-45": 0.34, "46-59": 0.23, "60+": 0.16},
+    "educacao": {"fundamental": 0.35, "medio": 0.42, "superior": 0.23},
+    "renda": {"0-1k": 0.30, "1k-2k": 0.27, "2k-3k": 0.18, "3k-4k": 0.10, "4k-5k": 0.06, "5k+": 0.09},
+    "religiao": {"catolico": 0.42, "evangelico": 0.38, "outras": 0.04, "semReligiao": 0.16},
+    "voto2022_2t": {"lula": 0.385, "bolsonaro": 0.500, "nuloBranco": 0.04, "abstencao": 0.075}
+  }
+}

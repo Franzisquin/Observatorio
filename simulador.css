@@ -1,0 +1,432 @@
+/* ===========================
+   SIMULADOR ELEITORAL 2026
+   Standalone Stylesheet
+   =========================== */
+
+/* App layout override for simulator */
+.sim-app {
+  grid-template-columns: 1fr 375px;
+}
+
+.sim-modal {
+  max-width: 900px !important;
+  width: 90vw !important;
+  max-height: 85vh !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-modal-header {
+  flex-shrink: 0;
+}
+
+/* Apply button in header */
+.sim-btn-apply-small {
+  padding: 3px 10px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: box-shadow .2s;
+}
+
+.sim-btn-apply-small:hover {
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.sim-btn-edit-small {
+  padding: 3px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text);
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Buttons */
+.sim-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.sim-btn:hover {
+  border-color: var(--accent);
+}
+
+.sim-btn-add {
+  border-style: dashed;
+  width: 100%;
+  color: var(--accent);
+  margin-top: 6px;
+}
+
+.sim-btn-add:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sim-btn-apply {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.sim-btn-apply:hover {
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+/* Candidatos List */
+.sim-cand-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sim-cand-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  transition: border-color 0.15s;
+}
+
+.sim-cand-item:hover {
+  border-color: var(--accent);
+}
+
+.sim-cand-color {
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  padding: 0;
+  background: none;
+  flex-shrink: 0;
+}
+
+.sim-cand-nome,
+.sim-cand-partido {
+  padding: 3px 6px;
+  background: var(--card);
+  border: 1px solid var(--border-color);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+
+.sim-cand-nome { flex: 2; }
+.sim-cand-partido { flex: 1; min-width: 50px; }
+
+.sim-cand-remove {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--err);
+  background: transparent;
+  color: var(--err);
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.sim-cand-remove:hover {
+  background: var(--err);
+  color: #fff;
+}
+
+/* Perene items */
+.sim-perene-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-style: dashed;
+}
+
+.sim-perene-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Demographic Subgroups */
+.sim-subgroup {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+}
+
+.sim-subgroup-title {
+  font-weight: 600;
+  font-size: 0.75rem;
+  margin-bottom: 6px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.sim-total-indicator {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+
+.sim-total-indicator.valid {
+  color: var(--ok);
+  border: 1px solid var(--ok);
+}
+
+.sim-total-indicator.invalid {
+  color: var(--err);
+  border: 1px solid var(--err);
+}
+
+/* Slider Rows */
+.sim-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+.sim-slider-indicator {
+  width: 3px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+.sim-slider-label {
+  width: 80px;
+  font-size: 0.68rem;
+  color: var(--text-sec);
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sim-slider {
+  flex: 1;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--chip-b);
+  outline: none;
+  cursor: pointer;
+}
+
+.sim-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.sim-slider-val {
+  width: 48px;
+  padding: 1px 3px;
+  border: 1px solid var(--border-color);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.68rem;
+  text-align: right;
+  font-family: inherit;
+}
+
+.sim-slider-pct {
+  font-size: 0.65rem;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* Results bars - right panel */
+.sim-results-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sim-result-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.sim-result-indicator {
+  width: 4px;
+  align-self: stretch;
+  flex-shrink: 0;
+  border-radius: 1px;
+}
+
+.sim-result-name {
+  width: 85px;
+  flex-shrink: 0;
+}
+
+.sim-result-name span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sim-result-name small {
+  font-size: 0.65rem;
+  color: var(--muted);
+}
+
+.sim-result-bar-wrap {
+  flex: 1;
+  height: 18px;
+  background: var(--chip-b);
+  position: relative;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sim-result-bar {
+  height: 100%;
+  opacity: 0.5;
+  transition: width 0.35s ease;
+}
+
+.sim-result-numbers {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+.sim-result-votos {
+  font-size: 0.72rem;
+  color: var(--text-sec);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-result-pct {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Override badge */
+.sim-override-badge {
+  margin-top: 10px;
+  padding: 5px 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid var(--warn);
+  color: var(--warn);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+/* Estado ajuste section */
+.sim-ajuste-section {
+  margin-bottom: 12px;
+}
+
+.sim-ajuste-slider {
+  flex: 1;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--chip-b);
+  outline: none;
+  cursor: pointer;
+}
+
+.sim-ajuste-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.sim-ajuste-val {
+  width: 55px;
+  padding: 1px 3px;
+  border: 1px solid var(--border-color);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.72rem;
+  text-align: right;
+  font-family: inherit;
+}
+
+/* Metrics grid */
+.sim-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.sim-metric-item {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  padding: 6px 8px;
+}
+
+.sim-metric-item span {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.sim-metric-item strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Actions row */
+.sim-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sim-actions-row .sim-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 0.72rem;
+}
