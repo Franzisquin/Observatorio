@@ -51,9 +51,10 @@ const SIM = {
   resultadosPorUF: {},
   overridesPorUF: {},
   totalBrasil: {},
-  demografiaUF: null,
+  locaisCache: {}, 
   estadosGeoJSON: null,
   estadosLayer: null,
+  locaisLayer: null,
   selectedUF: null,
   currentDemoGroup: 'genero'
 };
@@ -63,6 +64,56 @@ let simMap, simTileLayer;
 // ====== UTILS ======
 function fmtInt(n) { return (n || 0).toLocaleString('pt-BR'); }
 function fmtPct(p) { return isFinite(p) ? p.toFixed(2).replace('.', ',') + '%' : '-'; }
+
+function ensureNumber(v) {
+  if (typeof v === 'number' && isFinite(v)) return v;
+  if (typeof v !== 'string') v = String(v || 0);
+  const n = Number(v.replace(/\./g, '').replace(',', '.'));
+  return isNaN(n) ? 0 : n;
+}
+
+let ZIP_INDEX = null;
+let ZIP_READERS = new Map();
+
+async function loadZipIndex() {
+  try {
+    const res = await fetch(DATA_BASE_URL + 'zip_index.json');
+    if (res.ok) {
+      ZIP_INDEX = await res.json();
+    } else {
+      ZIP_INDEX = {};
+    }
+  } catch (e) {
+    ZIP_INDEX = {};
+  }
+}
+
+async function fetchGeoJSON(path) {
+  if (ZIP_INDEX === null) await loadZipIndex();
+  let relativePath = path.startsWith(DATA_BASE_URL) ? path.substring(DATA_BASE_URL.length) : path;
+
+  if (ZIP_INDEX && ZIP_INDEX[relativePath]) {
+    const entry = ZIP_INDEX[relativePath];
+    const zipUrl = DATA_BASE_URL + entry.zip;
+    let reader = ZIP_READERS.get(zipUrl);
+    if (!reader) {
+      reader = await unzipit.unzip(zipUrl);
+      ZIP_READERS.set(zipUrl, reader);
+    }
+    let fileEntry = reader.entries[entry.file];
+    if (!fileEntry) {
+      const lowerName = entry.file.toLowerCase();
+      for (const k in reader.entries) {
+        if (k.toLowerCase() === lowerName) { fileEntry = reader.entries[k]; break; }
+      }
+    }
+    if (!fileEntry) throw new Error("File not found in zip");
+    const blob = await fileEntry.blob('application/json');
+    return JSON.parse(await blob.text());
+  }
+  const response = await fetch(path);
+  return await response.json();
+}
 
 // ====== INIT ======
 window.addEventListener('DOMContentLoaded', initSimulador);
@@ -133,20 +184,61 @@ async function initSimulador() {
     simEstadoTabSwitch(this, 'ajustar');
   });
   document.getElementById('btnEstadoLocais')?.addEventListener('click', function() {
-    if (SIM.selectedUF) window.open(`eleicoes.html`, '_blank');
+    simEstadoTabSwitch(this, 'locais');
+    if (SIM.selectedUF) simRenderMapaLocais(SIM.selectedUF);
   });
 }
 
 // ====== DATA ======
 async function loadSimuladorData() {
   try {
-    const [demoRes, geoRes] = await Promise.all([
-      fetch(DATA_BASE_URL + 'distribuicao_demografica_estados.json'),
-      fetch(DATA_BASE_URL + 'estados_brasil.geojson')
-    ]);
-    if (!demoRes.ok || !geoRes.ok) throw new Error('Dados não encontrados');
-    SIM.demografiaUF = await demoRes.json();
+    const geoRes = await fetch(DATA_BASE_URL + 'estados_brasil.geojson');
+    if (!geoRes.ok) throw new Error('Dados não encontrados');
     SIM.estadosGeoJSON = await geoRes.json();
+    
+    // Lazy load the states data
+    const loader = document.getElementById('mapLoader');
+    let loadedCount = 0;
+    const CHUNK_SIZE = 5;
+    const ufKeys = Array.from(UF_MAP.keys()).filter(k => k !== 'BR');
+    
+    for (let i = 0; i < ufKeys.length; i += CHUNK_SIZE) {
+      const chunk = ufKeys.slice(i, i + CHUNK_SIZE);
+      await Promise.all(chunk.map(async (uf) => {
+        const presPath = `presidente_por_estado2022/presidente_${uf}_2022.geojson`;
+        const locPath = `locais_votacao_2022/locais_votacao_2022_${uf}.geojson`;
+        
+        try {
+          const presData = await fetchGeoJSON(presPath).catch(e=>null);
+          const locData = await fetchGeoJSON(locPath).catch(e=>null);
+          if(!presData) return;
+          
+          const locaisMap = new Map();
+          if (locData && locData.features) {
+            locData.features.forEach(f => {
+              locaisMap.set(String(f.properties.local_id || f.properties.nr_locvot), f.properties);
+            });
+          }
+
+          const featuresFinais = [];
+          presData.features.forEach(f => {
+            let id = String(f.properties.local_id || f.properties.NR_LOCAL_VOTACAO);
+            const demoProps = locaisMap.get(id);
+            if (demoProps) {
+              f.properties = { ...f.properties, ...demoProps };
+            }
+            if(f.geometry && f.geometry.type === "Point") {
+               featuresFinais.push(f);
+            }
+          });
+          SIM.locaisCache[uf] = { type: 'FeatureCollection', features: featuresFinais };
+        } catch(e) {
+          console.error("Erro no uf:", uf, e);
+        }
+      }));
+      loadedCount += chunk.length;
+      loader.textContent = `Carregando locais de votação... (${Math.min(loadedCount, ufKeys.length)}/27 Estados)`;
+    }
   } catch (e) {
     console.error('Erro ao carregar dados:', e);
     alert('Erro ao carregar dados do simulador.');
@@ -187,10 +279,11 @@ function simInitDefaultSliders() {
     if (!SIM.sliders[cat]) SIM.sliders[cat] = {};
     for (const sub in DEMO_GROUPS[cat].subgrupos) {
       if (!SIM.sliders[cat][sub]) SIM.sliders[cat][sub] = {};
-      SIM.sliders[cat][sub].outros = 0.88;
+      // Iniciar todos os valores puros em 0
+      SIM.sliders[cat][sub].outros = 0;
       if (cat === 'voto2022') {
-        SIM.sliders[cat][sub].nuloBranco = 3.85;
-        SIM.sliders[cat][sub].abstencao = 20.58;
+        SIM.sliders[cat][sub].nuloBranco = 0;
+        SIM.sliders[cat][sub].abstencao = 0;
       }
     }
   }
@@ -367,7 +460,6 @@ function simUpdateSubTotal(container, cat, sub) {
 
 // ====== PROJEÇÃO ======
 function simCalcularProjecao() {
-  if (!SIM.demografiaUF) return;
   SIM.resultadosPorUF = {};
   SIM.totalBrasil = {};
 
@@ -376,124 +468,135 @@ function simCalcularProjecao() {
   const totalVotosBR = {};
   allKeys.forEach(k => totalVotosBR[k] = 0);
 
-  for (const uf of Object.keys(SIM.demografiaUF)) {
-    const demo = SIM.demografiaUF[uf];
+  Object.keys(SIM.locaisCache).forEach(uf => {
+    const geo = SIM.locaisCache[uf];
+    if (!geo) return;
 
-    if (SIM.overridesPorUF[uf]) {
-      const ov = SIM.overridesPorUF[uf];
-      const ufRes = {};
+    let totalEleitoresUF = 0;
+    const ufRes = {};
+    allKeys.forEach(k => ufRes[k] = { votos: 0, pct: 0 });
+
+    geo.features.forEach(f => {
+      const p = f.properties;
+      const aptos = ensureNumber(p['Eleitores_Aptos 1T']) || ensureNumber(p['Eleitores_Aptos 2T']) || 0;
+      if(aptos === 0) return;
+
+      const pM = (ensureNumber(p['Pct Mulheres']) || 0)/100;
+      const pH = (ensureNumber(p['Pct Homens']) || 0)/100;
+      
+      const p16_29 = (ensureNumber(p['Pct 15 a 19 anos']) + ensureNumber(p['Pct 20 a 24 anos']) + ensureNumber(p['Pct 25 a 29 anos']))/100;
+      const p30_45 = (ensureNumber(p['Pct 30 a 34 anos']) + ensureNumber(p['Pct 35 a 39 anos']) + ensureNumber(p['Pct 40 a 44 anos']))/100;
+      const p46_59 = (ensureNumber(p['Pct 45 a 49 anos']) + ensureNumber(p['Pct 50 a 54 anos']) + ensureNumber(p['Pct 55 a 59 anos']))/100;
+      const p60_plus = 1 - (p16_29 + p30_45 + p46_59); 
+
+      const vLula = ensureNumber(p['LULA (PT) (ELEITO) 2T']) || ensureNumber(p['LULA (PT) (2° TURNO) 1T']);  
+      const vBolso = ensureNumber(p['JAIR BOLSONARO (PL) (NÃO ELEITO) 2T']) || ensureNumber(p['JAIR BOLSONARO (PL) (2° TURNO) 1T']);
+      const abs_nulo_branco = Math.max(0, aptos - vLula - vBolso);
+
+      let pLula = vLula / aptos || 0;
+      let pBolso = vBolso / aptos || 0;
+      let pOts = abs_nulo_branco / aptos || 0;
+      const rMedia = ensureNumber(p['Renda Media']) || 0;
+      let r_bucket = '0-1k';
+      if (rMedia > 5000) r_bucket = '5k+';
+      else if (rMedia > 4000) r_bucket = '4k-5k';
+      else if (rMedia > 3000) r_bucket = '3k-4k';
+      else if (rMedia > 2000) r_bucket = '2k-3k';
+      else if (rMedia > 1000) r_bucket = '1k-2k';
+
+      // Distribuir os votos deste local
+      const localVotes = {};
+      allKeys.forEach(k => localVotes[k] = 0);
+      
+      let validWeight = 0;
+      let voto2022Weight = 0;
+      const validScores = {}; 
+      const voto2022Scores = {};
+      allKeys.forEach(k => { validScores[k] = 0; voto2022Scores[k] = 0; });
+      
+      const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+      
+      const calcGroupScore = (cat, weightsMap) => {
+        if(!SIM.sliders[cat]) return;
+        const subgrupos = DEMO_GROUPS[cat].subgrupos;
+        for(const subKey in subgrupos) {
+          const w = weightsMap[subKey] || 0;
+          if(w <= 0) continue;
+          const slds = SIM.sliders[cat][subKey];
+          if(!slds) continue;
+          
+          if(cat === 'voto2022') {
+             allKeys.forEach(k => { voto2022Scores[k] += w * (slds[k] || 0); });
+             voto2022Weight += w;
+          } else {
+             validKeys.forEach(k => { validScores[k] += w * (slds[k] || 0); });
+             validWeight += w;
+          }
+        }
+      };
+
+      calcGroupScore('genero', { M: pH, F: pM });
+      calcGroupScore('idade', { '16-29': p16_29, '30-45': p30_45, '46-59': p46_59, '60+': p60_plus });
+      calcGroupScore('voto2022', { lula: pLula, bolsonaro: pBolso, abstencao: pOts });
+      
+      const rWeights = { '0-1k':0, '1k-2k':0, '2k-3k':0, '3k-4k':0, '4k-5k':0, '5k+':0 };
+      rWeights[r_bucket] = 1.0;
+      calcGroupScore('renda', rWeights);
+
+      if (voto2022Weight > 0) allKeys.forEach(k => voto2022Scores[k] /= voto2022Weight);
+      if (validWeight > 0) validKeys.forEach(k => validScores[k] /= validWeight);
+
+      const nuloBrancoPct = voto2022Scores.nuloBranco || 0;
+      const abstencaoPct = voto2022Scores.abstencao || 0;
+      const validFraction = Math.max(0, 100 - nuloBrancoPct - abstencaoPct);
+
+      const combinedValid = {};
+      validKeys.forEach(k => combinedValid[k] = 0);
+      if (validWeight > 0 && voto2022Weight > 0) {
+        const totalW = validWeight + voto2022Weight;
+        validKeys.forEach(k => combinedValid[k] = (validScores[k] * validWeight + voto2022Scores[k] * voto2022Weight) / totalW);
+      } else if (validWeight > 0) {
+        validKeys.forEach(k => combinedValid[k] = validScores[k]);
+      } else if (voto2022Weight > 0) {
+        validKeys.forEach(k => combinedValid[k] = voto2022Scores[k]);
+      }
+
+      const sumValid = validKeys.reduce((s, k) => s + combinedValid[k], 0);
+      if (sumValid > 0) {
+        validKeys.forEach(k => combinedValid[k] = (combinedValid[k] / sumValid) * validFraction);
+      }
+
+      const finalPcts = {};
+      validKeys.forEach(k => finalPcts[k] = combinedValid[k]);
+      finalPcts.nuloBranco = nuloBrancoPct;
+      finalPcts.abstencao = abstencaoPct;
+
+      const totalPct = allKeys.reduce((s, k) => s + (finalPcts[k] || 0), 0);
+      if (totalPct > 0 && Math.abs(totalPct - 100) > 0.01) {
+        allKeys.forEach(k => finalPcts[k] = ((finalPcts[k] || 0) / totalPct) * 100);
+      }
+
       allKeys.forEach(k => {
-        const pct = ov[k] || 0;
-        const votos = Math.round(demo.eleitores * pct / 100);
-        ufRes[k] = { pct, votos };
+        const votos = Math.round(aptos * (finalPcts[k] || 0) / 100);
+        ufRes[k].votos += votos;
         totalVotosBR[k] += votos;
       });
-      SIM.resultadosPorUF[uf] = ufRes;
-      totalEleitoresBR += demo.eleitores;
-      continue;
-    }
 
-    // Média ponderada
-    // For non-voto2022 categories, sliders represent % of valid votes.
-    // For voto2022, sliders represent % of total electorate (including nulo/branco/abstencao).
-    const scores = {};
-    allKeys.forEach(k => scores[k] = 0);
-    let totalWeight = 0;
+      totalEleitoresUF += aptos;
 
-    // Separate weights for voto2022 and non-voto2022
-    const validScores = {}; // scores from non-voto2022 categories (valid votes only)
-    const voto2022Scores = {}; // scores from voto2022 category (includes nulo/branco/abstencao)
-    allKeys.forEach(k => { validScores[k] = 0; voto2022Scores[k] = 0; });
-    let validWeight = 0;
-    let voto2022Weight = 0;
+      // Armazenamos resultados no point para usar no mapa de locais posteriormente
+      f.properties._sim = { votosCand: {}, totalAptos: aptos };
+      allKeys.forEach(k => f.properties._sim.votosCand[k] = Math.round(aptos * (finalPcts[k] || 0) / 100));
+    });
 
-    for (const cat in DEMO_GROUPS) {
-      const catKey = cat === 'voto2022' ? 'voto2022_2t' : cat;
-      const catData = demo[catKey];
-      if (!catData) continue;
-      const isVoto2022 = (cat === 'voto2022');
-
-      for (const sub in DEMO_GROUPS[cat].subgrupos) {
-        const peso = catData[sub] || 0;
-        if (peso <= 0) continue;
-        const sliderSub = SIM.sliders[cat]?.[sub];
-        if (!sliderSub) continue;
-
-        if (isVoto2022) {
-          allKeys.forEach(k => { voto2022Scores[k] += peso * (sliderSub[k] || 0); });
-          voto2022Weight += peso;
-        } else {
-          // Non-voto2022: sliders only have candidates + outros (valid votes)
-          const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-          validKeys.forEach(k => { validScores[k] += peso * (sliderSub[k] || 0); });
-          validWeight += peso;
-        }
-      }
-    }
-
-    // Normalize voto2022 scores
-    if (voto2022Weight > 0) {
-      allKeys.forEach(k => voto2022Scores[k] /= voto2022Weight);
-    }
-
-    // Normalize valid scores (non-voto2022)
-    const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-    if (validWeight > 0) {
-      validKeys.forEach(k => validScores[k] /= validWeight);
-    }
-
-    // Get nuloBranco and abstencao from voto2022 category only
-    const nuloBrancoPct = voto2022Scores.nuloBranco || 0;
-    const abstencaoPct = voto2022Scores.abstencao || 0;
-    const validFraction = Math.max(0, 100 - nuloBrancoPct - abstencaoPct);
-
-    // Combine: valid vote percentages are scaled to the valid fraction of the electorate
-    // The valid scores from non-voto2022 categories represent distribution among valid votes
-    // The voto2022 valid scores also contribute
-    const combinedValid = {};
-    validKeys.forEach(k => combinedValid[k] = 0);
-
-    if (validWeight > 0 && voto2022Weight > 0) {
-      // Both contribute - average them together
-      const totalCombinedWeight = validWeight + voto2022Weight;
-      validKeys.forEach(k => {
-        combinedValid[k] = (validScores[k] * validWeight + voto2022Scores[k] * voto2022Weight) / totalCombinedWeight;
-      });
-    } else if (validWeight > 0) {
-      validKeys.forEach(k => combinedValid[k] = validScores[k]);
-    } else if (voto2022Weight > 0) {
-      validKeys.forEach(k => combinedValid[k] = voto2022Scores[k]);
-    }
-
-    // Normalize combinedValid to sum to validFraction
-    const sumValid = validKeys.reduce((s, k) => s + combinedValid[k], 0);
-    if (sumValid > 0) {
-      validKeys.forEach(k => combinedValid[k] = (combinedValid[k] / sumValid) * validFraction);
-    }
-
-    // Final percentages (of total electorate)
-    const finalPcts = {};
-    validKeys.forEach(k => finalPcts[k] = combinedValid[k]);
-    finalPcts.nuloBranco = nuloBrancoPct;
-    finalPcts.abstencao = abstencaoPct;
-
-    // Normalize to exactly 100%
-    const totalPct = allKeys.reduce((s, k) => s + (finalPcts[k] || 0), 0);
-    if (totalPct > 0 && Math.abs(totalPct - 100) > 0.01) {
-      allKeys.forEach(k => finalPcts[k] = ((finalPcts[k] || 0) / totalPct) * 100);
-    }
-
-    const ufRes = {};
+    // Calcular pct por uf
     allKeys.forEach(k => {
-      const pct = finalPcts[k] || 0;
-      const votos = Math.round(demo.eleitores * pct / 100);
-      ufRes[k] = { pct, votos };
-      totalVotosBR[k] += votos;
+      ufRes[k].pct = totalEleitoresUF > 0 ? (ufRes[k].votos / totalEleitoresUF) * 100 : 0;
     });
 
     SIM.resultadosPorUF[uf] = ufRes;
-    totalEleitoresBR += demo.eleitores;
-  }
+    totalEleitoresBR += totalEleitoresUF;
+  });
 
   allKeys.forEach(k => {
     SIM.totalBrasil[k] = {
@@ -888,3 +991,57 @@ function simReaplicarBase() {
   simRenderMapaEstados();
   simShowBrasilResults();
 }
+
+
+// ====== LOCAIS DE VOTACAO ====== 
+function simRenderMapaLocais(uf) {
+  if (SIM.estadosLayer) simMap.removeLayer(SIM.estadosLayer);
+  if (SIM.locaisLayer) simMap.removeLayer(SIM.locaisLayer);
+
+  const geo = SIM.locaisCache[uf];
+  if (!geo) return;
+
+  SIM.locaisLayer = L.geoJSON(geo, {
+    pointToLayer: (f, latlng) => {
+      const p = f.properties;
+      let maxVotos = -1, vencKey = null;
+      const keys = SIM.candidatos.map(c => "cand_" + c.id).concat(['outros']);
+      if(p._sim && p._sim.votosCand) {
+        keys.forEach(k => {
+          if (p._sim.votosCand[k] > maxVotos) { maxVotos = p._sim.votosCand[k]; vencKey = k; }
+        });
+      }
+      const cor = simGetCorKey(vencKey);
+      const total = p._sim ? p._sim.totalAptos : 0;
+      const radius = total > 2000 ? 5 : (total > 1000 ? 4 : 3);
+
+      return L.circleMarker(latlng, {
+        radius: radius,
+        fillColor: cor,
+        color: '#000',
+        weight: 0.5,
+        fillOpacity: 0.8
+      });
+    },
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      let tt = "<b>" + (p.nm_locvot || 'Local') + "</b><br><div>" + (p.nm_localidade || '') + "</div>";
+      if(p._sim) {
+        const sorted = SIM.candidatos.map(c=>"cand_"+c.id).concat(['outros']).sort((a,b)=>p._sim.votosCand[b]-p._sim.votosCand[a]);
+        tt += "<hr style='margin:4px 0'>";
+        sorted.forEach(k => {
+          const v = p._sim.votosCand[k];
+          if(v > 0) {
+             const label = k === 'outros' ? 'Outros' : SIM.candidatos.find(c=>c.id === parseInt(k.replace('cand_',''))).nome;
+             const pct = (v / p._sim.totalAptos)*100;
+             tt += "<div style='display:flex;justify-content:space-between;width:150px;'><span>" + label + "</span><span>" + pct.toFixed(1) + "% (" + v + ")</span></div>";
+          }
+        });
+      }
+      layer.bindTooltip(tt, { className: 'sim-tooltip' });
+    }
+  }).addTo(simMap);
+
+  simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20,20] });
+}
+
