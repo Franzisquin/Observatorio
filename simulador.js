@@ -72,6 +72,53 @@ function ensureNumber(v) {
   return isNaN(n) ? 0 : n;
 }
 
+
+// --- COLOR UTILS (same as visualizer) ---
+function hexToHSL(H) {
+  let r = 0, g = 0, b = 0;
+  if (H.length == 4) {
+    r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3];
+  } else if (H.length == 7) {
+    r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6];
+  }
+  r /= 255; g /= 255; b /= 255;
+  let cmin = Math.min(r, g, b), cmax = Math.max(r, g, b), delta = cmax - cmin, h = 0, s = 0, l = 0;
+  if (delta == 0) h = 0;
+  else if (cmax == r) h = ((g - b) / delta) % 6;
+  else if (cmax == g) h = (b - r) / delta + 2;
+  else h = (r - g) / delta + 4;
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+  l = (cmax + cmin) / 2;
+  s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  s = +(s * 100).toFixed(1);
+  l = +(l * 100).toFixed(1);
+  return { h, s, l };
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (0 <= h && h < 60)   { r = c; g = x; b = 0; }
+  else if (60 <= h && h < 120)  { r = x; g = c; b = 0; }
+  else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+  else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+  else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+  else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+  r = Math.round((r + m) * 255).toString(16).padStart(2, '0');
+  g = Math.round((g + m) * 255).toString(16).padStart(2, '0');
+  b = Math.round((b + m) * 255).toString(16).padStart(2, '0');
+  return '#' + r + g + b;
+}
+
+function getUniversalGradientColor(baseColorHex, pct) {
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  const hsl = hexToHSL(baseColorHex);
+  const targetL = 70 - (pct / 100) * 40;
+  return hslToHex(hsl.h, hsl.s, targetL);
+}
 let ZIP_INDEX = null;
 let ZIP_READERS = new Map();
 
@@ -643,23 +690,26 @@ function simRenderMapaEstados() {
       const res = SIM.resultadosPorUF[sigla];
       const venc = simGetVencedorUF(sigla);
 
-      let op = 0.55;
+      // Gradient coloring: same logic as the visualizer (margin 0-50% -> gradient 0-100%)
+      let marginPct = 0;
       if (res && venc?.key) {
         const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
         const sorted = ks.map(k => res[k]?.votos || 0).sort((a, b) => b - a);
         const validVotos = sorted.reduce((s, v) => s + v, 0);
-        const margin = validVotos > 0 ? (sorted[0] - (sorted[1] || 0)) / validVotos : 0;
-        op = 0.35 + Math.min(margin * 3.5, 0.6);
+        marginPct = validVotos > 0 ? ((sorted[0] - (sorted[1] || 0)) / validVotos) * 100 : 0;
       }
+      const marginIntensity = Math.max(0, Math.min(50, marginPct));
+      const fixedRelativePct = (marginIntensity / 50) * 100;
+      const fillCol = getUniversalGradientColor(cor, fixedRelativePct);
 
       const isSelected = SIM.selectedUF === sigla;
 
       return {
-        fillColor: cor,
-        fillOpacity: op,
-        color: isSelected ? '#fff' : '#444',
+        fillColor: fillCol,
+        fillOpacity: 0.85,
+        color: isSelected ? '#fff' : '#333',
         weight: isSelected ? 2.5 : 1,
-        opacity: isSelected ? 1 : 0.6
+        opacity: isSelected ? 1 : 0.7
       };
     },
     onEachFeature: (f, layer) => {
@@ -694,7 +744,9 @@ function simShowBrasilResults() {
   document.getElementById('simEstadoResults').style.display = 'none';
   document.getElementById('simPanelTitle').textContent = 'Resultados';
 
-  if (SIM.estadosLayer) simRenderMapaEstados(); // refresh selection highlight
+  // Remove locais layer and restore states layer
+  if (SIM.locaisLayer) { simMap.removeLayer(SIM.locaisLayer); SIM.locaisLayer = null; }
+  simRenderMapaEstados(); // re-render states with no selection highlight
 
   const total = SIM.totalBrasil;
   document.getElementById('simBrasilEleitores').textContent = `${fmtInt(total._totalEleitores || 0)} eleitores`;
@@ -995,53 +1047,103 @@ function simReaplicarBase() {
 
 // ====== LOCAIS DE VOTACAO ====== 
 function simRenderMapaLocais(uf) {
-  if (SIM.estadosLayer) simMap.removeLayer(SIM.estadosLayer);
-  if (SIM.locaisLayer) simMap.removeLayer(SIM.locaisLayer);
+  // Remove existing layers
+  if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
+  if (SIM.locaisLayer) { simMap.removeLayer(SIM.locaisLayer); SIM.locaisLayer = null; }
 
   const geo = SIM.locaisCache[uf];
   if (!geo) return;
+
+  // Pre-compute min/max margin across all locations for normalisation
+  const keys = SIM.candidatos.map(c => 'cand_' + c.id).concat(['outros']);
+  let globalMaxMargin = 0;
+  geo.features.forEach(f => {
+    if (!f.properties._sim) return;
+    const votes = keys.map(k => f.properties._sim.votosCand[k] || 0).sort((a, b) => b - a);
+    const validTotal = votes.reduce((s, v) => s + v, 0);
+    if (validTotal > 0) {
+      const margin = ((votes[0] || 0) - (votes[1] || 0)) / validTotal * 100;
+      if (margin > globalMaxMargin) globalMaxMargin = margin;
+    }
+  });
+  if (globalMaxMargin === 0) globalMaxMargin = 50;
 
   SIM.locaisLayer = L.geoJSON(geo, {
     pointToLayer: (f, latlng) => {
       const p = f.properties;
       let maxVotos = -1, vencKey = null;
-      const keys = SIM.candidatos.map(c => "cand_" + c.id).concat(['outros']);
-      if(p._sim && p._sim.votosCand) {
+      if (p._sim && p._sim.votosCand) {
         keys.forEach(k => {
-          if (p._sim.votosCand[k] > maxVotos) { maxVotos = p._sim.votosCand[k]; vencKey = k; }
+          if ((p._sim.votosCand[k] || 0) > maxVotos) { maxVotos = p._sim.votosCand[k]; vencKey = k; }
         });
       }
-      const cor = simGetCorKey(vencKey);
-      const total = p._sim ? p._sim.totalAptos : 0;
-      const radius = total > 2000 ? 5 : (total > 1000 ? 4 : 3);
+      const baseCor = simGetCorKey(vencKey);
+
+      // Calculate margin for gradient (same logic as visualizer: 0-50% → gradient 0-100%)
+      let marginPct = 0;
+      if (p._sim && p._sim.totalAptos > 0) {
+        const sortedVotes = keys.map(k => p._sim.votosCand[k] || 0).sort((a, b) => b - a);
+        const validTotal = sortedVotes.reduce((s, v) => s + v, 0);
+        if (validTotal > 0) {
+          marginPct = ((sortedVotes[0] || 0) - (sortedVotes[1] || 0)) / validTotal * 100;
+        }
+      }
+      let marginIntensity = Math.max(0, Math.min(50, marginPct));
+      const fixedRelativePct = (marginIntensity / 50) * 100;
+      const cor = getUniversalGradientColor(baseCor, fixedRelativePct);
+
+      // Radius based on log scale of valid voters (same logic as visualizer)
+      const aptos = p._sim ? p._sim.totalAptos : 0;
+      const logComp = Math.log10(Math.max(1, aptos));
+      let pctLog = (logComp - 2) / (4 - 2);
+      pctLog = Math.max(0, Math.min(1, pctLog));
+      const radius = 2 + (7 * pctLog);
 
       return L.circleMarker(latlng, {
         radius: radius,
         fillColor: cor,
-        color: '#000',
-        weight: 0.5,
-        fillOpacity: 0.8
+        color: 'transparent',
+        weight: 0,
+        fillOpacity: 0.8,
+        opacity: 0
       });
     },
     onEachFeature: (f, layer) => {
       const p = f.properties;
-      let tt = "<b>" + (p.nm_locvot || 'Local') + "</b><br><div>" + (p.nm_localidade || '') + "</div>";
-      if(p._sim) {
-        const sorted = SIM.candidatos.map(c=>"cand_"+c.id).concat(['outros']).sort((a,b)=>p._sim.votosCand[b]-p._sim.votosCand[a]);
-        tt += "<hr style='margin:4px 0'>";
-        sorted.forEach(k => {
-          const v = p._sim.votosCand[k];
-          if(v > 0) {
-             const label = k === 'outros' ? 'Outros' : SIM.candidatos.find(c=>c.id === parseInt(k.replace('cand_',''))).nome;
-             const pct = (v / p._sim.totalAptos)*100;
-             tt += "<div style='display:flex;justify-content:space-between;width:150px;'><span>" + label + "</span><span>" + pct.toFixed(1) + "% (" + v + ")</span></div>";
-          }
-        });
-      }
-      layer.bindTooltip(tt, { className: 'sim-tooltip' });
+      if (!p._sim) return;
+
+      // Calculate valid votes (excluding nuloBranco and abstencao)
+      const validTotal = keys.reduce((s, k) => s + (p._sim.votosCand[k] || 0), 0);
+
+      const sortedKeys = [...keys].sort((a, b) => (p._sim.votosCand[b] || 0) - (p._sim.votosCand[a] || 0));
+
+      let rows = '';
+      sortedKeys.forEach(k => {
+        const v = p._sim.votosCand[k] || 0;
+        if (v <= 0) return;
+        const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
+        const cor = simGetCorKey(k);
+        const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
+        rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+          <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span>
+          <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+          <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(v)})</span>
+        </div>`;
+      });
+
+      const tt = `<div style="min-width:180px;max-width:240px;">
+        <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${p.nm_locvot || 'Local'}</div>
+        <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${p.nm_localidade || ''}</div>
+        <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(validTotal)}</div>
+        <hr style="margin:4px 0;border-color:#444;">
+        ${rows}
+      </div>`;
+
+      layer.bindTooltip(tt, { className: 'sim-tooltip', sticky: false });
     }
   }).addTo(simMap);
 
-  simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20,20] });
+  simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20, 20] });
 }
 
