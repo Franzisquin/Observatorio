@@ -768,9 +768,6 @@ function setupControls() {
     applyFiltersAndRedraw();
   });
 
-  dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach(b => {
-    b.classList.toggle('active', b.dataset.value === newCargo);
-  });
 
   // Listener para Chips de TIPO DE ELEIÇÃO (Ordinária / Suplementar)
   // Reutiliza o elemento que antes era só para municipal
