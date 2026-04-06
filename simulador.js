@@ -112,7 +112,7 @@ async function initSimulador() {
   simRenderDemoGroup();
 
   // Bindings
-  document.getElementById('btnAddCand').addEventListener('click', () => { simAddCandidato('', ''); simRenderCandidatos(); });
+  document.getElementById('btnAddCand').addEventListener('click', () => { simAddCandidato('', ''); simRenderCandidatos(); simRenderDemoGroup(); });
   document.getElementById('btnAplicarSimModal')?.addEventListener('click', simAplicar);
   
   // Modal handlers
@@ -168,6 +168,15 @@ function simAddCandidato(nome = '', partido = '') {
   return c;
 }
 
+// Helper: returns the list of slider keys for a given category
+function simGetKeysForCat(cat) {
+  const keys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+  if (cat === 'voto2022') {
+    keys.push('nuloBranco', 'abstencao');
+  }
+  return keys;
+}
+
 function simRemoveCandidato(id) {
   SIM.candidatos = SIM.candidatos.filter(c => c.id !== id);
   for (const cat in SIM.sliders) for (const sub in SIM.sliders[cat]) delete SIM.sliders[cat][sub][`cand_${id}`];
@@ -179,8 +188,10 @@ function simInitDefaultSliders() {
     for (const sub in DEMO_GROUPS[cat].subgrupos) {
       if (!SIM.sliders[cat][sub]) SIM.sliders[cat][sub] = {};
       SIM.sliders[cat][sub].outros = 0.88;
-      SIM.sliders[cat][sub].nuloBranco = 3.85;
-      SIM.sliders[cat][sub].abstencao = 20.58;
+      if (cat === 'voto2022') {
+        SIM.sliders[cat][sub].nuloBranco = 3.85;
+        SIM.sliders[cat][sub].abstencao = 20.58;
+      }
     }
   }
 }
@@ -204,15 +215,15 @@ function simRenderCandidatos() {
   // Perenes
   html += `
     <div class="sim-perene-item"><span class="sim-perene-dot" style="background:#7a8699"></span> Outros (definido nos sliders)</div>
-    <div class="sim-perene-item"><span class="sim-perene-dot" style="background:#a0a0a0"></span> Brancos/Nulos (perene)</div>
-    <div class="sim-perene-item"><span class="sim-perene-dot" style="background:#555"></span> Abstenção (perene)</div>`;
+    <div class="sim-perene-item"><span class="sim-perene-dot" style="background:#a0a0a0"></span> Brancos/Nulos (apenas Voto 2022)</div>
+    <div class="sim-perene-item"><span class="sim-perene-dot" style="background:#555"></span> Abstenção (apenas Voto 2022)</div>`;
 
   container.innerHTML = html;
 
   // Bind events
   container.querySelectorAll('.sim-cand-nome').forEach(el => el.addEventListener('change', e => {
     const c = SIM.candidatos.find(cc => cc.id === +e.target.dataset.id);
-    if (c) c.nome = e.target.value;
+    if (c) { c.nome = e.target.value; simRenderDemoGroup(); }
   }));
 
   container.querySelectorAll('.sim-cand-partido').forEach(el => el.addEventListener('change', e => {
@@ -225,12 +236,13 @@ function simRenderCandidatos() {
         const ci = container.querySelector(`.sim-cand-color[data-id="${c.id}"]`);
         if (ci) ci.value = auto;
       }
+      simRenderDemoGroup();
     }
   }));
 
-  container.querySelectorAll('.sim-cand-color').forEach(el => el.addEventListener('input', e => {
+  container.querySelectorAll('.sim-cand-color').forEach(el => el.addEventListener('change', e => {
     const c = SIM.candidatos.find(cc => cc.id === +e.target.dataset.id);
-    if (c) c.cor = e.target.value;
+    if (c) { c.cor = e.target.value; simRenderDemoGroup(); }
   }));
 
   container.querySelectorAll('.sim-cand-remove').forEach(el => el.addEventListener('click', e => {
@@ -245,29 +257,32 @@ function simRenderDemoGroup() {
   const container = document.getElementById('simDemoContent');
   if (!container) return;
 
-  const allEntries = SIM.candidatos.map(c => ({ key: `cand_${c.id}`, label: c.nome || `Cand. ${c.id}`, cor: c.cor }))
-    .concat([
-      { key: 'outros', label: 'Outros', cor: '#7a8699' },
-      { key: 'nuloBranco', label: 'Nulos/Brancos', cor: '#a0a0a0' },
-      { key: 'abstencao', label: 'Abstenção', cor: '#555' }
-    ]);
-
   let html = '';
   for (const cat in DEMO_GROUPS) {
     const group = DEMO_GROUPS[cat];
+    const isVoto2022 = (cat === 'voto2022');
+
+    // Build entries list based on category
+    const catEntries = SIM.candidatos.map(c => ({ key: `cand_${c.id}`, label: c.nome || `Cand. ${c.id}`, cor: c.cor }))
+      .concat([{ key: 'outros', label: 'Outros', cor: '#7a8699' }]);
+    if (isVoto2022) {
+      catEntries.push({ key: 'nuloBranco', label: 'Nulos/Brancos', cor: '#a0a0a0' });
+      catEntries.push({ key: 'abstencao', label: 'Abstenção', cor: '#555' });
+    }
+
     html += '<div style="margin-bottom: 24px;">';
-    html += `<h4 style="margin:0 0 10px 0; border-bottom:1px solid var(--border-color); padding-bottom:6px; color:var(--text);">${group.label}</h4>`;
+    html += `<h4 style="margin:0 0 10px 0; border-bottom:1px solid var(--border-color); padding-bottom:6px; color:var(--text);">${group.label}${!isVoto2022 ? ' <small style="color:var(--text-secondary);font-weight:normal;">(votos válidos)</small>' : ''}</h4>`;
 
     for (const [subKey, subLabel] of Object.entries(group.subgrupos)) {
       const subData = SIM.sliders[cat]?.[subKey] || {};
-      const total = allEntries.reduce((s, e) => s + (subData[e.key] || 0), 0);
+      const total = catEntries.reduce((s, e) => s + (subData[e.key] || 0), 0);
       const isValid = Math.abs(total - 100) < 0.5;
 
       html += `<div class="sim-subgroup" data-cat="${cat}" data-sub="${subKey}">`;
       html += `<div class="sim-subgroup-title">${subLabel}</div>`;
       html += `<div class="sim-total-indicator ${isValid ? 'valid' : 'invalid'}">Total: ${total.toFixed(1)}%</div>`;
 
-      allEntries.forEach(entry => {
+      catEntries.forEach(entry => {
         const val = subData[entry.key] || 0;
         html += `
           <div class="sim-slider-row">
@@ -292,9 +307,17 @@ function simRenderDemoGroup() {
   container.querySelectorAll('.sim-slider').forEach(sl => {
     sl.addEventListener('input', e => {
       const { cat: c, sub: s, entry: en } = e.target.dataset;
-      const v = parseFloat(e.target.value);
+      let v = parseFloat(e.target.value);
       if (!SIM.sliders[c]) SIM.sliders[c] = {};
       if (!SIM.sliders[c][s]) SIM.sliders[c][s] = {};
+
+      // Enforce 100% cap
+      const keys = simGetKeysForCat(c);
+      const otherTotal = keys.filter(k => k !== en).reduce((sum, k) => sum + (SIM.sliders[c][s][k] || 0), 0);
+      const maxAllowed = Math.max(0, 100 - otherTotal);
+      v = Math.min(v, maxAllowed);
+      e.target.value = v;
+
       SIM.sliders[c][s][en] = v;
       const ni = container.querySelector(`.sim-slider-val[data-cat="${c}"][data-sub="${s}"][data-entry="${en}"]`);
       if (ni) ni.value = v.toFixed(2);
@@ -308,9 +331,16 @@ function simRenderDemoGroup() {
       let v = parseFloat(e.target.value);
       if (isNaN(v)) v = 0;
       v = Math.max(0, Math.min(100, v));
-      e.target.value = v.toFixed(2);
       if (!SIM.sliders[c]) SIM.sliders[c] = {};
       if (!SIM.sliders[c][s]) SIM.sliders[c][s] = {};
+
+      // Enforce 100% cap
+      const keys = simGetKeysForCat(c);
+      const otherTotal = keys.filter(k => k !== en).reduce((sum, k) => sum + (SIM.sliders[c][s][k] || 0), 0);
+      const maxAllowed = Math.max(0, 100 - otherTotal);
+      v = Math.min(v, maxAllowed);
+
+      e.target.value = v.toFixed(2);
       SIM.sliders[c][s][en] = v;
       const ri = container.querySelector(`.sim-slider[data-cat="${c}"][data-sub="${s}"][data-entry="${en}"]`);
       if (ri) ri.value = v;
@@ -321,8 +351,8 @@ function simRenderDemoGroup() {
 
 function simUpdateSubTotal(container, cat, sub) {
   const subData = SIM.sliders[cat]?.[sub] || {};
-  const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros', 'nuloBranco', 'abstencao']);
-  const total = allKeys.reduce((s, k) => s + (subData[k] || 0), 0);
+  const keys = simGetKeysForCat(cat);
+  const total = keys.reduce((s, k) => s + (subData[k] || 0), 0);
 
   const sgDiv = container.querySelector(`.sim-subgroup[data-cat="${cat}"][data-sub="${sub}"]`);
   if (sgDiv) {
@@ -364,33 +394,98 @@ function simCalcularProjecao() {
     }
 
     // Média ponderada
+    // For non-voto2022 categories, sliders represent % of valid votes.
+    // For voto2022, sliders represent % of total electorate (including nulo/branco/abstencao).
     const scores = {};
     allKeys.forEach(k => scores[k] = 0);
     let totalWeight = 0;
+
+    // Separate weights for voto2022 and non-voto2022
+    const validScores = {}; // scores from non-voto2022 categories (valid votes only)
+    const voto2022Scores = {}; // scores from voto2022 category (includes nulo/branco/abstencao)
+    allKeys.forEach(k => { validScores[k] = 0; voto2022Scores[k] = 0; });
+    let validWeight = 0;
+    let voto2022Weight = 0;
 
     for (const cat in DEMO_GROUPS) {
       const catKey = cat === 'voto2022' ? 'voto2022_2t' : cat;
       const catData = demo[catKey];
       if (!catData) continue;
+      const isVoto2022 = (cat === 'voto2022');
 
       for (const sub in DEMO_GROUPS[cat].subgrupos) {
         const peso = catData[sub] || 0;
         if (peso <= 0) continue;
         const sliderSub = SIM.sliders[cat]?.[sub];
         if (!sliderSub) continue;
-        allKeys.forEach(k => { scores[k] += peso * (sliderSub[k] || 0); });
-        totalWeight += peso;
+
+        if (isVoto2022) {
+          allKeys.forEach(k => { voto2022Scores[k] += peso * (sliderSub[k] || 0); });
+          voto2022Weight += peso;
+        } else {
+          // Non-voto2022: sliders only have candidates + outros (valid votes)
+          const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+          validKeys.forEach(k => { validScores[k] += peso * (sliderSub[k] || 0); });
+          validWeight += peso;
+        }
       }
     }
 
-    if (totalWeight > 0) allKeys.forEach(k => scores[k] = scores[k] / totalWeight);
+    // Normalize voto2022 scores
+    if (voto2022Weight > 0) {
+      allKeys.forEach(k => voto2022Scores[k] /= voto2022Weight);
+    }
 
-    const totalPct = allKeys.reduce((s, k) => s + scores[k], 0);
-    if (totalPct > 0 && totalPct !== 100) allKeys.forEach(k => scores[k] = (scores[k] / totalPct) * 100);
+    // Normalize valid scores (non-voto2022)
+    const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+    if (validWeight > 0) {
+      validKeys.forEach(k => validScores[k] /= validWeight);
+    }
+
+    // Get nuloBranco and abstencao from voto2022 category only
+    const nuloBrancoPct = voto2022Scores.nuloBranco || 0;
+    const abstencaoPct = voto2022Scores.abstencao || 0;
+    const validFraction = Math.max(0, 100 - nuloBrancoPct - abstencaoPct);
+
+    // Combine: valid vote percentages are scaled to the valid fraction of the electorate
+    // The valid scores from non-voto2022 categories represent distribution among valid votes
+    // The voto2022 valid scores also contribute
+    const combinedValid = {};
+    validKeys.forEach(k => combinedValid[k] = 0);
+
+    if (validWeight > 0 && voto2022Weight > 0) {
+      // Both contribute - average them together
+      const totalCombinedWeight = validWeight + voto2022Weight;
+      validKeys.forEach(k => {
+        combinedValid[k] = (validScores[k] * validWeight + voto2022Scores[k] * voto2022Weight) / totalCombinedWeight;
+      });
+    } else if (validWeight > 0) {
+      validKeys.forEach(k => combinedValid[k] = validScores[k]);
+    } else if (voto2022Weight > 0) {
+      validKeys.forEach(k => combinedValid[k] = voto2022Scores[k]);
+    }
+
+    // Normalize combinedValid to sum to validFraction
+    const sumValid = validKeys.reduce((s, k) => s + combinedValid[k], 0);
+    if (sumValid > 0) {
+      validKeys.forEach(k => combinedValid[k] = (combinedValid[k] / sumValid) * validFraction);
+    }
+
+    // Final percentages (of total electorate)
+    const finalPcts = {};
+    validKeys.forEach(k => finalPcts[k] = combinedValid[k]);
+    finalPcts.nuloBranco = nuloBrancoPct;
+    finalPcts.abstencao = abstencaoPct;
+
+    // Normalize to exactly 100%
+    const totalPct = allKeys.reduce((s, k) => s + (finalPcts[k] || 0), 0);
+    if (totalPct > 0 && Math.abs(totalPct - 100) > 0.01) {
+      allKeys.forEach(k => finalPcts[k] = ((finalPcts[k] || 0) / totalPct) * 100);
+    }
 
     const ufRes = {};
     allKeys.forEach(k => {
-      const pct = scores[k] || 0;
+      const pct = finalPcts[k] || 0;
       const votos = Math.round(demo.eleitores * pct / 100);
       ufRes[k] = { pct, votos };
       totalVotosBR[k] += votos;
@@ -449,8 +544,8 @@ function simRenderMapaEstados() {
       if (res && venc?.key) {
         const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
         const sorted = ks.map(k => res[k]?.votos || 0).sort((a, b) => b - a);
-        const total = Object.values(res).reduce((s, v) => typeof v === 'object' ? s + (v.votos || 0) : s, 0);
-        const margin = total > 0 ? (sorted[0] - (sorted[1] || 0)) / total : 0;
+        const validVotos = sorted.reduce((s, v) => s + v, 0);
+        const margin = validVotos > 0 ? (sorted[0] - (sorted[1] || 0)) / validVotos : 0;
         op = 0.35 + Math.min(margin * 3.5, 0.6);
       }
 
@@ -472,9 +567,13 @@ function simRenderMapaEstados() {
 
       let tt = `<b>${nome} (${sigla})</b>`;
       if (venc?.key) {
+        const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+        const validVotos = ks.reduce((s, k) => s + (res[k]?.votos || 0), 0);
+        const pctObj = validVotos > 0 ? ((res[venc.key]?.votos || 0) / validVotos) * 100 : 0;
+
         const c = SIM.candidatos.find(cc => cc.id === parseInt((venc.key || '').replace('cand_', '')));
-        if (c) tt += `<br>${c.nome}: ${res[venc.key].pct.toFixed(1)}%`;
-        else if (venc.key === 'outros') tt += `<br>Outros: ${res.outros.pct.toFixed(1)}%`;
+        if (c) tt += `<br>${c.nome}: ${pctObj.toFixed(1)}%`;
+        else if (venc.key === 'outros') tt += `<br>Outros: ${pctObj.toFixed(1)}%`;
       }
       layer.bindTooltip(tt, { sticky: true });
       layer.on('click', () => simOnClickEstado(sigla));
@@ -520,14 +619,21 @@ function simRenderBarsInto(containerId, data) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+  const validVotos = validKeys.reduce((s, k) => s + (data[k]?.votos || 0), 0);
+
   const entries = SIM.candidatos.map(c => ({
     key: `cand_${c.id}`, label: c.nome || 'S/N', partido: c.partido, cor: c.cor,
-    votos: data[`cand_${c.id}`]?.votos || 0, pct: data[`cand_${c.id}`]?.pct || 0
+    votos: data[`cand_${c.id}`]?.votos || 0,
+    pct: validVotos > 0 ? ((data[`cand_${c.id}`]?.votos || 0) / validVotos) * 100 : 0
   })).concat([
-    { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: data.outros?.votos || 0, pct: data.outros?.pct || 0 },
+    { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: data.outros?.votos || 0, pct: validVotos > 0 ? ((data.outros?.votos || 0) / validVotos) * 100 : 0 }
+  ]).sort((a, b) => b.votos - a.votos);
+
+  const invalidEntries = [
     { key: 'nuloBranco', label: 'Nulos/Brancos', partido: '', cor: '#a0a0a0', votos: data.nuloBranco?.votos || 0, pct: data.nuloBranco?.pct || 0 },
     { key: 'abstencao', label: 'Abstenção', partido: '', cor: '#555', votos: data.abstencao?.votos || 0, pct: data.abstencao?.pct || 0 }
-  ]).sort((a, b) => b.votos - a.votos);
+  ];
 
   let html = '<div class="sim-results-bars">';
   entries.forEach(e => {
@@ -540,6 +646,20 @@ function simRenderBarsInto(containerId, data) {
         <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
       </div>`;
   });
+
+  html += '<div style="height:1px;background:var(--border-color);margin:16px 0;"></div>';
+
+  invalidEntries.forEach(e => {
+    if (e.votos <= 0) return;
+    html += `
+      <div class="sim-result-row" style="opacity:0.8;">
+        <div class="sim-result-indicator" style="background:${e.cor}"></div>
+        <div class="sim-result-name"><span>${e.label}</span></div>
+        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
+        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
+      </div>`;
+  });
+
   html += '</div>';
   container.innerHTML = html;
 }
@@ -588,18 +708,25 @@ function simRenderEstadoResultado(sigla) {
 }
 
 function simRenderBarsGenericInto(container, res) {
+  const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+  const validVotos = validKeys.reduce((s, k) => s + (res[k]?.votos || 0), 0);
+
   const entries = SIM.candidatos.map(c => ({
     key: `cand_${c.id}`, label: c.nome || 'S/N', partido: c.partido, cor: c.cor,
-    votos: res[`cand_${c.id}`]?.votos || 0, pct: res[`cand_${c.id}`]?.pct || 0
+    votos: res[`cand_${c.id}`]?.votos || 0, 
+    pct: validVotos > 0 ? ((res[`cand_${c.id}`]?.votos || 0) / validVotos) * 100 : 0
   })).concat([
-    { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: res.outros?.votos || 0, pct: res.outros?.pct || 0 },
+    { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: res.outros?.votos || 0, pct: validVotos > 0 ? ((res.outros?.votos || 0) / validVotos) * 100 : 0 }
+  ]).sort((a, b) => b.votos - a.votos);
+
+  const invalidEntries = [
     { key: 'nuloBranco', label: 'Nulos/Brancos', partido: '', cor: '#a0a0a0', votos: res.nuloBranco?.votos || 0, pct: res.nuloBranco?.pct || 0 },
     { key: 'abstencao', label: 'Abstenção', partido: '', cor: '#555', votos: res.abstencao?.votos || 0, pct: res.abstencao?.pct || 0 }
-  ]).sort((a, b) => b.votos - a.votos);
+  ];
 
   let html = '<div class="sim-results-bars">';
   entries.forEach(e => {
-    if (e.votos <= 0) return;
+    if (e.votos <= 0 && e.key !== 'outros') return;
     html += `
       <div class="sim-result-row">
         <div class="sim-result-indicator" style="background:${e.cor}"></div>
@@ -608,6 +735,20 @@ function simRenderBarsGenericInto(container, res) {
         <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
       </div>`;
   });
+
+  html += '<div style="height:1px;background:var(--border-color);margin:16px 0;"></div>';
+
+  invalidEntries.forEach(e => {
+    if (e.votos <= 0) return;
+    html += `
+      <div class="sim-result-row" style="opacity:0.8;">
+        <div class="sim-result-indicator" style="background:${e.cor}"></div>
+        <div class="sim-result-name"><span>${e.label}</span></div>
+        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
+        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
+      </div>`;
+  });
+
   html += '</div>';
   container.innerHTML = html;
 }
