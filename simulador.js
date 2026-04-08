@@ -39,7 +39,7 @@ const DEMO_GROUPS = {
   idade:    { label: 'Idade',     subgrupos: { '16-29': '16 a 29', '30-45': '30 a 45', '46-59': '46 a 59', '60+': '60+' } },
   educacao: { label: 'Educação',  subgrupos: { fundamental: 'Fundamental', medio: 'Médio', superior: 'Superior' } },
   renda:    { label: 'Renda',     subgrupos: { '0-1k': 'Até R$1.000', '1k-2k': '1 a 2 mil', '2k-3k': '2 a 3 mil', '3k-4k': '3 a 4 mil', '4k-5k': '4 a 5 mil', '5k+': '5 mil+' } },
-  religiao: { label: 'Religião',  subgrupos: { catolico: 'Católica', evangelico: 'Evangélica', outras: 'Outras', semReligiao: 'Sem Religião' } },
+  religiao: { label: 'Religião',  subgrupos: { catolico: 'Católico', evangelico: 'Evangélico', outras: 'Outras', semReligiao: 'Sem Religião' } },
   voto2022: { label: 'Voto 2022 (2T)', subgrupos: { lula: 'Lula (PT)', bolsonaro: 'Bolsonaro (PL)', nuloBranco: 'Nulo/Branco', abstencao: 'Abstenção' } }
 };
 
@@ -54,12 +54,9 @@ const SIM = {
   locaisCache: {}, 
   estadosGeoJSON: null,
   estadosLayer: null,
-  municipiosLayer: null,
   locaisLayer: null,
   selectedUF: null,
-  selectedMuni: null,
-  currentDemoGroup: 'genero',
-  religiaoMuni: {}
+  currentDemoGroup: 'genero'
 };
 
 let simMap, simTileLayer;
@@ -227,26 +224,21 @@ async function initSimulador() {
   document.getElementById('btnVoltarBrasil')?.addEventListener('click', () => { SIM.selectedUF = null; simShowBrasilResults(); });
 
   // Estado tab buttons
-  document.getElementById('btnEstadoResultado')?.addEventListener('click', function(e) {
-    simEstadoTabSwitch(e.currentTarget, 'resultado');
+  document.getElementById('btnEstadoResultado')?.addEventListener('click', function() {
+    simEstadoTabSwitch(this, 'resultado');
   });
-  document.getElementById('btnEstadoAjustar')?.addEventListener('click', function(e) {
-    simEstadoTabSwitch(e.currentTarget, 'ajustar');
+  document.getElementById('btnEstadoAjustar')?.addEventListener('click', function() {
+    simEstadoTabSwitch(this, 'ajustar');
   });
-  document.getElementById('btnEstadoLocais')?.addEventListener('click', function(e) {
-    simEstadoTabSwitch(e.currentTarget, 'locais');
-    if (SIM.selectedUF) {
-       SIM.selectedMuni = null;
-       simRenderMapaLocais(SIM.selectedUF);
-    }
+  document.getElementById('btnEstadoLocais')?.addEventListener('click', function() {
+    simEstadoTabSwitch(this, 'locais');
+    if (SIM.selectedUF) simRenderMapaLocais(SIM.selectedUF);
   });
 }
 
 // ====== DATA ======
 async function loadSimuladorData() {
   try {
-    SIM.religiaoMuni = await fetchGeoJSON(DATA_BASE_URL + 'religiao_municipios.json').catch(e => ({}));
-    
     const geoRes = await fetch(DATA_BASE_URL + 'estados_brasil.geojson');
     if (!geoRes.ok) throw new Error('Dados não encontrados');
     SIM.estadosGeoJSON = await geoRes.json();
@@ -257,26 +249,15 @@ async function loadSimuladorData() {
     const CHUNK_SIZE = 5;
     const ufKeys = Array.from(UF_MAP.keys()).filter(k => k !== 'BR');
     
-    SIM.municipiosCache = {};
-
     for (let i = 0; i < ufKeys.length; i += CHUNK_SIZE) {
       const chunk = ufKeys.slice(i, i + CHUNK_SIZE);
       await Promise.all(chunk.map(async (uf) => {
         const presPath = `presidente_por_estado2022/presidente_${uf}_2022.geojson`;
         const locPath = `locais_votacao_2022/locais_votacao_2022_${uf}.geojson`;
         
-          const muniPath = `municipios/municipios_${uf}.geojson`;
-
         try {
           const presData = await fetchGeoJSON(presPath).catch(e=>null);
-
           const locData = await fetchGeoJSON(locPath).catch(e=>null);
-          const muniData = await fetchGeoJSON(muniPath).catch(e=>null);
-          
-          if(muniData) {
-            SIM.municipiosCache[uf] = muniData;
-          }
-
           if(!presData) return;
           
           const locaisMap = new Map();
@@ -528,14 +509,10 @@ function simUpdateSubTotal(container, cat, sub) {
 function simCalcularProjecao() {
   SIM.resultadosPorUF = {};
   SIM.totalBrasil = {};
-  SIM.resultadosPorMuni = {};
 
   const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros', 'nuloBranco', 'abstencao']);
   let totalEleitoresBR = 0;
   const totalVotosBR = {};
-  allKeys.forEach(k => totalVotosBR[k] = 0);
-  
-  // Clean all overriding effects first
   allKeys.forEach(k => totalVotosBR[k] = 0);
 
   Object.keys(SIM.locaisCache).forEach(uf => {
@@ -613,15 +590,6 @@ function simCalcularProjecao() {
       rWeights[r_bucket] = 1.0;
       calcGroupScore('renda', rWeights);
 
-      const codM = p.cod_localidade_ibge || p.CD_MUN;
-      const rel = codM && SIM.religiaoMuni[codM] ? SIM.religiaoMuni[codM] : {};
-      calcGroupScore('religiao', { 
-        catolico: (rel.pct_rel_catolica || 0)/100, 
-        evangelico: (rel.pct_rel_evangelica || 0)/100, 
-        outras: (rel.pct_rel_outras || 0)/100, 
-        semReligiao: (rel.pct_rel_sem_religiao || 0)/100 
-      });
-
       if (voto2022Weight > 0) allKeys.forEach(k => voto2022Scores[k] /= voto2022Weight);
       if (validWeight > 0) validKeys.forEach(k => validScores[k] /= validWeight);
 
@@ -662,20 +630,6 @@ function simCalcularProjecao() {
       });
 
       totalEleitoresUF += aptos;
-      
-      if (codM) {
-        if (!SIM.resultadosPorMuni[uf]) SIM.resultadosPorMuni[uf] = {};
-        if (!SIM.resultadosPorMuni[uf][codM]) {
-          SIM.resultadosPorMuni[uf][codM] = {};
-          allKeys.forEach(k => SIM.resultadosPorMuni[uf][codM][k] = { votos: 0, pct: 0 });
-          SIM.resultadosPorMuni[uf][codM]._totalEleitores = 0;
-        }
-        allKeys.forEach(k => {
-           const votos = Math.round(aptos * (finalPcts[k] || 0) / 100);
-           SIM.resultadosPorMuni[uf][codM][k].votos += votos;
-        });
-        SIM.resultadosPorMuni[uf][codM]._totalEleitores += aptos;
-      }
 
       // Armazenamos resultados no point para usar no mapa de locais posteriormente
       f.properties._sim = { votosCand: {}, totalAptos: aptos };
@@ -686,26 +640,6 @@ function simCalcularProjecao() {
     allKeys.forEach(k => {
       ufRes[k].pct = totalEleitoresUF > 0 ? (ufRes[k].votos / totalEleitoresUF) * 100 : 0;
     });
-
-    if (SIM.resultadosPorMuni[uf]) {
-        Object.keys(SIM.resultadosPorMuni[uf]).forEach(codM => {
-            const mRes = SIM.resultadosPorMuni[uf][codM];
-            allKeys.forEach(k => {
-                mRes[k].pct = mRes._totalEleitores > 0 ? (mRes[k].votos / mRes._totalEleitores) * 100 : 0;
-            });
-        });
-    }
-
-    if (SIM.overridesPorUF[uf]) {
-        const oRes = SIM.overridesPorUF[uf];
-        allKeys.forEach(k => {
-           // update totalVotosBR by subtracting old ones and adding new ones
-           totalVotosBR[k] -= ufRes[k].votos; 
-           ufRes[k].pct = oRes[k] || 0;
-           ufRes[k].votos = Math.round(totalEleitoresUF * (oRes[k] || 0) / 100);
-           totalVotosBR[k] += ufRes[k].votos;
-        });
-    }
 
     SIM.resultadosPorUF[uf] = ufRes;
     totalEleitoresBR += totalEleitoresUF;
@@ -731,17 +665,6 @@ function simAplicar() {
 // ====== MAPA ======
 function simGetVencedorUF(uf) {
   const res = SIM.resultadosPorUF[uf];
-  if (!res) return null;
-  let mx = -1, wk = null;
-  SIM.candidatos.forEach(c => { const k = `cand_${c.id}`; if (res[k] && res[k].votos > mx) { mx = res[k].votos; wk = k; } });
-  if (res.outros && res.outros.votos > mx) { wk = 'outros'; mx = res.outros.votos; }
-  return { key: wk, votos: mx };
-}
-
-function simGetVencedorMuni(uf, codM) {
-  const ufRes = SIM.resultadosPorMuni[uf];
-  if (!ufRes) return null;
-  const res = ufRes[codM];
   if (!res) return null;
   let mx = -1, wk = null;
   SIM.candidatos.forEach(c => { const k = `cand_${c.id}`; if (res[k] && res[k].votos > mx) { mx = res[k].votos; wk = k; } });
@@ -780,14 +703,13 @@ function simRenderMapaEstados() {
       const fillCol = getUniversalGradientColor(cor, fixedRelativePct);
 
       const isSelected = SIM.selectedUF === sigla;
-      const isFaded = SIM.selectedUF && !isSelected;
 
       return {
         fillColor: fillCol,
-        fillOpacity: isFaded ? 0.3 : 0.85,
+        fillOpacity: 0.85,
         color: isSelected ? '#fff' : '#333',
         weight: isSelected ? 2.5 : 1,
-        opacity: isFaded ? 0.3 : (isSelected ? 1 : 0.7)
+        opacity: isSelected ? 1 : 0.7
       };
     },
     onEachFeature: (f, layer) => {
@@ -824,8 +746,6 @@ function simShowBrasilResults() {
 
   // Remove locais layer and restore states layer
   if (SIM.locaisLayer) { simMap.removeLayer(SIM.locaisLayer); SIM.locaisLayer = null; }
-  if (SIM.municipiosLayer) { simMap.removeLayer(SIM.municipiosLayer); SIM.municipiosLayer = null; }
-  
   simRenderMapaEstados(); // re-render states with no selection highlight
 
   const total = SIM.totalBrasil;
@@ -915,8 +835,6 @@ function simOnClickEstado(sigla) {
     document.getElementById('simEstadoSub').textContent += ' • Editado manualmente';
   }
 
-  SIM.selectedMuni = null;
-
   // Show resultado tab
   const tabs = document.querySelectorAll('#simEstadoResults .chip-button');
   tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === 'resultado'));
@@ -927,70 +845,6 @@ function simOnClickEstado(sigla) {
   simRenderEstadoAjuste(sigla);
 
   if (SIM.estadosLayer) simRenderMapaEstados(); // refresh highlight
-  simRenderMapaMunicipios(sigla);
-}
-
-function simRenderMapaMunicipios(uf) {
-  if (SIM.municipiosLayer) { simMap.removeLayer(SIM.municipiosLayer); SIM.municipiosLayer = null; }
-  if (SIM.locaisLayer) { simMap.removeLayer(SIM.locaisLayer); SIM.locaisLayer = null; }
-
-  const geo = SIM.municipiosCache[uf];
-  if (!geo) return;
-
-  SIM.municipiosLayer = L.geoJSON(geo, {
-    style: f => {
-      const codM = f.properties.CD_MUN;
-      const res = SIM.resultadosPorMuni[uf]?.[codM];
-      const venc = simGetVencedorMuni(uf, codM);
-      const cor = simGetCorKey(venc?.key);
-
-      let marginPct = 0;
-      if (res && venc?.key) {
-        const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-        const sorted = ks.map(k => res[k]?.votos || 0).sort((a, b) => b - a);
-        const validVotos = sorted.reduce((s, v) => s + v, 0);
-        marginPct = validVotos > 0 ? ((sorted[0] - (sorted[1] || 0)) / validVotos) * 100 : 0;
-      }
-      const marginIntensity = Math.max(0, Math.min(50, marginPct));
-      const fixedRelativePct = (marginIntensity / 50) * 100;
-      const fillCol = getUniversalGradientColor(cor, fixedRelativePct);
-
-      const isSelected = SIM.selectedMuni === codM;
-
-      return {
-        fillColor: fillCol,
-        fillOpacity: 0.9,
-        color: isSelected ? '#fff' : '#444',
-        weight: isSelected ? 3 : 1,
-        opacity: isSelected ? 1 : 0.8
-      };
-    },
-    onEachFeature: (f, layer) => {
-      const nome = f.properties.NM_MUN;
-      const codM = f.properties.CD_MUN;
-      const res = SIM.resultadosPorMuni[uf]?.[codM];
-      const venc = simGetVencedorMuni(uf, codM);
-
-      let tt = `<b>${nome}</b>`;
-      if (venc?.key && res) {
-        const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-        const validVotos = ks.reduce((s, k) => s + (res[k]?.votos || 0), 0);
-        const pctObj = validVotos > 0 ? ((res[venc.key]?.votos || 0) / validVotos) * 100 : 0;
-
-        const c = SIM.candidatos.find(cc => cc.id === parseInt((venc.key || '').replace('cand_', '')));
-        if (c) tt += `<br>${c.nome}: ${pctObj.toFixed(1)}%`;
-        else if (venc.key === 'outros') tt += `<br>Outros: ${pctObj.toFixed(1)}%`;
-      }
-      layer.bindTooltip(tt, { sticky: true });
-      layer.on('click', () => {
-         SIM.selectedMuni = codM;
-         if (SIM.municipiosLayer) simMap.removeLayer(SIM.municipiosLayer);
-         simRenderMapaLocais(uf, codM);
-      });
-    }
-  }).addTo(simMap);
-
-  if (SIM.municipiosLayer.getBounds().isValid()) simMap.fitBounds(SIM.municipiosLayer.getBounds());
 }
 
 function simEstadoTabSwitch(btn, tab) {
@@ -1062,17 +916,16 @@ function simRenderEstadoAjuste(sigla) {
   const container = document.getElementById('simEstadoTabAjustar');
   const allEntries = SIM.candidatos.map(c => ({ key: `cand_${c.id}`, label: c.nome || 'S/N', cor: c.cor }))
     .concat([
-      { key: 'outros', label: 'Outros', cor: '#7a8699' }
+      { key: 'outros', label: 'Outros', cor: '#7a8699' },
+      { key: 'nuloBranco', label: 'Nulos/Brancos', cor: '#a0a0a0' },
+      { key: 'abstencao', label: 'Abstenção', cor: '#555' }
     ]);
-
-  let validVotos = 0;
-  allEntries.forEach(e => { validVotos += res[e.key]?.votos || 0; });
 
   let html = '<div class="sim-ajuste-section">';
   html += '<div class="sim-total-indicator valid" id="simAjusteTotal">Total: 100.0%</div>';
 
   allEntries.forEach(e => {
-    const pct = validVotos > 0 ? ((res[e.key]?.votos || 0) / validVotos) * 100 : 0;
+    const pct = res[e.key]?.pct || 0;
     html += `
       <div class="sim-slider-row">
         <span class="sim-slider-indicator" style="background:${e.cor}"></span>
@@ -1124,7 +977,7 @@ function simOnAjVal(e, sigla) {
 }
 
 function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
-  const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+  const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros', 'nuloBranco', 'abstencao']);
   const values = {};
   allKeys.forEach(k => {
     const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
@@ -1137,7 +990,7 @@ function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
   if (total > 100.01) {
     const excess = total - 100;
     const eligible = allKeys.filter(k =>
-      k !== changedEntry && values[k] > 5
+      k !== changedEntry && k !== 'nuloBranco' && k !== 'abstencao' && values[k] > 5
     );
     if (eligible.length > 0) {
       const totalEl = eligible.reduce((s, k) => s + values[k], 0);
@@ -1164,40 +1017,8 @@ function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
 }
 
 function simApplyOverride(sigla) {
-  const overridesKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-  const allKeys = overridesKeys.concat(['nuloBranco', 'abstencao']);
+  const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros', 'nuloBranco', 'abstencao']);
   const override = {};
-  
-  let validTotalPct = 0;
-  overridesKeys.forEach(k => {
-    const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
-    override[k] = inp ? parseFloat(inp.value) || 0 : 0;
-    validTotalPct += override[k];
-  });
-  
-  // Retain the old invalid vote percentages
-  const oldRes = SIM.resultadosPorUF[sigla] || {};
-  const nb = oldRes.nuloBranco?.pct || 0;
-  const ab = oldRes.abstencao?.pct || 0;
-  
-  // Make sure they fit along with nulo/branco by possibly redistributing them, or keep total scale matching.
-  // Actually, since the slider is 0-100 of valid votes? Wait!
-  // If the slider totals 100% of ALL people, but nulos/brancos are removed, then adjusting to 100% means we're ignoring abstenção!
-  // Wait, if we enforce 100% among the valid keys, we should scale them to (100 - nb - ab)!
-  // So the override dict saves the PCT over TOTAL.
-  
-  const targetValidFrac = Math.max(0, 100 - nb - ab);
-  
-  overridesKeys.forEach(k => {
-     if(validTotalPct > 0) {
-        override[k] = (override[k] / validTotalPct) * targetValidFrac;
-     } else {
-        override[k] = 0;
-     }
-  });
-
-  override['nuloBranco'] = nb;
-  override['abstencao'] = ab;
   allKeys.forEach(k => {
     const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
     override[k] = inp ? parseFloat(inp.value) || 0 : 0;
@@ -1225,21 +1046,13 @@ function simReaplicarBase() {
 
 
 // ====== LOCAIS DE VOTACAO ====== 
-function simRenderMapaLocais(uf, codM = null) {
+function simRenderMapaLocais(uf) {
   // Remove existing layers
   if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
   if (SIM.locaisLayer) { simMap.removeLayer(SIM.locaisLayer); SIM.locaisLayer = null; }
-  if (SIM.municipiosLayer && !codM) { simMap.removeLayer(SIM.municipiosLayer); SIM.municipiosLayer = null; }
 
-  let geo = SIM.locaisCache[uf];
+  const geo = SIM.locaisCache[uf];
   if (!geo) return;
-
-  if (codM) {
-    geo = {
-        type: 'FeatureCollection',
-        features: geo.features.filter(f => String(f.properties.cod_localidade_ibge || f.properties.CD_MUN || '') === String(codM))
-    };
-  }
 
   // Pre-compute min/max margin across all locations for normalisation
   const keys = SIM.candidatos.map(c => 'cand_' + c.id).concat(['outros']);
@@ -1331,8 +1144,6 @@ function simRenderMapaLocais(uf, codM = null) {
     }
   }).addTo(simMap);
 
-  if (SIM.locaisLayer.getBounds().isValid()) {
-    simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20, 20] });
-  }
+  simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20, 20] });
 }
 
