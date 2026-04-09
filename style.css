@@ -1,4 +1,4 @@
-﻿[data-theme="dark"] {
+[data-theme="dark"] {
   --bg: #0a0a0a;
   --card: #151515;
   --muted: #a3a3a3;
@@ -164,7 +164,7 @@ body {
 
 .app {
   display: grid;
-  grid-template-columns: 260px 1fr 375px;
+  grid-template-columns: 375px 1fr 375px;
   gap: 0;
   height: calc(100vh - 34px);
   padding: 0;

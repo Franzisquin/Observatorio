@@ -463,20 +463,36 @@
   line-height: 1.4;
 }
 
-.sim-region-collapse-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-sec);
-  font-size: 0.68rem;
+.sim-section-toggle {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  padding: 2px 8px;
-  font-family: inherit;
-  transition: all 0.15s;
+  transition: transform 0.2s;
+  color: var(--text-secondary);
 }
 
-.sim-region-collapse-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+.sim-section-toggle.open {
+  transform: rotate(90deg);
+}
+
+.sim-arrow {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid currentColor;
+}
+
+.sim-section-content {
+  display: block;
+}
+
+.sim-section-content.collapsed {
+  display: none;
 }
 
 .sim-region-item {
@@ -496,13 +512,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 10px;
-  cursor: pointer;
   user-select: none;
-  transition: background 0.15s;
-}
-
-.sim-region-item-header:hover {
-  background: rgba(255,255,255,0.03);
 }
 
 .sim-region-item-title {
@@ -515,27 +525,13 @@
 }
 
 .sim-region-arrow {
-  font-size: 0.6rem;
-  color: var(--muted);
-  transition: transform 0.2s;
-}
-
-.sim-region-item.open .sim-region-arrow {
-  transform: rotate(90deg);
+  display: none;
 }
 
 .sim-region-item-body {
-  display: none;
+  display: block;
   padding: 6px 10px 10px;
   border-top: 1px solid var(--border-color);
-}
-
-.sim-region-item.open .sim-region-item-body {
-  display: block;
-}
-
-.sim-region-item.open {
-  margin-bottom: 6px;
 }
 
 .sim-region-configured-dot {

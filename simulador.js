@@ -71,7 +71,9 @@ const SIM = {
   // Sliders regionais: { [código_região]: { cand_1: 50, outros: 20, ... } }
   regionSliders: {},
   // Sliders de macrorregião (presidencial): { '1': { cand_1: 50, ... }, ... }
-  macroSliders: {}
+  macroSliders: {},
+  // Seções expandidas (IDs das seções)
+  expandedSections: new Set()
 };
 
 let simMap, simTileLayer;
@@ -588,9 +590,15 @@ function simRenderDemoGroup() {
       catEntries.push({ key: 'abstencao', label: 'Abstenção', cor: '#555' });
     }
 
-    html += '<div style="margin-bottom: 24px;">';
-    html += `<h4 style="margin:0 0 10px 0; border-bottom:1px solid var(--border-color); padding-bottom:6px; color:var(--text);">${group.label}${!isVoto2022 ? ' <small style="color:var(--text-secondary);font-weight:normal;">(votos válidos)</small>' : ''}</h4>`;
+    const isExpanded = SIM.expandedSections.has(`demo_${cat}`);
 
+    html += '<div style="margin-bottom: 24px;">';
+    html += `<h4 class="sim-region-header" style="margin:0 0 10px 0; border-bottom:1px solid var(--border-color); padding-bottom:6px; color:var(--text); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" data-section-id="demo_${cat}">
+      <span>${group.label}${!isVoto2022 ? ' <small style="color:var(--text-secondary);font-weight:normal;">(votos válidos)</small>' : ''}</span>
+      <div class="sim-section-toggle ${isExpanded ? 'open' : ''}"><span class="sim-arrow"></span></div>
+    </h4>`;
+
+    html += `<div class="sim-section-content ${isExpanded ? '' : 'collapsed'}" id="section_demo_${cat}">`;
     for (const [subKey, subLabel] of Object.entries(group.subgrupos)) {
       const subData = SIM.sliders[cat]?.[subKey] || {};
       const total = catEntries.reduce((s, e) => s + (subData[e.key] || 0), 0);
@@ -616,7 +624,7 @@ function simRenderDemoGroup() {
 
       html += '</div>';
     }
-    html += '</div>';
+    html += '</div></div>';
   }
 
   container.innerHTML = html;
@@ -704,18 +712,22 @@ function simBuildRegionSlidersHTML() {
       return sl && catEntries.some(e => (sl[e.key] || 0) > 0);
     }).length;
 
+    const isExpanded = SIM.expandedSections.has('macro_section');
+
     html += '<div class="sim-region-section" data-region-type="macro">';
-    html += `<div class="sim-region-header">
-      <h4>Macrorregião <span class="sim-region-badge">${configuredCount}/${macroKeys.length} configuradas</span></h4>
-      <small style="color:var(--text-secondary);font-weight:normal;">Peso superior — sobrepõe voto 2022</small>
+    html += `<div class="sim-region-header" style="cursor:pointer;" data-section-id="macro_section">
+      <h4>Macrorregião</h4>
+      <div class="sim-section-toggle ${isExpanded ? 'open' : ''}"><span class="sim-arrow"></span></div>
     </div>`;
+    
+    html += `<div class="sim-section-content ${isExpanded ? '' : 'collapsed'}" id="section_macro_section">`;
 
     macroKeys.forEach(mk => {
       const info = macros[mk];
       const sl = SIM.macroSliders[mk] || {};
       const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
       const total = catEntries.reduce((s, e) => s + (sl[e.key] || 0), 0);
-      const isValid = Math.abs(total - 100) < 0.5 || total === 0;
+      const isValid = Math.abs(total - 100) < 0.5;
 
       let summary = '';
       if (hasVals) {
@@ -741,9 +753,9 @@ function simBuildRegionSlidersHTML() {
           <div class="sim-slider-row">
             <span class="sim-slider-indicator" style="background:${entry.cor}"></span>
             <span class="sim-slider-label" title="${entry.label}">${entry.label}</span>
-            <input type="range" class="sim-region-slider" min="0" max="100" step="0.5" value="${val}"
+            <input type="range" class="sim-slider" min="0" max="100" step="0.5" value="${val}"
                    data-rtype="macro" data-rcode="${mk}" data-entry="${entry.key}">
-            <input type="number" class="sim-region-val" min="0" max="100" step="0.01" value="${val.toFixed(2)}"
+            <input type="number" class="sim-slider-val" min="0" max="100" step="0.01" value="${val.toFixed(2)}"
                    data-rtype="macro" data-rcode="${mk}" data-entry="${entry.key}">
             <span class="sim-slider-pct">%</span>
           </div>`;
@@ -751,7 +763,7 @@ function simBuildRegionSlidersHTML() {
 
       html += '</div></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
   }
 
   if (SIM.modo === 'governador' && SIM.estadoAlvo) {
@@ -763,17 +775,21 @@ function simBuildRegionSlidersHTML() {
         return sl && catEntries.some(e => (sl[e.key] || 0) > 0);
       }).length;
 
+      const isExpanded = SIM.expandedSections.has('rgint_section');
+
       html += '<div class="sim-region-section" data-region-type="rgint">';
-      html += `<div class="sim-region-header">
-        <h4>Região Intermediária <span class="sim-region-badge">${configuredCount}/${ufRegions.length} configuradas</span></h4>
-        <small style="color:var(--text-secondary);font-weight:normal;">Peso superior — sobrepõe voto 2022</small>
+      html += `<div class="sim-region-header" style="cursor:pointer;" data-section-id="rgint_section">
+        <h4>Região Intermediária</h4>
+        <div class="sim-section-toggle ${isExpanded ? 'open' : ''}"><span class="sim-arrow"></span></div>
       </div>`;
+
+      html += `<div class="sim-section-content ${isExpanded ? '' : 'collapsed'}" id="section_rgint_section">`;
 
       ufRegions.forEach(r => {
         const sl = SIM.regionSliders[r.cd] || {};
         const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
         const total = catEntries.reduce((s, e) => s + (sl[e.key] || 0), 0);
-        const isValid = Math.abs(total - 100) < 0.5 || total === 0;
+        const isValid = Math.abs(total - 100) < 0.5;
 
         let summary = '';
         if (hasVals) {
@@ -799,9 +815,9 @@ function simBuildRegionSlidersHTML() {
             <div class="sim-slider-row">
               <span class="sim-slider-indicator" style="background:${entry.cor}"></span>
               <span class="sim-slider-label" title="${entry.label}">${entry.label}</span>
-              <input type="range" class="sim-region-slider" min="0" max="100" step="0.5" value="${val}"
+              <input type="range" class="sim-slider" min="0" max="100" step="0.5" value="${val}"
                      data-rtype="rgint" data-rcode="${r.cd}" data-entry="${entry.key}">
-              <input type="number" class="sim-region-val" min="0" max="100" step="0.01" value="${val.toFixed(2)}"
+              <input type="number" class="sim-slider-val" min="0" max="100" step="0.01" value="${val.toFixed(2)}"
                      data-rtype="rgint" data-rcode="${r.cd}" data-entry="${entry.key}">
               <span class="sim-slider-pct">%</span>
             </div>`;
@@ -809,7 +825,7 @@ function simBuildRegionSlidersHTML() {
 
         html += '</div></div>';
       });
-      html += '</div>';
+      html += '</div></div>';
     }
   }
 
@@ -817,16 +833,30 @@ function simBuildRegionSlidersHTML() {
 }
 
 function simBindRegionSliderEvents(container) {
-  // Accordion toggle
-  container.querySelectorAll('.sim-region-item-header').forEach(header => {
+  // Section toggle logic (click on header or toggle icon)
+  container.querySelectorAll('.sim-region-header').forEach(header => {
     header.addEventListener('click', () => {
-      const item = header.closest('.sim-region-item');
-      item.classList.toggle('open');
+      const sectionId = header.dataset.sectionId;
+      if (!sectionId) return;
+      const content = container.querySelector(`#section_${sectionId}`);
+      const toggle = header.querySelector('.sim-section-toggle');
+      if (content) {
+        const isCollapsed = content.classList.contains('collapsed');
+        if (isCollapsed) {
+          content.classList.remove('collapsed');
+          if (toggle) toggle.classList.add('open');
+          SIM.expandedSections.add(sectionId);
+        } else {
+          content.classList.add('collapsed');
+          if (toggle) toggle.classList.remove('open');
+          SIM.expandedSections.delete(sectionId);
+        }
+      }
     });
   });
 
   // Slider events for regional sliders
-  container.querySelectorAll('.sim-region-slider').forEach(sl => {
+  container.querySelectorAll('.sim-region-item .sim-slider').forEach(sl => {
     sl.addEventListener('input', e => {
       const { rtype, rcode, entry: en } = e.target.dataset;
       let v = parseFloat(e.target.value);
@@ -841,13 +871,13 @@ function simBindRegionSliderEvents(container) {
       e.target.value = v;
 
       store[rcode][en] = v;
-      const ni = container.querySelector(`.sim-region-val[data-rtype="${rtype}"][data-rcode="${rcode}"][data-entry="${en}"]`);
+      const ni = container.querySelector(`.sim-slider-val[data-rtype="${rtype}"][data-rcode="${rcode}"][data-entry="${en}"]`);
       if (ni) ni.value = v.toFixed(2);
       simUpdateRegionTotal(container, rtype, rcode);
     });
   });
 
-  container.querySelectorAll('.sim-region-val').forEach(inp => {
+  container.querySelectorAll('.sim-region-item .sim-slider-val').forEach(inp => {
     inp.addEventListener('change', e => {
       const { rtype, rcode, entry: en } = e.target.dataset;
       let v = parseFloat(e.target.value);
@@ -864,7 +894,7 @@ function simBindRegionSliderEvents(container) {
 
       e.target.value = v.toFixed(2);
       store[rcode][en] = v;
-      const si = container.querySelector(`.sim-region-slider[data-rtype="${rtype}"][data-rcode="${rcode}"][data-entry="${en}"]`);
+      const si = container.querySelector(`.sim-slider[data-rtype="${rtype}"][data-rcode="${rcode}"][data-entry="${en}"]`);
       if (si) si.value = v;
       simUpdateRegionTotal(container, rtype, rcode);
     });
@@ -880,8 +910,8 @@ function simUpdateRegionTotal(container, rtype, rcode) {
   const ind = container.querySelector(`[data-region-total="${rcode}"]`);
   if (ind) {
     ind.textContent = `Total: ${total.toFixed(1)}%`;
-    ind.classList.toggle('valid', Math.abs(total - 100) < 0.5 || total === 0);
-    ind.classList.toggle('invalid', total > 0 && Math.abs(total - 100) >= 0.5);
+    ind.classList.toggle('valid', Math.abs(total - 100) < 0.5);
+    ind.classList.toggle('invalid', Math.abs(total - 100) >= 0.5);
   }
 
   // Update has-values class and summary on the item

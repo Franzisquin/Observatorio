@@ -345,7 +345,6 @@ async function init() {
   dom.listBairro = document.getElementById('listBairro');
 
   dom.searchLocal = document.getElementById('searchLocal');
-  dom.btnApplyFilters = document.getElementById('btnApplyFilters');
   dom.btnToggleInaptos = document.getElementById('btnToggleInaptos');
 
   dom.resultsBox = document.getElementById('resultsBox');
@@ -664,8 +663,8 @@ function setupControls() {
     clearSelection(false);
     applyFiltersAndRedraw();
 
-    // CORREÇÃO: Chama a nova função de texto que libera o botão
-    updateApplyButtonText();
+    clearSelection(false);
+    applyFiltersAndRedraw();
   });
 
   bairroCombobox = createCombobox({
@@ -676,7 +675,6 @@ function setupControls() {
     currentBairroFilter = val;
     clearSelection(false);
     applyFiltersAndRedraw();
-    updateApplyButtonText();
   });
 
   const debouncedRedraw = debounce(() => applyFiltersAndRedraw(), 250);
@@ -684,7 +682,6 @@ function setupControls() {
     currentLocalFilter = norm(e.target.value);
     clearSelection(false);
     debouncedRedraw();
-    updateApplyButtonText();
   });
 
   const addSearchFilter = (inputEl, selectEl) => {
@@ -705,33 +702,6 @@ function setupControls() {
   // Removed old calls for Cidade/Bairro
   addSearchFilter(dom.searchMunicipio, dom.selectMunicipio);
 
-  dom.btnApplyFilters.addEventListener('click', () => {
-    clearSelection(false);
-    currentLocalFilter = '';
-    if (dom.searchLocal) dom.searchLocal.value = '';
-
-    if (STATE.currentElectionType === 'municipal') {
-      currentCidadeFilter = 'all';
-      // CORREÇÃO: Usar combobox em vez de selectCidade direto
-      if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
-    }
-
-    applyFiltersAndRedraw();
-
-    // Aguarda um ciclo para garantir que o mapa atualizou
-    setTimeout(() => {
-      if (!currentLayer) return;
-
-      const layers = currentLayer.getLayers();
-      const locationIDs = layers.map(layer =>
-        String(getProp(layer.feature.properties, 'local_id') || getProp(layer.feature.properties, 'nr_locvot'))
-      );
-
-      selectedLocationIDs = new Set(locationIDs);
-      updateSelectionUI(true);
-    }, 10);
-  });
-
   dom.btnToggleInaptos.addEventListener('click', () => {
     STATE.filterInaptos = !STATE.filterInaptos;
     dom.btnToggleInaptos.classList.toggle('active', STATE.filterInaptos);
@@ -749,13 +719,10 @@ function setupControls() {
         cidadeCombobox.setValue("Todos os municípios");
       }
       dom.searchLocal.disabled = false;
-      dom.btnApplyFilters.textContent = 'Analisar/Agregar';
-      dom.btnApplyFilters.disabled = true;
     } else {
       currentCidadeFilter = 'all';
       if (cidadeCombobox) cidadeCombobox.setValue("Todos os municípios");
       dom.searchLocal.disabled = false;
-      updateApplyButtonText();
     }
 
     currentBairroFilter = 'all';
@@ -1150,38 +1117,6 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
        `;
 }
 
-function updateApplyButtonText() {
-  let btnDisabled = false;
-  let btnText = 'Analisar/Agregar';
-
-  const isGeral = (STATE.currentElectionType === 'geral');
-  const isAllCities = (currentCidadeFilter === 'all');
-
-  // Texto dinâmico
-  if (STATE.currentElectionType === 'municipal') {
-    const mun = dom.selectMunicipio.value;
-    btnText = `Analisar "${mun}"`;
-    if (currentBairroFilter !== 'all') {
-      btnText += ` (Bairro)`;
-    }
-  } else {
-    // Modo GERAL
-    if (isAllCities) {
-      const uf = dom.selectUFGeneral.value;
-      btnText = `Filtrar Estado (${uf || 'BR'})`;
-    } else {
-      // Cidade específica selecionada
-      const selectedText = dom.inputCidade ? dom.inputCidade.value : currentCidadeFilter;
-      btnText = `Analisar "${selectedText}"`;
-    }
-  }
-
-  dom.btnApplyFilters.textContent = btnText;
-  dom.btnApplyFilters.disabled = btnDisabled;
-
-  // REMOVIDO O BLOCO QUE CAUSAVA O ERRO (dom.btnShowByBairro)
-}
-
 function updateConditionalUI() {
   // Show/Hide Turno Selector
   if (dom.turnoContainer) {
@@ -1352,9 +1287,9 @@ async function onClickLoadData_General() {
       });
     }
 
-    // Carrega Censo em paralelo também
-    const censusIndex = promises.length; // Guarda o índice onde o censo vai estar
-    promises.push(fetchGeoJSON(buildDataPath_Census(ufToLoad, year)).catch(() => null));
+    // Carrega Censo em paralelo também (opcional)
+    const censusIndex = promises.length;
+    promises.push(fetchGeoJSON(buildDataPath_Census(ufToLoad, year), true).catch(() => null));
 
     // EXECUTA TUDO SIMULTANEAMENTE
     const results = await Promise.all(promises);
@@ -1395,8 +1330,6 @@ async function onClickLoadData_General() {
     // Enable Color Style Select
     if (dom.selectVizColorStyle) dom.selectVizColorStyle.disabled = false;
 
-    dom.btnApplyFilters.disabled = false;
-    updateApplyButtonText();
     dom.searchLocal.disabled = false;
 
     updateElectionTypeUI();
@@ -1484,8 +1417,7 @@ async function onClickLoadData_Municipal() {
 
     populateBairroDropdown();
 
-    dom.btnApplyFilters.disabled = false;
-    dom.btnApplyFilters.textContent = `Analisar/Agregar "${municipio}"`;
+    if (bairroCombobox) bairroCombobox.disable(false);
 
     // Força exibição do botão de bairros para municipal
 
@@ -1531,7 +1463,8 @@ async function loadGeoJSON(id, uf, ano, type) {
   }
 
   if (!dataPath) return null;
-  return await fetchGeoJSON(dataPath).catch(e => null);
+  const isOptional = (normalizedType === 'sup');
+  return await fetchGeoJSON(dataPath, isOptional).catch(e => null);
 }
 
 async function loadAllStatesAndMerge_General(cargo, year, type) {
@@ -1619,32 +1552,42 @@ function buildDataPath_Census(uf, year, municipio = null) {
 
 // ====== DATA PROCESSING ======
 
+let isZipLoading = false;
+let zipLoadPromise = null;
+
 async function loadZipIndex() {
-  try {
-    const res = await fetch(DATA_BASE_URL + 'zip_index.json');
-    if (res.ok) {
-      ZIP_INDEX = await res.json();
-      console.log("ZIP Index loaded with " + Object.keys(ZIP_INDEX).length + " entries.");
-    } else {
-      console.warn("zip_index.json not found. Fallback to direct fetch.");
+  if (ZIP_INDEX !== null) return;
+  if (isZipLoading) return zipLoadPromise;
+  
+  isZipLoading = true;
+  zipLoadPromise = (async () => {
+    try {
+      const res = await fetch(DATA_BASE_URL + 'zip_index.json');
+      if (res.ok) {
+        ZIP_INDEX = await res.json();
+        console.log("ZIP Index loaded with " + Object.keys(ZIP_INDEX).length + " entries.");
+      } else {
+        console.warn("zip_index.json not found. Fallback to direct fetch.");
+        ZIP_INDEX = {};
+      }
+    } catch (e) {
+      console.error("Error loading zip_index.json:", e);
       ZIP_INDEX = {};
+    } finally {
+      isZipLoading = false;
     }
-  } catch (e) {
-    console.error("Error loading zip_index.json:", e);
-    ZIP_INDEX = {};
-  }
+  })();
+  
+  return zipLoadPromise;
 }
 
 // Substitua a função fetchGeoJSON antiga por esta:
-async function fetchGeoJSON(path) {
+async function fetchGeoJSON(path, isOptional = false) {
   // Ensure index is loaded (if we haven't tried yet)
   if (ZIP_INDEX === null) {
     await loadZipIndex();
   }
 
-  // 1. Determine relative key for index lookup
-  // path is like "resultados_geo/2022 Municipais/SP/bauru.geojson"
-  // index key is "2022 Municipais/SP/bauru.geojson"
   let relativePath = path;
   if (path.startsWith(DATA_BASE_URL)) {
     relativePath = path.substring(DATA_BASE_URL.length);
@@ -1665,9 +1608,17 @@ async function fetchGeoJSON(path) {
   }
 
   // 3. Fallback: Direct Fetch (regular file)
-  const response = await fetch(path);
-  if (!response.ok) throw new Error(`Arquivo não encontrado: ${path}`);
-  return await response.json();
+  try {
+    const response = await fetch(path);
+    if (!response.ok) {
+      if (isOptional) return null;
+      throw new Error(`Arquivo não encontrado: ${path}`);
+    }
+    return await response.json();
+  } catch (e) {
+    if (isOptional) return null;
+    throw e;
+  }
 }
 
 async function fetchFromZip(zipUrl, filename) {
@@ -1959,19 +1910,8 @@ function populateCidadeDropdown() {
     }
   });
 
-  const items = [];
   const cidadeNames = Object.keys(cityGroups).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-
-  cidadeNames.forEach(cidade => {
-    const propsList = cityGroups[cidade];
-    const aggProps = aggregatePropsList(propsList);
-    const stats = calculateWinnerStats(aggProps);
-    items.push({
-      label: cidade,
-      info: stats.text,
-      color: stats.color
-    });
-  });
+  const items = cidadeNames;
 
   cidadeCombobox.setItems(items, "Todos os municípios");
 
@@ -2031,21 +1971,14 @@ function populateBairroDropdown() {
     const propsList = bairroGroups[bairro];
     const aggProps = aggregatePropsList(propsList);
 
-    // Filter out if no items
     if (!aggProps) return;
 
-    // Check if there are valid votes for the current turn
     const cargo = currentCargo;
     const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
     const { totalValidos } = getVotosValidos(aggProps, cargo, turnoKey, STATE.filterInaptos);
 
     if (totalValidos > 0) {
-      const stats = calculateWinnerStats(aggProps);
-      items.push({
-        label: bairro,
-        info: stats.text,
-        color: stats.color
-      });
+      items.push(bairro);
     }
   });
 
@@ -2481,11 +2414,6 @@ function onFeatureClick(e) {
     }
 
     dom.searchLocal.disabled = false;
-    updateApplyButtonText();
-  } else {
-    const mun = dom.selectMunicipio.value;
-    dom.btnApplyFilters.textContent = `Analisar/Agregar "${mun}"`;
-    dom.btnApplyFilters.disabled = false;
   }
 
   currentBairroFilter = 'all';
