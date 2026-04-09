@@ -51,6 +51,7 @@ const SIM = {
   nextId: 1,
   sliders: {},
   resultadosPorUF: {},
+  resultadosPorMuni: {},
   overridesPorUF: {},
   totalBrasil: {},
   locaisCache: {}, 
@@ -381,16 +382,16 @@ function simRenderAlvoSelector() {
   if (!container) return;
   // We'll prepend the selector above the candidates list
   
-  let optionsHtml = `<option value="BR" ${SIM.modo === 'presidencial' ? 'selected' : ''}>Brasil (Presidencial)</option>`;
+  let optionsHtml = `<option value="BR" style="background:var(--input-bg); color:var(--text);" ${SIM.modo === 'presidencial' ? 'selected' : ''}>Brasil (Presidencial)</option>`;
   Array.from(UF_MAP.entries()).sort((a,b)=>a[1].localeCompare(b[1])).forEach(([sigla, nome]) => {
      const isSelected = SIM.modo === 'governador' && SIM.estadoAlvo === sigla;
-     optionsHtml += `<option value="${sigla}" ${isSelected ? 'selected' : ''}>${nome} (Governador)</option>`;
+     optionsHtml += `<option value="${sigla}" style="background:var(--input-bg); color:var(--text);" ${isSelected ? 'selected' : ''}>${nome} (Governador)</option>`;
   });
 
   const selectorHtml = `
     <div style="margin-bottom:20px;">
       <label style="display:block;margin-bottom:8px;font-weight:600;font-size:0.9rem;">Alvo da Simulação</label>
-      <select id="simAlvoSelector" class="sim-cand-partido" style="width:100%; border:1px solid var(--border-color); background:var(--bg-panel); color:var(--text); padding:8px; border-radius:4px;">
+      <select id="simAlvoSelector" class="sim-cand-partido" style="width:100%; border:1px solid var(--border-color); background:var(--input-bg); color:var(--text); padding:8px; border-radius:4px; outline:none;">
         ${optionsHtml}
       </select>
     </div>
@@ -438,7 +439,10 @@ function simRenderAlvoSelector() {
          }
          
          // Dynamically parse keys
-         const keys = Object.keys(geo.features[0].properties).filter(k => k.includes('1T') && k.startsWith('Gov_'));
+         let testFeature = geo.features.find(f => Object.keys(f.properties).some(k => k.startsWith('Gov_')));
+         if (!testFeature) testFeature = geo.features[0];
+         
+         const keys = Object.keys(testFeature.properties).filter(k => k.includes('1T') && k.startsWith('Gov_'));
          const sums = {};
          geo.features.forEach(f => {
             const p = f.properties;
@@ -450,25 +454,36 @@ function simRenderAlvoSelector() {
          
          // Candidates > 1%
          const candKeys = keys.filter(k => k !== 'Gov_Total_Votos_Validos 1T' && k !== 'Gov_Eleitores_Aptos 1T' && k !== 'Gov_Votos_Brancos 1T' && k !== 'Gov_Votos_Nulos 1T' && k !== 'Gov_Abstenções 1T' && !k.includes('Absten'));
-         candKeys.forEach(k => {
-             const pct = sums[k] / validTotal;
-             if (pct > 0.01) {
-                 // Format name nicely: e.g. "Gov_GLADSON CAMELI (PP) (ELEITO) 1T" -> "Gladson Cameli (PP)"
-                 let name = k.replace('Gov_', '').replace(' (ELEITO) 1T', '').replace(' (NÃO ELEITO) 1T', '').replace(' (NO ELEITO) 1T', '');
-                 name = name.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
-                 subgrupos[k] = name;
-             }
-         });
-         
-         subgrupos['nuloBranco'] = 'Nulo/Branco';
-         subgrupos['abstencao'] = 'Abstenção';
-         
-         DEMO_GROUPS.voto2022.subgrupos = subgrupos;
          
          // Start with empty candidate list
          SIM.candidatos = [];
          SIM.sliders = {};
          simInitDefaultSliders();
+
+         candKeys.forEach(k => {
+             const pct = sums[k] / validTotal;
+             if (pct > 0.01) {
+                 // Format name nicely: e.g. "Gov_GLADSON CAMELI (PP) (ELEITO) 1T" -> "Gladson Cameli (PP)"
+                 let name = k.replace('Gov_', '').replace(/ \((ELEITO|NÃO ELEITO|NO ELEITO|2.*? TURNO)\)/gi, '').replace(/ 1T$/i, '').trim();
+                 
+                 // extract party if exists like (PT)
+                 let party = '';
+                 const partyMatch = name.match(/\(([^)]+)\)$/);
+                 if (partyMatch) { party = partyMatch[1]; name = name.replace(partyMatch[0], '').trim(); }
+                 
+                 name = name.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
+                 subgrupos[k] = name;
+                 
+                 // Add this candidate to the Left Panel (output candidates)
+                 simAddCandidato(name, party);
+             }
+         });
+         
+         subgrupos['outros'] = 'Outros (Gov < 1%)';
+         subgrupos['nuloBranco'] = 'Nulo/Branco';
+         subgrupos['abstencao'] = 'Abstenção';
+         
+         DEMO_GROUPS.voto2022.subgrupos = subgrupos;
       }
       simRenderCandidatos();
       simRenderDemoGroup();
@@ -702,19 +717,28 @@ function simCalcularProjecao() {
          const abs_nulo_branco = Math.max(0, aptos - vLula - vBolso);
          voto2022Proxy.lula = vLula / aptos || 0;
          voto2022Proxy.bolsonaro = vBolso / aptos || 0;
-         pOts = abs_nulo_branco / aptos || 0;
+         voto2022Proxy.abstencao = abs_nulo_branco / aptos || 0;
       } else {
          let subgrupos = DEMO_GROUPS.voto2022.subgrupos;
          let usedKeysVotos = 0;
          for (let govKey in subgrupos) {
-            if (govKey !== 'nuloBranco' && govKey !== 'abstencao') {
-               const v = ensureNumber(p[`Gov_${govKey}`]) || ensureNumber(p[govKey]) || 0;
+            if (govKey !== 'nuloBranco' && govKey !== 'abstencao' && govKey !== 'outros') {
+               const v = ensureNumber(p[govKey]) || 0;
                voto2022Proxy[govKey] = v / aptos || 0;
                usedKeysVotos += v;
             }
          }
-         const abs_nulo_branco = Math.max(0, aptos - usedKeysVotos);
-         pOts = abs_nulo_branco / aptos || 0;
+         
+         const validos = ensureNumber(p['Gov_Total_Votos_Validos 1T']) || 0;
+         const brancos = ensureNumber(p['Gov_Votos_Brancos 1T']) || 0;
+         const nulos = ensureNumber(p['Gov_Votos_Nulos 1T']) || 0;
+         const absten = ensureNumber(p['Gov_Abstenções 1T']) || 0;
+
+         const outros = Math.max(0, validos - usedKeysVotos);
+         
+         voto2022Proxy['outros'] = outros / aptos || 0;
+         voto2022Proxy['nuloBranco'] = (brancos + nulos) / aptos || 0;
+         voto2022Proxy['abstencao'] = absten / aptos || 0;
       }
 
       const rMedia = ensureNumber(p['Renda Media']) || 0;
@@ -759,7 +783,7 @@ function simCalcularProjecao() {
       calcGroupScore('genero', { M: pH, F: pM });
       calcGroupScore('idade', { '16-29': p16_29, '30-45': p30_45, '46-59': p46_59, '60+': p60_plus });
       calcGroupScore('educacao', { fundamental: pFund, medio: pMed, superior: pSup });
-      calcGroupScore('voto2022', { ...voto2022Proxy, abstencao: pOts });
+      calcGroupScore('voto2022', voto2022Proxy);
       
       const rWeights = { '0-1k':0, '1k-2k':0, '2k-3k':0, '3k-4k':0, '4k-5k':0, '5k+':0 };
       rWeights[r_bucket] = 1.0;
