@@ -18,6 +18,19 @@ const PARTY_COLORS = new Map(Object.entries({
   'PR': '#30306C', 'PC DO B': '#b4251d'
 }));
 
+const SIM_LAYERS = ['macro', 'estado', 'municipio', 'local'];
+const CATEGORIES = ['transfer_2022', 'religiao', 'idade', 'escolaridade', 'renda'];
+
+const CAPITAIS_IBGE = {
+  'AC': '1200401', 'AL': '2704302', 'AM': '1302603', 'AP': '1600303',
+  'BA': '2927408', 'CE': '2304400', 'DF': '5300108', 'ES': '3205309',
+  'GO': '5208707', 'MA': '2111300', 'MG': '3106200', 'MS': '5002704',
+  'MT': '5103403', 'PA': '1501402', 'PB': '2507507', 'PE': '2611606',
+  'PI': '2211001', 'PR': '4106902', 'RJ': '3304557', 'RN': '2408102',
+  'RO': '1100205', 'RR': '1400100', 'RS': '4314902', 'SC': '4205407',
+  'SE': '2800308', 'SP': '3550308', 'TO': '1721000'
+};
+
 const UF_MAP = new Map([
   ['AC','Acre'],['AL','Alagoas'],['AP','Amapá'],['AM','Amazonas'],['BA','Bahia'],
   ['CE','Ceará'],['DF','Distrito Federal'],['ES','Espírito Santo'],['GO','Goiás'],
@@ -54,6 +67,7 @@ const SIM = {
   resultadosPorUF: {},
   resultadosPorMuni: {},
   overridesPorUF: {},
+  overridesPorMuni: {}, // { [muniCode]: { [candKey]: percentage } }
   totalBrasil: {},
   locaisCache: {}, 
   estadosGeoJSON: null,
@@ -236,6 +250,7 @@ async function initSimulador() {
   // Modal handlers
   document.getElementById('btnOpenConfigMain')?.addEventListener('click', () => { document.getElementById('simConfigOverlay').classList.add('visible'); });
   document.getElementById('btnEditSim')?.addEventListener('click', () => { document.getElementById('simConfigOverlay').classList.add('visible'); });
+  document.getElementById('btnEditSimEstado')?.addEventListener('click', () => { document.getElementById('simConfigOverlay').classList.add('visible'); });
   document.getElementById('btnCloseConfigModal')?.addEventListener('click', () => { document.getElementById('simConfigOverlay').classList.remove('visible'); });
   
   // Start with modal open
@@ -785,6 +800,54 @@ function simBuildRegionSlidersHTML() {
 
       html += `<div class="sim-section-content ${isExpanded ? '' : 'collapsed'}" id="section_rgint_section">`;
 
+      // --- CAPITAL SEPARATION ---
+      const capitalCode = CAPITAIS_IBGE[SIM.estadoAlvo];
+      if (capitalCode) {
+        let capitalNome = "Capital";
+        const ufCache = SIM.municipiosCache[SIM.estadoAlvo];
+        if (ufCache && ufCache.features) {
+          const feat = ufCache.features.find(f => String(f.properties.cod_localidade_ibge || f.properties.CD_MUN) === String(capitalCode));
+          if (feat) capitalNome = feat.properties.NM_MUN || feat.properties.nome_municipio || feat.properties.NM_MUNICIP || capitalNome;
+        }
+
+        const sl = SIM.regionSliders[capitalCode] || {};
+        const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
+        const total = catEntries.reduce((s, e) => s + (sl[e.key] || 0), 0);
+        const isValid = Math.abs(total - 100) < 0.5;
+        let summary = '';
+        if (hasVals) {
+          const top = [...catEntries].sort((a, b) => (sl[b.key] || 0) - (sl[a.key] || 0)).filter(e => (sl[e.key] || 0) > 0).slice(0, 2);
+          summary = top.map(e => `${e.label}: ${(sl[e.key] || 0).toFixed(0)}%`).join(', ');
+        }
+
+        html += `<div class="sim-region-item ${hasVals ? 'has-values' : ''}" data-region-code="${capitalCode}" data-region-type="muni" style="border-left: 4px solid var(--accent); background: rgba(var(--accent-rgb), 0.05);">`;
+        html += `<div class="sim-region-item-header">
+          <div class="sim-region-item-title">
+            <span class="sim-region-arrow">▶</span>
+            ${hasVals ? '<span class="sim-region-configured-dot"></span>' : ''}
+            <strong>${capitalNome} (Capital)</strong>
+          </div>
+          <span class="sim-region-pct-summary">${summary}</span>
+        </div>`;
+        html += '<div class="sim-region-item-body">';
+        html += `<div class="sim-total-indicator ${isValid ? 'valid' : 'invalid'}" data-region-total="${capitalCode}">Total: ${total.toFixed(1)}%</div>`;
+        catEntries.forEach(entry => {
+          const val = sl[entry.key] || 0;
+          html += `
+            <div class="sim-slider-row">
+              <span class="sim-slider-indicator" style="background:${entry.cor}"></span>
+              <span class="sim-slider-label" title="${entry.label}">${entry.label}</span>
+              <input type="range" class="sim-slider" min="0" max="100" step="0.5" value="${val}"
+                     data-rtype="muni" data-rcode="${capitalCode}" data-entry="${entry.key}">
+              <input type="number" class="sim-slider-val" min="0" max="100" step="0.01" value="${val.toFixed(2)}"
+                     data-rtype="muni" data-rcode="${capitalCode}" data-entry="${entry.key}">
+              <span class="sim-slider-pct">%</span>
+            </div>`;
+        });
+        html += '</div></div>';
+      }
+      // --- END CAPITAL SEPARATION ---
+
       ufRegions.forEach(r => {
         const sl = SIM.regionSliders[r.cd] || {};
         const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
@@ -987,22 +1050,21 @@ function simCalcularProjecao() {
   SIM.resultadosPorMuni = {};
 
   const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros', 'nuloBranco', 'abstencao']);
+  const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
+  
   let totalEleitoresBR = 0;
   const totalVotosBR = {};
   allKeys.forEach(k => totalVotosBR[k] = 0);
-  
-  // Clean all overriding effects first
-  allKeys.forEach(k => totalVotosBR[k] = 0);
 
-    const cacheKeys = SIM.modo === 'governador' && SIM.estadoAlvo ? [SIM.estadoAlvo] : Object.keys(SIM.locaisCache);
+  const cacheKeys = (SIM.modo === 'governador' && SIM.estadoAlvo) ? [SIM.estadoAlvo] : Object.keys(SIM.locaisCache);
 
+  // --- ESTRUTURAS PARA AGREGAÇÃO REGIONAL ---
+  const regionRawAggregation = {}; // { [rCode]: { [candKey]: totalWeightedVal, _totalValidWeight: 0 } }
+
+  // --- PHASE 1: CÁLCULO RAW (MIGRAÇÃO + DEMOGRAFIA) & AGREGAÇÃO REGIONAL ---
   cacheKeys.forEach(uf => {
     const geo = SIM.locaisCache[uf];
     if (!geo) return;
-
-    let totalEleitoresUF = 0;
-    const ufRes = {};
-    allKeys.forEach(k => ufRes[k] = { votos: 0, pct: 0 });
 
     geo.features.forEach(f => {
       const p = f.properties;
@@ -1024,7 +1086,6 @@ function simCalcularProjecao() {
       const pMed = tse ? (tse.tse_pct_medio || 0)/100 : 0.4;
       const pSup = tse ? (tse.tse_pct_superior || 0)/100 : 0.2;
 
-      let pOts = 0;
       const voto2022Proxy = {};
       
       if (SIM.modo === 'presidencial') {
@@ -1044,14 +1105,11 @@ function simCalcularProjecao() {
                usedKeysVotos += v;
             }
          }
-         
          const validos = ensureNumber(p['Gov_Total_Votos_Validos 1T']) || 0;
          const brancos = ensureNumber(p['Gov_Votos_Brancos 1T']) || 0;
          const nulos = ensureNumber(p['Gov_Votos_Nulos 1T']) || 0;
          const absten = ensureNumber(p['Gov_Abstenções 1T']) || 0;
-
          const outros = Math.max(0, validos - usedKeysVotos);
-         
          voto2022Proxy['outros'] = outros / aptos || 0;
          voto2022Proxy['nuloBranco'] = (brancos + nulos) / aptos || 0;
          voto2022Proxy['abstencao'] = absten / aptos || 0;
@@ -1065,18 +1123,13 @@ function simCalcularProjecao() {
       else if (rMedia > 2000) r_bucket = '2k-3k';
       else if (rMedia > 1000) r_bucket = '1k-2k';
 
-      // Distribuir os votos deste local
-      const localVotes = {};
-      allKeys.forEach(k => localVotes[k] = 0);
-      
-      let validWeight = 0;
-      let voto2022Weight = 0;
       const validScores = {}; 
       const voto2022Scores = {};
       allKeys.forEach(k => { validScores[k] = 0; voto2022Scores[k] = 0; });
       
-      const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-      
+      let validWeight = 0;
+      let voto2022Weight = 0;
+
       const calcGroupScore = (cat, weightsMap) => {
         if(!SIM.sliders[cat]) return;
         const subgrupos = DEMO_GROUPS[cat].subgrupos;
@@ -1117,55 +1170,143 @@ function simCalcularProjecao() {
       if (voto2022Weight > 0) allKeys.forEach(k => voto2022Scores[k] /= voto2022Weight);
       if (validWeight > 0) validKeys.forEach(k => validScores[k] /= validWeight);
 
-      // ====== REGIONAL OVERRIDE (higher priority than voto2022) ======
-      const regionOverride = simGetRegionOverride(codM);
-      let useRegional = false;
-      const regionalScores = {};
-      if (regionOverride) {
-        const regionTotal = validKeys.reduce((s, k) => s + (regionOverride[k] || 0), 0);
-        if (regionTotal > 0) {
-          useRegional = true;
-          validKeys.forEach(k => regionalScores[k] = (regionOverride[k] || 0));
-        }
-      }
-
       const nuloBrancoPct = voto2022Scores.nuloBranco || 0;
       const abstencaoPct = voto2022Scores.abstencao || 0;
       const validFraction = Math.max(0, 100 - nuloBrancoPct - abstencaoPct);
 
-      const combinedValid = {};
-      validKeys.forEach(k => combinedValid[k] = 0);
+      // Raw valid distribution: weighted average of Migratoria (10x) and Demografia (1x)
+      const rawPcts = {};
+      const migW = 10;
+      const demoW = validWeight > 0 ? 1 : 0;
+      const totalW = migW + demoW;
+      
+      validKeys.forEach(k => {
+        rawPcts[k] = (voto2022Scores[k] * migW + (validScores[k] || 0) * demoW) / totalW;
+      });
 
-      if (useRegional) {
-        // Regional override: weight 5x vs demographics 1x, voto2022 IGNORED
-        const regionW = 5;
-        const demoW = validWeight > 0 ? 1 : 0;
-        const totalW = regionW + demoW;
-        validKeys.forEach(k => {
-          combinedValid[k] = (regionalScores[k] * regionW + (validScores[k] || 0) * demoW) / totalW;
-        });
-      } else if (validWeight > 0 && voto2022Weight > 0) {
-        const adjusted2022W = validWeight * 3;
-        const totalW = validWeight + adjusted2022W;
-        validKeys.forEach(k => combinedValid[k] = (validScores[k] * validWeight + voto2022Scores[k] * adjusted2022W) / totalW);
-      } else if (validWeight > 0) {
-        validKeys.forEach(k => combinedValid[k] = validScores[k]);
-      } else if (voto2022Weight > 0) {
-        validKeys.forEach(k => combinedValid[k] = voto2022Scores[k]);
+      // Normalize raw to sum=1 (within the valid fraction context)
+      const sumRaw = validKeys.reduce((s, k) => s + rawPcts[k], 0);
+      if (sumRaw > 0) {
+        validKeys.forEach(k => rawPcts[k] = (rawPcts[k] / sumRaw));
+      } else {
+        // Fallback if everyone is 0
+        rawPcts['outros'] = 1.0;
+      }
+      
+      // Store raw pcts (as fraction of valid votes 0..1)
+      f.properties._rawPcts = rawPcts;
+      f.properties._invalid = { nb: nuloBrancoPct, ab: abstencaoPct, vf: validFraction };
+
+      // Agregação regional (usa aptos * validFraction como peso)
+      const rMapping = SIM.regioesIBGE?.muni_to_region[String(codM)];
+      if (rMapping || (SIM.modo === 'governador' && CAPITAIS_IBGE[SIM.estadoAlvo] === String(codM))) {
+          const weightedPop = aptos * (validFraction / 100);
+          let tracks = [];
+          
+          const isCapital = SIM.modo === 'governador' && CAPITAIS_IBGE[SIM.estadoAlvo] === String(codM);
+          
+          if (isCapital) {
+            // Capital é tratada como sua própria "região" e separada das demais
+            tracks.push({ code: String(codM), type: 'muni' });
+          } else if (rMapping) {
+            if (rMapping.mr) tracks.push({ code: rMapping.mr, type: 'macro' });
+            if (rMapping.ri) tracks.push({ code: rMapping.ri, type: 'ri' });
+          }
+          
+          tracks.forEach(t => {
+              if (!regionRawAggregation[t.code]) {
+                  regionRawAggregation[t.code] = { _totalValidWeight: 0 };
+                  validKeys.forEach(k => regionRawAggregation[t.code][k] = 0);
+              }
+              regionRawAggregation[t.code]._totalValidWeight += weightedPop;
+              validKeys.forEach(k => {
+                  regionRawAggregation[t.code][k] += rawPcts[k] * weightedPop;
+              });
+          });
+      }
+    });
+  });
+
+  // --- PHASE 2: CÁLCULO DE FATORES DE ESCALONAMENTO POR REGIÃO ---
+  const regionScalingFactors = {}; // { [rCode]: { [candKey]: factor } }
+  
+  if (SIM.regioesIBGE) {
+      Object.keys(regionRawAggregation).forEach(rc => {
+          const agg = regionRawAggregation[rc];
+          if (agg._totalValidWeight <= 0) return;
+          
+          // Get slider target for this region
+          let targetSliders = null;
+          if (SIM.regionSliders[rc]) targetSliders = SIM.regionSliders[rc];
+          else if (SIM.macroSliders[rc]) targetSliders = SIM.macroSliders[rc];
+          
+          if (targetSliders) {
+              const sliderTotal = validKeys.reduce((s, k) => s + (targetSliders[k] || 0), 0);
+              if (sliderTotal > 0) {
+                  const factors = {};
+                  validKeys.forEach(k => {
+                      const rawPct = (agg[k] / agg._totalValidWeight); // 0..1
+                      const targetPct = (targetSliders[k] || 0) / 100; // 0..1
+                      // Factor = Target / Raw. (Protect against div by zero)
+                      factors[k] = rawPct > 0 ? (targetPct / rawPct) : 0;
+                  });
+                  regionScalingFactors[rc] = factors;
+              }
+          }
+      });
+  }
+
+  // --- PHASE 3: APLICAÇÃO FINAL & TOTALIZAÇÃO ---
+  cacheKeys.forEach(uf => {
+    const geo = SIM.locaisCache[uf];
+    if (!geo) return;
+
+    let totalEleitoresUF = 0;
+    const ufRes = {};
+    allKeys.forEach(k => ufRes[k] = { votos: 0, pct: 0 });
+
+    geo.features.forEach(f => {
+      const p = f.properties;
+      const aptos = ensureNumber(p['Eleitores_Aptos 1T']) || ensureNumber(p['Eleitores_Aptos 2T']) || 0;
+      if(aptos === 0) return;
+      
+      const codM = p.cod_localidade_ibge || p.CD_MUN;
+      const rMapping = SIM.regioesIBGE?.muni_to_region[String(codM)];
+      
+      // Meso/RI priority over Macro/MR. Capitals have absolute priority and no fallback in governor mode.
+      let factors = null;
+      const isCapital = SIM.modo === 'governador' && String(codM) === CAPITAIS_IBGE[SIM.estadoAlvo];
+
+      if (isCapital) {
+          if (regionScalingFactors[String(codM)]) factors = regionScalingFactors[String(codM)];
+      } else if (rMapping) {
+          if (regionScalingFactors[rMapping.ri]) factors = regionScalingFactors[rMapping.ri];
+          else if (regionScalingFactors[rMapping.mr]) factors = regionScalingFactors[rMapping.mr];
       }
 
-      const sumValid = validKeys.reduce((s, k) => s + combinedValid[k], 0);
-      if (sumValid > 0) {
-        validKeys.forEach(k => combinedValid[k] = (combinedValid[k] / sumValid) * validFraction);
+      const rawPcts = f.properties._rawPcts; 
+      const inv = f.properties._invalid;
+      
+      const finalValidPcts = {};
+      validKeys.forEach(k => {
+          finalValidPcts[k] = rawPcts[k] * (factors ? (factors[k] || 0) : 1);
+      });
+
+      // Normalize finalValidPcts to sum to validFraction
+      const sumFinalVal = validKeys.reduce((s, k) => s + finalValidPcts[k], 0);
+      if (sumFinalVal > 0) {
+          validKeys.forEach(k => finalValidPcts[k] = (finalValidPcts[k] / sumFinalVal) * inv.vf);
+      } else {
+          validKeys.forEach(k => finalValidPcts[k] = rawPcts[k] * inv.vf);
       }
 
-      const finalPcts = {};
-      validKeys.forEach(k => finalPcts[k] = combinedValid[k]);
-      finalPcts.nuloBranco = nuloBrancoPct;
-      finalPcts.abstencao = abstencaoPct;
+      const finalPcts = { ...finalValidPcts };
+      finalPcts.nuloBranco = inv.nb;
+      finalPcts.abstencao = inv.ab;
 
+      // Final normalization
       const totalPct = allKeys.reduce((s, k) => s + (finalPcts[k] || 0), 0);
-      if (totalPct > 0 && Math.abs(totalPct - 100) > 0.01) {
+      if (totalPct > 0 && Math.abs(totalPct - 100) > 0.05) {
         allKeys.forEach(k => finalPcts[k] = ((finalPcts[k] || 0) / totalPct) * 100);
       }
 
@@ -1173,40 +1314,29 @@ function simCalcularProjecao() {
         const votos = Math.round(aptos * (finalPcts[k] || 0) / 100);
         ufRes[k].votos += votos;
         totalVotosBR[k] += votos;
+        
+        if (codM) {
+            if (!SIM.resultadosPorMuni[uf]) SIM.resultadosPorMuni[uf] = {};
+            if (!SIM.resultadosPorMuni[uf][codM]) {
+                SIM.resultadosPorMuni[uf][codM] = { _totalEleitores: 0 };
+                allKeys.forEach(ak => SIM.resultadosPorMuni[uf][codM][ak] = { votos: 0, pct: 0 });
+            }
+            SIM.resultadosPorMuni[uf][codM][k].votos += votos;
+        }
       });
+      if (codM) SIM.resultadosPorMuni[uf][codM]._totalEleitores += aptos;
 
       totalEleitoresUF += aptos;
-      
-      if (codM) {
-        if (!SIM.resultadosPorMuni[uf]) SIM.resultadosPorMuni[uf] = {};
-        if (!SIM.resultadosPorMuni[uf][codM]) {
-          SIM.resultadosPorMuni[uf][codM] = {};
-          allKeys.forEach(k => SIM.resultadosPorMuni[uf][codM][k] = { votos: 0, pct: 0 });
-          SIM.resultadosPorMuni[uf][codM]._totalEleitores = 0;
-        }
-        allKeys.forEach(k => {
-           const votos = Math.round(aptos * (finalPcts[k] || 0) / 100);
-           SIM.resultadosPorMuni[uf][codM][k].votos += votos;
-        });
-        SIM.resultadosPorMuni[uf][codM]._totalEleitores += aptos;
-      }
-
-      // Armazenamos resultados no point para usar no mapa de locais posteriormente
       f.properties._sim = { votosCand: {}, totalAptos: aptos };
       allKeys.forEach(k => f.properties._sim.votosCand[k] = Math.round(aptos * (finalPcts[k] || 0) / 100));
     });
 
-    // Calcular pct por uf
     allKeys.forEach(k => {
       ufRes[k].pct = totalEleitoresUF > 0 ? (ufRes[k].votos / totalEleitoresUF) * 100 : 0;
     });
-
     if (SIM.resultadosPorMuni[uf]) {
-        Object.keys(SIM.resultadosPorMuni[uf]).forEach(codM => {
-            const mRes = SIM.resultadosPorMuni[uf][codM];
-            allKeys.forEach(k => {
-                mRes[k].pct = mRes._totalEleitores > 0 ? (mRes[k].votos / mRes._totalEleitores) * 100 : 0;
-            });
+        Object.values(SIM.resultadosPorMuni[uf]).forEach(mRes => {
+            allKeys.forEach(k => mRes[k].pct = mRes._totalEleitores > 0 ? (mRes[k].votos / mRes._totalEleitores) * 100 : 0);
         });
     }
 
@@ -1228,16 +1358,51 @@ function simCalcularProjecao() {
                    f.properties._sim.votosCand[k] = oldVotosUF > 0 ? Math.round((f.properties._sim.votosCand[k] || 0) * ratio) : Math.round(newVotosUF * (f.properties._sim.totalAptos / totalEleitoresUF));
                }
            });
-
-           // update totalVotosBR by subtracting old ones and adding new ones
-           totalVotosBR[k] -= oldVotosUF; 
-           ufRes[k].pct = oRes[k] || 0;
+           totalVotosBR[k] += (newVotosUF - oldVotosUF);
            ufRes[k].votos = newVotosUF;
-           totalVotosBR[k] += ufRes[k].votos;
+           ufRes[k].pct = oRes[k] || 0;
         });
     }
 
-    // Set totalEleitores
+    // --- MANUAL MUNICIPAL OVERRIDES ---
+    if (SIM.resultadosPorMuni[uf]) {
+        Object.entries(SIM.resultadosPorMuni[uf]).forEach(([codM, mRes]) => {
+            const oMuni = SIM.overridesPorMuni[codM];
+            if (!oMuni) return;
+
+            allKeys.forEach(k => {
+                const oldVotosMuni = mRes[k].votos;
+                const newVotosMuni = Math.round(mRes._totalEleitores * (oMuni[k] || 0) / 100);
+                const delta = newVotosMuni - oldVotosMuni;
+
+                mRes[k].votos = newVotosMuni;
+                mRes[k].pct = oMuni[k] || 0;
+                
+                // Propagate to State and national totals
+                ufRes[k].votos += delta;
+                totalVotosBR[k] += delta;
+
+                // Distribute delta among polling locations within this municipality
+                const ratio = oldVotosMuni > 0 ? (newVotosMuni / oldVotosMuni) : 0;
+                geo.features.forEach(f => {
+                    const fCodM = f.properties.cod_localidade_ibge || f.properties.CD_MUN;
+                    if (String(fCodM) === String(codM) && f.properties._sim) {
+                        if (oldVotosMuni > 0) {
+                            f.properties._sim.votosCand[k] = Math.round((f.properties._sim.votosCand[k] || 0) * ratio);
+                        } else {
+                            f.properties._sim.votosCand[k] = Math.round(newVotosMuni * (f.properties._sim.totalAptos / mRes._totalEleitores));
+                        }
+                    }
+                });
+            });
+        });
+
+        // Final check: Update state percentages after all deltas
+        allKeys.forEach(k => {
+           ufRes[k].pct = totalEleitoresUF > 0 ? (ufRes[k].votos / totalEleitoresUF) * 100 : 0;
+        });
+    }
+
     ufRes._totalEleitores = totalEleitoresUF;
     SIM.resultadosPorUF[uf] = ufRes;
     totalEleitoresBR += totalEleitoresUF;
@@ -1251,6 +1416,7 @@ function simCalcularProjecao() {
   });
   SIM.totalBrasil._totalEleitores = totalEleitoresBR;
 }
+
 
 // ====== APLICAR ======
 function simAplicar() {
@@ -1472,7 +1638,7 @@ function simOnClickEstado(sigla) {
   document.getElementById('simEstadoTabAjustar').style.display = 'none';
 
   simRenderEstadoResultado(sigla);
-  simRenderEstadoAjuste(sigla);
+  simRenderAjusteTab(sigla, null);
 
   if (SIM.modo === 'governador') {
      if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
@@ -1514,7 +1680,7 @@ function simVoltarNivel() {
     SIM.selectedMuni = null;
     simRenderMapaMunicipios(SIM.selectedUF);
     simRenderEstadoResultado(SIM.selectedUF);
-    simRenderEstadoAjuste(SIM.selectedUF);
+    simRenderAjusteTab(SIM.selectedUF, null);
     // restore title
     document.getElementById('simEstadoTitle').textContent = `${UF_MAP.get(SIM.selectedUF)} (${SIM.selectedUF})`;
     document.getElementById('simEstadoSub').textContent = `${fmtInt(SIM.resultadosPorUF[SIM.selectedUF]?._totalEleitores)} eleitores`;
@@ -1631,11 +1797,12 @@ async function simRenderMapaMunicipios(uf) {
       </div>`;
       layer.bindTooltip(tt, { className: 'sim-tooltip', sticky: true });
       layer.on('click', () => {
-         SIM.selectedMuni = codM;
-         simRenderMapaMunicipios(uf);
-         simRenderMapaLocais(uf, codM);
-         simRenderMuniResultado(uf, codM);
-         simAtualizarBtnVoltar();
+          SIM.selectedMuni = codM;
+          simRenderMapaMunicipios(uf);
+          simRenderMapaLocais(uf, codM);
+          simRenderMuniResultado(uf, codM);
+          simRenderAjusteTab(uf, codM);
+          simAtualizarBtnVoltar();
       });
     }
   }).addTo(simMap);
@@ -1721,31 +1888,43 @@ function simRenderBarsGenericInto(container, res) {
   container.innerHTML = html;
 }
 
-// ====== AJUSTE DE ESTADO ======
-function simRenderEstadoAjuste(sigla) {
-  const res = SIM.resultadosPorUF[sigla];
+// ====== AJUSTE CONTEXTUAL (ESTADO OU MUNICÍPIO) ======
+function simRenderAjusteTab(uf, muniCode = null) {
+  const isMuni = muniCode !== null;
+  const res = isMuni ? SIM.resultadosPorMuni[uf]?.[muniCode] : SIM.resultadosPorUF[uf];
   if (!res) return;
+
+  let areaNome = isMuni ? muniCode : (UF_MAP.get(uf) || uf);
+  if (isMuni) {
+    const ufGeo = SIM.ibgeMuniGeoCache[uf] || SIM.municipiosCache[uf];
+    if (ufGeo && ufGeo.features) {
+      const f = ufGeo.features.find(x => String(x.properties.CD_MUN) === String(muniCode));
+      if (f) areaNome = f.properties.NM_MUN;
+    }
+  }
 
   const container = document.getElementById('simEstadoTabAjustar');
   const allEntries = SIM.candidatos.map(c => ({ key: `cand_${c.id}`, label: c.nome || 'S/N', cor: c.cor }))
-    .concat([
-      { key: 'outros', label: 'Outros', cor: '#7a8699' }
-    ]);
+    .concat([{ key: 'outros', label: 'Outros', cor: '#7a8699' }]);
 
   let validVotos = 0;
   allEntries.forEach(e => { validVotos += res[e.key]?.votos || 0; });
 
-  let html = '<div class="sim-ajuste-section">';
+  let html = `<div class="sim-ajuste-header" style="margin-bottom:12px; font-weight:600; color:var(--accent);">Ajustar: ${areaNome}</div>`;
+  html += '<div class="sim-ajuste-section">';
   html += '<div class="sim-total-indicator valid" id="simAjusteTotal">Total: 100.0%</div>';
 
   allEntries.forEach(e => {
     const pct = validVotos > 0 ? ((res[e.key]?.votos || 0) / validVotos) * 100 : 0;
+    const scopeId = isMuni ? muniCode : uf;
     html += `
       <div class="sim-slider-row">
         <span class="sim-slider-indicator" style="background:${e.cor}"></span>
         <span class="sim-slider-label">${e.label}</span>
-        <input type="range" class="sim-ajuste-slider" min="0" max="100" step="0.01" value="${pct.toFixed(2)}" data-uf="${sigla}" data-entry="${e.key}">
-        <input type="number" class="sim-ajuste-val" min="0" max="100" step="0.01" value="${pct.toFixed(2)}" data-uf="${sigla}" data-entry="${e.key}">
+        <input type="range" class="sim-ajuste-slider" min="0" max="100" step="0.01" value="${pct.toFixed(2)}" 
+               data-uf="${uf}" data-muni="${muniCode || ''}" data-scope="${scopeId}" data-entry="${e.key}">
+        <input type="number" class="sim-ajuste-val" min="0" max="100" step="0.01" value="${pct.toFixed(2)}" 
+               data-uf="${uf}" data-muni="${muniCode || ''}" data-scope="${scopeId}" data-entry="${e.key}">
         <span class="sim-slider-pct">%</span>
       </div>`;
   });
@@ -1760,41 +1939,40 @@ function simRenderEstadoAjuste(sigla) {
 
   // Bind
   container.querySelectorAll('.sim-ajuste-slider').forEach(sl => {
-    sl.addEventListener('input', e => simOnAjSlider(e, sigla, allEntries));
+    sl.addEventListener('input', e => simOnAjSlider(e, isMuni ? muniCode : uf));
   });
-
   container.querySelectorAll('.sim-ajuste-val').forEach(inp => {
-    inp.addEventListener('change', e => simOnAjVal(e, sigla, allEntries));
+    inp.addEventListener('change', e => simOnAjVal(e, isMuni ? muniCode : uf));
   });
 
-  document.getElementById('btnAplicarAjuste')?.addEventListener('click', () => simApplyOverride(sigla));
-  document.getElementById('btnResetAjuste')?.addEventListener('click', () => simResetOverride(sigla));
+  document.getElementById('btnAplicarAjuste')?.addEventListener('click', () => simApplyOverride(uf, muniCode));
+  document.getElementById('btnResetAjuste')?.addEventListener('click', () => simResetOverride(uf, muniCode));
 }
 
-function simOnAjSlider(e, sigla) {
+function simOnAjSlider(e, scopeId) {
   const entry = e.target.dataset.entry;
   const val = parseFloat(e.target.value);
-  const ni = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${entry}"]`);
+  const ni = document.querySelector(`.sim-ajuste-val[data-scope="${scopeId}"][data-entry="${entry}"]`);
   if (ni) ni.value = val.toFixed(2);
-  simEnforceAjusteTotal(sigla, entry, val);
+  simEnforceAjusteTotal(scopeId, entry, val);
 }
 
-function simOnAjVal(e, sigla) {
+function simOnAjVal(e, scopeId) {
   const entry = e.target.dataset.entry;
   let val = parseFloat(e.target.value);
   if (isNaN(val)) val = 0;
   val = Math.max(0, Math.min(100, val));
   e.target.value = val.toFixed(2);
-  const si = document.querySelector(`.sim-ajuste-slider[data-uf="${sigla}"][data-entry="${entry}"]`);
+  const si = document.querySelector(`.sim-ajuste-slider[data-scope="${scopeId}"][data-entry="${entry}"]`);
   if (si) si.value = val;
-  simEnforceAjusteTotal(sigla, entry, val);
+  simEnforceAjusteTotal(scopeId, entry, val);
 }
 
-function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
+function simEnforceAjusteTotal(scopeId, changedEntry, newVal) {
   const allKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
   const values = {};
   allKeys.forEach(k => {
-    const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
+    const inp = document.querySelector(`.sim-ajuste-val[data-scope="${scopeId}"][data-entry="${k}"]`);
     values[k] = inp ? parseFloat(inp.value) || 0 : 0;
   });
   values[changedEntry] = newVal;
@@ -1803,9 +1981,7 @@ function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
 
   if (total > 100.01) {
     const excess = total - 100;
-    const eligible = allKeys.filter(k =>
-      k !== changedEntry && values[k] > 5
-    );
+    const eligible = allKeys.filter(k => k !== changedEntry && values[k] > 5);
     if (eligible.length > 0) {
       const totalEl = eligible.reduce((s, k) => s + values[k], 0);
       eligible.forEach(k => { values[k] = Math.max(0, values[k] - (values[k] / totalEl) * excess); });
@@ -1816,8 +1992,8 @@ function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
   allKeys.forEach(k => {
     const v = Math.max(0, values[k]);
     nt += v;
-    const sl = document.querySelector(`.sim-ajuste-slider[data-uf="${sigla}"][data-entry="${k}"]`);
-    const ni = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
+    const sl = document.querySelector(`.sim-ajuste-slider[data-scope="${scopeId}"][data-entry="${k}"]`);
+    const ni = document.querySelector(`.sim-ajuste-val[data-scope="${scopeId}"][data-entry="${k}"]`);
     if (sl) sl.value = v.toFixed(2);
     if (ni) ni.value = v.toFixed(2);
   });
@@ -1830,29 +2006,26 @@ function simEnforceAjusteTotal(sigla, changedEntry, newVal) {
   }
 }
 
-function simApplyOverride(sigla) {
+function simApplyOverride(sigla, muniCode = null) {
+  const isMuni = muniCode !== null;
+  const scopeId = isMuni ? muniCode : sigla;
   const overridesKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
   const allKeys = overridesKeys.concat(['nuloBranco', 'abstencao']);
   const override = {};
   
-  let validTotalPct = 0;
+  // Get manual percentages (of valid votes)
   overridesKeys.forEach(k => {
-    const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
+    const inp = document.querySelector(`.sim-ajuste-val[data-scope="${scopeId}"][data-entry="${k}"]`);
     override[k] = inp ? parseFloat(inp.value) || 0 : 0;
-    validTotalPct += override[k];
   });
   
-  // Retain the old invalid vote percentages
-  const oldRes = SIM.resultadosPorUF[sigla] || {};
+  // Retain the baseline invalid percentages
+  const oldRes = isMuni ? (SIM.resultadosPorMuni[sigla]?.[muniCode] || {}) : (SIM.resultadosPorUF[sigla] || {});
   const nb = oldRes.nuloBranco?.pct || 0;
   const ab = oldRes.abstencao?.pct || 0;
   
-  // Make sure they fit along with nulo/branco by possibly redistributing them, or keep total scale matching.
-  // Actually, since the slider is 0-100 of valid votes? Wait!
-  // If the slider totals 100% of ALL people, but nulos/brancos are removed, then adjusting to 100% means we're ignoring abstenção!
-  // Wait, if we enforce 100% among the valid keys, we should scale them to (100 - nb - ab)!
-  // So the override dict saves the PCT over TOTAL.
-  
+  // Convert pct-of-valid to pct-of-total
+  const validTotalPct = Object.values(override).reduce((s,v) => s+v, 0);
   const targetValidFrac = Math.max(0, 100 - nb - ab);
   
   overridesKeys.forEach(k => {
@@ -1865,26 +2038,42 @@ function simApplyOverride(sigla) {
 
   override['nuloBranco'] = nb;
   override['abstencao'] = ab;
-  allKeys.forEach(k => {
-    const inp = document.querySelector(`.sim-ajuste-val[data-uf="${sigla}"][data-entry="${k}"]`);
-    override[k] = inp ? parseFloat(inp.value) || 0 : 0;
-  });
-  SIM.overridesPorUF[sigla] = override;
+
+  if (isMuni) {
+    SIM.overridesPorMuni[muniCode] = override;
+  } else {
+    SIM.overridesPorUF[sigla] = override;
+  }
 
   simCalcularProjecao();
-  simRenderMapaEstados();
-  simOnClickEstado(sigla); // refresh
+  if (isMuni) {
+    simRenderMuniResultado(sigla, muniCode);
+    simRenderAjusteTab(sigla, muniCode);
+  } else {
+    simRenderMapaEstados();
+    simOnClickEstado(sigla);
+  }
 }
 
-function simResetOverride(sigla) {
-  delete SIM.overridesPorUF[sigla];
+function simResetOverride(sigla, muniCode = null) {
+  if (muniCode !== null) {
+    delete SIM.overridesPorMuni[muniCode];
+  } else {
+    delete SIM.overridesPorUF[sigla];
+  }
   simCalcularProjecao();
-  simRenderMapaEstados();
-  simOnClickEstado(sigla);
+  if (muniCode !== null) {
+    simRenderMuniResultado(sigla, muniCode);
+    simRenderAjusteTab(sigla, muniCode);
+  } else {
+    simRenderMapaEstados();
+    simOnClickEstado(sigla);
+  }
 }
 
 function simReaplicarBase() {
   SIM.overridesPorUF = {};
+  SIM.overridesPorMuni = {};
   simCalcularProjecao();
   if (SIM.modo === 'governador' && SIM.estadoAlvo) {
      simOnClickEstado(SIM.estadoAlvo);
