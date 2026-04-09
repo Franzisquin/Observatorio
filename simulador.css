@@ -430,3 +430,124 @@
   text-align: center;
   font-size: 0.72rem;
 }
+
+/* ====== Regional Slider Sections (Collapsible) ====== */
+.sim-region-section {
+  margin-bottom: 24px;
+}
+
+.sim-region-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 10px 0;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+  color: var(--text);
+}
+
+.sim-region-header h4 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-region-badge {
+  font-size: 0.62rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  line-height: 1.4;
+}
+
+.sim-region-collapse-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-sec);
+  font-size: 0.68rem;
+  cursor: pointer;
+  padding: 2px 8px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.sim-region-collapse-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sim-region-item {
+  margin-bottom: 2px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  overflow: hidden;
+  transition: margin-bottom 0.15s;
+}
+
+.sim-region-item.has-values {
+  border-color: var(--accent);
+}
+
+.sim-region-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.sim-region-item-header:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.sim-region-item-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-region-arrow {
+  font-size: 0.6rem;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+
+.sim-region-item.open .sim-region-arrow {
+  transform: rotate(90deg);
+}
+
+.sim-region-item-body {
+  display: none;
+  padding: 6px 10px 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sim-region-item.open .sim-region-item-body {
+  display: block;
+}
+
+.sim-region-item.open {
+  margin-bottom: 6px;
+}
+
+.sim-region-configured-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.sim-region-pct-summary {
+  font-size: 0.65rem;
+  color: var(--muted);
+  font-weight: 400;
+}
