@@ -68,39 +68,37 @@
           </div>
         </div>
 
-        <!-- Resultados Totais Brasil -->
-        <div id="simBrasilResults" style="display:none;">
+        <!-- Unified Results Panel -->
+        <div id="simPanelResults" style="display:none;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <div>
-              <h3 style="margin:0;font-size:1rem;">Brasil — Total</h3>
-              <small id="simBrasilEleitores" style="color:var(--muted);"></small>
+              <h3 id="simPanelAreaTitle" style="margin:0;font-size:1rem;">Brasil — Total</h3>
+              <small id="simPanelAreaSub" style="color:var(--muted);"></small>
             </div>
-            <button class="sim-btn sim-btn-edit-small" id="btnEditSim" title="Editar simulação">Editar</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button class="sim-btn sim-btn-edit-small" id="btnEditSimGlobal" title="Editar simulação">Candidatos</button>
+              <button class="sim-btn" id="btnVoltar" title="Voltar" style="display:none">← Voltar</button>
+            </div>
           </div>
-          <div id="simBrasilBars"></div>
-          <div id="simBrasilMetrics" class="footer" style="margin-top:12px;"></div>
-        </div>
-
-        <!-- Resultado do Estado selecionado -->
-        <div id="simEstadoResults" style="display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <div>
-            <h3 id="simEstadoTitle" style="margin:0;font-size:1rem;"></h3>
-            <small id="simEstadoSub" style="color:var(--muted);"></small>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <button class="sim-btn sim-btn-edit-small" id="btnEditSimEstado" title="Editar simulação">Editar</button>
-            <button class="sim-btn" id="btnVoltar" title="Voltar" style="display:none">← Voltar</button>
-          </div>
-        </div>
 
           <div class="chip-group" style="margin-bottom:12px;">
-            <button class="chip-button active" id="btnEstadoResultado" data-tab="resultado">Resultado</button>
-            <button class="chip-button" id="btnEstadoAjustar" data-tab="ajustar">Ajustar</button>
+            <button class="chip-button active" data-tab="resultado">Resultado</button>
+            <button class="chip-button" data-tab="ajustar">Ajustar</button>
+            <button class="chip-button" data-tab="demografia">Demografia</button>
           </div>
 
-          <div id="simEstadoTabResultado"></div>
-          <div id="simEstadoTabAjustar" style="display:none;"></div>
+          <div id="simTabResultado" class="sim-sidebar-tab">
+            <div id="simBarsContainer"></div>
+            <div id="simMetricsContainer" class="footer" style="margin-top:12px;"></div>
+          </div>
+          
+          <div id="simTabAjustar" class="sim-sidebar-tab" style="display:none;">
+            <!-- Overrides will be rendered here -->
+          </div>
+
+          <div id="simTabDemografia" class="sim-sidebar-tab" style="display:none;">
+            <!-- Demographics will be rendered here -->
+          </div>
         </div>
 
       </div>

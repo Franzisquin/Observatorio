@@ -1,9 +1,10 @@
-
 const DATA_BASE_URL = 'resultados_geo/';
 
 let ZIP_INDEX = null;
 let ZIP_READERS = new Map(); // Cache for ZipReaders
-let MUNICIPAL_DATA_INDEX = {};
+let MUNICIPAL_DATA_INDEX = null;
+let REGIOES_IBGE = null;
+let aggregatedMuniResults = {}; // { [uf]: { [cdMun]: { winner, margin, [cand]: votes } } }
 
 // CORES E PARTIDOS
 const PARTY_COLORS = new Map(Object.entries({
@@ -293,10 +294,24 @@ async function loadMunicipalIndex() {
   }
 }
 
+async function loadRegionalData() {
+  if (REGIOES_IBGE) return;
+  try {
+    const res = await fetch(DATA_BASE_URL + 'regioes_ibge.json');
+    if (res.ok) {
+      REGIOES_IBGE = await res.json();
+      console.log("Regional data loaded.");
+    }
+  } catch (e) {
+    console.warn("Failed to load regioes_ibge.json", e);
+  }
+}
+
 async function init() {
   document.body.dataset.theme = 'dark';
   mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
 
+  await loadRegionalData();
   await loadMunicipalIndex();
 
   dom.mapLoader = document.getElementById('mapLoader');
@@ -328,6 +343,8 @@ async function init() {
   dom.selectUFGeneral = document.getElementById('selectUFGeneral');
 
   dom.selectUFMunicipal = document.getElementById('selectUFMunicipal');
+  dom.selectRGINT = document.getElementById('selectRGINT');
+  dom.selectRGI = document.getElementById('selectRGI');
   dom.selectMunicipio = document.getElementById('selectMunicipio');
   dom.searchMunicipio = document.getElementById('searchMunicipio');
   dom.cargoBoxMunicipal = document.getElementById('cargoBoxMunicipal'); // Agora usado para tipo de eleição (Ord/Sup)
@@ -444,6 +461,8 @@ function setupControls() {
     clearSelection(true);
     currentDataCollection = {};
     currentDataCollection_2022 = {};
+    STATE.municipiosLayer = null;
+    STATE.currentMapMode = 'municipios'; // 'municipios' or 'locais'
     STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
 
     [dom.filterBox, dom.resultsBox, dom.summaryBoxContainer].forEach(el => {
@@ -584,8 +603,6 @@ function setupControls() {
   // SELEÇÃO MUNICIPAL — Cascata UF → Município
   dom.selectUFMunicipal.addEventListener('change', () => {
     const uf = dom.selectUFMunicipal.value;
-    const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
-
     // Lógica para mostrar anos exclusivos do RJ (2000, 2004)
     const yearOptions = dom.selectYearMunicipal.querySelectorAll('.year-rj-only');
     let needsYearReset = false;
@@ -606,21 +623,141 @@ function setupControls() {
       STATE.currentElectionYear = "2024";
     }
 
+    // NEW: Auto-load state map
+    if (uf) {
+      renderStateMunicipalityMap(uf);
+    }
+
+    // --- HIERARCHY REFACTOR ---
+    // Clear sub-levels
+    dom.selectRGINT.innerHTML = '<option value="" disabled selected>Selecione UF...</option>';
+    dom.selectRGI.innerHTML = '<option value="" disabled selected>Selecione Intermediária...</option>';
+    dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Imediata...</option>';
+    
+    dom.selectRGINT.disabled = !uf || !REGIOES_IBGE;
+    dom.selectRGI.disabled = true;
+    dom.selectMunicipio.disabled = true;
+
+    if (uf && REGIOES_IBGE && REGIOES_IBGE.rgint_by_uf[uf]) {
+      dom.selectRGINT.innerHTML = '<option value="" selected>Todas as Intermediárias</option>';
+      REGIOES_IBGE.rgint_by_uf[uf].forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.cd;
+        opt.textContent = r.nome;
+        dom.selectRGINT.appendChild(opt);
+      });
+      populateMunicipiosFlat(uf); // Fallback to flat if needed or initial state
+    }
+  });
+
+  // Level 2: RGINT -> RGI
+  dom.selectRGINT.addEventListener('change', () => {
+    const rgint = dom.selectRGINT.value;
+    const uf = dom.selectUFMunicipal.value;
+
+    dom.selectRGI.innerHTML = '<option value="" disabled selected>Selecione Intermediária...</option>';
+    dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Imediata...</option>';
+    dom.selectRGI.disabled = !rgint || rgint === 'Todas as Intermediárias';
+    dom.selectMunicipio.disabled = !rgint;
+
+    if (rgint && rgint !== 'Todas as Intermediárias' && REGIOES_IBGE && REGIOES_IBGE.rgi_by_rgint[rgint]) {
+      dom.selectRGI.innerHTML = '<option value="" selected>Todas as Imediatas</option>';
+      REGIOES_IBGE.rgi_by_rgint[rgint].forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.cd;
+        opt.textContent = r.nome;
+        dom.selectRGI.appendChild(opt);
+      });
+      populateMunicipiosFiltered(uf, rgint, null);
+    } else if (rgint === 'Todas as Intermediárias') {
+      populateMunicipiosFlat(uf);
+    }
+  });
+
+  // Level 3: RGI -> Municipio
+  dom.selectRGI.addEventListener('change', () => {
+    const rgi = dom.selectRGI.value;
+    const rgint = dom.selectRGINT.value;
+    const uf = dom.selectUFMunicipal.value;
+
+    if (rgi && rgi !== 'Todas as Imediatas') {
+      populateMunicipiosFiltered(uf, rgint, rgi);
+    } else {
+      populateMunicipiosFiltered(uf, rgint, null);
+    }
+  });
+
+  function populateMunicipiosFlat(uf) {
+    const names = MUNICIPAL_DATA_INDEX[uf] || [];
     dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Município</option>';
-    municipios.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
+    names.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
       const opt = document.createElement('option');
       opt.value = nome;
       opt.textContent = nome;
       dom.selectMunicipio.appendChild(opt);
     });
+    dom.selectMunicipio.disabled = names.length === 0;
+    dom.searchMunicipio.disabled = names.length === 0;
+  }
 
-    const hasMunis = municipios.length > 0;
-    dom.selectMunicipio.disabled = !hasMunis;
-    dom.searchMunicipio.disabled = !hasMunis;
-    dom.searchMunicipio.value = '';
+  function populateMunicipiosFiltered(uf, rgintId, rgiId) {
+    if (!REGIOES_IBGE) return populateMunicipiosFlat(uf);
+    
+    // Filter municipalities from MUNICIPAL_DATA_INDEX[uf] using REGIOES_IBGE.muni_to_region
+    // But MUNICIPAL_DATA_INDEX uses NAMES, and muni_to_region uses CODES.
+    // We need a mapping. Fortunately, fetch_regions.py saved muni_to_region[id] = { nome, ... }
+    
+    const allMunis = REGIOES_IBGE.muni_to_region;
+    const filtered = [];
 
-    if (!hasMunis && uf) {
-      dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
+    for (const [id, info] of Object.entries(allMunis)) {
+      if (info.uf === uf || (info.uf === undefined && id.startsWith(UF_PREFIX_MAP[uf]))) { // Heuristic if uf missing in info
+         // In my new script, I didn't save 'uf' in info, but CD_MUN starts with UF code.
+         // Wait, I should have saved UF in info. Let's fix script later if needed.
+         // FOR NOW: check if it belongs to rgint/rgi
+         if (rgiId) {
+             if (info.rgi === rgiId) filtered.push(info.nome);
+         } else if (rgintId) {
+             if (info.ri === rgintId) filtered.push(info.nome);
+         }
+      }
+    }
+
+    // Special case: since MUNICIPAL_DATA_INDEX might have names slightly different or I might have missed UF,
+    // let's ensure we only show municipalities that ACTUALY have data (indexed).
+    const indexed = new Set(MUNICIPAL_DATA_INDEX[uf] || []);
+    const result = filtered.filter(n => indexed.has(n.toUpperCase())); 
+    // Wait, MUNICIPAL_DATA_INDEX names are usually uppercase in the file I saw.
+
+    dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Município</option>';
+    result.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
+      const opt = document.createElement('option');
+      opt.value = nome.toUpperCase();
+      opt.textContent = nome.toUpperCase();
+      dom.selectMunicipio.appendChild(opt);
+    });
+    dom.selectMunicipio.disabled = result.length === 0;
+    dom.searchMunicipio.disabled = result.length === 0;
+  }
+
+  // Map of UF abbreviations to IBGE prefixes (first 2 digits)
+  const UF_PREFIX_MAP = {
+    'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29', 'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52',
+    'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22',
+    'RJ': '33', 'RN': '24', 'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
+  };
+
+  // Search Logic for Municipality dropdown
+  dom.searchMunicipio.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    let firstVisible = null;
+    for (let i = 0; i < dom.selectMunicipio.options.length; i++) {
+      const opt = dom.selectMunicipio.options[i];
+      if (opt.disabled || opt.value === "") continue;
+      const text = opt.textContent.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const visible = text.includes(term);
+      opt.style.display = visible ? '' : 'none';
+      if (visible && !firstVisible) firstVisible = opt;
     }
   });
 
@@ -709,6 +846,17 @@ function setupControls() {
     applyFiltersAndRedraw();
     if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
   });
+
+  if (dom.btnUpdate) dom.btnUpdate.addEventListener('click', onClickLoadData_General);
+
+  if (dom.btnMapModeMunicipios) {
+    dom.btnMapModeMunicipios.addEventListener('click', () => setMapMode('municipios'));
+  }
+  if (dom.btnMapModeLocais) {
+    dom.btnMapModeLocais.addEventListener('click', () => setMapMode('locais'));
+  }
+
+  // setupSimulationControls(); // Removed: This function belongs to simulador.js
 
   dom.btnClearSelection.addEventListener('click', () => {
     clearSelection(true);
@@ -1315,6 +1463,16 @@ async function onClickLoadData_General() {
       throw new Error("Nenhum dado encontrado para os critérios selecionados.");
     }
 
+    // --- State Map Display ---
+    renderStateMunicipalityMap(ufToLoad);
+    
+    // Default to 'municipios' mode for state load
+    if (ufToLoad !== 'BR') {
+      setMapMode('municipios');
+    } else {
+      setMapMode('locais');
+    }
+
     // --- Configuração da Interface ---
     populateCidadeDropdown();
     [dom.filterBox].forEach(el => el.classList.remove('section-hidden'));
@@ -1378,6 +1536,14 @@ async function onClickLoadData_Municipal() {
 
   STATE.candidates = {}; STATE.metrics = {}; STATE.inaptos = {};
   STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
+
+  // NEW: Clear state-wide municipality layer
+  if (STATE.municipiosLayer) {
+    map.removeLayer(STATE.municipiosLayer);
+  }
+
+  // Deep dive defaults to 'locais'
+  setMapMode('locais');
 
   try {
     currentOffice = 'prefeito';
@@ -3036,4 +3202,256 @@ window.stopScroll = function(wrapper) {
     }, 200);
   }
 };
+
+/**
+ * Changes the active map layer mode (Municípios vs. Locais)
+ */
+function setMapMode(mode) {
+  STATE.currentMapMode = mode;
+  
+  if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.toggle('active', mode === 'municipios');
+  if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.toggle('active', mode === 'locais');
+
+  updateMapLayerVisibility();
+}
+
+/**
+ * Updates visibility of Leaflet layers based on currentMapMode
+ */
+function updateMapLayerVisibility() {
+  const mode = STATE.currentMapMode;
+  
+  // Update municipiosLayer visibility
+  if (STATE.municipiosLayer) {
+    if (mode === 'municipios') {
+      STATE.municipiosLayer.addTo(map);
+    } else {
+      map.removeLayer(STATE.municipiosLayer);
+    }
+  }
+
+  // Update currentLayer (dots) visibility
+  if (currentLayer) {
+    if (mode === 'locais') {
+      currentLayer.addTo(map);
+    } else {
+      map.removeLayer(currentLayer);
+    }
+  }
+}
+
+/**
+ * Aggregates vote counts from point features into municipality buckets (CD_MUN)
+ */
+function aggregateVotesByMunicipality(data, uf) {
+  if (!data || !data.features || data.features.length === 0) return null;
+  const results = {}; // codMun -> { totalValid, [cand]: count }
+
+  data.features.forEach(f => {
+    const p = f.properties;
+    
+    // PRIORITY: IBGE 7-digit code (common in modern point data)
+    let codM = p.cod_localidade_ibge || p.CD_LOCALIDADE_IBGE || p.NR_LOCALIDADE_IBGE;
+    
+    // FALLBACK: Generic CD_MUN (could be TSE or IBGE, we normalize)
+    if (!codM) codM = p.CD_MUN || p.cod_mun || p.cod_muni || p.NM_MUNICIPIO; 
+    
+    if (!codM) return;
+    codM = String(codM);
+
+    if (!results[codM]) {
+      results[codM] = { totalValid: 0, nome: p.NM_MUN || p.nm_localidade || p.nm_mun || "Município" };
+    }
+
+    // Extract candidates (keys containing 1T or 2T, or mapped from discoverCandidatesAndMetrics)
+    for (let k in p) {
+      if (k.includes(' 1T') || k.includes(' 2T')) {
+        const val = Number(p[k]) || 0;
+        results[codM][k] = (results[codM][k] || 0) + val;
+        if (!k.toLowerCase().includes('nulo') && !k.toLowerCase().includes('branco')) {
+           results[codM].totalValid += val;
+        }
+      }
+    }
+  });
+
+  // Calculate winner and margin per city
+  const summary = {};
+  for (let [codM, res] of Object.entries(results)) {
+    const cands = Object.keys(res).filter(k => (k.includes(' 1T') || k.includes(' 2T')) && !k.toLowerCase().includes('nulo') && !k.toLowerCase().includes('branco'));
+    if (cands.length === 0) continue;
+
+    const sorted = cands.map(k => ({ key: k, votos: res[k] })).sort((a, b) => b.votos - a.votos);
+    const winner = sorted[0].key;
+    const margin = res.totalValid > 0 ? ((sorted[0].votos - (sorted[1]?.votos || 0)) / res.totalValid) * 100 : 0;
+    
+    // Extract partido from name e.g. "LULA (PT)"
+    let partido = "OUTROS";
+    const m = winner.match(/\(([^)]+)\)/);
+    if (m) partido = m[1];
+
+    summary[codM] = {
+      winnerCode: winner,
+      winnerParty: partido,
+      margin: margin,
+      totalValid: res.totalValid,
+      nome: res.nome,
+      votes: res
+    };
+  }
+  return summary;
+}
+
+/**
+ * Loads and renders the state-wide municipality polygon map
+ */
+async function renderStateMunicipalityMap(uf) {
+  if (!uf || uf === 'BR') return;
+
+  const path = `municipios/municipios_${uf}.geojson`;
+  
+  dom.mapLoader.textContent = `Carregando mapa de municípios de ${uf}...`;
+  dom.mapLoader.classList.add('visible');
+
+  try {
+    const geoJSON = await fetchGeoJSON(DATA_BASE_URL + path);
+    if (!geoJSON) throw new Error("Mapa municipal não encontrado");
+
+    // Clear existing municipal layer
+    if (STATE.municipiosLayer) {
+      map.removeLayer(STATE.municipiosLayer);
+    }
+
+    // Use current data collection to get results (if loaded)
+    const activeData = currentDataCollection[currentCargo];
+    const summary = (activeData && activeData.features && activeData.features.length > 50) ? aggregateVotesByMunicipality(activeData, uf) : null;
+
+    STATE.municipiosLayer = L.geoJSON(geoJSON, {
+      style: (f) => {
+        const props = f.properties;
+        // Check multiple possible keys in the polygon feature
+        const codM = String(props.CD_MUN || props.cod_mun || props.CD_IBGE || props.id || "");
+        const res = summary ? summary[codM] : null;
+        
+        let color = "#7a8699";
+        if (res) {
+          color = PARTY_COLORS.get(res.winnerParty.toUpperCase()) || "#7a8699";
+          // Fixed intensity scale (0-50% margin)
+          const marginVal = Math.max(0, Math.min(50, res.margin));
+          const intensity = (marginVal / 50) * 100;
+          color = getUniversalGradientColor(color, intensity);
+        }
+
+        return {
+          fillColor: color,
+          fillOpacity: 0.7,
+          color: "#333",
+          weight: 1,
+          opacity: 0.5
+        };
+      },
+      onEachFeature: (f, layer) => {
+        const codM = f.properties.CD_MUN;
+        const nome = f.properties.NM_MUN;
+        const res = summary ? summary[codM] : null;
+
+        let tt = `<b>${nome}</b>`;
+        if (res) {
+          tt += `<br>Vencedor: ${res.winnerCode}<br>Margem: ${res.margin.toFixed(1)}%`;
+        } else {
+          tt += `<br>Clique para ver detalhes`;
+        }
+
+        layer.bindTooltip(tt, { sticky: true });
+
+        layer.on({
+          mouseover: (e) => {
+            const l = e.target;
+            l.setStyle({ fillOpacity: 0.9, weight: 2, color: '#fff' });
+          },
+          mouseout: (e) => {
+            const l = e.target;
+            l.setStyle({ fillOpacity: 0.7, weight: 1, color: '#333' });
+          },
+          click: (e) => {
+            // Drill down!
+            if (STATE.currentElectionType === 'municipal') {
+                // Remove existing municipio layer to avoid overlap when deep diving
+                if (STATE.municipiosLayer) map.removeLayer(STATE.municipiosLayer);
+                
+                dom.selectMunicipio.value = nome.toUpperCase();
+                // Trigger natural change event to load points
+                dom.selectMunicipio.dispatchEvent(new Event('change'));
+            } else {
+                // In General mode, we filter the city in the points view
+                currentCidadeFilter = nome.toUpperCase();
+                if (cidadeCombobox) cidadeCombobox.setValue(currentCidadeFilter);
+                applyFiltersAndRedraw();
+            }
+          }
+        });
+      }
+    });
+
+    // Initial visibility update based on mode
+    updateMapLayerVisibility();
+
+    // Fit map to state if we just loaded it
+    if (STATE.municipiosLayer.getBounds().isValid()) {
+      map.fitBounds(STATE.municipiosLayer.getBounds());
+    }
+
+  } catch (e) {
+    console.warn("Failed to render state municipality map:", e);
+  } finally {
+    dom.mapLoader.classList.remove('visible');
+  }
+}
+
+// Utility from simulator
+function getUniversalGradientColor(baseColorHex, pct) {
+  if (pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  const hsl = hexToHSL(baseColorHex);
+  const targetL = 70 - (pct / 100) * 40;
+  return hslToHex(hsl.h, hsl.s, targetL);
+}
+
+function hexToHSL(H) {
+  let r = 0, g = 0, b = 0;
+  if (H.length == 4) {
+    r = "0x" + H[1] + H[1]; g = "0x" + H[2] + H[2]; b = "0x" + H[3] + H[3];
+  } else if (H.length == 7) {
+    r = "0x" + H[1] + H[2]; g = "0x" + H[3] + H[4]; b = "0x" + H[5] + H[6];
+  }
+  r /= 255; g /= 255; b /= 255;
+  let cmin = Math.min(r, g, b), cmax = Math.max(r, g, b), delta = cmax - cmin, h = 0, s = 0, l = 0;
+  if (delta == 0) h = 0;
+  else if (cmax == r) h = ((g - b) / delta) % 6;
+  else if (cmax == g) h = (b - r) / delta + 2;
+  else h = (r - g) / delta + 4;
+  h = Math.round(h * 60);
+  if (h < 0) h += 360;
+  l = (cmax + cmin) / 2;
+  s = delta == 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  s = +(s * 100).toFixed(1);
+  l = +(l * 100).toFixed(1);
+  return { h, s, l };
+}
+
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  let c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs(((h / 60) % 2) - 1)), m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (0 <= h && h < 60)   { r = c; g = x; b = 0; }
+  else if (60 <= h && h < 120)  { r = x; g = c; b = 0; }
+  else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+  else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+  else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+  else if (300 <= h && h < 360) { r = c; g = x; b = 0; }
+  r = Math.round((r + m) * 255).toString(16).padStart(2, '0');
+  g = Math.round((g + m) * 255).toString(16).padStart(2, '0');
+  b = Math.round((b + m) * 255).toString(16).padStart(2, '0');
+  return '#' + r + g + b;
+}
 

@@ -104,6 +104,21 @@
                 <option value="" disabled selected>Selecione UF...</option>
               </select>
             </div>
+
+            <div class="ctrl" style="margin-bottom: 6px;">
+              <label for="selectRGINT">Região Intermediária</label>
+              <select id="selectRGINT" class="select" disabled>
+                <option value="" disabled selected>Selecione UF...</option>
+              </select>
+            </div>
+
+            <div class="ctrl" style="margin-bottom: 6px;">
+              <label for="selectRGI">Região Imediata</label>
+              <select id="selectRGI" class="select" disabled>
+                <option value="" disabled selected>Selecione Intermediária...</option>
+              </select>
+            </div>
+
             <div class="ctrl" style="margin-bottom: 6px;">
               <label for="selectYearMunicipal">Ano</label>
               <select id="selectYearMunicipal" class="select">
@@ -116,10 +131,11 @@
                 <option value="2000" class="year-rj-only" style="display:none;">2000 (só RJ)</option>
               </select>
             </div>
+            
             <div class="ctrl">
               <label for="selectMunicipio">Município</label>
               <select id="selectMunicipio" class="select" disabled>
-                <option value="" disabled selected>Selecione UF...</option>
+                <option value="" disabled selected>Selecione Imediata...</option>
               </select>
               <input id="searchMunicipio" class="search-input" placeholder="Buscar município..."
                 style="margin-top: 4px;" disabled>
@@ -298,8 +314,22 @@
     </div>
 
     <!-- CENTER: Map -->
-    <div class="panel" id="mapPanel">
+    <div class="panel side side-res">
       <div id="map"></div>
+      
+      <!-- MAP OVERLAY CONTROLS -->
+      <div class="map-overlay-controls">
+        <div class="layer-toggle-group">
+          <button id="btnMapModeMunicipios" class="toggle-btn active" title="Ver Municípios">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            Municípios
+          </button>
+          <button id="btnMapModeLocais" class="toggle-btn" title="Ver Locais de Votação">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Locais
+          </button>
+        </div>
+      </div>
       <div class="loader-overlay" id="mapLoader">
         Carregando dados...
       </div>

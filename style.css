@@ -1610,3 +1610,75 @@ input:disabled {
 .results-empty p {
   max-width: 200px;
 }
+
+/* MAP OVERLAY CONTROLS */
+.map-overlay-controls {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.layer-toggle-group {
+  display: flex;
+  background: rgba(15, 15, 15, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+[data-theme="light"] .layer-toggle-group {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.toggle-btn svg {
+  opacity: 0.7;
+}
+
+.toggle-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .toggle-btn:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.toggle-btn.active {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-btn.active svg {
+  opacity: 1;
+}
+
+.toggle-btn.active:hover {
+  background: var(--accent-hover);
+}
