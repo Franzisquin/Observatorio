@@ -8,7 +8,7 @@ let aggregatedMuniResults = {}; // { [uf]: { [cdMun]: { winner, margin, [cand]: 
 
 // CORES E PARTIDOS
 const PARTY_COLORS = new Map(Object.entries({
-  'AVANTE': '#2eacb2', 'CIDADANIA': '#ec008c', 'DC': '#c89721', 'DEM': '#8CC63E',
+  'AVANTE': '#36aeba', 'CIDADANIA': '#ec5fa6', 'DC': '#809eff', 'DEM': '#91d364',
   'MDB': '#009959', 'MISSÃO': '#fcbe26', 'MOBILIZA': '#DD3333', 'NOVO': '#ec671c', 'PAN': '#ffff00',
   'PASART': '#0000FF', 'PCB': '#a8231c', 'PCDOB': '#800314', 'PCO': '#9F030A',
   'PDS': '#0067A5', 'PDT': '#FE8E6D', 'PEN': '#4AA561', 'PGT': '#006600',
@@ -32,13 +32,85 @@ const PARTY_ACRONYMS = new Map(Object.entries({
   'CIDADANIA': 'CID'
 }));
 
+const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
+  'AVANTE': '#36aeba',
+  'CIDADANIA': '#ec5fa6',
+  'DC': '#809eff',
+  'DEM': '#91d364',
+  'MDB': '#16a250',
+  'MISSÃƒO': '#fdbe21',
+  'NOVO': '#ed8f5a',
+  'PCB': '#c40823',
+  'PCDOB': '#de3e35',
+  'PC DO B': '#de3e35',
+  'PCO': '#8e3d10',
+  'PDS': '#6391d4',
+  'PDT': '#ffc2b3',
+  'PHS': '#e25850',
+  'PL': '#5b6dc8',
+  'PMN': '#ff3333',
+  'PODE': '#23a840',
+  'PODEMOS': '#23a840',
+  'PP': '#6391d4',
+  'PPL': '#c6a815',
+  'PROS': '#e6661e',
+  'PRTB': '#1a7e2f',
+  'PSC': '#2f8e4f',
+  'PSB': '#ffc133',
+  'PSD': '#ffaf4c',
+  'PSDB': '#24a5ff',
+  'PSL': '#5dca53',
+  'PSOL': '#e95dd2',
+  'PSTU': '#620411',
+  'PT': '#ff3859',
+  'PTB': '#a1787d',
+  'PTC': '#37c884',
+  'PTN': '#23a840',
+  'PTR': '#1a7e2f',
+  'PV': '#67cd8a',
+  'PRP': '#ffe099',
+  'PRONA': '#0f6c36',
+  'PRD': '#007c3c',
+  'PFL': '#91d364',
+  'PPS': '#ec5fa6',
+  'PR': '#30306c',
+  'PRB': '#45bdc9',
+  'REDE': '#7dd1d9',
+  'REPUBLICANOS': '#45bdc9',
+  'SOLIDARIEDADE': '#ff633d',
+  'SD': '#ff633d',
+  'PATRIOTA': '#5fa72f',
+  'PATRI': '#5fa72f',
+  'PMDB': '#16a250',
+  'PMB': '#384ba8',
+  'PSDC': '#809eff',
+  'AGIR': '#254d88',
+  'UNIÃƒO': '#2eccff',
+  'UNIÃƒO BRASIL': '#2eccff',
+  'UP': '#5e5e5e',
+  'OUTROS': '#7a8699'
+}));
+
+PARTY_COLOR_OVERRIDES.set('MISSAO', '#fdbe21');
+PARTY_COLOR_OVERRIDES.set('UNIAO', '#2eccff');
+PARTY_COLOR_OVERRIDES.set('UNIAO BRASIL', '#2eccff');
+
 const CUSTOM_CANDIDATE_COLORS = new Map();
 
+function normalizePartyKey(partido) {
+  return String(partido || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toUpperCase();
+}
+
 function getColorForCandidate(nome, partido) {
-  if (CUSTOM_CANDIDATE_COLORS.has(nome)) {
+  if (nome && CUSTOM_CANDIDATE_COLORS.has(nome)) {
     return CUSTOM_CANDIDATE_COLORS.get(nome);
   }
-  return PARTY_COLORS.get((partido || '').toUpperCase()) || DEFAULT_SWATCH;
+  const cleanParty = normalizePartyKey(partido);
+  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
 }
 
 const DEFAULT_SWATCH = "#7a8699";
@@ -113,7 +185,11 @@ const STATE = {
     saneamentoVal: null,
     saneamentoMode: 'Pct Esgoto Inadequado'
   },
-  selectedCandidateMap: null // NEW
+  selectedCandidateMap: null,
+  selectedMuniCode: null,
+  ibgeMuniGeoCache: {},
+  currentMapMuniSummary: null,
+  currentMapMuniUF: null
 };
 
 let uniqueCidades = new Set();
@@ -125,10 +201,32 @@ let isSelectorsActive = false;
 let startSelectionPoint = null;
 let selectionBoxElement = null; // DOM Element for the box
 let isDragSelection = false; // Flag to track if last selection was drag
+let mapResizeObserver = null;
+let mapRefreshFrame = 0;
+let mapRefreshTimeout = 0;
 
 
 
 // ====== UTILS ======
+const METRIC_VOTE_FIELDS = [
+  'Total_Votos_Validos', 'Votos_Brancos', 'Votos_Nulos',
+  'Eleitores_Aptos', 'Eleitores_Aptos_Municipal',
+  'AbstenÃ§Ãµes', 'Comparecimento', 'Votos_Legenda', 'NR_TURNO'
+];
+
+function isMetricVoteKey(key) {
+  const normalized = String(key || '');
+  const turnoMatch = normalized.match(/ (1T|2T)$/);
+  if (!turnoMatch) return false;
+  const coreKey = normalized.replace(/ (1T|2T)$/, '');
+  return METRIC_VOTE_FIELDS.some(name => coreKey.toUpperCase() === name.toUpperCase());
+}
+
+function isCandidateVoteKey(key) {
+  const normalized = String(key || '');
+  return / (1T|2T)$/.test(normalized) && !isMetricVoteKey(normalized);
+}
+
 function getProp(properties, key) {
   if (!properties) return null;
   if (properties[key] !== undefined) return properties[key];
@@ -142,7 +240,18 @@ function getProp(properties, key) {
   return null;
 }
 const norm = s => (s || "").normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/'/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
-function colorForParty(sg) { return PARTY_COLORS.get((sg || '').toUpperCase()) || DEFAULT_SWATCH; }
+function getMunicipalityFeatureCode(props) {
+  if (!props) return "";
+  return String(props.CD_MUN || props.cod_mun || props.CD_IBGE || props.id || "");
+}
+function getMunicipalityFeatureName(props) {
+  if (!props) return "MunicÃ­pio";
+  return props.NM_MUN || props.nm_mun || props.municipio || props.NOME || "MunicÃ­pio";
+}
+function colorForParty(sg) {
+  const cleanParty = normalizePartyKey(sg);
+  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
+}
 function fmtPct(x) { return isFinite(x) ? (x * 100).toFixed(2).replace('.', ',') + "%" : "-"; }
 function fmtInt(n) { return (n || 0).toLocaleString('pt-BR'); }
 function ensureNumber(v) {
@@ -241,6 +350,73 @@ function debounce(func, timeout = 300) {
   };
 }
 
+function flushMapRefresh(targetMap) {
+  if (!targetMap) return;
+
+  try {
+    targetMap.invalidateSize({ pan: false, debounceMoveend: true });
+  } catch (e) {
+    console.warn('Map invalidateSize failed:', e);
+  }
+
+  targetMap.eachLayer(layer => {
+    if (typeof layer.redraw === 'function') {
+      try {
+        layer.redraw();
+      } catch (e) {
+        console.warn('Layer redraw failed:', e);
+      }
+    }
+  });
+}
+
+function scheduleMapRefresh() {
+  if (!map) return;
+
+  if (mapRefreshFrame) cancelAnimationFrame(mapRefreshFrame);
+  if (mapRefreshTimeout) clearTimeout(mapRefreshTimeout);
+
+  let ran = false;
+  const run = () => {
+    if (ran) return;
+    ran = true;
+    flushMapRefresh(map);
+  };
+
+  mapRefreshFrame = requestAnimationFrame(() => {
+    mapRefreshFrame = requestAnimationFrame(() => {
+      mapRefreshFrame = 0;
+      run();
+    });
+  });
+
+  mapRefreshTimeout = setTimeout(() => {
+    mapRefreshTimeout = 0;
+    run();
+  }, 180);
+}
+
+function setupMapRefreshObservers() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) return;
+
+  window.addEventListener('load', scheduleMapRefresh);
+  window.addEventListener('resize', scheduleMapRefresh);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleMapRefresh();
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => scheduleMapRefresh()).catch(() => {});
+  }
+
+  if (window.ResizeObserver) {
+    if (mapResizeObserver) mapResizeObserver.disconnect();
+    mapResizeObserver = new ResizeObserver(() => scheduleMapRefresh());
+    mapResizeObserver.observe(mapElement);
+  }
+}
+
 function toTitleCase(str) {
   if (!str) return str;
   return str.toLowerCase().replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); })
@@ -316,8 +492,8 @@ async function init() {
 
   dom.mapLoader = document.getElementById('mapLoader');
   dom.btnLoadData = document.getElementById('btnLoadData');
-  dom.mapLoader = document.getElementById('mapLoader');
-  dom.btnLoadData = document.getElementById('btnLoadData');
+  dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
+  dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
   dom.themeToggle = document.getElementById('themeToggle');
   dom.themeToggle.addEventListener('click', () => {
     // Toggle logic handled by inline script or simple handler, but we must redraw map
@@ -331,6 +507,7 @@ async function init() {
       // Note: isDark was the OLD state, so if it WAS dark, we are now Light -> MAP_TILES.light
     }
     applyFiltersAndRedraw();
+    scheduleMapRefresh();
   });
 
   dom.selectElectionLevel = document.getElementById('selectElectionLevel');
@@ -421,6 +598,9 @@ async function init() {
 
   // Init Shift+Drag Selector
   setupBoxSelection();
+  setupMapRefreshObservers();
+  map.whenReady(() => scheduleMapRefresh());
+  scheduleMapRefresh();
 
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
@@ -464,6 +644,10 @@ function setupControls() {
     STATE.municipiosLayer = null;
     STATE.currentMapMode = 'municipios'; // 'municipios' or 'locais'
     STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
+    STATE.selectedMuniCode = null;
+    STATE.ibgeMuniGeoCache = {};
+    STATE.currentMapMuniSummary = null;
+    STATE.currentMapMuniUF = null;
 
     [dom.filterBox, dom.resultsBox, dom.summaryBoxContainer].forEach(el => {
       if (el) el.classList.add('section-hidden');
@@ -859,6 +1043,27 @@ function setupControls() {
   // setupSimulationControls(); // Removed: This function belongs to simulador.js
 
   dom.btnClearSelection.addEventListener('click', () => {
+    if (STATE.selectedMuniCode && STATE.municipiosLayer) {
+      STATE.selectedMuniCode = null;
+      currentCidadeFilter = 'all';
+      if (cidadeCombobox) cidadeCombobox.setValue("Todos os municÃ­pios");
+      refreshMunicipiosLayerStyle();
+      setMapMode('municipios');
+
+      clearSelection(true);
+      currentBairroFilter = 'all';
+      currentLocalFilter = '';
+      dom.searchLocal.value = '';
+      if (bairroCombobox) bairroCombobox.setValue("Todos os bairros");
+      populateBairroDropdown();
+      applyFiltersAndRedraw();
+
+      if (STATE.municipiosLayer.getBounds().isValid()) {
+        map.fitBounds(STATE.municipiosLayer.getBounds());
+      }
+      return;
+    }
+
     clearSelection(true);
 
     if (STATE.currentElectionType === 'geral') {
@@ -2262,6 +2467,8 @@ function applyFiltersAndRedraw() {
 
   // Atualiza imediatamente o painel de resultados
   updateSelectionUI(STATE.isFilterAggregationActive);
+  updateMapLayerVisibility();
+  scheduleMapRefresh();
 }
 
 // --- NOVA FUNÇÃO DE OTIMIZAÇÃO ---
@@ -2554,13 +2761,103 @@ function getVencedor(props, cargo, turno, filtrarInaptos) {
   return { nome: 'N/D', partido: 'N/D', votos: 0, status: 'N/D' };
 }
 
-// ====== MAP INTERACTION ======
-
-function onEachFeature(feature, layer) {
+function buildLocationTooltip(feature) {
   const props = feature.properties;
   const nomeLocal = getProp(props, 'nm_locvot') || 'Local';
   const nomeCidade = getProp(props, 'nm_localidade') || 'Cidade';
-  layer.bindTooltip(`<b>${nomeLocal}</b><br>${nomeCidade}`, { sticky: true });
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+  const { totalValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
+
+  let rows = '';
+  const candKeys = (STATE.candidates[currentCargo]?.[turnoKey] || [])
+    .filter(key => !STATE.filterInaptos || !(STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key))
+    .map(key => {
+      const info = parseCandidateKey(key);
+      return {
+        key,
+        name: info.nome,
+        party: info.partido,
+        votes: ensureNumber(getProp(props, key))
+      };
+    })
+    .filter(cand => cand.votes > 0)
+    .sort((a, b) => b.votes - a.votes)
+    .slice(0, 4);
+
+  candKeys.forEach(cand => {
+    const cor = getColorForCandidate(cand.name, cand.party);
+    const pct = totalValidos > 0 ? (cand.votes / totalValidos) * 100 : 0;
+    rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+      <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cand.name}</span>
+      <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+      <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(cand.votes)})</span>
+    </div>`;
+  });
+
+  return `<div style="min-width:180px;max-width:240px;">
+    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nomeLocal}</div>
+    <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${nomeCidade}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(totalValidos)}</div>
+    <hr style="margin:4px 0;border-color:#444;">
+    ${rows}
+  </div>`;
+}
+
+function buildMunicipalityTooltip(feature, summary) {
+  const codM = getMunicipalityFeatureCode(feature.properties);
+  const nome = getMunicipalityFeatureName(feature.properties);
+  const res = summary ? summary[codM] : null;
+  const uf = (STATE.currentElectionType === 'municipal') ? dom.selectUFMunicipal?.value : dom.selectUFGeneral?.value;
+  const ufLabel = UF_MAP.get(uf) || uf || '';
+
+  if (!res) {
+    return `<div style="min-width:180px;max-width:240px;">
+      <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
+      <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${ufLabel}</div>
+      <div style="font-size:0.7rem;color:#aaa;">Clique para ver detalhes</div>
+    </div>`;
+  }
+
+  let rows = '';
+  Object.keys(res.votes || {})
+    .filter(key => isCandidateVoteKey(key))
+    .map(key => {
+      const info = parseCandidateKey(key);
+      return {
+        key,
+        name: info.nome,
+        party: info.partido,
+        votes: ensureNumber(res.votes[key])
+      };
+    })
+    .filter(cand => cand.votes > 0)
+    .sort((a, b) => b.votes - a.votes)
+    .slice(0, 4)
+    .forEach(cand => {
+      const cor = getColorForCandidate(cand.name, cand.party);
+      const pct = res.totalValid > 0 ? (cand.votes / res.totalValid) * 100 : 0;
+      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cand.name}</span>
+        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(cand.votes)})</span>
+      </div>`;
+    });
+
+  return `<div style="min-width:180px;max-width:240px;">
+    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
+    <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${ufLabel}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(res.totalValid)}</div>
+    <hr style="margin:4px 0;border-color:#444;">
+    ${rows}
+  </div>`;
+}
+
+// ====== MAP INTERACTION ======
+
+function onEachFeature(feature, layer) {
+  layer.bindTooltip(buildLocationTooltip(feature), { className: 'sim-tooltip', sticky: false });
   layer.on('click', onFeatureClick);
 }
 
@@ -2571,7 +2868,7 @@ function onFeatureClick(e) {
 
   const isShiftClick = e.originalEvent.shiftKey;
 
-  if (STATE.currentElectionType === 'geral') {
+  if (STATE.currentElectionType === 'geral' && !STATE.selectedMuniCode) {
     currentCidadeFilter = 'all';
 
     // CORREÇÃO: Usar o combobox correto em vez de dom.selectCidade/dom.searchCidade
@@ -3203,11 +3500,52 @@ window.stopScroll = function(wrapper) {
   }
 };
 
+function refreshMunicipiosLayerStyle() {
+  if (!STATE.municipiosLayer) return;
+
+  const summary = STATE.currentMapMuniSummary;
+  STATE.municipiosLayer.eachLayer(layer => {
+    const codM = getMunicipalityFeatureCode(layer.feature.properties);
+    const res = summary ? summary[codM] : null;
+
+    let color = DEFAULT_SWATCH;
+    if (res) {
+      const winnerName = parseCandidateKey(res.winnerCode).nome;
+      color = getColorForCandidate(winnerName, res.winnerParty);
+      const marginVal = Math.max(0, Math.min(50, res.margin));
+      const intensity = (marginVal / 50) * 100;
+      color = getUniversalGradientColor(color, intensity);
+    }
+
+    const isSelected = STATE.selectedMuniCode === codM;
+    layer.setStyle({
+      fillColor: color,
+      fillOpacity: isSelected ? 0 : 0.7,
+      color: isSelected ? 'transparent' : 'rgba(255, 255, 255, 0.4)',
+      weight: isSelected ? 0 : 0.6,
+      opacity: isSelected ? 0 : 0.8
+    });
+
+    if (layer.getTooltip()) {
+      layer.setTooltipContent(buildMunicipalityTooltip(layer.feature, summary));
+    }
+  });
+}
+
 /**
  * Changes the active map layer mode (Municípios vs. Locais)
  */
 function setMapMode(mode) {
+  const hadDrillDown = !!STATE.selectedMuniCode;
   STATE.currentMapMode = mode;
+
+  if (mode === 'municipios' && hadDrillDown) {
+    STATE.selectedMuniCode = null;
+    currentCidadeFilter = 'all';
+    if (cidadeCombobox) cidadeCombobox.setValue("Todos os municÃ­pios");
+    refreshMunicipiosLayerStyle();
+    applyFiltersAndRedraw();
+  }
   
   if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.toggle('active', mode === 'municipios');
   if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.toggle('active', mode === 'locais');
@@ -3220,11 +3558,14 @@ function setMapMode(mode) {
  */
 function updateMapLayerVisibility() {
   const mode = STATE.currentMapMode;
+  const isDrillDown = !!STATE.selectedMuniCode;
   
   // Update municipiosLayer visibility
   if (STATE.municipiosLayer) {
-    if (mode === 'municipios') {
-      STATE.municipiosLayer.addTo(map);
+    if (mode === 'municipios' || isDrillDown) {
+      if (!map.hasLayer(STATE.municipiosLayer)) {
+        STATE.municipiosLayer.addTo(map);
+      }
     } else {
       map.removeLayer(STATE.municipiosLayer);
     }
@@ -3232,18 +3573,22 @@ function updateMapLayerVisibility() {
 
   // Update currentLayer (dots) visibility
   if (currentLayer) {
-    if (mode === 'locais') {
-      currentLayer.addTo(map);
+    if (mode === 'locais' || isDrillDown) {
+      if (!map.hasLayer(currentLayer)) {
+        currentLayer.addTo(map);
+      }
     } else {
       map.removeLayer(currentLayer);
     }
   }
+
+  scheduleMapRefresh();
 }
 
 /**
  * Aggregates vote counts from point features into municipality buckets (CD_MUN)
  */
-function aggregateVotesByMunicipality(data, uf) {
+function aggregateVotesByMunicipality(data, uf, turno = '1T') {
   if (!data || !data.features || data.features.length === 0) return null;
   const results = {}; // codMun -> { totalValid, [cand]: count }
 
@@ -3263,14 +3608,12 @@ function aggregateVotesByMunicipality(data, uf) {
       results[codM] = { totalValid: 0, nome: p.NM_MUN || p.nm_localidade || p.nm_mun || "Município" };
     }
 
-    // Extract candidates (keys containing 1T or 2T, or mapped from discoverCandidatesAndMetrics)
+    const suffix = ` ${turno}`;
     for (let k in p) {
-      if (k.includes(' 1T') || k.includes(' 2T')) {
+      if (k.endsWith(suffix) && isCandidateVoteKey(k)) {
         const val = Number(p[k]) || 0;
         results[codM][k] = (results[codM][k] || 0) + val;
-        if (!k.toLowerCase().includes('nulo') && !k.toLowerCase().includes('branco')) {
-           results[codM].totalValid += val;
-        }
+        results[codM].totalValid += val;
       }
     }
   });
@@ -3278,17 +3621,17 @@ function aggregateVotesByMunicipality(data, uf) {
   // Calculate winner and margin per city
   const summary = {};
   for (let [codM, res] of Object.entries(results)) {
-    const cands = Object.keys(res).filter(k => (k.includes(' 1T') || k.includes(' 2T')) && !k.toLowerCase().includes('nulo') && !k.toLowerCase().includes('branco'));
+    const suffix = ` ${turno}`;
+    const cands = Object.keys(res).filter(k => k.endsWith(suffix) && isCandidateVoteKey(k));
     if (cands.length === 0) continue;
 
     const sorted = cands.map(k => ({ key: k, votos: res[k] })).sort((a, b) => b.votos - a.votos);
     const winner = sorted[0].key;
     const margin = res.totalValid > 0 ? ((sorted[0].votos - (sorted[1]?.votos || 0)) / res.totalValid) * 100 : 0;
     
-    // Extract partido from name e.g. "LULA (PT)"
     let partido = "OUTROS";
-    const m = winner.match(/\(([^)]+)\)/);
-    if (m) partido = m[1];
+    const matches = Array.from(winner.matchAll(/\((.*?)\)/g));
+    if (matches.length > 0) partido = matches[0][1].toUpperCase();
 
     summary[codM] = {
       winnerCode: winner,
@@ -3308,13 +3651,37 @@ function aggregateVotesByMunicipality(data, uf) {
 async function renderStateMunicipalityMap(uf) {
   if (!uf || uf === 'BR') return;
 
-  const path = `municipios/municipios_${uf}.geojson`;
+  STATE.selectedMuniCode = null;
+  STATE.currentMapMuniUF = uf;
   
   dom.mapLoader.textContent = `Carregando mapa de municípios de ${uf}...`;
   dom.mapLoader.classList.add('visible');
 
   try {
-    const geoJSON = await fetchGeoJSON(DATA_BASE_URL + path);
+    let geoJSON = null;
+
+    if (STATE.ibgeMuniGeoCache[uf]) {
+      geoJSON = STATE.ibgeMuniGeoCache[uf];
+    } else {
+      const hdPath = DATA_BASE_URL + `municipios_hd/municipios_${uf}.geojson`;
+      try {
+        const hdGeo = await fetchGeoJSON(hdPath, true);
+        if (hdGeo && hdGeo.features && hdGeo.features.length > 0) {
+          geoJSON = hdGeo;
+          STATE.ibgeMuniGeoCache[uf] = hdGeo;
+        }
+      } catch (e) {
+        console.warn('GeoJSON HD nÃ£o encontrado, usando geometria simplificada:', e);
+      }
+    }
+
+    if (!geoJSON) {
+      const simplePath = DATA_BASE_URL + `municipios/municipios_${uf}.geojson`;
+      geoJSON = await fetchGeoJSON(simplePath);
+      if (geoJSON) {
+        STATE.ibgeMuniGeoCache[uf] = geoJSON;
+      }
+    }
     if (!geoJSON) throw new Error("Mapa municipal não encontrado");
 
     // Clear existing municipal layer
@@ -3324,19 +3691,19 @@ async function renderStateMunicipalityMap(uf) {
 
     // Use current data collection to get results (if loaded)
     const activeData = currentDataCollection[currentCargo];
-    const summary = (activeData && activeData.features && activeData.features.length > 50) ? aggregateVotesByMunicipality(activeData, uf) : null;
+    const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+    const summary = (activeData && activeData.features && activeData.features.length > 50) ? aggregateVotesByMunicipality(activeData, uf, turnoKey) : null;
+    STATE.currentMapMuniSummary = summary;
 
     STATE.municipiosLayer = L.geoJSON(geoJSON, {
       style: (f) => {
-        const props = f.properties;
-        // Check multiple possible keys in the polygon feature
-        const codM = String(props.CD_MUN || props.cod_mun || props.CD_IBGE || props.id || "");
+        const codM = getMunicipalityFeatureCode(f.properties);
         const res = summary ? summary[codM] : null;
         
-        let color = "#7a8699";
+        let color = DEFAULT_SWATCH;
         if (res) {
-          color = PARTY_COLORS.get(res.winnerParty.toUpperCase()) || "#7a8699";
-          // Fixed intensity scale (0-50% margin)
+          const winnerName = parseCandidateKey(res.winnerCode).nome;
+          color = getColorForCandidate(winnerName, res.winnerParty);
           const marginVal = Math.max(0, Math.min(50, res.margin));
           const intensity = (marginVal / 50) * 100;
           color = getUniversalGradientColor(color, intensity);
@@ -3345,48 +3712,44 @@ async function renderStateMunicipalityMap(uf) {
         return {
           fillColor: color,
           fillOpacity: 0.7,
-          color: "#333",
-          weight: 1,
-          opacity: 0.5
+          color: "rgba(255, 255, 255, 0.4)",
+          weight: 0.6,
+          opacity: 0.8
         };
       },
       onEachFeature: (f, layer) => {
-        const codM = f.properties.CD_MUN;
-        const nome = f.properties.NM_MUN;
-        const res = summary ? summary[codM] : null;
-
-        let tt = `<b>${nome}</b>`;
-        if (res) {
-          tt += `<br>Vencedor: ${res.winnerCode}<br>Margem: ${res.margin.toFixed(1)}%`;
-        } else {
-          tt += `<br>Clique para ver detalhes`;
-        }
-
-        layer.bindTooltip(tt, { sticky: true });
+        const codM = getMunicipalityFeatureCode(f.properties);
+        const nome = getMunicipalityFeatureName(f.properties);
+        layer.bindTooltip(buildMunicipalityTooltip(f, summary), { className: 'sim-tooltip', sticky: true });
 
         layer.on({
           mouseover: (e) => {
+            if (STATE.selectedMuniCode) return;
             const l = e.target;
             l.setStyle({ fillOpacity: 0.9, weight: 2, color: '#fff' });
           },
-          mouseout: (e) => {
-            const l = e.target;
-            l.setStyle({ fillOpacity: 0.7, weight: 1, color: '#333' });
+          mouseout: () => {
+            if (STATE.selectedMuniCode) return;
+            refreshMunicipiosLayerStyle();
           },
           click: (e) => {
-            // Drill down!
             if (STATE.currentElectionType === 'municipal') {
-                // Remove existing municipio layer to avoid overlap when deep diving
-                if (STATE.municipiosLayer) map.removeLayer(STATE.municipiosLayer);
-                
-                dom.selectMunicipio.value = nome.toUpperCase();
-                // Trigger natural change event to load points
-                dom.selectMunicipio.dispatchEvent(new Event('change'));
+              dom.selectMunicipio.value = nome.toUpperCase();
+              dom.selectMunicipio.dispatchEvent(new Event('change'));
             } else {
-                // In General mode, we filter the city in the points view
-                currentCidadeFilter = nome.toUpperCase();
-                if (cidadeCombobox) cidadeCombobox.setValue(currentCidadeFilter);
-                applyFiltersAndRedraw();
+              STATE.selectedMuniCode = codM;
+              refreshMunicipiosLayerStyle();
+
+              currentCidadeFilter = nome.toUpperCase();
+              if (cidadeCombobox) cidadeCombobox.setValue(currentCidadeFilter);
+
+              setMapMode('locais');
+              applyFiltersAndRedraw();
+
+              const clickedBounds = e.target.getBounds();
+              if (clickedBounds && clickedBounds.isValid()) {
+                map.fitBounds(clickedBounds, { padding: [20, 20] });
+              }
             }
           }
         });
@@ -3405,6 +3768,7 @@ async function renderStateMunicipalityMap(uf) {
     console.warn("Failed to render state municipality map:", e);
   } finally {
     dom.mapLoader.classList.remove('visible');
+    scheduleMapRefresh();
   }
 }
 
@@ -3448,7 +3812,7 @@ function hslToHex(h, s, l) {
   else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
   else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
   else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
-  else if (300 <= h && h < 360) { r = c; g = x; b = 0; }
+  else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
   r = Math.round((r + m) * 255).toString(16).padStart(2, '0');
   g = Math.round((g + m) * 255).toString(16).padStart(2, '0');
   b = Math.round((b + m) * 255).toString(16).padStart(2, '0');

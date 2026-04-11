@@ -18,6 +18,65 @@ const PARTY_COLORS = new Map(Object.entries({
   'PR': '#30306C', 'PC DO B': '#b4251d'
 }));
 
+const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
+  'AVANTE': '#36aeba',
+  'CIDADANIA': '#ec5fa6',
+  'DC': '#809eff',
+  'DEM': '#91d364',
+  'MDB': '#16a250',
+  'MISSAO': '#fdbe21',
+  'NOVO': '#ed8f5a',
+  'PCB': '#c40823',
+  'PCDOB': '#de3e35',
+  'PC DO B': '#de3e35',
+  'PCO': '#8e3d10',
+  'PDS': '#6391d4',
+  'PDT': '#ffc2b3',
+  'PHS': '#e25850',
+  'PL': '#5b6dc8',
+  'PMN': '#ff3333',
+  'PODE': '#23a840',
+  'PODEMOS': '#23a840',
+  'PP': '#6391d4',
+  'PPL': '#c6a815',
+  'PROS': '#e6661e',
+  'PRTB': '#1a7e2f',
+  'PSC': '#2f8e4f',
+  'PSB': '#ffc133',
+  'PSD': '#ffaf4c',
+  'PSDB': '#24a5ff',
+  'PSL': '#5dca53',
+  'PSOL': '#e95dd2',
+  'PSTU': '#620411',
+  'PT': '#ff3859',
+  'PTB': '#a1787d',
+  'PTC': '#37c884',
+  'PTN': '#23a840',
+  'PTR': '#1a7e2f',
+  'PV': '#67cd8a',
+  'PRP': '#ffe099',
+  'PRONA': '#0f6c36',
+  'PRD': '#007c3c',
+  'PFL': '#91d364',
+  'PPS': '#ec5fa6',
+  'PR': '#30306c',
+  'PRB': '#45bdc9',
+  'REDE': '#7dd1d9',
+  'REPUBLICANOS': '#45bdc9',
+  'SOLIDARIEDADE': '#ff633d',
+  'SD': '#ff633d',
+  'PATRIOTA': '#5fa72f',
+  'PATRI': '#5fa72f',
+  'PMDB': '#16a250',
+  'PMB': '#384ba8',
+  'PSDC': '#809eff',
+  'AGIR': '#254d88',
+  'UNIAO': '#2eccff',
+  'UNIAO BRASIL': '#2eccff',
+  'UP': '#5e5e5e',
+  'OUTROS': '#7a8699'
+}));
+
 const SIM_LAYERS = ['macro', 'estado', 'municipio', 'local'];
 const CATEGORIES = ['transfer_2022', 'religiao', 'idade', 'escolaridade', 'renda'];
 
@@ -93,6 +152,9 @@ const SIM = {
 };
 
 let simMap, simTileLayer;
+let simMapResizeObserver = null;
+let simMapRefreshFrame = 0;
+let simMapRefreshTimeout = 0;
 
 // ====== UTILS ======
 function fmtInt(n) { return (n || 0).toLocaleString('pt-BR'); }
@@ -103,6 +165,86 @@ function ensureNumber(v) {
   if (typeof v !== 'string') v = String(v || 0);
   const n = Number(v.replace(/\./g, '').replace(',', '.'));
   return isNaN(n) ? 0 : n;
+}
+
+function normalizePartyKey(partido) {
+  return String(partido || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toUpperCase();
+}
+
+function getPartyColor(partido) {
+  const cleanParty = normalizePartyKey(partido);
+  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty);
+}
+
+function flushSimMapRefresh() {
+  if (!simMap) return;
+
+  try {
+    simMap.invalidateSize({ pan: false, debounceMoveend: true });
+  } catch (e) {
+    console.warn('Sim map invalidateSize failed:', e);
+  }
+
+  simMap.eachLayer(layer => {
+    if (typeof layer.redraw === 'function') {
+      try {
+        layer.redraw();
+      } catch (e) {
+        console.warn('Sim layer redraw failed:', e);
+      }
+    }
+  });
+}
+
+function scheduleSimMapRefresh() {
+  if (!simMap) return;
+
+  if (simMapRefreshFrame) cancelAnimationFrame(simMapRefreshFrame);
+  if (simMapRefreshTimeout) clearTimeout(simMapRefreshTimeout);
+
+  let ran = false;
+  const run = () => {
+    if (ran) return;
+    ran = true;
+    flushSimMapRefresh();
+  };
+
+  simMapRefreshFrame = requestAnimationFrame(() => {
+    simMapRefreshFrame = requestAnimationFrame(() => {
+      simMapRefreshFrame = 0;
+      run();
+    });
+  });
+
+  simMapRefreshTimeout = setTimeout(() => {
+    simMapRefreshTimeout = 0;
+    run();
+  }, 180);
+}
+
+function setupSimMapRefreshObservers() {
+  const mapElement = document.getElementById('map');
+  if (!mapElement) return;
+
+  window.addEventListener('load', scheduleSimMapRefresh);
+  window.addEventListener('resize', scheduleSimMapRefresh);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) scheduleSimMapRefresh();
+  });
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => scheduleSimMapRefresh()).catch(() => {});
+  }
+
+  if (window.ResizeObserver) {
+    if (simMapResizeObserver) simMapResizeObserver.disconnect();
+    simMapResizeObserver = new ResizeObserver(() => scheduleSimMapRefresh());
+    simMapResizeObserver.observe(mapElement);
+  }
 }
 
 
@@ -210,6 +352,7 @@ async function initSimulador() {
       themeBtn.textContent = 'Tema';
       if (simTileLayer) simTileLayer.setUrl(isDark ? MAP_TILES.light : MAP_TILES.dark);
       if (SIM.estadosLayer) simRenderMapaEstados();
+      scheduleSimMapRefresh();
     });
   }
 
@@ -220,6 +363,9 @@ async function initSimulador() {
     subdomains: 'abcd', maxZoom: 18
   }).addTo(simMap);
   L.control.zoom({ position: 'bottomright' }).addTo(simMap);
+  setupSimMapRefreshObservers();
+  simMap.whenReady(() => scheduleSimMapRefresh());
+  scheduleSimMapRefresh();
 
   // Load data
   document.getElementById('mapLoader').classList.add('visible');
@@ -375,7 +521,7 @@ async function loadSimuladorData() {
 
 // ====== CANDIDATOS ======
 function simAddCandidato(nome = '', partido = '') {
-  const cor = PARTY_COLORS.get(partido.toUpperCase()) || '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
+  const cor = getPartyColor(partido) || '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6,'0');
   const c = { id: SIM.nextId++, nome, partido, cor };
   SIM.candidatos.push(c);
   for (const cat in DEMO_GROUPS) {
@@ -574,7 +720,7 @@ function simRenderCandidatos() {
     const c = SIM.candidatos.find(cc => cc.id === +e.target.dataset.id);
     if (c) {
       c.partido = e.target.value;
-      const auto = PARTY_COLORS.get(c.partido.toUpperCase());
+      const auto = getPartyColor(c.partido);
       if (auto) {
         c.cor = auto;
         const ci = container.querySelector(`.sim-cand-color[data-id="${c.id}"]`);
@@ -1666,6 +1812,7 @@ function simRenderMapaEstados() {
   }).addTo(simMap);
 
   if (SIM.estadosLayer.getBounds().isValid()) simMap.fitBounds(SIM.estadosLayer.getBounds());
+  scheduleSimMapRefresh();
 }
 
 // ====== RESULTADOS BRASIL (Right Panel) ======
@@ -2070,8 +2217,8 @@ async function simRenderMapaMunicipios(uf) {
       return {
         fillColor: fillCol,
         fillOpacity: isSelected ? 0 : (isFaded ? 0.3 : 0.9),
-        color: isSelected ? 'transparent' : '#444',
-        weight: isSelected ? 0 : 1,
+        color: isSelected ? 'transparent' : 'rgba(255, 255, 255, 0.4)',
+        weight: isSelected ? 0 : 0.6,
         opacity: isSelected ? 0 : (isFaded ? 0.3 : 0.8)
       };
     },
@@ -2122,6 +2269,7 @@ async function simRenderMapaMunicipios(uf) {
   }).addTo(simMap);
 
   if (SIM.municipiosLayer.getBounds().isValid()) simMap.fitBounds(SIM.municipiosLayer.getBounds());
+  scheduleSimMapRefresh();
 }
 
 function simRenderMuniResultado(uf, codM) {
@@ -2503,5 +2651,6 @@ function simRenderMapaLocais(uf, codM = null) {
   if (SIM.locaisLayer.getBounds().isValid()) {
     simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20, 20] });
   }
+  scheduleSimMapRefresh();
 }
 

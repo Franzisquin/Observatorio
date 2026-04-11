@@ -168,6 +168,8 @@ body {
   gap: 0;
   height: calc(100vh - 34px);
   padding: 0;
+  min-width: 0;
+  min-height: 0;
 }
 
 .panel {
@@ -177,6 +179,8 @@ body {
   box-shadow: none;
   overflow: hidden;
   transition: background .2s, border-color .2s;
+  min-width: 0;
+  min-height: 0;
 }
 
 #map {
@@ -184,10 +188,35 @@ body {
   width: 100%;
   z-index: 1;
   background: var(--bg);
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.side,
+.side-res,
+#mapPanel {
+  min-width: 0;
+  min-height: 0;
+}
+
+.side-res,
+#mapPanel {
+  position: relative;
+  isolation: isolate;
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
 }
 
 .leaflet-tile-container {
   filter: var(--map-tiles-filter, none);
+}
+
+.leaflet-interactive:focus {
+  outline: none !important;
 }
 
 .side {
@@ -610,20 +639,24 @@ body {
 
 
 .leaflet-tooltip {
-  background-color: var(--card) !important;
-  border: 1px solid var(--accent) !important;
-  color: var(--text) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
-  border-radius: 0 !important;
-  padding: 5px 8px !important;
+  background-color: #111 !important;
+  border: 1px solid #444 !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  border-radius: 4px !important;
+  padding: 10px 12px !important;
   font-size: 0.85rem !important;
+  font-family: 'Inter', sans-serif;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 250px !important;
 }
 
-.leaflet-tooltip-left::before,
-.leaflet-tooltip-right::before {
-  border-left-color: var(--accent) !important;
-  border-right-color: var(--accent) !important;
-}
+.leaflet-tooltip-left::before { border-left-color: #444 !important; }
+.leaflet-tooltip-right::before { border-right-color: #444 !important; }
+.leaflet-tooltip-top::before { border-top-color: #444 !important; }
+.leaflet-tooltip-bottom::before { border-bottom-color: #444 !important; }
 
 .loader-overlay {
   position: absolute;
