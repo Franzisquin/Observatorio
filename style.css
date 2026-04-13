@@ -1144,6 +1144,35 @@ input:disabled {
   margin-top: -5px;
 }
 
+.exact-input-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.slider-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.exact-input {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 0.78rem;
+  transition: background .2s, border-color .2s, color .2s;
+}
+
+.exact-input-sm {
+  width: 88px;
+  text-align: right;
+}
+
 /* SIMPLE SLIDER STYLES */
 .slider-box {
   margin-bottom: 20px;

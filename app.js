@@ -126,6 +126,11 @@ const UF_MAP = new Map([
   ['TO', 'Tocantins']
 ]);
 const ALL_STATE_SIGLAS = Array.from(UF_MAP.keys()).filter(k => k !== 'BR');
+const UF_IBGE_PREFIX_MAP = {
+  'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29', 'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52',
+  'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22',
+  'RJ': '33', 'RN': '24', 'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
+};
 
 const MAP_TILES = {
   dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -185,6 +190,10 @@ const STATE = {
     saneamentoVal: null,
     saneamentoMode: 'Pct Esgoto Inadequado'
   },
+  regionFilters: {
+    rgint: '',
+    rgi: ''
+  },
   selectedCandidateMap: null,
   selectedMuniCode: null,
   ibgeMuniGeoCache: {},
@@ -211,15 +220,24 @@ let mapRefreshTimeout = 0;
 const METRIC_VOTE_FIELDS = [
   'Total_Votos_Validos', 'Votos_Brancos', 'Votos_Nulos',
   'Eleitores_Aptos', 'Eleitores_Aptos_Municipal',
-  'AbstenÃ§Ãµes', 'Comparecimento', 'Votos_Legenda', 'NR_TURNO'
+  'Abstencoes', 'Comparecimento', 'Votos_Legenda', 'NR_TURNO'
 ];
+
+function normalizeMetricKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^A-Za-z0-9_]/g, '')
+    .toUpperCase();
+}
 
 function isMetricVoteKey(key) {
   const normalized = String(key || '');
   const turnoMatch = normalized.match(/ (1T|2T)$/);
   if (!turnoMatch) return false;
   const coreKey = normalized.replace(/ (1T|2T)$/, '');
-  return METRIC_VOTE_FIELDS.some(name => coreKey.toUpperCase() === name.toUpperCase());
+  const normalizedCoreKey = normalizeMetricKey(coreKey);
+  return METRIC_VOTE_FIELDS.some(name => normalizedCoreKey === normalizeMetricKey(name));
 }
 
 function isCandidateVoteKey(key) {
@@ -244,9 +262,171 @@ function getMunicipalityFeatureCode(props) {
   if (!props) return "";
   return String(props.CD_MUN || props.cod_mun || props.CD_IBGE || props.id || "");
 }
+function getPointMunicipalityCode(props) {
+  if (!props) return "";
+  return String(
+    props.cod_localidade_ibge ||
+    props.CD_LOCALIDADE_IBGE ||
+    props.NR_LOCALIDADE_IBGE ||
+    props.CD_MUN ||
+    props.cod_mun ||
+    props.cod_muni ||
+    props.CD_MUNICIPIO ||
+    props.NM_MUNICIPIO ||
+    ""
+  );
+}
 function getMunicipalityFeatureName(props) {
-  if (!props) return "MunicÃ­pio";
-  return props.NM_MUN || props.nm_mun || props.municipio || props.NOME || "MunicÃ­pio";
+  if (!props) return "Municipio";
+  return props.NM_MUN || props.nm_mun || props.municipio || props.NOME || "Municipio";
+}
+function getCurrentRegionFilterUF() {
+  if (STATE.currentElectionType !== 'geral') return '';
+  const uf = dom.selectUFGeneral?.value || '';
+  return uf === 'BR' ? '' : uf;
+}
+function getMunicipalityRegionInfo(code) {
+  if (!REGIOES_IBGE || !REGIOES_IBGE.muni_to_region) return null;
+  return REGIOES_IBGE.muni_to_region[String(code)] || null;
+}
+function getRegionFilteredMunicipalityCodes(uf = getCurrentRegionFilterUF()) {
+  if (!uf || !REGIOES_IBGE || !REGIOES_IBGE.muni_to_region) return null;
+
+  const rgint = STATE.regionFilters.rgint || '';
+  const rgi = STATE.regionFilters.rgi || '';
+  if (!rgint && !rgi) return null;
+
+  const prefix = UF_IBGE_PREFIX_MAP[uf];
+  const codes = new Set();
+  for (const [code, info] of Object.entries(REGIOES_IBGE.muni_to_region)) {
+    if (prefix && !String(code).startsWith(prefix)) continue;
+    if (rgint && info.ri !== rgint) continue;
+    if (rgi && info.rgi !== rgi) continue;
+    codes.add(String(code));
+  }
+  return codes;
+}
+function getVisibleMunicipalityCodes() {
+  return getRegionFilteredMunicipalityCodes();
+}
+function getSingleActiveMunicipalityCode() {
+  if (STATE.currentElectionType === 'municipal') return null;
+  if (STATE.selectedMuniCode) return String(STATE.selectedMuniCode);
+  const visibleCodes = getVisibleMunicipalityCodes();
+  if (visibleCodes && visibleCodes.size === 1) {
+    return Array.from(visibleCodes)[0];
+  }
+  return null;
+}
+function isSingleMunicipalityAggregationActive() {
+  return STATE.currentElectionType === 'municipal' || !!getSingleActiveMunicipalityCode();
+}
+function isMunicipalityVisibleInCurrentContext(code) {
+  const visibleCodes = getVisibleMunicipalityCodes();
+  return !visibleCodes || visibleCodes.has(String(code));
+}
+function featureMatchesCurrentGeography(props, options = {}) {
+  if (STATE.currentElectionType !== 'geral') return true;
+
+  const pointCode = getPointMunicipalityCode(props);
+  const visibleCodes = getVisibleMunicipalityCodes();
+  if (!pointCode) {
+    return !visibleCodes && (!STATE.selectedMuniCode || options.ignoreSelectedMunicipality);
+  }
+
+  if (visibleCodes && !visibleCodes.has(String(pointCode))) return false;
+
+  if (!options.ignoreSelectedMunicipality && STATE.selectedMuniCode) {
+    return String(pointCode) === String(STATE.selectedMuniCode);
+  }
+
+  return true;
+}
+function getCurrentGeographicLabel() {
+  if (STATE.currentElectionType === 'municipal') {
+    return dom.selectMunicipio?.value || 'Município';
+  }
+  if (STATE.selectedMuniCode && currentCidadeFilter !== 'all') {
+    return currentCidadeFilter;
+  }
+  if (STATE.regionFilters.rgi && dom.filterRGI) {
+    const opt = dom.filterRGI.selectedOptions?.[0];
+    return opt ? `Região Imediata: ${opt.textContent}` : 'Região Imediata';
+  }
+  if (STATE.regionFilters.rgint && dom.filterRGINT) {
+    const opt = dom.filterRGINT.selectedOptions?.[0];
+    return opt ? `Região Intermediária: ${opt.textContent}` : 'Região Intermediária';
+  }
+  return `Estado Completo (${dom.selectUFGeneral?.value || 'BR'})`;
+}
+function syncRegionFilterControls(uf = getCurrentRegionFilterUF()) {
+  if (!dom.filterRGINT || !dom.filterRGI) return;
+
+  dom.filterRGINT.innerHTML = '<option value="" selected>Todas as regiões intermediárias</option>';
+  dom.filterRGI.innerHTML = '<option value="" selected>Todas as regiões imediatas</option>';
+  dom.filterRGI.disabled = true;
+
+  if (!uf || !REGIOES_IBGE || !REGIOES_IBGE.rgint_by_uf?.[uf]) {
+    dom.filterRGINT.disabled = true;
+    STATE.regionFilters.rgint = '';
+    STATE.regionFilters.rgi = '';
+    return;
+  }
+
+  REGIOES_IBGE.rgint_by_uf[uf].forEach(region => {
+    const opt = document.createElement('option');
+    opt.value = region.cd;
+    opt.textContent = region.nome;
+    dom.filterRGINT.appendChild(opt);
+  });
+
+  dom.filterRGINT.disabled = false;
+  dom.filterRGINT.value = STATE.regionFilters.rgint || '';
+
+  if (STATE.regionFilters.rgint && REGIOES_IBGE.rgi_by_rgint?.[STATE.regionFilters.rgint]) {
+    REGIOES_IBGE.rgi_by_rgint[STATE.regionFilters.rgint].forEach(region => {
+      const opt = document.createElement('option');
+      opt.value = region.cd;
+      opt.textContent = region.nome;
+      dom.filterRGI.appendChild(opt);
+    });
+    dom.filterRGI.disabled = false;
+    dom.filterRGI.value = STATE.regionFilters.rgi || '';
+  } else {
+    STATE.regionFilters.rgi = '';
+  }
+}
+function clearMunicipalityDrilldown({ preserveMapMode = true } = {}) {
+  if (!STATE.selectedMuniCode) return;
+
+  STATE.selectedMuniCode = null;
+  currentCidadeFilter = 'all';
+  currentBairroFilter = 'all';
+  currentLocalFilter = '';
+
+  if (cidadeCombobox) cidadeCombobox.setValue("Todos os municípios");
+  if (bairroCombobox) bairroCombobox.setValue("Todos os bairros");
+  if (dom.searchLocal) dom.searchLocal.value = '';
+
+  populateBairroDropdown();
+  if (preserveMapMode && STATE.currentMapMode === 'locais') {
+    updateMapLayerVisibility();
+  }
+}
+function fitMapToVisibleMunicipalities() {
+  if (!STATE.municipiosLayer) return;
+  const bounds = L.latLngBounds([]);
+  STATE.municipiosLayer.eachLayer(layer => {
+    const code = getMunicipalityFeatureCode(layer.feature.properties);
+    if (!isMunicipalityVisibleInCurrentContext(code)) return;
+    const layerBounds = layer.getBounds?.();
+    if (layerBounds?.isValid()) bounds.extend(layerBounds);
+  });
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [20, 20] });
+  } else if (STATE.municipiosLayer.getBounds().isValid()) {
+    map.fitBounds(STATE.municipiosLayer.getBounds(), { padding: [20, 20] });
+  }
 }
 function colorForParty(sg) {
   const cleanParty = normalizePartyKey(sg);
@@ -533,6 +713,8 @@ async function init() {
   dom.boxCidade = document.getElementById('boxCidade');
   dom.inputCidade = document.getElementById('inputCidade');
   dom.listCidade = document.getElementById('listCidade');
+  dom.filterRGINT = document.getElementById('filterRGINT');
+  dom.filterRGI = document.getElementById('filterRGI');
 
   dom.boxBairro = document.getElementById('boxBairro');
   dom.inputBairro = document.getElementById('inputBairro');
@@ -648,6 +830,9 @@ function setupControls() {
     STATE.ibgeMuniGeoCache = {};
     STATE.currentMapMuniSummary = null;
     STATE.currentMapMuniUF = null;
+    STATE.regionFilters.rgint = '';
+    STATE.regionFilters.rgi = '';
+    syncRegionFilterControls('');
 
     [dom.filterBox, dom.resultsBox, dom.summaryBoxContainer].forEach(el => {
       if (el) el.classList.add('section-hidden');
@@ -703,6 +888,9 @@ function setupControls() {
   dom.selectUFGeneral.addEventListener('change', () => {
     const uf = dom.selectUFGeneral.value;
     if (!uf) return;
+    STATE.regionFilters.rgint = '';
+    STATE.regionFilters.rgi = '';
+    syncRegionFilterControls(uf);
     STATE.currentElectionYear = dom.selectYearGeneral.value;
     onClickLoadData_General();
   });
@@ -895,9 +1083,8 @@ function setupControls() {
     const filtered = [];
 
     for (const [id, info] of Object.entries(allMunis)) {
-      if (info.uf === uf || (info.uf === undefined && id.startsWith(UF_PREFIX_MAP[uf]))) { // Heuristic if uf missing in info
+      if (info.uf === uf || (info.uf === undefined && id.startsWith(UF_IBGE_PREFIX_MAP[uf]))) { // Heuristic if uf missing in info
          // In my new script, I didn't save 'uf' in info, but CD_MUN starts with UF code.
-         // Wait, I should have saved UF in info. Let's fix script later if needed.
          // FOR NOW: check if it belongs to rgint/rgi
          if (rgiId) {
              if (info.rgi === rgiId) filtered.push(info.nome);
@@ -923,13 +1110,6 @@ function setupControls() {
     dom.selectMunicipio.disabled = result.length === 0;
     dom.searchMunicipio.disabled = result.length === 0;
   }
-
-  // Map of UF abbreviations to IBGE prefixes (first 2 digits)
-  const UF_PREFIX_MAP = {
-    'AC': '12', 'AL': '27', 'AP': '16', 'AM': '13', 'BA': '29', 'CE': '23', 'DF': '53', 'ES': '32', 'GO': '52',
-    'MA': '21', 'MT': '51', 'MS': '50', 'MG': '31', 'PA': '15', 'PB': '25', 'PR': '41', 'PE': '26', 'PI': '22',
-    'RJ': '33', 'RN': '24', 'RS': '43', 'RO': '11', 'RR': '14', 'SC': '42', 'SP': '35', 'SE': '28', 'TO': '17'
-  };
 
   // Search Logic for Municipality dropdown
   dom.searchMunicipio.addEventListener('input', (e) => {
@@ -1023,6 +1203,30 @@ function setupControls() {
   // Removed old calls for Cidade/Bairro
   addSearchFilter(dom.searchMunicipio, dom.selectMunicipio);
 
+  if (dom.filterRGINT) {
+    dom.filterRGINT.addEventListener('change', () => {
+      STATE.regionFilters.rgint = dom.filterRGINT.value || '';
+      STATE.regionFilters.rgi = '';
+      syncRegionFilterControls(getCurrentRegionFilterUF());
+      clearMunicipalityDrilldown();
+      if (STATE.currentElectionType === 'geral') setMapMode('municipios');
+      populateBairroDropdown();
+      clearSelection(false);
+      applyFiltersAndRedraw();
+    });
+  }
+
+  if (dom.filterRGI) {
+    dom.filterRGI.addEventListener('change', () => {
+      STATE.regionFilters.rgi = dom.filterRGI.value || '';
+      clearMunicipalityDrilldown();
+      if (STATE.currentElectionType === 'geral') setMapMode('municipios');
+      populateBairroDropdown();
+      clearSelection(false);
+      applyFiltersAndRedraw();
+    });
+  }
+
   dom.btnToggleInaptos.addEventListener('click', () => {
     STATE.filterInaptos = !STATE.filterInaptos;
     dom.btnToggleInaptos.classList.toggle('active', STATE.filterInaptos);
@@ -1044,23 +1248,13 @@ function setupControls() {
 
   dom.btnClearSelection.addEventListener('click', () => {
     if (STATE.selectedMuniCode && STATE.municipiosLayer) {
-      STATE.selectedMuniCode = null;
-      currentCidadeFilter = 'all';
-      if (cidadeCombobox) cidadeCombobox.setValue("Todos os municÃ­pios");
-      refreshMunicipiosLayerStyle();
+      clearMunicipalityDrilldown({ preserveMapMode: false });
       setMapMode('municipios');
 
       clearSelection(true);
-      currentBairroFilter = 'all';
-      currentLocalFilter = '';
-      dom.searchLocal.value = '';
-      if (bairroCombobox) bairroCombobox.setValue("Todos os bairros");
       populateBairroDropdown();
       applyFiltersAndRedraw();
-
-      if (STATE.municipiosLayer.getBounds().isValid()) {
-        map.fitBounds(STATE.municipiosLayer.getBounds());
-      }
+      fitMapToVisibleMunicipalities();
       return;
     }
 
@@ -1195,6 +1389,8 @@ function setupTabs() {
   });
 }
 
+function updateApplyButtonText() {}
+
 // ====== SLIDERS LOGIC ======
 function setupSliders() {
   // Definimos a função de redesenho PRIMEIRO para evitar erros de referência
@@ -1204,17 +1400,24 @@ function setupSliders() {
   }, 100);
 
   // 1. DUAL SLIDER (RENDA)
-  const track = document.querySelector('.dual-track');
   const range = document.getElementById('rendaRange');
   const thumbMin = document.getElementById('rendaThumbMin');
   const thumbMax = document.getElementById('rendaThumbMax');
   const container = document.getElementById('sliderRendaContainer');
   const dispMin = document.getElementById('dispRendaMin');
   const dispMax = document.getElementById('dispRendaMax');
+  const inputRendaMin = document.getElementById('inputRendaMin');
+  const inputRendaMax = document.getElementById('inputRendaMax');
 
   const MAX_VAL = 10000; // R$ 10k
   let valMin = 0;
   let valMax = MAX_VAL;
+
+  function clampInt(value, min, max, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(min, Math.min(max, parsed));
+  }
 
   function updateDualVisuals() {
     const pctMin = (valMin / MAX_VAL) * 100;
@@ -1224,13 +1427,15 @@ function setupSliders() {
     if (thumbMax) thumbMax.style.left = `${pctMax}%`;
     if (range) {
       range.style.left = `${pctMin}%`;
-      range.style.width = `${pctMax - pctMin}%`;
+      range.style.width = `${Math.max(0, pctMax - pctMin)}%`;
     }
 
     if (dispMin) dispMin.textContent = valMin.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
     if (dispMax) dispMax.textContent = valMax >= MAX_VAL ?
       MAX_VAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + "+" :
       valMax.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    if (inputRendaMin) inputRendaMin.value = String(valMin);
+    if (inputRendaMax) inputRendaMax.value = valMax >= MAX_VAL ? '' : String(valMax);
   }
 
   function updateRendaState() {
@@ -1240,7 +1445,17 @@ function setupSliders() {
     updateApplyButtonText();
   }
 
-  const debouncedRenda = debounce(updateRendaState, 200);
+  const debouncedRenda = debounce(updateRendaState, 150);
+
+  function setRendaValues(nextMin, nextMax, redraw = true) {
+    valMin = clampInt(nextMin, 0, MAX_VAL, 0);
+    valMax = clampInt(nextMax, 0, MAX_VAL, MAX_VAL);
+    if (valMax < valMin) {
+      [valMin, valMax] = [valMax, valMin];
+    }
+    updateDualVisuals();
+    if (redraw) debouncedRenda();
+  }
 
   // Drag Logic
   function initDrag(thumb, isMin) {
@@ -1255,15 +1470,10 @@ function setupSliders() {
         let val = Math.round((pct / 100) * MAX_VAL);
 
         if (isMin) {
-          val = Math.min(val, valMax - 100);
-          valMin = val;
+          setRendaValues(Math.min(val, valMax), valMax);
         } else {
-          val = Math.max(val, valMin + 100);
-          valMax = val;
+          setRendaValues(valMin, Math.max(val, valMin));
         }
-
-        updateDualVisuals();
-        debouncedRenda();
       }
 
       function onUp() {
@@ -1279,26 +1489,61 @@ function setupSliders() {
   initDrag(thumbMin, true);
   initDrag(thumbMax, false);
 
+  const applyTypedRenda = () => {
+    const nextMin = inputRendaMin?.value === '' ? 0 : inputRendaMin?.value;
+    const nextMax = inputRendaMax?.value === '' ? MAX_VAL : inputRendaMax?.value;
+    setRendaValues(nextMin, nextMax);
+  };
+
+  if (inputRendaMin) {
+    inputRendaMin.addEventListener('change', applyTypedRenda);
+    inputRendaMin.addEventListener('blur', applyTypedRenda);
+  }
+  if (inputRendaMax) {
+    inputRendaMax.addEventListener('change', applyTypedRenda);
+    inputRendaMax.addEventListener('blur', applyTypedRenda);
+  }
+
+  updateDualVisuals();
+
   // 2. SIMPLE SLIDERS (DYNAMIC)
   // Helper para configurar o par Slider + Select
-  function setupDynamicFilter(idSlider, idSelect, idDisp, idValDisp, stateKeyVal, stateKeyMode) {
+  function setupDynamicFilter(idSlider, idInput, idSelect, idDisp, idValDisp, stateKeyVal, stateKeyMode) {
     const slider = document.getElementById(idSlider);
+    const input = document.getElementById(idInput);
     const select = document.getElementById(idSelect);
     const disp = document.getElementById(idDisp);
     const valDisp = document.getElementById(idValDisp);
 
     if (!slider || !select) return;
 
-    // Atualiza Estado e UI quando o slider move
-    slider.addEventListener('input', () => {
-      const val = parseInt(slider.value);
+    const syncValueUI = (val) => {
       if (disp) disp.textContent = `${val}%`;
       if (valDisp) valDisp.textContent = `${val}%`;
+      if (input) input.value = String(val);
+    };
 
+    const applyValue = (rawValue) => {
+      const val = clampInt(rawValue, 0, 100, 0);
+      slider.value = String(val);
+      syncValueUI(val);
       STATE.censusFilters[stateKeyVal] = val > 0 ? val : null;
       debouncedRedraw();
       updateApplyButtonText();
+    };
+
+    syncValueUI(clampInt(slider.value, 0, 100, 0));
+
+    // Atualiza Estado e UI quando o slider move
+    slider.addEventListener('input', () => {
+      applyValue(slider.value);
     });
+
+    if (input) {
+      const applyTypedValue = () => applyValue(input.value === '' ? 0 : input.value);
+      input.addEventListener('change', applyTypedValue);
+      input.addEventListener('blur', applyTypedValue);
+    }
 
     // Atualiza Estado e UI quando o select muda
     select.addEventListener('change', () => {
@@ -1319,9 +1564,9 @@ function setupSliders() {
     });
   }
 
-  setupDynamicFilter('sliderRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
-  setupDynamicFilter('sliderIdosos', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
-  setupDynamicFilter('sliderSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
+  setupDynamicFilter('sliderRaca', 'inputRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
+  setupDynamicFilter('sliderIdosos', 'inputIdade', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
+  setupDynamicFilter('sliderSaneamento', 'inputSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
 }
 
 // ====== RESULTS TABS REMOVED ======
@@ -1526,10 +1771,16 @@ function updateConditionalUI() {
   if (STATE.currentElectionType === 'geral') {
     dom.cargoBoxMunicipal.classList.add('section-hidden');
     if (dom.boxCidade && dom.boxCidade.parentElement) {
-      dom.boxCidade.parentElement.style.display = '';
+      dom.boxCidade.parentElement.style.display = 'none';
     }
     if (dom.boxBairro && dom.boxBairro.parentElement) {
-      dom.boxBairro.parentElement.style.gridColumn = '';
+      dom.boxBairro.parentElement.style.gridColumn = '1 / -1';
+    }
+    if (dom.filterRGINT && dom.filterRGINT.parentElement) {
+      dom.filterRGINT.parentElement.style.display = '';
+    }
+    if (dom.filterRGI && dom.filterRGI.parentElement) {
+      dom.filterRGI.parentElement.style.display = '';
     }
   } else {
     // Only show municipal sub-type box if there's supplementar data
@@ -1543,6 +1794,12 @@ function updateConditionalUI() {
     }
     if (dom.boxBairro && dom.boxBairro.parentElement) {
       dom.boxBairro.parentElement.style.gridColumn = '1 / -1';
+    }
+    if (dom.filterRGINT && dom.filterRGINT.parentElement) {
+      dom.filterRGINT.parentElement.style.display = 'none';
+    }
+    if (dom.filterRGI && dom.filterRGI.parentElement) {
+      dom.filterRGI.parentElement.style.display = 'none';
     }
   }
 }
@@ -1606,6 +1863,13 @@ async function onClickLoadData_General() {
   currentDataCollection = {}; // Zera tudo do estado anterior
   currentDataCollection_2022 = {};
   STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
+  if (STATE.municipiosLayer) {
+    map.removeLayer(STATE.municipiosLayer);
+    STATE.municipiosLayer = null;
+  }
+  STATE.currentMapMuniSummary = null;
+  STATE.currentMapMuniUF = null;
+  STATE.selectedMuniCode = null;
   uniqueCidades.clear();
   uniqueBairros.clear();
   // ------------------------------------------------------------------
@@ -1670,6 +1934,7 @@ async function onClickLoadData_General() {
 
     // --- State Map Display ---
     renderStateMunicipalityMap(ufToLoad);
+    syncRegionFilterControls(ufToLoad);
     
     // Default to 'municipios' mode for state load
     if (ufToLoad !== 'BR') {
@@ -1687,6 +1952,8 @@ async function onClickLoadData_General() {
       cidadeCombobox.setValue("Todos os municípios");
       currentCidadeFilter = 'all';
     }
+    currentBairroFilter = 'all';
+    populateBairroDropdown();
 
     dom.filterBox.classList.remove('section-hidden');
 
@@ -1738,6 +2005,9 @@ async function onClickLoadData_Municipal() {
   currentDataCollection_2022 = {};
   uniqueCidades.clear();
   uniqueBairros.clear();
+  STATE.regionFilters.rgint = '';
+  STATE.regionFilters.rgi = '';
+  syncRegionFilterControls('');
 
   STATE.candidates = {}; STATE.metrics = {}; STATE.inaptos = {};
   STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
@@ -2052,6 +2322,7 @@ function discoverCandidatesAndMetrics(geojson) {
     'Eleitores_Aptos', 'Eleitores_Aptos_Municipal',
     'Abstenções', 'Comparecimento', 'Votos_Legenda', 'NR_TURNO'
   ];
+  METRIC_NAMES.push('Abstencoes');
 
   allKeys.forEach(key => {
     const turnoMatch = key.match(/ (1T|2T)$/);
@@ -2061,7 +2332,7 @@ function discoverCandidatesAndMetrics(geojson) {
     if (turno === '2T') localState.dataHas2T = true;
 
     const coreKey = key.replace(/ (1T|2T)$/, '');
-    const isMetric = METRIC_NAMES.some(name => coreKey.toUpperCase() === name.toUpperCase());
+    const isMetric = METRIC_NAMES.some(name => normalizeMetricKey(coreKey) === normalizeMetricKey(name));
 
     if (isMetric) {
       localState.metrics[turno].push(key);
@@ -2303,9 +2574,10 @@ function populateBairroDropdown() {
 
   if (!bairroCombobox) return;
 
-  if (STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
+  if (!isSingleMunicipalityAggregationActive()) {
+    currentBairroFilter = 'all';
     bairroCombobox.disable(true);
-    bairroCombobox.setValue("");
+    bairroCombobox.setValue("Todos os bairros");
     return;
   }
 
@@ -2320,7 +2592,7 @@ function populateBairroDropdown() {
     let adicionar = false;
 
     if (STATE.currentElectionType === 'geral') {
-      if (getProp(props, 'nm_localidade') === currentCidadeFilter) adicionar = true;
+      adicionar = featureMatchesCurrentGeography(props);
     } else {
       adicionar = true;
     }
@@ -2467,6 +2739,7 @@ function applyFiltersAndRedraw() {
 
   // Atualiza imediatamente o painel de resultados
   updateSelectionUI(STATE.isFilterAggregationActive);
+  syncMunicipalityLayerWithCurrentFilters();
   updateMapLayerVisibility();
   scheduleMapRefresh();
 }
@@ -2556,7 +2829,7 @@ function createPointLayer(feature, latlng) {
   return L.circleMarker(latlng, { radius: radius });
 }
 
-function filterFeature(feature) {
+function filterFeatureWithOptions(feature, options = {}) {
   const props = feature.properties;
 
   // Filtro de 2T Vazio
@@ -2578,8 +2851,8 @@ function filterFeature(feature) {
   }
 
   // Filtros de Texto
-  if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
-    if (getProp(props, 'nm_localidade') !== currentCidadeFilter) return false;
+  if (STATE.currentElectionType === 'geral') {
+    if (!featureMatchesCurrentGeography(props, options)) return false;
   }
 
   if (currentBairroFilter !== 'all') {
@@ -2638,6 +2911,10 @@ function filterFeature(feature) {
   }
 
   return true;
+}
+
+function filterFeature(feature) {
+  return filterFeatureWithOptions(feature);
 }
 
 function getFeatureStyle(feature) {
@@ -2769,7 +3046,8 @@ function buildLocationTooltip(feature) {
   const { totalValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
 
   let rows = '';
-  const candKeys = (STATE.candidates[currentCargo]?.[turnoKey] || [])
+  const candKeys = Object.keys(props)
+    .filter(key => key.endsWith(` ${turnoKey}`) && isCandidateVoteKey(key))
     .filter(key => !STATE.filterInaptos || !(STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key))
     .map(key => {
       const info = parseCandidateKey(key);
@@ -2798,7 +3076,7 @@ function buildLocationTooltip(feature) {
   return `<div style="min-width:180px;max-width:240px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nomeLocal}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${nomeCidade}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(totalValidos)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos validos: ${fmtInt(totalValidos)}</div>
     <hr style="margin:4px 0;border-color:#444;">
     ${rows}
   </div>`;
@@ -2810,12 +3088,13 @@ function buildMunicipalityTooltip(feature, summary) {
   const res = summary ? summary[codM] : null;
   const uf = (STATE.currentElectionType === 'municipal') ? dom.selectUFMunicipal?.value : dom.selectUFGeneral?.value;
   const ufLabel = UF_MAP.get(uf) || uf || '';
+  const isVisible = isMunicipalityVisibleInCurrentContext(codM);
 
   if (!res) {
     return `<div style="min-width:180px;max-width:240px;">
       <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
       <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${ufLabel}</div>
-      <div style="font-size:0.7rem;color:#aaa;">Clique para ver detalhes</div>
+      <div style="font-size:0.7rem;color:#aaa;">${isVisible ? 'Sem votos com os filtros atuais' : 'Fora da região filtrada'}</div>
     </div>`;
   }
 
@@ -2848,7 +3127,7 @@ function buildMunicipalityTooltip(feature, summary) {
   return `<div style="min-width:180px;max-width:240px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${ufLabel}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(res.totalValid)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos validos: ${fmtInt(res.totalValid)}</div>
     <hr style="margin:4px 0;border-color:#444;">
     ${rows}
   </div>`;
@@ -3164,7 +3443,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       dom.resultsTitle.textContent = `Filtro • ${censusLabel}`;
       dom.resultsSubtitle.textContent = `${countLabel} locais baseados neste perfil`;
     } else {
-      let title = isCity ? (dom.selectMunicipio.value || 'Município') : (currentCidadeFilter === 'all' ? `Estado Completo (${dom.selectUFGeneral.value || 'BR'})` : currentCidadeFilter);
+      let title = isCity ? (dom.selectMunicipio.value || 'Município') : getCurrentGeographicLabel();
       if (currentBairroFilter !== 'all') title += ` • ${currentBairroFilter}`;
       dom.resultsTitle.textContent = title;
       dom.resultsSubtitle.textContent = `${countLabel} locais agregados`;
@@ -3366,7 +3645,7 @@ function updateAvailabilityBars(geojson) {
 
   // Optimization: Sample data if dataset is huge and not filtered by specific city
   // This prevents freezing the UI during calculations on "Whole Country" views
-  const isBroadView = (STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all');
+  const isBroadView = (STATE.currentElectionType === 'geral' && !isSingleMunicipalityAggregationActive());
   const step = (total > 25000 && isBroadView) ? 20 : 1;
 
   // Capture current modes once
@@ -3380,8 +3659,8 @@ function updateAvailabilityBars(geojson) {
 
     // 1. Check Geographic Base Filters (City/Bairro)
     // We only want availability for the GEOGRAPHICALLY selected area
-    if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
-      if (getProp(p, 'nm_localidade') !== currentCidadeFilter) continue;
+    if (STATE.currentElectionType === 'geral') {
+      if (!featureMatchesCurrentGeography(p)) continue;
     }
     if (currentBairroFilter !== 'all') {
       const b = getProp(p, 'ds_bairro');
@@ -3506,10 +3785,11 @@ function refreshMunicipiosLayerStyle() {
   const summary = STATE.currentMapMuniSummary;
   STATE.municipiosLayer.eachLayer(layer => {
     const codM = getMunicipalityFeatureCode(layer.feature.properties);
-    const res = summary ? summary[codM] : null;
+    const isVisible = isMunicipalityVisibleInCurrentContext(codM);
+    const res = isVisible && summary ? summary[codM] : null;
 
     let color = DEFAULT_SWATCH;
-    if (res) {
+    if (res && res.totalValid > 0) {
       const winnerName = parseCandidateKey(res.winnerCode).nome;
       color = getColorForCandidate(winnerName, res.winnerParty);
       const marginVal = Math.max(0, Math.min(50, res.margin));
@@ -3520,16 +3800,30 @@ function refreshMunicipiosLayerStyle() {
     const isSelected = STATE.selectedMuniCode === codM;
     layer.setStyle({
       fillColor: color,
-      fillOpacity: isSelected ? 0 : 0.7,
-      color: isSelected ? 'transparent' : 'rgba(255, 255, 255, 0.4)',
-      weight: isSelected ? 0 : 0.6,
-      opacity: isSelected ? 0 : 0.8
+      fillOpacity: !isVisible || isSelected ? 0 : (res && res.totalValid > 0 ? 0.7 : 0.3),
+      color: !isVisible || isSelected ? 'transparent' : 'rgba(255, 255, 255, 0.4)',
+      weight: !isVisible || isSelected ? 0 : 0.6,
+      opacity: !isVisible || isSelected ? 0 : 0.8
     });
+    const path = layer.getElement?.();
+    if (path) path.style.pointerEvents = isVisible ? 'auto' : 'none';
 
     if (layer.getTooltip()) {
       layer.setTooltipContent(buildMunicipalityTooltip(layer.feature, summary));
     }
   });
+}
+
+function syncMunicipalityLayerWithCurrentFilters() {
+  if (!STATE.municipiosLayer || !STATE.currentMapMuniUF) return;
+
+  const activeData = currentDataCollection[currentCargo];
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+  STATE.currentMapMuniSummary = aggregateVotesByMunicipality(activeData, STATE.currentMapMuniUF, turnoKey, {
+    useCurrentFilters: true,
+    ignoreSelectedMunicipality: true
+  });
+  refreshMunicipiosLayerStyle();
 }
 
 /**
@@ -3540,9 +3834,7 @@ function setMapMode(mode) {
   STATE.currentMapMode = mode;
 
   if (mode === 'municipios' && hadDrillDown) {
-    STATE.selectedMuniCode = null;
-    currentCidadeFilter = 'all';
-    if (cidadeCombobox) cidadeCombobox.setValue("Todos os municÃ­pios");
+    clearMunicipalityDrilldown({ preserveMapMode: false });
     refreshMunicipiosLayerStyle();
     applyFiltersAndRedraw();
   }
@@ -3588,12 +3880,13 @@ function updateMapLayerVisibility() {
 /**
  * Aggregates vote counts from point features into municipality buckets (CD_MUN)
  */
-function aggregateVotesByMunicipality(data, uf, turno = '1T') {
+function aggregateVotesByMunicipality(data, uf, turno = '1T', options = {}) {
   if (!data || !data.features || data.features.length === 0) return null;
   const results = {}; // codMun -> { totalValid, [cand]: count }
 
   data.features.forEach(f => {
     const p = f.properties;
+    if (options.useCurrentFilters && !filterFeatureWithOptions(f, options)) return;
     
     // PRIORITY: IBGE 7-digit code (common in modern point data)
     let codM = p.cod_localidade_ibge || p.CD_LOCALIDADE_IBGE || p.NR_LOCALIDADE_IBGE;
@@ -3692,31 +3985,20 @@ async function renderStateMunicipalityMap(uf) {
     // Use current data collection to get results (if loaded)
     const activeData = currentDataCollection[currentCargo];
     const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
-    const summary = (activeData && activeData.features && activeData.features.length > 50) ? aggregateVotesByMunicipality(activeData, uf, turnoKey) : null;
+    const summary = aggregateVotesByMunicipality(activeData, uf, turnoKey, {
+      useCurrentFilters: true,
+      ignoreSelectedMunicipality: true
+    });
     STATE.currentMapMuniSummary = summary;
 
     STATE.municipiosLayer = L.geoJSON(geoJSON, {
-      style: (f) => {
-        const codM = getMunicipalityFeatureCode(f.properties);
-        const res = summary ? summary[codM] : null;
-        
-        let color = DEFAULT_SWATCH;
-        if (res) {
-          const winnerName = parseCandidateKey(res.winnerCode).nome;
-          color = getColorForCandidate(winnerName, res.winnerParty);
-          const marginVal = Math.max(0, Math.min(50, res.margin));
-          const intensity = (marginVal / 50) * 100;
-          color = getUniversalGradientColor(color, intensity);
-        }
-
-        return {
-          fillColor: color,
-          fillOpacity: 0.7,
-          color: "rgba(255, 255, 255, 0.4)",
-          weight: 0.6,
-          opacity: 0.8
-        };
-      },
+      style: () => ({
+        fillColor: DEFAULT_SWATCH,
+        fillOpacity: 0.3,
+        color: "rgba(255, 255, 255, 0.4)",
+        weight: 0.6,
+        opacity: 0.8
+      }),
       onEachFeature: (f, layer) => {
         const codM = getMunicipalityFeatureCode(f.properties);
         const nome = getMunicipalityFeatureName(f.properties);
@@ -3724,15 +4006,18 @@ async function renderStateMunicipalityMap(uf) {
 
         layer.on({
           mouseover: (e) => {
+            if (!isMunicipalityVisibleInCurrentContext(codM) || STATE.selectedMuniCode === codM) return;
             if (STATE.selectedMuniCode) return;
             const l = e.target;
             l.setStyle({ fillOpacity: 0.9, weight: 2, color: '#fff' });
           },
           mouseout: () => {
+            if (!isMunicipalityVisibleInCurrentContext(codM)) return;
             if (STATE.selectedMuniCode) return;
             refreshMunicipiosLayerStyle();
           },
           click: (e) => {
+            if (!isMunicipalityVisibleInCurrentContext(codM)) return;
             if (STATE.currentElectionType === 'municipal') {
               dom.selectMunicipio.value = nome.toUpperCase();
               dom.selectMunicipio.dispatchEvent(new Event('change'));
@@ -3740,7 +4025,7 @@ async function renderStateMunicipalityMap(uf) {
               STATE.selectedMuniCode = codM;
               refreshMunicipiosLayerStyle();
 
-              currentCidadeFilter = nome.toUpperCase();
+              currentCidadeFilter = nome;
               if (cidadeCombobox) cidadeCombobox.setValue(currentCidadeFilter);
 
               setMapMode('locais');
@@ -3756,13 +4041,13 @@ async function renderStateMunicipalityMap(uf) {
       }
     });
 
+    syncMunicipalityLayerWithCurrentFilters();
     // Initial visibility update based on mode
     updateMapLayerVisibility();
+    refreshMunicipiosLayerStyle();
 
     // Fit map to state if we just loaded it
-    if (STATE.municipiosLayer.getBounds().isValid()) {
-      map.fitBounds(STATE.municipiosLayer.getBounds());
-    }
+    fitMapToVisibleMunicipalities();
 
   } catch (e) {
     console.warn("Failed to render state municipality map:", e);

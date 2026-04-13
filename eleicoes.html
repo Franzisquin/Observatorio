@@ -166,7 +166,7 @@
           </div>
 
           <div class="row" style="grid-template-columns: 1fr 1fr;">
-            <div class="ctrl">
+            <div class="ctrl section-hidden" id="ctrlCidadeFilter">
               <label for="inputCidade">Município</label>
               <div class="combobox-container" id="boxCidade">
                 <input type="text" class="combobox-input" id="inputCidade" placeholder="Selecionar município..."
@@ -179,6 +179,18 @@
               </div>
             </div>
             <div class="ctrl">
+              <label for="filterRGINT">Região Intermediária</label>
+              <select id="filterRGINT" class="select" disabled>
+                <option value="" selected>Todas as regiões intermediárias</option>
+              </select>
+            </div>
+            <div class="ctrl">
+              <label for="filterRGI">Região Imediata</label>
+              <select id="filterRGI" class="select" disabled>
+                <option value="" selected>Todas as regiões imediatas</option>
+              </select>
+            </div>
+            <div class="ctrl" style="grid-column: 1 / -1;">
               <label for="inputBairro">Bairro</label>
               <div class="combobox-container" id="boxBairro">
                 <input type="text" class="combobox-input" id="inputBairro" placeholder="Selecionar bairro..."
@@ -216,6 +228,13 @@
             <div class="tab-content" id="tab-renda">
               <label class="slider-label">Renda Média (R$)</label>
 
+              <div class="exact-input-row">
+                <input id="inputRendaMin" type="number" class="exact-input" min="0" max="10000" step="1"
+                  placeholder="Mínimo (R$)">
+                <input id="inputRendaMax" type="number" class="exact-input" min="0" max="10000" step="1"
+                  placeholder="Máximo (R$)">
+              </div>
+
               <div class="dual-slider-container" id="sliderRendaContainer">
                 <div class="dual-track"></div>
                 <div class="availability-bar" id="availRenda"></div>
@@ -242,7 +261,11 @@
                     <option value="60-74">60 a 74 anos</option>
                     <option value="75-100">75+ anos</option>
                   </select>
-                  <span class="slider-value" id="dispIdosos">0%</span>
+                  <div class="slider-input-group">
+                    <input id="inputIdade" type="number" class="exact-input exact-input-sm" min="0" max="100" step="1"
+                      placeholder="%">
+                    <span class="slider-value" id="dispIdosos">0%</span>
+                  </div>
                 </div>
                 <div class="slider-wrapper">
                   <div class="availability-bar" id="availIdade"></div>
@@ -266,7 +289,11 @@
                     <option value="Pct Amarela">População Amarela</option>
                     <option value="Pct Indigena">População Indígena</option>
                   </select>
-                  <span class="slider-value" id="dispRaca">0%</span>
+                  <div class="slider-input-group">
+                    <input id="inputRaca" type="number" class="exact-input exact-input-sm" min="0" max="100" step="1"
+                      placeholder="%">
+                    <span class="slider-value" id="dispRaca">0%</span>
+                  </div>
                 </div>
                 <div class="slider-wrapper">
                   <div class="availability-bar" id="availRaca"></div>
@@ -289,7 +316,11 @@
                     <option value="Pct Esgoto Rede Geral">Rede Geral</option>
                     <option value="Pct Fossa Septica">Fossa Séptica</option>
                   </select>
-                  <span class="slider-value" id="dispSaneamento">0%</span>
+                  <div class="slider-input-group">
+                    <input id="inputSaneamento" type="number" class="exact-input exact-input-sm" min="0" max="100"
+                      step="1" placeholder="%">
+                    <span class="slider-value" id="dispSaneamento">0%</span>
+                  </div>
                 </div>
                 <div class="slider-wrapper">
                   <div class="availability-bar" id="availSaneamento"></div>
