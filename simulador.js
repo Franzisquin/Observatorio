@@ -1990,8 +1990,10 @@ function simRenderDemografiaTab() {
       const valInp = container.querySelector(`.sim-slider-val[data-cat="${cat}"][data-sub="${sub}"][data-entry="${entry}"]`);
       if (valInp) valInp.value = v.toFixed(1);
       simUpdateSubTotal(container, cat, sub);
+    });
 
-      // FIX: Real-time update
+    sl.addEventListener('change', () => {
+      // Recalculate only when finished editing
       simCalcularProjecao();
       simRefreshSidebar(); 
       if (SIM.selectedUF) {

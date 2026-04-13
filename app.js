@@ -1534,8 +1534,13 @@ function setupSliders() {
 
     syncValueUI(clampInt(slider.value, 0, 100, 0));
 
-    // Atualiza Estado e UI quando o slider move
+    // UI feedback only during movement
     slider.addEventListener('input', () => {
+      syncValueUI(slider.value);
+    });
+
+    // Apply value only when user finishes dragging
+    slider.addEventListener('change', () => {
       applyValue(slider.value);
     });
 
