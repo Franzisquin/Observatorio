@@ -2268,6 +2268,13 @@ async function simRenderMapaMunicipios(uf) {
     }
   }).addTo(simMap);
 
+  // Disable pointer events on selected municipality so you can click through to local markers
+  SIM.municipiosLayer.eachLayer(layer => {
+    const isSelected = SIM.selectedMuni === String(layer.feature.properties.CD_MUN);
+    const path = layer.getElement?.();
+    if (path) path.style.pointerEvents = isSelected ? 'none' : 'auto';
+  });
+
   if (SIM.municipiosLayer.getBounds().isValid()) simMap.fitBounds(SIM.municipiosLayer.getBounds());
   scheduleSimMapRefresh();
 }

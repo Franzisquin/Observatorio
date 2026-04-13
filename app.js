@@ -3806,7 +3806,7 @@ function refreshMunicipiosLayerStyle() {
       opacity: !isVisible || isSelected ? 0 : 0.8
     });
     const path = layer.getElement?.();
-    if (path) path.style.pointerEvents = isVisible ? 'auto' : 'none';
+    if (path) path.style.pointerEvents = (isVisible && !isSelected) ? 'auto' : 'none';
 
     if (layer.getTooltip()) {
       layer.setTooltipContent(buildMunicipalityTooltip(layer.feature, summary));
