@@ -15,7 +15,7 @@ const PARTY_COLORS = new Map(Object.entries({
   'PSTU': '#c92127', 'PT': '#C0122D', 'PTB': '#005533', 'PV': '#01652F',
   'REDE': '#3ca08c', 'REPUBLICANOS': '#005CA9', 'SOLIDARIEDADE': '#f37021',
   'UNIÃO': '#01f6fe', 'UP': '#000000', 'PMDB': '#009959', 'SD': '#f37021',
-  'PR': '#30306C', 'PC DO B': '#b4251d'
+  'PR': '#30306C', 'PC DO B': '#b4251d', 'PPB': '#3672c9'
 }));
 
 const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
@@ -38,6 +38,7 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'PODE': '#23a840',
   'PODEMOS': '#23a840',
   'PP': '#6391d4',
+  'PPB': '#6391d4',
   'PPL': '#c6a815',
   'PROS': '#e6661e',
   'PRTB': '#1a7e2f',
@@ -155,6 +156,8 @@ let simMap, simTileLayer;
 let simMapResizeObserver = null;
 let simMapRefreshFrame = 0;
 let simMapRefreshTimeout = 0;
+let simMapRefreshSettleTimeout = 0;
+let simMapLastContainerSize = { width: 0, height: 0 };
 
 // ====== UTILS ======
 function fmtInt(n) { return (n || 0).toLocaleString('pt-BR'); }
@@ -180,43 +183,55 @@ function getPartyColor(partido) {
   return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty);
 }
 
-function flushSimMapRefresh() {
-  if (!simMap) return;
+function getElementClientSize(element) {
+  if (!element) return { width: 0, height: 0 };
+  const rect = element.getBoundingClientRect();
+  return {
+    width: Math.round(rect.width),
+    height: Math.round(rect.height)
+  };
+}
+
+function flushSimMapRefresh(options = {}) {
+  if (!simMap) return false;
+
+  const { force = false } = options;
+  const container = typeof simMap.getContainer === 'function' ? simMap.getContainer() : null;
+  const { width, height } = getElementClientSize(container);
+  if (!width || !height) return false;
+
+  const sizeChanged = width !== simMapLastContainerSize.width || height !== simMapLastContainerSize.height;
+  if (!force && !sizeChanged) return false;
+
+  simMapLastContainerSize = { width, height };
 
   try {
     simMap.invalidateSize({ pan: false, debounceMoveend: true });
   } catch (e) {
     console.warn('Sim map invalidateSize failed:', e);
+    return false;
   }
 
-  simMap.eachLayer(layer => {
-    if (typeof layer.redraw === 'function') {
-      try {
-        layer.redraw();
-      } catch (e) {
-        console.warn('Sim layer redraw failed:', e);
-      }
-    }
-  });
+  return true;
 }
 
-function scheduleSimMapRefresh() {
+function scheduleSimMapRefresh(options = {}) {
   if (!simMap) return;
+
+  const { force = false } = options;
 
   if (simMapRefreshFrame) cancelAnimationFrame(simMapRefreshFrame);
   if (simMapRefreshTimeout) clearTimeout(simMapRefreshTimeout);
+  if (simMapRefreshSettleTimeout) clearTimeout(simMapRefreshSettleTimeout);
 
-  let ran = false;
-  const run = () => {
-    if (ran) return;
-    ran = true;
-    flushSimMapRefresh();
+  const run = (runForce = false) => {
+    flushSimMapRefresh({ force: runForce });
   };
 
   simMapRefreshFrame = requestAnimationFrame(() => {
     simMapRefreshFrame = requestAnimationFrame(() => {
       simMapRefreshFrame = 0;
-      run();
+      run(force);
     });
   });
 
@@ -224,26 +239,37 @@ function scheduleSimMapRefresh() {
     simMapRefreshTimeout = 0;
     run();
   }, 180);
+
+  simMapRefreshSettleTimeout = setTimeout(() => {
+    simMapRefreshSettleTimeout = 0;
+    run();
+  }, 420);
 }
 
 function setupSimMapRefreshObservers() {
   const mapElement = document.getElementById('map');
   if (!mapElement) return;
 
-  window.addEventListener('load', scheduleSimMapRefresh);
+  const observeTargets = [mapElement.parentElement || mapElement, mapElement]
+    .filter((element, index, arr) => element && arr.indexOf(element) === index);
+
+  window.addEventListener('load', () => scheduleSimMapRefresh({ force: true }));
   window.addEventListener('resize', scheduleSimMapRefresh);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) scheduleSimMapRefresh();
+    if (!document.hidden) scheduleSimMapRefresh({ force: true });
   });
 
   if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => scheduleSimMapRefresh()).catch(() => {});
+    document.fonts.ready.then(() => scheduleSimMapRefresh({ force: true })).catch(() => {});
   }
 
   if (window.ResizeObserver) {
     if (simMapResizeObserver) simMapResizeObserver.disconnect();
-    simMapResizeObserver = new ResizeObserver(() => scheduleSimMapRefresh());
-    simMapResizeObserver.observe(mapElement);
+    simMapResizeObserver = new ResizeObserver(entries => {
+      const hasVisibleTarget = entries.some(entry => entry.contentRect.width > 0 && entry.contentRect.height > 0);
+      if (hasVisibleTarget) scheduleSimMapRefresh();
+    });
+    observeTargets.forEach(element => simMapResizeObserver.observe(element));
   }
 }
 
@@ -357,15 +383,15 @@ async function initSimulador() {
   }
 
   // Map
-  simMap = L.map('map', { zoomControl: false, minZoom: 3 }).setView([-14, -52], 4);
+  simMap = L.map('map', { zoomControl: false, minZoom: 3, preferCanvas: true }).setView([-14, -52], 4);
   simTileLayer = L.tileLayer(MAP_TILES.dark, {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd', maxZoom: 18
   }).addTo(simMap);
   L.control.zoom({ position: 'bottomright' }).addTo(simMap);
   setupSimMapRefreshObservers();
-  simMap.whenReady(() => scheduleSimMapRefresh());
-  scheduleSimMapRefresh();
+  simMap.whenReady(() => scheduleSimMapRefresh({ force: true }));
+  scheduleSimMapRefresh({ force: true });
 
   // Load data
   document.getElementById('mapLoader').classList.add('visible');
@@ -1761,6 +1787,7 @@ function simRenderMapaEstados() {
   if (!SIM.estadosGeoJSON) return;
 
   SIM.estadosLayer = L.geoJSON(SIM.estadosGeoJSON, {
+    renderer: L.canvas(),
     style: f => {
       const sigla = f.properties.SIGLA_UF;
       const cor = simGetCorKey(simGetVencedorUF(sigla)?.key);
@@ -2196,6 +2223,7 @@ async function simRenderMapaMunicipios(uf) {
   if (!geo) return;
 
   SIM.municipiosLayer = L.geoJSON(geo, {
+    renderer: L.canvas(),
     style: f => {
       const codM = f.properties.CD_MUN;
       const res = SIM.resultadosPorMuni[uf]?.[codM];

@@ -25,7 +25,7 @@ const PARTY_COLORS = new Map(Object.entries({
   'UNIÃO': '#01f6fe', 'UP': '#000000', 'ARENA': '#4034B2', 'PMDB': '#009959',
   'PRB': '#005CA9', 'PT DO B': '#2eacb2', 'PFL': '#8CC63E', 'PSP46': '#533e40',
   'MISSÃO': '#FCBD27', 'PATRIOTA': '#316635', 'TOSSUP': '#cbd5e1', 'PPS': '#ec008c', 'PR': '#30306C', 'PC DO B': '#b4251d', 'PSDC': '#c89721',
-  'PRD': '#007c3c', 'SD': '#f37021', 'PRONA': '#34b233', 'PRP': '#006db8', 'PMB': '#8e2a4e', 'Agir': '#9370db'
+  'PRD': '#007c3c', 'SD': '#f37021', 'PRONA': '#34b233', 'PRP': '#006db8', 'PMB': '#8e2a4e', 'Agir': '#9370db', 'PPB': '#3672c9'
 }));
 
 const PARTY_ACRONYMS = new Map(Object.entries({
@@ -55,6 +55,7 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'PODE': '#23a840',
   'PODEMOS': '#23a840',
   'PP': '#6391d4',
+  'PPB': '#6391d4',
   'PPL': '#c6a815',
   'PROS': '#e6661e',
   'PRTB': '#1a7e2f',
@@ -106,6 +107,41 @@ function normalizePartyKey(partido) {
     .replace(/\p{Diacritic}/gu, '')
     .trim()
     .toUpperCase();
+}
+
+const KNOWN_PARTY_KEYS = new Set([
+  ...PARTY_COLORS.keys(),
+  ...PARTY_ACRONYMS.keys(),
+  ...PARTY_COLOR_OVERRIDES.keys()
+].map(normalizePartyKey));
+
+function isKnownPartyToken(value) {
+  return KNOWN_PARTY_KEYS.has(normalizePartyKey(value));
+}
+
+function parseCandidateStatusToken(value) {
+  const normalized = String(value || '')
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[º°]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+
+  if (!normalized) return null;
+  if (normalized.includes('INAPTO')) return 'INAPTO';
+  if (normalized.includes('NAO ELEITO')) return 'NÃO ELEITO';
+  if (normalized.includes('2 TURNO')) return '2° TURNO';
+  if (normalized.startsWith('ELEITO')) return 'ELEITO';
+  return null;
+}
+
+function resolveCandidateStatus(statuses) {
+  if (statuses.includes('INAPTO')) return 'INAPTO';
+  if (statuses.includes('2° TURNO')) return '2° TURNO';
+  if (statuses.includes('ELEITO')) return 'ELEITO';
+  if (statuses.includes('NÃO ELEITO')) return 'NÃO ELEITO';
+  return statuses[0] || 'N/D';
 }
 
 function getColorForCandidate(nome, partido) {
@@ -213,9 +249,6 @@ let isSelectorsActive = false;
 let startSelectionPoint = null;
 let selectionBoxElement = null; // DOM Element for the box
 let isDragSelection = false; // Flag to track if last selection was drag
-let mapResizeObserver = null;
-let mapRefreshFrame = 0;
-let mapRefreshTimeout = 0;
 
 
 
@@ -296,10 +329,36 @@ function getMunicipalTurnLabel(turnoKey = '1T', subtype = 'ord', has2T = false) 
   if (turnoKey === '2T') return '2º Turno';
   return has2T ? '1º Turno' : (subtype === 'sup' ? 'Suplementar' : 'Ordinária');
 }
+const MUNI_ALIASES = {
+  'PARATY': ['PARATI', 'PARATY'],
+  'PARATI': ['PARATI', 'PARATY'],
+  'EMBU DAS ARTES': ['EMBU', 'EMBU DAS ARTES'],
+  'EMBU': ['EMBU', 'EMBU DAS ARTES'],
+  'TRAJANO DE MORAES': ['TRAJANO DE MORAIS', 'TRAJANO DE MORAES'],
+  'TRAJANO DE MORAIS': ['TRAJANO DE MORAIS', 'TRAJANO DE MORAES'],
+  'SAO TOME DAS LETRAS': ['SAO THOME DAS LETRAS', 'SAO TOME DAS LETRAS'],
+  'SAO THOME DAS LETRAS': ['SAO THOME DAS LETRAS', 'SAO TOME DAS LETRAS'],
+  'ITAPAJE': ['ITAPAGE', 'ITAPAJE'],
+  'ITAPAGE': ['ITAPAGE', 'ITAPAJE'],
+  'MOGI MIRIM': ['MOJI MIRIM', 'MOGI MIRIM'],
+  'MOJI MIRIM': ['MOJI MIRIM', 'MOGI MIRIM'],
+  'IGUARACY': ['IGUARACI', 'IGUARACY'],
+  'IGUARACI': ['IGUARACI', 'IGUARACY'],
+  'ELDORADO DOS CARAJAS': ['ELDORADO DO CARAJAS', 'ELDORADO DOS CARAJAS'],
+  'ELDORADO DO CARAJAS': ['ELDORADO DO CARAJAS', 'ELDORADO DOS CARAJAS'],
+  'SANTA ISABEL DO PARA': ['SANTA IZABEL DO PARA', 'SANTA ISABEL DO PARA'],
+  'SANTA IZABEL DO PARA': ['SANTA IZABEL DO PARA', 'SANTA ISABEL DO PARA']
+};
+
+function getMunicipalAliases(name) {
+  const n = norm(name);
+  return MUNI_ALIASES[n] || [n];
+}
+
 function resolveMunicipalDatasetName(uf, municipioNome) {
   const entries = MUNICIPAL_DATA_INDEX?.[uf] || [];
-  const alvo = norm(municipioNome);
-  return entries.find(name => norm(name) === alvo) || null;
+  const aliases = getMunicipalAliases(municipioNome);
+  return entries.find(name => aliases.includes(norm(name))) || null;
 }
 function extractMunicipalityOverviewFromGeoJSON(geojson, subtype = 'ord') {
   const props = geojson?.features?.[0]?.properties;
@@ -575,8 +634,9 @@ async function returnToMunicipalStatewideView() {
   if (dom.selectMunicipio) dom.selectMunicipio.value = '';
   if (dom.searchMunicipio) dom.searchMunicipio.value = '';
   if (cidadeCombobox) {
+    populateCidadeDropdown();
     cidadeCombobox.setValue("Todos os municípios");
-    cidadeCombobox.disable(true);
+    cidadeCombobox.disable(false);
   }
   if (bairroCombobox) {
     bairroCombobox.setItems([], "Todos os bairros");
@@ -588,11 +648,12 @@ async function returnToMunicipalStatewideView() {
     dom.searchLocal.disabled = true;
   }
 
-  dom.filterBox.classList.add('section-hidden');
+  dom.filterBox.classList.remove('section-hidden');
   dom.cargoBoxMunicipal.classList.add('section-hidden');
   setMapMode('municipios');
   await renderStateMunicipalityMap(uf);
   fitMapToVisibleMunicipalities();
+  updateConditionalUI();
   updateResultsBackButton();
 }
 async function handleResultsBackAction() {
@@ -644,6 +705,37 @@ function fitMapToVisibleMunicipalities() {
   } else if (STATE.municipiosLayer.getBounds().isValid()) {
     map.fitBounds(STATE.municipiosLayer.getBounds(), { padding: [20, 20] });
   }
+}
+function getMunicipalSelectionItems() {
+  if (!dom.selectMunicipio) return [];
+  return Array.from(dom.selectMunicipio.options || [])
+    .filter(opt => !opt.disabled && opt.value)
+    .map(opt => opt.textContent || opt.value);
+}
+function ensureMunicipalSelectionValue(municipioNome) {
+  const uf = dom.selectUFMunicipal?.value;
+  const resolvedName = resolveMunicipalDatasetName(uf, municipioNome) || municipioNome;
+  if (!dom.selectMunicipio) return resolvedName;
+
+  let option = Array.from(dom.selectMunicipio.options || []).find(opt => norm(opt.value) === norm(resolvedName));
+  if (!option) {
+    option = document.createElement('option');
+    option.value = resolvedName;
+    option.textContent = resolvedName;
+    dom.selectMunicipio.appendChild(option);
+  }
+
+  dom.selectMunicipio.value = option.value;
+  return option.textContent || option.value;
+}
+function getMunicipalityCodeByName(municipioNome) {
+  if (!STATE.municipiosLayer) return '';
+  const aliases = getMunicipalAliases(municipioNome);
+  const match = STATE.municipiosLayer.getLayers().find(layer => {
+    const nome = getMunicipalityFeatureName(layer.feature?.properties);
+    return aliases.includes(norm(nome));
+  });
+  return match ? getMunicipalityFeatureCode(match.feature?.properties) : '';
 }
 function colorForParty(sg) {
   const cleanParty = normalizePartyKey(sg);
@@ -739,6 +831,30 @@ function getUniversalGradientColor(baseColorHex, pct) {
   return hslToHex(hsl.h, hsl.s, targetL);
 }
 
+function getMarginAdjustedColor(baseColorHex, marginPct) {
+  const BASE_MARGIN = 20;
+  const MIN_MARGIN = 0;
+  const MAX_MARGIN = 60;
+  const MAX_LIGHTEN = 14;
+  const MAX_DARKEN = 18;
+  const EASING_EXPONENT = 1.35;
+
+  const numericMargin = Number.isFinite(marginPct) ? marginPct : BASE_MARGIN;
+  const clampedMargin = Math.max(MIN_MARGIN, Math.min(MAX_MARGIN, numericMargin));
+  const hsl = hexToHSL(baseColorHex);
+  let targetL = hsl.l;
+
+  if (clampedMargin < BASE_MARGIN) {
+    const progress = Math.pow((BASE_MARGIN - clampedMargin) / (BASE_MARGIN - MIN_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l + (MAX_LIGHTEN * progress);
+  } else if (clampedMargin > BASE_MARGIN) {
+    const progress = Math.pow((clampedMargin - BASE_MARGIN) / (MAX_MARGIN - BASE_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l - (MAX_DARKEN * progress);
+  }
+
+  return hslToHex(hsl.h, hsl.s, Math.max(8, Math.min(92, targetL)));
+}
+
 function debounce(func, timeout = 300) {
   let timer;
   return (...args) => {
@@ -748,70 +864,23 @@ function debounce(func, timeout = 300) {
 }
 
 function flushMapRefresh(targetMap) {
-  if (!targetMap) return;
+  if (!targetMap) return false;
 
   try {
     targetMap.invalidateSize({ pan: false, debounceMoveend: true });
   } catch (e) {
     console.warn('Map invalidateSize failed:', e);
+    return false;
   }
 
-  targetMap.eachLayer(layer => {
-    if (typeof layer.redraw === 'function') {
-      try {
-        layer.redraw();
-      } catch (e) {
-        console.warn('Layer redraw failed:', e);
-      }
-    }
-  });
+  return true;
 }
 
-function scheduleMapRefresh() {
+function invalidateMapSoon(delay = 0) {
   if (!map) return;
-
-  if (mapRefreshFrame) cancelAnimationFrame(mapRefreshFrame);
-  if (mapRefreshTimeout) clearTimeout(mapRefreshTimeout);
-
-  let ran = false;
-  const run = () => {
-    if (ran) return;
-    ran = true;
+  window.setTimeout(() => {
     flushMapRefresh(map);
-  };
-
-  mapRefreshFrame = requestAnimationFrame(() => {
-    mapRefreshFrame = requestAnimationFrame(() => {
-      mapRefreshFrame = 0;
-      run();
-    });
-  });
-
-  mapRefreshTimeout = setTimeout(() => {
-    mapRefreshTimeout = 0;
-    run();
-  }, 180);
-}
-
-function setupMapRefreshObservers() {
-  const mapElement = document.getElementById('map');
-  if (!mapElement) return;
-
-  window.addEventListener('load', scheduleMapRefresh);
-  window.addEventListener('resize', scheduleMapRefresh);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) scheduleMapRefresh();
-  });
-
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(() => scheduleMapRefresh()).catch(() => {});
-  }
-
-  if (window.ResizeObserver) {
-    if (mapResizeObserver) mapResizeObserver.disconnect();
-    mapResizeObserver = new ResizeObserver(() => scheduleMapRefresh());
-    mapResizeObserver.observe(mapElement);
-  }
+  }, delay);
 }
 
 function toTitleCase(str) {
@@ -820,7 +889,7 @@ function toTitleCase(str) {
     .replace(/\b(e|da|de|do|das|dos|com)\b/gi, function(a) { return a.toLowerCase(); });
 }
 
-function parseCandidateKey(key) {
+function parseCandidateKeyLegacy(key) {
   const result = { nome: 'N/D', partido: 'N/D', status: 'N/D', key: key };
   const turnoMatch = key.match(/ (1T|2T)$/);
   const coreKey = key.replace(/ (1T|2T)$/, '');
@@ -849,6 +918,61 @@ function parseCandidateKey(key) {
   } else if (allStatus.length > 0) {
     result.status = allStatus[0];
   }
+
+  return result;
+}
+
+function parseCandidateKey(key) {
+  const result = { nome: 'N/D', partido: 'N/D', status: 'N/D', key: key };
+  const coreKey = key.replace(/ (1T|2T)$/, '');
+
+  const groups = Array.from(coreKey.matchAll(/\((.*?)\)/g)).map(match => ({
+    full: match[0],
+    value: String(match[1] || '').trim(),
+    index: match.index ?? 0
+  }));
+
+  if (groups.length === 0) {
+    result.nome = toTitleCase(coreKey);
+    return result;
+  }
+
+  let partidoIndex = -1;
+  for (let i = groups.length - 1; i >= 0; i--) {
+    if (isKnownPartyToken(groups[i].value)) {
+      partidoIndex = i;
+      break;
+    }
+  }
+
+  if (partidoIndex !== -1) {
+    result.partido = groups[partidoIndex].value;
+  }
+
+  const statuses = groups
+    .filter((group, index) => index !== partidoIndex)
+    .map(group => parseCandidateStatusToken(group.value))
+    .filter(Boolean);
+
+  const nameParts = [];
+  let cursor = 0;
+  groups.forEach((group, index) => {
+    const groupEnd = group.index + group.full.length;
+    nameParts.push(coreKey.slice(cursor, group.index));
+
+    const isParty = index === partidoIndex;
+    const isStatus = Boolean(parseCandidateStatusToken(group.value));
+    if (!isParty && !isStatus) {
+      nameParts.push(group.full);
+    }
+
+    cursor = groupEnd;
+  });
+  nameParts.push(coreKey.slice(cursor));
+
+  const reconstructedName = nameParts.join('').replace(/\s+/g, ' ').trim();
+  result.nome = toTitleCase(reconstructedName || coreKey);
+  result.status = resolveCandidateStatus(statuses);
 
   return result;
 }
@@ -891,6 +1015,7 @@ async function init() {
   dom.btnLoadData = document.getElementById('btnLoadData');
   dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
   dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
+  dom.mapOverlayControls = document.querySelector('.map-overlay-controls');
   dom.themeToggle = document.getElementById('themeToggle');
   dom.themeToggle.addEventListener('click', () => {
     // Toggle logic handled by inline script or simple handler, but we must redraw map
@@ -904,7 +1029,7 @@ async function init() {
       // Note: isDark was the OLD state, so if it WAS dark, we are now Light -> MAP_TILES.light
     }
     applyFiltersAndRedraw();
-    scheduleMapRefresh();
+    invalidateMapSoon(0);
   });
 
   dom.selectElectionLevel = document.getElementById('selectElectionLevel');
@@ -921,6 +1046,7 @@ async function init() {
   dom.selectRGI = document.getElementById('selectRGI');
   dom.selectMunicipio = document.getElementById('selectMunicipio');
   dom.searchMunicipio = document.getElementById('searchMunicipio');
+  dom.ctrlMunicipioMunicipal = dom.selectMunicipio ? dom.selectMunicipio.closest('.ctrl') : null;
   dom.cargoBoxMunicipal = document.getElementById('cargoBoxMunicipal'); // Agora usado para tipo de eleição (Ord/Sup)
   dom.cargoChipsMunicipal = document.getElementById('cargoChipsMunicipal'); // Chips de tipo
 
@@ -1001,9 +1127,8 @@ async function init() {
 
   // Init Shift+Drag Selector
   setupBoxSelection();
-  setupMapRefreshObservers();
-  map.whenReady(() => scheduleMapRefresh());
-  scheduleMapRefresh();
+  map.whenReady(() => invalidateMapSoon(0));
+  invalidateMapSoon(120);
 
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
@@ -1210,11 +1335,6 @@ function setupControls() {
       STATE.currentElectionYear = "2024";
     }
 
-    // NEW: Auto-load state map
-    if (uf) {
-      renderStateMunicipalityMap(uf);
-    }
-
     // --- HIERARCHY REFACTOR ---
     // Clear sub-levels
     dom.selectRGINT.innerHTML = '<option value="" disabled selected>Selecione UF...</option>';
@@ -1234,6 +1354,9 @@ function setupControls() {
         dom.selectRGINT.appendChild(opt);
       });
       populateMunicipiosFlat(uf); // Fallback to flat if needed or initial state
+    }
+    if (uf) {
+      returnToMunicipalStatewideView();
     }
   });
 
@@ -1259,6 +1382,9 @@ function setupControls() {
     } else if (rgint === 'Todas as Intermediárias') {
       populateMunicipiosFlat(uf);
     }
+    if (uf) {
+      returnToMunicipalStatewideView();
+    }
   });
 
   // Level 3: RGI -> Municipio
@@ -1271,6 +1397,9 @@ function setupControls() {
       populateMunicipiosFiltered(uf, rgint, rgi);
     } else {
       populateMunicipiosFiltered(uf, rgint, null);
+    }
+    if (uf) {
+      returnToMunicipalStatewideView();
     }
   });
 
@@ -1360,7 +1489,6 @@ function setupControls() {
       return;
     }
 
-    STATE.currentMapMuniSummary = null;
     renderStateMunicipalityMap(uf);
   });
 
@@ -1373,6 +1501,21 @@ function setupControls() {
     input: dom.inputCidade,
     list: dom.listCidade
   }, (val) => {
+    if (STATE.currentElectionType === 'municipal') {
+      currentBairroFilter = 'all';
+      currentLocalFilter = '';
+
+      if (val === 'all') {
+        currentCidadeFilter = 'all';
+        returnToMunicipalStatewideView();
+        return;
+      }
+
+      currentCidadeFilter = ensureMunicipalSelectionValue(val);
+      onClickLoadData_Municipal();
+      return;
+    }
+
     // Ao selecionar Cidade
     currentCidadeFilter = val; // val será 'all' ou o nome da cidade
     currentBairroFilter = 'all';
@@ -1915,6 +2058,7 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
 
 function updateConditionalUI() {
   const hasSupplementary = !!currentDataCollection[`${currentOffice}_sup`];
+  const isMunicipal = STATE.currentElectionType === 'municipal';
 
   // Show/Hide Turno Selector
   if (dom.turnoContainer) {
@@ -1954,7 +2098,7 @@ function updateConditionalUI() {
     dom.cargoBoxMunicipal.classList.remove('section-hidden');
   }
 
-  if (STATE.currentElectionType === 'geral') {
+  if (!isMunicipal) {
     if (dom.boxCidade && dom.boxCidade.parentElement) {
       dom.boxCidade.parentElement.style.display = 'none';
     }
@@ -1969,10 +2113,10 @@ function updateConditionalUI() {
     }
   } else {
     if (dom.boxCidade && dom.boxCidade.parentElement) {
-      dom.boxCidade.parentElement.style.display = 'none';
+      dom.boxCidade.parentElement.style.display = '';
     }
     if (dom.boxBairro && dom.boxBairro.parentElement) {
-      dom.boxBairro.parentElement.style.gridColumn = '1 / -1';
+      dom.boxBairro.parentElement.style.gridColumn = '';
     }
     if (dom.filterRGINT && dom.filterRGINT.parentElement) {
       dom.filterRGINT.parentElement.style.display = 'none';
@@ -1980,6 +2124,13 @@ function updateConditionalUI() {
     if (dom.filterRGI && dom.filterRGI.parentElement) {
       dom.filterRGI.parentElement.style.display = 'none';
     }
+  }
+
+  if (dom.ctrlMunicipioMunicipal) {
+    dom.ctrlMunicipioMunicipal.style.display = isMunicipal ? 'none' : '';
+  }
+  if (dom.mapOverlayControls) {
+    dom.mapOverlayControls.style.display = isMunicipal ? 'none' : '';
   }
 }
 
@@ -2191,14 +2342,6 @@ async function onClickLoadData_Municipal() {
   STATE.candidates = {}; STATE.metrics = {}; STATE.inaptos = {};
   STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
 
-  // NEW: Clear state-wide municipality layer
-  if (STATE.municipiosLayer) {
-    map.removeLayer(STATE.municipiosLayer);
-  }
-
-  // Deep dive defaults to 'locais'
-  setMapMode('locais');
-
   try {
     currentOffice = 'prefeito';
     currentSubType = 'ord';
@@ -2218,6 +2361,11 @@ async function onClickLoadData_Municipal() {
     currentDataCollection['prefeito_ord'] = dataOrd;
     processLoadedGeoJSON(dataOrd, 'prefeito_ord');
 
+    STATE.selectedMuniCode =
+      getPointMunicipalityCode(dataOrd.features?.[0]?.properties) ||
+      getMunicipalityCodeByName(municipio) ||
+      null;
+
     if (dataSup) {
       if (censusData) mergeCensusData(dataSup, censusData);
       currentDataCollection['prefeito_sup'] = dataSup;
@@ -2230,7 +2378,12 @@ async function onClickLoadData_Municipal() {
 
 
     dom.filterBox.classList.remove('section-hidden');
-    if (cidadeCombobox) cidadeCombobox.disable(true);
+    currentCidadeFilter = municipio;
+    populateCidadeDropdown();
+    if (cidadeCombobox) {
+      cidadeCombobox.disable(false);
+      cidadeCombobox.setValue(currentCidadeFilter);
+    }
     if (bairroCombobox) bairroCombobox.disable(false);
 
     dom.searchLocal.disabled = false;
@@ -2248,7 +2401,9 @@ async function onClickLoadData_Municipal() {
     dom.btnToggleInaptos.textContent = 'Filtrar Inaptos';
 
     updateConditionalUI();
+    refreshMunicipiosLayerStyle();
     applyFiltersAndRedraw();
+    setMapMode('municipios');
 
     const locationKey = 'mun_' + uf + '_' + municipio;
     if (currentLayer && currentLayer.getBounds().isValid()) {
@@ -2778,6 +2933,14 @@ function populateCidadeDropdown() {
     return;
   }
 
+  if (STATE.currentElectionType === 'municipal') {
+    const items = getMunicipalSelectionItems();
+    cidadeCombobox.setItems(items, "Todos os municÃ­pios");
+    cidadeCombobox.setValue(currentCidadeFilter === 'all' ? "Todos os municÃ­pios" : currentCidadeFilter);
+    cidadeCombobox.disable(items.length === 0);
+    return;
+  }
+
   const geojson = currentDataCollection[currentCargo];
   if (!geojson || !geojson.features) return;
 
@@ -2980,7 +3143,7 @@ function applyFiltersAndRedraw() {
   updateSelectionUI(STATE.isFilterAggregationActive);
   syncMunicipalityLayerWithCurrentFilters();
   updateMapLayerVisibility();
-  scheduleMapRefresh();
+  invalidateMapSoon(0);
 }
 
 // --- NOVA FUNÇÃO DE OTIMIZAÇÃO ---
@@ -3206,7 +3369,7 @@ function getFeatureStyle(feature) {
   // Transform margin (0-50) into a percentage (0-100) for the gradient function
   const fixedRelativePct = (marginIntensity / 50) * 100;
 
-  fillColor = getUniversalGradientColor(fillColor, fixedRelativePct);
+  fillColor = getMarginAdjustedColor(fillColor, pctVal);
   fillOpacity = 0.8;
 
 
@@ -3441,6 +3604,9 @@ function clearSelection(updateMap = true) {
   STATE.isFilterAggregationActive = false;
 
   if (updateMap && currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
+  if (renderMunicipalStatewidePartyResults()) {
+    return;
+  }
   dom.resultsBox.classList.add('section-hidden');
   dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);"><p style="margin-bottom:8px">👆</p>Clique no mapa ou use filtros para ver resultados.</div>';
   dom.resultsMetrics.innerHTML = '';
@@ -3834,6 +4000,106 @@ function getStatusBadge(status) {
   return '';
 }
 
+function shouldShowMunicipalStatewidePartyResults() {
+  return (
+    STATE.currentElectionType === 'municipal' &&
+    STATE.currentMapMode === 'municipios' &&
+    !!STATE.currentMapMuniUF &&
+    !dom.selectMunicipio?.value &&
+    !currentLayer
+  );
+}
+
+function renderMunicipalStatewidePartyResults() {
+  if (!shouldShowMunicipalStatewidePartyResults()) return false;
+
+  const uf = STATE.currentMapMuniUF;
+  const ufName = UF_MAP.get(uf) || uf;
+  const summary = STATE.currentMapMuniSummary;
+
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.resultsTitle.textContent = 'Prefeitos por partido';
+  dom.resultsSubtitle.textContent = `${ufName} • ${STATE.currentElectionYear}`;
+  dom.unifiedResultsContainer.classList.remove('hidden');
+  updateResultsBackButton();
+
+  if (!summary || Object.keys(summary).length === 0) {
+    dom.resultsContent.innerHTML = `<p style="color:var(--muted)">Carregando distribuiÃ§Ã£o estadual das prefeituras...</p>`;
+    dom.resultsMetrics.innerHTML = '';
+    updateNeighborhoodProfileUI();
+    return true;
+  }
+
+  const partyTotals = new Map();
+  let totalPrefeituras = 0;
+
+  Object.values(summary).forEach(res => {
+    const partyKey = normalizePartyKey(res?.winnerParty);
+    if (!partyKey) return;
+
+    if (!partyTotals.has(partyKey)) {
+      partyTotals.set(partyKey, {
+        partido: PARTY_ACRONYMS.get(partyKey) || partyKey,
+        color: colorForParty(partyKey),
+        count: 0
+      });
+    }
+
+    partyTotals.get(partyKey).count += 1;
+    totalPrefeituras += 1;
+  });
+
+  const results = Array.from(partyTotals.values()).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.partido.localeCompare(b.partido, 'pt-BR');
+  });
+
+  if (results.length === 0) {
+    dom.resultsContent.innerHTML = `<p style="color:var(--muted)">Ainda nÃ£o hÃ¡ partidos vencedores identificados neste estado.</p>`;
+    dom.resultsMetrics.innerHTML = '';
+    updateNeighborhoodProfileUI();
+    return true;
+  }
+
+  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(totalPrefeituras)} prefeituras contabilizadas`;
+  dom.resultsContent.innerHTML = '';
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+
+  results.forEach(result => {
+    const pct = totalPrefeituras > 0 ? (result.count / totalPrefeituras) : 0;
+    const div = document.createElement('div');
+    div.className = 'cand';
+    div.innerHTML = `
+      <div class="cand-indicator" style="background:${result.color}"></div>
+      <div class="cand-name-wrapper">
+        <div class="cand-name" title="${result.partido}">
+          <span class="scroll-text">${result.partido}</span>
+        </div>
+      </div>
+      <div class="cand-bar-wrapper">
+        <div class="cand-bar-fill" style="background:${result.color}; width: ${pct * 100}%;"></div>
+        <div class="cand-votos">${fmtInt(result.count)}</div>
+        <div class="cand-pct">${fmtPct(pct)}</div>
+      </div>
+    `;
+    grid.appendChild(div);
+  });
+
+  dom.resultsContent.appendChild(grid);
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-item"><span>Partidos com vitÃ³ria</span><strong>${fmtInt(results.length)}</strong></div>
+    </div>
+  `;
+
+  const metricLabel = dom.resultsMetrics.querySelector('.metric-item span');
+  if (metricLabel) metricLabel.innerHTML = 'Partidos com vit&oacute;ria';
+  updateNeighborhoodProfileUI();
+  return true;
+}
+
 function renderResultsPanel(props, cargo) {
   if (!props || Object.keys(props).length === 0) {
     dom.resultsContent.innerHTML = `<p style="color:var(--muted)">Sem dados para esta seleção.</p>`;
@@ -3890,7 +4156,7 @@ function renderResultsPanel(props, cargo) {
 
     const sw = getColorForCandidate(r.nome, r.partido);
     const safeId = 'color-' + btoa(unescape(encodeURIComponent(r.nome))).replace(/=/g, '');
-    let displayParty = PARTY_ACRONYMS.get((r.partido || '').toUpperCase()) || r.partido;
+    let displayParty = PARTY_ACRONYMS.get(normalizePartyKey(r.partido)) || r.partido;
 
     div.innerHTML = `
       <div class="cand-indicator" style="background:${sw}" 
@@ -4099,10 +4365,10 @@ function refreshMunicipiosLayerStyle() {
     if (res && (res.totalValid > 0 || res.winnerParty)) {
       const winnerName = res.winnerName || parseCandidateKey(res.winnerCode).nome;
       color = getColorForCandidate(winnerName, res.winnerParty);
-      if (STATE.currentElectionType !== 'municipal' && res.totalValid > 0) {
-        const marginVal = Math.max(0, Math.min(50, res.margin));
-        const intensity = (marginVal / 50) * 100;
-        color = getUniversalGradientColor(color, intensity);
+      if (res.totalValid > 0) {
+        if (STATE.currentElectionType !== 'municipal') {
+          color = getMarginAdjustedColor(color, res.margin);
+        }
       }
     }
 
@@ -4135,6 +4401,7 @@ function syncMunicipalityLayerWithCurrentFilters() {
     if (aggregatedMuniResults[cacheKey]) {
       STATE.currentMapMuniSummary = aggregatedMuniResults[cacheKey];
       refreshMunicipiosLayerStyle();
+      renderMunicipalStatewidePartyResults();
       return;
     }
 
@@ -4144,6 +4411,7 @@ function syncMunicipalityLayerWithCurrentFilters() {
         if (STATE.currentMapMuniUF !== uf || STATE.currentElectionYear !== year || currentSubType !== subtype) return;
         STATE.currentMapMuniSummary = summary;
         refreshMunicipiosLayerStyle();
+        renderMunicipalStatewidePartyResults();
       })
       .catch(e => console.warn('Falha ao sincronizar resumo municipal estadual:', e));
     return;
@@ -4162,10 +4430,13 @@ function syncMunicipalityLayerWithCurrentFilters() {
  * Changes the active map layer mode (Municípios vs. Locais)
  */
 function setMapMode(mode) {
+  if (STATE.currentElectionType === 'municipal') {
+    mode = 'municipios';
+  }
   const hadDrillDown = !!STATE.selectedMuniCode;
   STATE.currentMapMode = mode;
 
-  if (mode === 'municipios' && hadDrillDown) {
+  if (STATE.currentElectionType !== 'municipal' && mode === 'municipios' && hadDrillDown) {
     clearMunicipalityDrilldown({ preserveMapMode: false });
     refreshMunicipiosLayerStyle();
     applyFiltersAndRedraw();
@@ -4206,7 +4477,7 @@ function updateMapLayerVisibility() {
     }
   }
 
-  scheduleMapRefresh();
+  invalidateMapSoon(0);
 }
 
 /**
@@ -4365,7 +4636,9 @@ async function renderStateMunicipalityMap(uf) {
         ignoreSelectedMunicipality: true
       });
     }
-    STATE.currentMapMuniSummary = summary;
+    if (summary) {
+      STATE.currentMapMuniSummary = summary;
+    }
 
     STATE.municipiosLayer = L.geoJSON(geoJSON, {
       style: () => ({
@@ -4396,8 +4669,9 @@ async function renderStateMunicipalityMap(uf) {
           click: (e) => {
             if (!isMunicipalityVisibleInCurrentContext(codM)) return;
             if (STATE.currentElectionType === 'municipal') {
-              dom.selectMunicipio.value = nome.toUpperCase();
-              dom.selectMunicipio.dispatchEvent(new Event('change'));
+              currentCidadeFilter = ensureMunicipalSelectionValue(nome);
+              if (cidadeCombobox) cidadeCombobox.setValue(currentCidadeFilter);
+              onClickLoadData_Municipal();
             } else {
               STATE.selectedMuniCode = codM;
               refreshMunicipiosLayerStyle();
@@ -4422,6 +4696,7 @@ async function renderStateMunicipalityMap(uf) {
     // Initial visibility update based on mode
     updateMapLayerVisibility();
     refreshMunicipiosLayerStyle();
+    renderMunicipalStatewidePartyResults();
 
     // Fit map to state if we just loaded it
     fitMapToVisibleMunicipalities();
@@ -4429,18 +4704,15 @@ async function renderStateMunicipalityMap(uf) {
   } catch (e) {
     console.warn("Failed to render state municipality map:", e);
   } finally {
-    dom.mapLoader.classList.remove('visible');
-    scheduleMapRefresh();
+    if (dom.mapLoader) dom.mapLoader.classList.remove('visible');
+    invalidateMapSoon(0);
+    invalidateMapSoon(120);
   }
 }
 
 // Utility from simulator
 function getUniversalGradientColor(baseColorHex, pct) {
-  if (pct < 0) pct = 0;
-  if (pct > 100) pct = 100;
-  const hsl = hexToHSL(baseColorHex);
-  const targetL = 70 - (pct / 100) * 40;
-  return hslToHex(hsl.h, hsl.s, targetL);
+  return getMarginAdjustedColor(baseColorHex, pct);
 }
 
 function hexToHSL(H) {
