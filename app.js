@@ -346,13 +346,72 @@ const MUNI_ALIASES = {
   'IGUARACI': ['IGUARACI', 'IGUARACY'],
   'ELDORADO DOS CARAJAS': ['ELDORADO DO CARAJAS', 'ELDORADO DOS CARAJAS'],
   'ELDORADO DO CARAJAS': ['ELDORADO DO CARAJAS', 'ELDORADO DOS CARAJAS'],
-  'SANTA ISABEL DO PARA': ['SANTA IZABEL DO PARA', 'SANTA ISABEL DO PARA'],
-  'SANTA IZABEL DO PARA': ['SANTA IZABEL DO PARA', 'SANTA ISABEL DO PARA']
+  'SANTA ISABEL DO PARA': ['SANTA ISABEL DO PARÁ', 'SANTA IZABEL DO PARÁ'],
+  'SANTA IZABEL DO PARA': ['SANTA ISABEL DO PARÁ', 'SANTA IZABEL DO PARÁ'],
+  'SANTANA DO LIVRAMENTO': ['SANT ANA DO LIVRAMENTO', 'SANTANA DO LIVRAMENTO', 'SANT\'ANA DO LIVRAMENTO'],
+  'SANT ANA DO LIVRAMENTO': ['SANT ANA DO LIVRAMENTO', 'SANTANA DO LIVRAMENTO', 'SANT\'ANA DO LIVRAMENTO'],
+  'SANT\'ANA DO LIVRAMENTO': ['SANT ANA DO LIVRAMENTO', 'SANTANA DO LIVRAMENTO', 'SANT\'ANA DO LIVRAMENTO'],
+  'MASSAMBARA': ['MAÇAMBARA', 'MASSAMBARÁ', 'MAÇAMBARÁ', 'MACAMBARÁ'],
+  'MACAMBARA': ['MAÇAMBARA', 'MASSAMBARÁ', 'MAÇAMBARÁ', 'MACAMBARÁ'],
+  'PEDRA BRANCA DO AMAPARI': ['ÁGUA BRANCA DO AMAPARI', 'AMAPARI', 'PEDRA BRANCA DO AMAPARI'],
+  'AMAPARI': ['ÁGUA BRANCA DO AMAPARI', 'AMAPARI', 'PEDRA BRANCA DO AMAPARI'],
+  'BARRO PRETO': ['GOVERNADOR LOMANTO JÚNIOR', 'BARRO PRETO'],
+  'GOVERNADOR LOMANTO JUNIOR': ['GOVERNADOR LOMANTO JÚNIOR', 'BARRO PRETO'],
+  'CAMACA': ['CAMACÃ', 'CAMACAN'],
+  'CAMACAN': ['CAMACÃ', 'CAMACAN'],
+  'QUIJINGUE': ['QUIJINGUE', 'QUINJINGUE'],
+  'QUINJINGUE': ['QUIJINGUE', 'QUINJINGUE'],
+  'BRAZOPOLIS': ['BRASÓPOLIS', 'BRAZÓPOLIS'],
+  'BRASOPOLIS': ['BRASÓPOLIS', 'BRAZÓPOLIS'],
+  'JOCA CLAUDINO': ['SANTARÉM', 'JOCA CLAUDINO'],
+  'SANTAREM': ['SANTARÉM', 'JOCA CLAUDINO'],
+  'SAO DOMINGOS': ['SÃO DOMINGOS DE POMBAL', 'SÃO DOMINGOS'],
+  'SAO DOMINGOS DE POMBAL': ['SÃO DOMINGOS DE POMBAL', 'SÃO DOMINGOS'],
+  'TACIMA': ['CAMPO DE SANTANA', 'TACIMA'],
+  'CAMPO DE SANTANA': ['CAMPO DE SANTANA', 'TACIMA'],
+  'BELEM DO SAO FRANCISCO': ['BELÉM DE SÃO FRANCISCO', 'BELÉM DO SÃO FRANCISCO'],
+  'BELEM DE SAO FRANCISCO': ['BELÉM DE SÃO FRANCISCO', 'BELÉM DO SÃO FRANCISCO'],
+  'ILHA DE ITAMARACA': ['ITAMARACÁ', 'ILHA DE ITAMARACÁ'],
+  'ITAMARACA': ['ITAMARACÁ', 'ILHA DE ITAMARACÁ'],
+  'MUNHOZ DE MELLO': ['MUNHOZ DE MELO', 'MUNHOZ DE MELLO'],
+  'MUNHOZ DE MELO': ['MUNHOZ DE MELO', 'MUNHOZ DE MELLO'],
+  'AREZ': ['AREZ', 'ARÊS'],
+  'ARES': ['AREZ', 'ARÊS'],
+  'ERERE': ['ERERÊ', 'ERERÉ'],
+  'ITAPAJE': ['ITAPAGÉ', 'ITAPAJÉ'],
+  'ITAPAGE': ['ITAPAGÉ', 'ITAPAJÉ'],
+  'SANTO ANTONIO DO CAIUA': ['SANTO ANTONIO DO CAIUÁ', 'SANTO ANTÔNIO DO CAIUÁ'],
+  'SAO VICENTE FERRER': ['SÃO VICENTE FÉRRER', 'SÃO VICENTE FERRER'],
+  'ITAOCA': ['ITAÓCA', 'ITAOCA'],
+  'ALTA FLORESTA D OESTE': ['ALTA FLORESTA D OESTE', 'ALTA FLORESTA D\'OESTE', 'ALTA FLORESTA DO OESTE'],
+  'ALTA FLORESTA DO OESTE': ['ALTA FLORESTA D OESTE', 'ALTA FLORESTA D\'OESTE', 'ALTA FLORESTA DO OESTE'],
+  'MACHADINHO D OESTE': ['MACHADINHO D OESTE', 'MACHADINHO D\'OESTE', 'MACHADINHO DO OESTE'],
+  'MACHADINHO DO OESTE': ['MACHADINHO D OESTE', 'MACHADINHO D\'OESTE', 'MACHADINHO DO OESTE'],
+  'NOVA BRASILANDIA D OESTE': ['NOVA BRASILÂNDIA D OESTE', 'NOVA BRASILÂNDIA D\'OESTE', 'NOVA BRASILÂNDIA DO OESTE'],
+  'NOVA BRASILANDIA DO OESTE': ['NOVA BRASILÂNDIA D OESTE', 'NOVA BRASILÂNDIA D\'OESTE', 'NOVA BRASILÂNDIA DO OESTE'],
+  'SANTA LUZIA D OESTE': ['SANTA LUZIA D OESTE', 'SANTA LUZIA D\'OESTE', 'SANTA LUZIA DO OESTE'],
+  'SANTA LUZIA DO OESTE': ['SANTA LUZIA D OESTE', 'SANTA LUZIA D\'OESTE', 'SANTA LUZIA DO OESTE'],
+  'SAO FELIPE D OESTE': ['SÃO FELIPE D OESTE', 'SÃO FELIPE D\'OESTE', 'SÃO FELIPE DO OESTE'],
+  'SAO FELIPE DO OESTE': ['SÃO FELIPE D OESTE', 'SÃO FELIPE D\'OESTE', 'SÃO FELIPE DO OESTE'],
+  'LUIZ ALVES': ['LUÍS ALVES', 'LUIZ ALVES'],
+  'LUIS ALVES': ['LUÍS ALVES', 'LUIZ ALVES'],
+  'PRESIDENTE CASTELLO BRANCO': ['PRESIDENTE CASTELO BRANCO', 'PRESIDENTE CASTELLO BRANCO'],
+  'PRESIDENTE CASTELO BRANCO': ['PRESIDENTE CASTELO BRANCO', 'PRESIDENTE CASTELLO BRANCO'],
+  'COUTO MAGALHAES': ['COUTO DE MAGALHÃES', 'COUTO MAGALHÃES'],
+  'COUTO DE MAGALHAES': ['COUTO DE MAGALHÃES', 'COUTO MAGALHÃES'],
+  'SAO VALERIO': ['SÃO VALÉRIO DO TOCANTINS', 'SÃO VALÉRIO DA NATIVIDADE', 'SÃO VALÉRIO'],
+  'SAO VALERIO DA NATIVIDADE': ['SÃO VALÉRIO DO TOCANTINS', 'SÃO VALÉRIO DA NATIVIDADE', 'SÃO VALÉRIO'],
+  'TABOCAO': ['FORTALEZA DO TABOCÃO', 'TABOCÃO'],
+  'FORTALEZA DO TABOCAO': ['FORTALEZA DO TABOCÃO', 'TABOCÃO']
 };
 
 function getMunicipalAliases(name) {
   const n = norm(name);
-  return MUNI_ALIASES[n] || [n];
+  const aliases = MUNI_ALIASES[n] || [n];
+  if (!aliases.includes(name)) {
+    return [name, ...aliases];
+  }
+  return aliases;
 }
 
 function resolveMunicipalDatasetName(uf, municipioNome) {
@@ -2427,19 +2486,20 @@ async function loadGeoJSON(id, uf, ano, type) {
   let normalizedType = 'ord';
   if (type === 'sup' || type === 'Suplementar') normalizedType = 'sup';
 
-  let dataPath;
   if (STATE.currentElectionType === 'geral') {
-    // id = cargo (presidente, etc)
-    dataPath = buildDataPath_General(id, uf, ano, normalizedType);
+    const dataPath = buildDataPath_General(id, uf, ano, normalizedType);
+    if (!dataPath) return null;
+    return await fetchGeoJSON(dataPath, normalizedType === 'sup').catch(e => null);
   } else {
-    // id = municipio, type passed is explicit 'Ordinaria'/'Suplementar' for file path construction
-    // but let's standardize on buildDataPath_Municipal accepting the type string
-    dataPath = buildDataPath_Municipal(id, uf, ano, type);
+    const aliases = getMunicipalAliases(id);
+    for (const alias of aliases) {
+      const dataPath = buildDataPath_Municipal(alias, uf, ano, type);
+      if (!dataPath) continue;
+      const res = await fetchGeoJSON(dataPath, true).catch(e => null);
+      if (res) return res;
+    }
+    return null;
   }
-
-  if (!dataPath) return null;
-  const isOptional = (normalizedType === 'sup');
-  return await fetchGeoJSON(dataPath, isOptional).catch(e => null);
 }
 
 async function loadAllStatesAndMerge_General(cargo, year, type) {
@@ -2647,8 +2707,14 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
     const worker = async () => {
       while (index < municipios.length) {
         const municipio = municipios[index++];
-        const dataPath = buildDataPath_Municipal(municipio, uf, year, getMunicipalSubtypeFileLabel(subtype));
-        const geojson = await fetchGeoJSON(dataPath, true).catch(() => null);
+        const aliases = getMunicipalAliases(municipio);
+        let geojson = null;
+        for (const alias of aliases) {
+          const dataPath = buildDataPath_Municipal(alias, uf, year, getMunicipalSubtypeFileLabel(subtype));
+          if (!dataPath) continue;
+          geojson = await fetchGeoJSON(dataPath, true).catch(() => null);
+          if (geojson) break;
+        }
         if (!geojson) continue;
 
         // Alguns arquivos municipais não marcam o vencedor como ELEITO, então o
@@ -2679,8 +2745,14 @@ async function loadMunicipalityDetailedSummary(uf, year, subtype = 'ord', munici
   }
 
   const promise = (async () => {
-    const dataPath = buildDataPath_Municipal(resolvedName, uf, year, getMunicipalSubtypeFileLabel(subtype));
-    const geojson = await fetchGeoJSON(dataPath, true).catch(() => null);
+    const aliases = getMunicipalAliases(resolvedName);
+    let geojson = null;
+    for (const alias of aliases) {
+      const dataPath = buildDataPath_Municipal(alias, uf, year, getMunicipalSubtypeFileLabel(subtype));
+      if (!dataPath) continue;
+      geojson = await fetchGeoJSON(dataPath, true).catch(() => null);
+      if (geojson) break;
+    }
     const summary = geojson ? summarizeMunicipalityGeoJSON(geojson, subtype) : null;
     if (summary) municipalResultDetailCache.set(cacheKey, summary);
     municipalResultDetailPromises.delete(cacheKey);
@@ -3786,7 +3858,11 @@ function handleMouseUp(e) {
 
   // Identify features inside bounds
   if (STATE.currentMapMode === 'municipios') {
-    selectMunicipalitiesInBounds(bounds);
+    if (STATE.currentElectionType === 'municipal' && STATE.selectedMuniCode) {
+      selectFeaturesInBounds(bounds);
+    } else {
+      selectMunicipalitiesInBounds(bounds);
+    }
     return;
   }
   selectFeaturesInBounds(bounds);
