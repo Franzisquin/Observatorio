@@ -1,0 +1,137 @@
+[
+  {
+    "uf": "AC",
+    "total_locais_json": 529,
+    "source_geojson_zip": "locais_votacao_2006_1.zip"
+  },
+  {
+    "uf": "AL",
+    "total_locais_json": 881,
+    "source_geojson_zip": "locais_votacao_2006_1.zip"
+  },
+  {
+    "uf": "AM",
+    "total_locais_json": 1428,
+    "source_geojson_zip": "locais_votacao_2006_1.zip"
+  },
+  {
+    "uf": "AP",
+    "total_locais_json": 264,
+    "source_geojson_zip": "locais_votacao_2006_1.zip"
+  },
+  {
+    "uf": "BA",
+    "total_locais_json": 9760,
+    "source_geojson_zip": "locais_votacao_2006_1.zip"
+  },
+  {
+    "uf": "CE",
+    "total_locais_json": 7402,
+    "source_geojson_zip": "locais_votacao_2006_2.zip"
+  },
+  {
+    "uf": "DF",
+    "total_locais_json": 497,
+    "source_geojson_zip": "locais_votacao_2006_2.zip"
+  },
+  {
+    "uf": "ES",
+    "total_locais_json": 1634,
+    "source_geojson_zip": "locais_votacao_2006_2.zip"
+  },
+  {
+    "uf": "GO",
+    "total_locais_json": 2583,
+    "source_geojson_zip": "locais_votacao_2006_2.zip"
+  },
+  {
+    "uf": "MA",
+    "total_locais_json": 5026,
+    "source_geojson_zip": "locais_votacao_2006_2.zip"
+  },
+  {
+    "uf": "MG",
+    "total_locais_json": 10256,
+    "source_geojson_zip": "locais_votacao_2006_3.zip"
+  },
+  {
+    "uf": "MS",
+    "total_locais_json": 1019,
+    "source_geojson_zip": "locais_votacao_2006_3.zip"
+  },
+  {
+    "uf": "MT",
+    "total_locais_json": 1584,
+    "source_geojson_zip": "locais_votacao_2006_3.zip"
+  },
+  {
+    "uf": "PA",
+    "total_locais_json": 4676,
+    "source_geojson_zip": "locais_votacao_2006_3.zip"
+  },
+  {
+    "uf": "PB",
+    "total_locais_json": 1949,
+    "source_geojson_zip": "locais_votacao_2006_4.zip"
+  },
+  {
+    "uf": "PE",
+    "total_locais_json": 3198,
+    "source_geojson_zip": "locais_votacao_2006_4.zip"
+  },
+  {
+    "uf": "PI",
+    "total_locais_json": 3360,
+    "source_geojson_zip": "locais_votacao_2006_4.zip"
+  },
+  {
+    "uf": "PR",
+    "total_locais_json": 5788,
+    "source_geojson_zip": "locais_votacao_2006_4.zip"
+  },
+  {
+    "uf": "RJ",
+    "total_locais_json": 5080,
+    "source_geojson_zip": "locais_votacao_2006_5.zip"
+  },
+  {
+    "uf": "RN",
+    "total_locais_json": 1530,
+    "source_geojson_zip": "locais_votacao_2006_5.zip"
+  },
+  {
+    "uf": "RO",
+    "total_locais_json": 580,
+    "source_geojson_zip": "locais_votacao_2006_5.zip"
+  },
+  {
+    "uf": "RR",
+    "total_locais_json": 324,
+    "source_geojson_zip": "locais_votacao_2006_5.zip"
+  },
+  {
+    "uf": "RS",
+    "total_locais_json": 9229,
+    "source_geojson_zip": "locais_votacao_2006_5.zip"
+  },
+  {
+    "uf": "SC",
+    "total_locais_json": 4020,
+    "source_geojson_zip": "locais_votacao_2006_6.zip"
+  },
+  {
+    "uf": "SE",
+    "total_locais_json": 1016,
+    "source_geojson_zip": "locais_votacao_2006_6.zip"
+  },
+  {
+    "uf": "SP",
+    "total_locais_json": 8952,
+    "source_geojson_zip": "locais_votacao_2006_6.zip"
+  },
+  {
+    "uf": "TO",
+    "total_locais_json": 880,
+    "source_geojson_zip": "locais_votacao_2006_6.zip"
+  }
+]
