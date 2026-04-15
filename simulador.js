@@ -313,12 +313,28 @@ function hslToHex(h, s, l) {
   return '#' + r + g + b;
 }
 
-function getUniversalGradientColor(baseColorHex, pct) {
-  if (pct < 0) pct = 0;
-  if (pct > 100) pct = 100;
+function getUniversalGradientColor(baseColorHex, marginPct) {
+  const BASE_MARGIN = 20;
+  const MIN_MARGIN = 0;
+  const MAX_MARGIN = 60;
+  const MAX_LIGHTEN = 14;
+  const MAX_DARKEN = 18;
+  const EASING_EXPONENT = 1.35;
+
+  const numericMargin = Number.isFinite(marginPct) ? marginPct : BASE_MARGIN;
+  const clampedMargin = Math.max(MIN_MARGIN, Math.min(MAX_MARGIN, numericMargin));
   const hsl = hexToHSL(baseColorHex);
-  const targetL = 70 - (pct / 100) * 40;
-  return hslToHex(hsl.h, hsl.s, targetL);
+  let targetL = hsl.l;
+
+  if (clampedMargin < BASE_MARGIN) {
+    const progress = Math.pow((BASE_MARGIN - clampedMargin) / (BASE_MARGIN - MIN_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l + (MAX_LIGHTEN * progress);
+  } else if (clampedMargin > BASE_MARGIN) {
+    const progress = Math.pow((clampedMargin - BASE_MARGIN) / (MAX_MARGIN - BASE_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l - (MAX_DARKEN * progress);
+  }
+
+  return hslToHex(hsl.h, hsl.s, Math.max(8, Math.min(92, targetL)));
 }
 let ZIP_INDEX = null;
 let ZIP_READERS = new Map();
@@ -1802,9 +1818,7 @@ function simRenderMapaEstados() {
         const validVotos = sorted.reduce((s, v) => s + v, 0);
         marginPct = validVotos > 0 ? ((sorted[0] - (sorted[1] || 0)) / validVotos) * 100 : 0;
       }
-      const marginIntensity = Math.max(0, Math.min(50, marginPct));
-      const fixedRelativePct = (marginIntensity / 50) * 100;
-      const fillCol = getUniversalGradientColor(cor, fixedRelativePct);
+      const fillCol = getUniversalGradientColor(cor, marginPct);
 
       const isSelected = SIM.selectedUF === sigla;
       const isFaded = SIM.selectedUF && !isSelected;
@@ -2130,10 +2144,9 @@ function simOnClickEstado(sigla) {
   simAtualizarBtnVoltar();
   simRefreshSidebar();
 
-  if (SIM.modo === 'governador') {
-     if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
-  } else {
-     if (SIM.estadosLayer) simRenderMapaEstados(); 
+  if (SIM.estadosLayer) { 
+     simMap.removeLayer(SIM.estadosLayer); 
+     SIM.estadosLayer = null; 
   }
   
   simRenderMapaMunicipios(sigla);
@@ -2237,9 +2250,7 @@ async function simRenderMapaMunicipios(uf) {
         const validVotos = sorted.reduce((s, v) => s + v, 0);
         marginPct = validVotos > 0 ? ((sorted[0] - (sorted[1] || 0)) / validVotos) * 100 : 0;
       }
-      const marginIntensity = Math.max(0, Math.min(50, marginPct));
-      const fixedRelativePct = (marginIntensity / 50) * 100;
-      const fillCol = getUniversalGradientColor(cor, fixedRelativePct);
+      const fillCol = getUniversalGradientColor(cor, marginPct);
 
       const isSelected = SIM.selectedMuni === codM;
       const isFaded = SIM.selectedMuni && !isSelected;
@@ -2629,9 +2640,7 @@ function simRenderMapaLocais(uf, codM = null) {
           marginPct = ((sortedVotes[0] || 0) - (sortedVotes[1] || 0)) / validTotal * 100;
         }
       }
-      let marginIntensity = Math.max(0, Math.min(50, marginPct));
-      const fixedRelativePct = (marginIntensity / 50) * 100;
-      const cor = getUniversalGradientColor(baseCor, fixedRelativePct);
+      const cor = getUniversalGradientColor(baseCor, marginPct);
 
       // Radius based on log scale of valid voters (same logic as visualizer)
       const aptos = p._sim ? p._sim.totalAptos : 0;
