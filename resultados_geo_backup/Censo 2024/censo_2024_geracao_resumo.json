@@ -1,0 +1,262 @@
+[
+  {
+    "uf": "AC",
+    "total_locais_json": 720,
+    "matched_parquet": 667,
+    "fallback_geo_only": 53,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 53,
+    "source_geojson_zip": "locais_votacao_2024_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_AC.parquet"
+  },
+  {
+    "uf": "AL",
+    "total_locais_json": 1011,
+    "matched_parquet": 974,
+    "fallback_geo_only": 37,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 37,
+    "source_geojson_zip": "locais_votacao_2024_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_AL.parquet"
+  },
+  {
+    "uf": "AM",
+    "total_locais_json": 1522,
+    "matched_parquet": 1489,
+    "fallback_geo_only": 33,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 33,
+    "source_geojson_zip": "locais_votacao_2024_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_AM.parquet"
+  },
+  {
+    "uf": "AP",
+    "total_locais_json": 358,
+    "matched_parquet": 343,
+    "fallback_geo_only": 15,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 15,
+    "source_geojson_zip": "locais_votacao_2024_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_AP.parquet"
+  },
+  {
+    "uf": "BA",
+    "total_locais_json": 9345,
+    "matched_parquet": 9012,
+    "fallback_geo_only": 333,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 333,
+    "source_geojson_zip": "locais_votacao_2024_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_BA.parquet"
+  },
+  {
+    "uf": "CE",
+    "total_locais_json": 6770,
+    "matched_parquet": 6511,
+    "fallback_geo_only": 259,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 259,
+    "source_geojson_zip": "locais_votacao_2024_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_CE.parquet"
+  },
+  {
+    "uf": "ES",
+    "total_locais_json": 1720,
+    "matched_parquet": 1686,
+    "fallback_geo_only": 34,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 34,
+    "source_geojson_zip": "locais_votacao_2024_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_ES.parquet"
+  },
+  {
+    "uf": "GO",
+    "total_locais_json": 2445,
+    "matched_parquet": 2373,
+    "fallback_geo_only": 72,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 72,
+    "source_geojson_zip": "locais_votacao_2024_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_GO.parquet"
+  },
+  {
+    "uf": "MA",
+    "total_locais_json": 5862,
+    "matched_parquet": 5633,
+    "fallback_geo_only": 229,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 229,
+    "source_geojson_zip": "locais_votacao_2024_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_MA.parquet"
+  },
+  {
+    "uf": "MG",
+    "total_locais_json": 10196,
+    "matched_parquet": 10031,
+    "fallback_geo_only": 165,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 165,
+    "source_geojson_zip": "locais_votacao_2024_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_MG.parquet"
+  },
+  {
+    "uf": "MS",
+    "total_locais_json": 1029,
+    "matched_parquet": 1005,
+    "fallback_geo_only": 24,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 24,
+    "source_geojson_zip": "locais_votacao_2024_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_MS.parquet"
+  },
+  {
+    "uf": "MT",
+    "total_locais_json": 1465,
+    "matched_parquet": 1427,
+    "fallback_geo_only": 38,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 38,
+    "source_geojson_zip": "locais_votacao_2024_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_MT.parquet"
+  },
+  {
+    "uf": "PA",
+    "total_locais_json": 5374,
+    "matched_parquet": 5250,
+    "fallback_geo_only": 124,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 124,
+    "source_geojson_zip": "locais_votacao_2024_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_PA.parquet"
+  },
+  {
+    "uf": "PB",
+    "total_locais_json": 1739,
+    "matched_parquet": 1664,
+    "fallback_geo_only": 75,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 75,
+    "source_geojson_zip": "locais_votacao_2024_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_PB.parquet"
+  },
+  {
+    "uf": "PE",
+    "total_locais_json": 3278,
+    "matched_parquet": 3130,
+    "fallback_geo_only": 148,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 148,
+    "source_geojson_zip": "locais_votacao_2024_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_PE.parquet"
+  },
+  {
+    "uf": "PI",
+    "total_locais_json": 3479,
+    "matched_parquet": 3396,
+    "fallback_geo_only": 83,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 83,
+    "source_geojson_zip": "locais_votacao_2024_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_PI.parquet"
+  },
+  {
+    "uf": "PR",
+    "total_locais_json": 4776,
+    "matched_parquet": 4600,
+    "fallback_geo_only": 177,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 177,
+    "source_geojson_zip": "locais_votacao_2024_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_PR.parquet"
+  },
+  {
+    "uf": "RJ",
+    "total_locais_json": 4835,
+    "matched_parquet": 4730,
+    "fallback_geo_only": 105,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 105,
+    "source_geojson_zip": "locais_votacao_2024_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_RJ.parquet"
+  },
+  {
+    "uf": "RN",
+    "total_locais_json": 1542,
+    "matched_parquet": 1481,
+    "fallback_geo_only": 61,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 61,
+    "source_geojson_zip": "locais_votacao_2024_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_RN.parquet"
+  },
+  {
+    "uf": "RO",
+    "total_locais_json": 636,
+    "matched_parquet": 632,
+    "fallback_geo_only": 4,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 4,
+    "source_geojson_zip": "locais_votacao_2024_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_RO.parquet"
+  },
+  {
+    "uf": "RR",
+    "total_locais_json": 353,
+    "matched_parquet": 327,
+    "fallback_geo_only": 26,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 26,
+    "source_geojson_zip": "locais_votacao_2024_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_RR.parquet"
+  },
+  {
+    "uf": "RS",
+    "total_locais_json": 8090,
+    "matched_parquet": 7810,
+    "fallback_geo_only": 280,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 280,
+    "source_geojson_zip": "locais_votacao_2024_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_RS.parquet"
+  },
+  {
+    "uf": "SC",
+    "total_locais_json": 3497,
+    "matched_parquet": 3304,
+    "fallback_geo_only": 193,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 193,
+    "source_geojson_zip": "locais_votacao_2024_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_SC.parquet"
+  },
+  {
+    "uf": "SE",
+    "total_locais_json": 1195,
+    "matched_parquet": 1151,
+    "fallback_geo_only": 44,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 44,
+    "source_geojson_zip": "locais_votacao_2024_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_SE.parquet"
+  },
+  {
+    "uf": "SP",
+    "total_locais_json": 10853,
+    "matched_parquet": 10298,
+    "fallback_geo_only": 555,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 555,
+    "source_geojson_zip": "locais_votacao_2024_7.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_SP.parquet"
+  },
+  {
+    "uf": "TO",
+    "total_locais_json": 853,
+    "matched_parquet": 846,
+    "fallback_geo_only": 7,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 7,
+    "source_geojson_zip": "locais_votacao_2024_7.zip",
+    "source_parquet": "perfil_eleitor_secao_2024_TO.parquet"
+  }
+]

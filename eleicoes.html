@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/unzipit@1.4.0/dist/unzipit.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -319,6 +321,51 @@
           </div>
         </div>
 
+        <div class="section section-hidden" id="vizBox">
+          <h3>VisualizaÃ§Ã£o do Mapa</h3>
+
+          <div class="ctrl">
+            <label>Modo</label>
+            <div class="chip-group" id="vizModeChips">
+              <button class="chip-button active" data-value="vencedor">Vencedor</button>
+              <button class="chip-button" data-value="desempenho">Desempenho</button>
+            </div>
+          </div>
+
+          <div class="ctrl section-hidden" id="vizCandidatoBox">
+            <label for="selectVizCandidato">Candidato</label>
+            <select id="selectVizCandidato" class="select" disabled></select>
+            <div id="deputySearchBox" class="combobox-container"
+              style="display:none; margin-top:8px; position:relative; flex-direction:column; align-items:stretch;">
+              <input id="deputySearchInput" type="text" class="combobox-input"
+                placeholder="Buscar candidato por nome, partido ou nÃºmero..." autocomplete="off" disabled>
+              <div id="deputySearchResults" class="combobox-dropdown"></div>
+            </div>
+          </div>
+
+          <div class="row" style="grid-template-columns: 1fr 1fr;">
+            <div class="ctrl">
+              <label for="selectVizColorStyle">Estilo de Cor</label>
+              <select id="selectVizColorStyle" class="select" disabled>
+                <option value="gradient" selected>Gradiente</option>
+                <option value="static">Cor EstÃ¡tica</option>
+              </select>
+            </div>
+
+            <div class="ctrl">
+              <label for="selectVizSize">Tamanho dos Pontos</label>
+              <select id="selectVizSize" class="select" disabled>
+                <option value="comparecimento" selected>Por Comparecimento</option>
+                <option value="fixo">Fixo</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button id="btnApplyFilters" class="button primary" disabled>Carregue os dados</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -386,6 +433,11 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <div class="section section-hidden" id="summaryBoxContainer">
+          <h3 style="margin:0 0 12px 0; font-size: 1rem;">Comparativo</h3>
+          <div id="summaryGrid" class="summary-grid"></div>
         </div>
 
         <div class="section section-hidden" id="resultsBox">
@@ -682,7 +734,29 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- NOVOS SCRIPTS MODULARES -->
+  <script src="js/globals.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/data-zip.js"></script>
+  <script src="js/data-process.js"></script>
+
+  <!-- Módulos de Carregamento por Ano -->
+  <script src="js/data-geral-2022.js"></script>
+  <script src="js/data-geral-2018.js"></script>
+  <script src="js/data-geral-2014.js"></script>
+  <script src="js/data-geral-2010.js"></script>
+  <script src="js/data-geral-2006.js"></script>
+
+  <!-- Módulos Municipais -->
+  <script src="js/data-municipal.js"></script>
+
+  <script src="js/data-loader.js"></script>
+  <script src="js/data-router.js"></script>
+  <script src="js/map-render.js"></script>
+  <script src="js/ui-helpers.js"></script>
+  <script src="js/ui-results.js"></script>
+  <script src="js/results-panel.js"></script>
+  <script src="js/ui-controls.js"></script>
 </body>
 
 </html>

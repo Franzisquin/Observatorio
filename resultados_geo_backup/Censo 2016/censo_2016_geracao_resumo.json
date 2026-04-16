@@ -1,0 +1,262 @@
+[
+  {
+    "uf": "AC",
+    "total_locais_json": 736,
+    "matched_parquet": 717,
+    "fallback_geo_only": 19,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 19,
+    "source_geojson_zip": "locais_votacao_2016_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_AC.parquet"
+  },
+  {
+    "uf": "AL",
+    "total_locais_json": 977,
+    "matched_parquet": 960,
+    "fallback_geo_only": 17,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 17,
+    "source_geojson_zip": "locais_votacao_2016_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_AL.parquet"
+  },
+  {
+    "uf": "AM",
+    "total_locais_json": 1493,
+    "matched_parquet": 1490,
+    "fallback_geo_only": 3,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 3,
+    "source_geojson_zip": "locais_votacao_2016_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_AM.parquet"
+  },
+  {
+    "uf": "AP",
+    "total_locais_json": 337,
+    "matched_parquet": 334,
+    "fallback_geo_only": 3,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 3,
+    "source_geojson_zip": "locais_votacao_2016_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_AP.parquet"
+  },
+  {
+    "uf": "BA",
+    "total_locais_json": 10079,
+    "matched_parquet": 10039,
+    "fallback_geo_only": 40,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 40,
+    "source_geojson_zip": "locais_votacao_2016_1.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_BA.parquet"
+  },
+  {
+    "uf": "CE",
+    "total_locais_json": 7050,
+    "matched_parquet": 7007,
+    "fallback_geo_only": 43,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 43,
+    "source_geojson_zip": "locais_votacao_2016_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_CE.parquet"
+  },
+  {
+    "uf": "ES",
+    "total_locais_json": 1666,
+    "matched_parquet": 1647,
+    "fallback_geo_only": 19,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 19,
+    "source_geojson_zip": "locais_votacao_2016_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_ES.parquet"
+  },
+  {
+    "uf": "GO",
+    "total_locais_json": 2471,
+    "matched_parquet": 2466,
+    "fallback_geo_only": 5,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 5,
+    "source_geojson_zip": "locais_votacao_2016_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_GO.parquet"
+  },
+  {
+    "uf": "MA",
+    "total_locais_json": 5703,
+    "matched_parquet": 5693,
+    "fallback_geo_only": 10,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 10,
+    "source_geojson_zip": "locais_votacao_2016_2.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_MA.parquet"
+  },
+  {
+    "uf": "MG",
+    "total_locais_json": 10224,
+    "matched_parquet": 10183,
+    "fallback_geo_only": 41,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 41,
+    "source_geojson_zip": "locais_votacao_2016_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_MG.parquet"
+  },
+  {
+    "uf": "MS",
+    "total_locais_json": 1013,
+    "matched_parquet": 1011,
+    "fallback_geo_only": 2,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 2,
+    "source_geojson_zip": "locais_votacao_2016_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_MS.parquet"
+  },
+  {
+    "uf": "MT",
+    "total_locais_json": 1493,
+    "matched_parquet": 1481,
+    "fallback_geo_only": 12,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 12,
+    "source_geojson_zip": "locais_votacao_2016_3.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_MT.parquet"
+  },
+  {
+    "uf": "PA",
+    "total_locais_json": 5217,
+    "matched_parquet": 5184,
+    "fallback_geo_only": 33,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 33,
+    "source_geojson_zip": "locais_votacao_2016_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_PA.parquet"
+  },
+  {
+    "uf": "PB",
+    "total_locais_json": 1795,
+    "matched_parquet": 1780,
+    "fallback_geo_only": 15,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 15,
+    "source_geojson_zip": "locais_votacao_2016_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_PB.parquet"
+  },
+  {
+    "uf": "PE",
+    "total_locais_json": 3286,
+    "matched_parquet": 3257,
+    "fallback_geo_only": 29,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 29,
+    "source_geojson_zip": "locais_votacao_2016_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_PE.parquet"
+  },
+  {
+    "uf": "PI",
+    "total_locais_json": 3605,
+    "matched_parquet": 3560,
+    "fallback_geo_only": 45,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 45,
+    "source_geojson_zip": "locais_votacao_2016_4.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_PI.parquet"
+  },
+  {
+    "uf": "PR",
+    "total_locais_json": 5101,
+    "matched_parquet": 5092,
+    "fallback_geo_only": 9,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 9,
+    "source_geojson_zip": "locais_votacao_2016_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_PR.parquet"
+  },
+  {
+    "uf": "RJ",
+    "total_locais_json": 5017,
+    "matched_parquet": 4988,
+    "fallback_geo_only": 29,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 29,
+    "source_geojson_zip": "locais_votacao_2016_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_RJ.parquet"
+  },
+  {
+    "uf": "RN",
+    "total_locais_json": 1570,
+    "matched_parquet": 1557,
+    "fallback_geo_only": 13,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 13,
+    "source_geojson_zip": "locais_votacao_2016_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_RN.parquet"
+  },
+  {
+    "uf": "RO",
+    "total_locais_json": 646,
+    "matched_parquet": 644,
+    "fallback_geo_only": 2,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 2,
+    "source_geojson_zip": "locais_votacao_2016_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_RO.parquet"
+  },
+  {
+    "uf": "RR",
+    "total_locais_json": 336,
+    "matched_parquet": 334,
+    "fallback_geo_only": 2,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 2,
+    "source_geojson_zip": "locais_votacao_2016_5.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_RR.parquet"
+  },
+  {
+    "uf": "RS",
+    "total_locais_json": 8601,
+    "matched_parquet": 8584,
+    "fallback_geo_only": 17,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 17,
+    "source_geojson_zip": "locais_votacao_2016_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_RS.parquet"
+  },
+  {
+    "uf": "SC",
+    "total_locais_json": 3832,
+    "matched_parquet": 3827,
+    "fallback_geo_only": 5,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 5,
+    "source_geojson_zip": "locais_votacao_2016_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_SC.parquet"
+  },
+  {
+    "uf": "SE",
+    "total_locais_json": 1113,
+    "matched_parquet": 1095,
+    "fallback_geo_only": 18,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 18,
+    "source_geojson_zip": "locais_votacao_2016_6.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_SE.parquet"
+  },
+  {
+    "uf": "SP",
+    "total_locais_json": 10415,
+    "matched_parquet": 10358,
+    "fallback_geo_only": 57,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 57,
+    "source_geojson_zip": "locais_votacao_2016_7.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_SP.parquet"
+  },
+  {
+    "uf": "TO",
+    "total_locais_json": 878,
+    "matched_parquet": 875,
+    "fallback_geo_only": 3,
+    "patched_zero_income_sanitation": 0,
+    "patched_demography_from_nearest_parquet": 3,
+    "source_geojson_zip": "locais_votacao_2016_7.zip",
+    "source_parquet": "perfil_eleitor_secao_2016_TO.parquet"
+  }
+]
