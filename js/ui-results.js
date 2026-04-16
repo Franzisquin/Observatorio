@@ -456,6 +456,22 @@ function updateConditionalUI() {
 }
 
 function updateElectionTypeUI() {
+  const isMunicipal = STATE.currentElectionType === 'municipal';
+  const hasMunicipalSelection = !!(dom.selectMunicipio?.value);
+  if (dom.officeBoxGeneral) dom.officeBoxGeneral.classList.toggle('section-hidden', isMunicipal);
+  if (dom.officeBoxMunicipal) dom.officeBoxMunicipal.classList.toggle('section-hidden', !isMunicipal || !hasMunicipalSelection);
+  if (!isMunicipal) {
+    dom.cargoChipsMunicipal.innerHTML = '';
+    dom.cargoBoxMunicipal.classList.add('section-hidden');
+    return;
+  }
+
+  if (!hasMunicipalSelection) {
+    dom.cargoChipsMunicipal.innerHTML = '';
+    dom.cargoBoxMunicipal.classList.add('section-hidden');
+    return;
+  }
+
   dom.cargoChipsMunicipal.innerHTML = '';
 
   // Vereador não tem suplementar — esconde a caixa de ord/sup

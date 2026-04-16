@@ -506,14 +506,45 @@ function getWinningProportionalListData(votesMap, type = 'deputado') {
   return {
     ...winner,
     total: aggregated.total,
-    pct: aggregated.total > 0 ? (winner.votes / aggregated.total) * 100 : 0
+    pct: aggregated.total > 0 ? (winner.votes / aggregated.total) * 100 : 0,
+    marginPct: getWinningMarginPct(aggregated.groups.map((group) => group.votes), aggregated.total)
   };
+}
+
+function getWinningMarginPct(voteTotals, totalVotes) {
+  const safeTotal = ensureNumber(totalVotes);
+  if (safeTotal <= 0) return 20;
+
+  const orderedVotes = (voteTotals || [])
+    .map((vote) => ensureNumber(vote))
+    .filter((vote) => vote > 0)
+    .sort((a, b) => b - a);
+
+  if (!orderedVotes.length) return 20;
+
+  const winnerVotes = orderedVotes[0];
+  const runnerUpVotes = orderedVotes[1] || 0;
+  return ((winnerVotes - runnerUpVotes) / safeTotal) * 100;
+}
+
+function getMajoritarianMarginPct(props, turnoKey, totalValidos) {
+  const candidateVotes = Object.entries(props || {})
+    .filter(([key]) => key.endsWith(` ${turnoKey}`) && isCandidateVoteKey(key))
+    .map(([, value]) => ensureNumber(value));
+
+  return getWinningMarginPct(candidateVotes, totalValidos);
+}
+
+function formatTooltipDisplayName(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return typeof toTitleCase === 'function' ? toTitleCase(text) : text;
 }
 
 function buildLocationTooltip(feature) {
   const props = feature.properties || {};
-  const nomeLocal = getProp(props, 'nm_locvot') || 'Local';
-  const nomeCidade = getProp(props, 'nm_localidade') || 'Cidade';
+  const nomeLocal = formatTooltipDisplayName(getProp(props, 'nm_locvot') || 'Local');
+  const nomeCidade = formatTooltipDisplayName(getProp(props, 'nm_localidade') || 'Cidade');
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
 
   let totalValidos = 0;
@@ -536,7 +567,7 @@ function buildLocationTooltip(feature) {
       const pct = totalValidos > 0 ? (group.votes / totalValidos) * 100 : 0;
       rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${group.color};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(group.name)}</span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(formatTooltipDisplayName(group.name))}</span>
         <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
         <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(group.votes)})</span>
       </div>`;
@@ -564,7 +595,7 @@ function buildLocationTooltip(feature) {
       const pct = totalValidos > 0 ? (candidate.votes / totalValidos) * 100 : 0;
       rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(candidate.name)}</span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(formatTooltipDisplayName(candidate.name))}</span>
         <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
         <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
       </div>`;
@@ -585,7 +616,7 @@ function buildLocationTooltip(feature) {
 }
 
 function buildMunicipalityTooltip(feature, summary) {
-  const nome = getMunicipalityFeatureName(feature?.properties);
+  const nome = formatTooltipDisplayName(getMunicipalityFeatureName(feature?.properties));
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const uf = dom.selectUFMunicipal?.value || dom.selectUFGeneral?.value || '';
   const ufLabel = UF_MAP.get(uf) || uf;
@@ -615,7 +646,7 @@ function buildMunicipalityTooltip(feature, summary) {
       const pct = result.totalValid > 0 ? (candidate.votes / result.totalValid) * 100 : 0;
       rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(candidate.name)}</span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(formatTooltipDisplayName(candidate.name))}</span>
         <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
         <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
       </div>`;
@@ -696,7 +727,7 @@ function renderDeputySearchResults(results, container, query) {
 
   container.innerHTML = results.map((c, idx) => {
     const isSelected = selectedValue === `${c.nome} (${c.partido})`;
-    const partyColor = PARTY_COLORS.get(c.partido.toUpperCase()) || DEFAULT_SWATCH;
+    const partyColor = colorForParty(c.partido);
 
     // Highlight match
     let displayName = toTitleCase(c.nome);
@@ -1402,16 +1433,18 @@ function getFeatureStyle(feature) {
     }
     const { total, winner, winnerVotes } = depData;
     const winningList = getWinningProportionalListData(depData.votes, 'vereador');
-    let fillColor = DEFAULT_SWATCH, fillOpacity = DEFAULT_POINT_FILL_OPACITY, pctVal = 0;
+    let fillColor = DEFAULT_SWATCH, fillOpacity = DEFAULT_POINT_FILL_OPACITY, pctVal = 0, marginPct = 20;
 
     if (currentVizMode.startsWith('vencedor')) {
       if (winningList) {
         fillColor = winningList.color;
         pctVal = winningList.pct;
+        marginPct = winningList.marginPct;
       } else if (winner) {
         const meta = STATE.vereadorMetadata[winner];
         fillColor = getColorForCandidate(meta ? meta[0] : '', meta ? meta[1] : '');
         pctVal = (total > 0) ? (winnerVotes / total) * 100 : 0;
+        marginPct = getWinningMarginPct([winnerVotes], total);
       }
     } else if (currentVizMode.startsWith('desempenho')) {
       const candidatoKey = dom.selectVizCandidato.value;
@@ -1436,7 +1469,7 @@ function getFeatureStyle(feature) {
       }
     }
     if (currentVizColorStyle === 'gradient' && currentVizMode.startsWith('vencedor'))
-      fillColor = getUniversalGradientColor(fillColor, pctVal);
+      fillColor = getUniversalGradientColor(fillColor, marginPct);
 
     const localId = resolveFeatureSelectionId(props);
     if (selectedLocationIDs.has(localId) && !STATE.isFilterAggregationActive)
@@ -1503,7 +1536,10 @@ function getFeatureStyle(feature) {
 
     // Gradient Logic (only for vencedor mode; desempenho applies its own gradient above)
     if (currentVizColorStyle === 'gradient' && currentVizMode.startsWith('vencedor')) {
-      fillColor = getUniversalGradientColor(fillColor, pctVal);
+      const marginPct = winningList
+        ? winningList.marginPct
+        : getWinningMarginPct([winnerVotes], total);
+      fillColor = getUniversalGradientColor(fillColor, marginPct);
     }
 
     const localId = resolveFeatureSelectionId(props);
@@ -1546,7 +1582,10 @@ function getFeatureStyle(feature) {
     );
     fillOpacity = DEFAULT_POINT_FILL_OPACITY;
   } else if (currentVizColorStyle === 'gradient') {
-    fillColor = getUniversalGradientColor(fillColor, pctVal);
+    const marginPct = currentVizMode.startsWith('vencedor')
+      ? getMajoritarianMarginPct(props, turnoKey, totalValidos)
+      : pctVal;
+    fillColor = getUniversalGradientColor(fillColor, marginPct);
     fillOpacity = DEFAULT_POINT_FILL_OPACITY;
   } else {
     fillOpacity = DEFAULT_POINT_FILL_OPACITY;
@@ -1711,7 +1750,7 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
 }
 
 function getMunicipalPolygonStyle(feature, summary) {
-  const result = summary?.[getMunicipalityFeatureCode(feature?.properties)];
+  const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   if (!result) {
     return {
       fillColor: DEFAULT_SWATCH,
@@ -1722,7 +1761,8 @@ function getMunicipalPolygonStyle(feature, summary) {
     };
   }
 
-  const baseColor = getColorForCandidate(result.winnerName, result.winnerParty);
+  const normalizedParty = normalizePartyAlias(String(result.winnerParty || '').toUpperCase());
+  const baseColor = colorForParty(normalizedParty) || getColorForCandidate(result.winnerName, result.winnerParty);
   return {
     fillColor: getMarginAdjustedColor(baseColor, result.margin),
     fillOpacity: 0.78,

@@ -124,7 +124,10 @@ function toTitleCase(str) {
   // Helper to check if word is a known party (acronym)
   const isPartyAcronym = (w) => {
     const clean = w.replace(/[^a-zA-Z0-9]/g, ''); // Remove ( ) / etc
-    return PARTY_COLORS.has(clean.toUpperCase());
+    const normalized = typeof getNormalizedPartyColorKey === 'function'
+      ? getNormalizedPartyColorKey(clean)
+      : clean.toUpperCase();
+    return PARTY_COLOR_OVERRIDES.has(normalized) || PARTY_COLORS.has(normalized);
   };
 
   return str.split(' ').map((word) => {
@@ -252,6 +255,7 @@ async function init() {
   dom.loaderBoxGeneral = document.getElementById('loaderBoxGeneral');
   dom.loaderBoxMunicipal = document.getElementById('loaderBoxMunicipal');
 
+  dom.officeBoxGeneral = document.getElementById('officeBoxGeneral');
   dom.cargoChipsGeneral = document.getElementById('cargoChipsGeneral');
   dom.selectUFGeneral = document.getElementById('selectUFGeneral');
 

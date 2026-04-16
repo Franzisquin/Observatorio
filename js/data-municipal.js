@@ -239,7 +239,13 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
     };
 
     await loadTurnEntries(1);
-    if (String(subtype) === 'ord') {
+    if (
+      String(subtype) === 'ord' &&
+      (
+        typeof hasMunicipalSecondTurnArchive !== 'function'
+        || hasMunicipalSecondTurnArchive(year, ufNorm, subtype)
+      )
+    ) {
       await loadTurnEntries(2);
     }
     return stateSummary;
@@ -1300,7 +1306,9 @@ async function loadMunicipal2024Prefeito(uf, municipio, ano) {
   const muniCode = String(ord1.muniCode || '').trim();
   STATE.currentMuniCode = muniCode;
 
-  const ord2 = await loadPrefeitoJson2024(uf, municipio, 'ord', 2).catch(() => null);
+  const ord2 = (typeof hasMunicipalSecondTurnArchive === 'function' && !hasMunicipalSecondTurnArchive(2024, uf, 'ord'))
+    ? null
+    : await loadPrefeitoJson2024(uf, municipio, 'ord', 2).catch(() => null);
   const sup1 = await loadPrefeitoJson2024(uf, municipio, 'sup', 1).catch(() => null);
 
   const ordKeys = new Set(Object.keys(ord1.json.RESULTS || {}));
@@ -1398,7 +1406,9 @@ async function loadMunicipal2020Prefeito(uf, municipio, ano) {
   const muniCode = String(ord1.muniCode || '').trim();
   STATE.currentMuniCode = muniCode;
 
-  const ord2 = await loadPrefeitoJson2020(uf, municipio, 'ord', 2).catch(() => null);
+  const ord2 = (typeof hasMunicipalSecondTurnArchive === 'function' && !hasMunicipalSecondTurnArchive(2020, uf, 'ord'))
+    ? null
+    : await loadPrefeitoJson2020(uf, municipio, 'ord', 2).catch(() => null);
   const sup1 = await loadPrefeitoJson2020(uf, municipio, 'sup', 1).catch(() => null);
 
   const ordKeys = new Set(Object.keys(ord1.json.RESULTS || {}));
@@ -1496,7 +1506,9 @@ async function loadMunicipal2016Prefeito(uf, municipio, ano) {
   const muniCode = String(ord1.muniCode || '').trim();
   STATE.currentMuniCode = muniCode;
 
-  const ord2 = await loadPrefeitoJson2016(uf, municipio, 'ord', 2).catch(() => null);
+  const ord2 = (typeof hasMunicipalSecondTurnArchive === 'function' && !hasMunicipalSecondTurnArchive(2016, uf, 'ord'))
+    ? null
+    : await loadPrefeitoJson2016(uf, municipio, 'ord', 2).catch(() => null);
   const sup1 = await loadPrefeitoJson2016(uf, municipio, 'sup', 1).catch(() => null);
 
   const ordKeys = new Set(Object.keys(ord1.json.RESULTS || {}));
@@ -1594,7 +1606,9 @@ async function loadMunicipal2012Prefeito(uf, municipio, ano) {
   const muniCode = String(ord1.muniCode || '').trim();
   STATE.currentMuniCode = muniCode;
 
-  const ord2 = await loadPrefeitoJson2012(uf, municipio, 'ord', 2).catch(() => null);
+  const ord2 = (typeof hasMunicipalSecondTurnArchive === 'function' && !hasMunicipalSecondTurnArchive(2012, uf, 'ord'))
+    ? null
+    : await loadPrefeitoJson2012(uf, municipio, 'ord', 2).catch(() => null);
   const sup1 = await loadPrefeitoJson2012(uf, municipio, 'sup', 1).catch(() => null);
 
   const ordKeys = new Set(Object.keys(ord1.json.RESULTS || {}));
@@ -1692,7 +1706,9 @@ async function loadMunicipal2008Prefeito(uf, municipio, ano) {
   const muniCode = String(ord1.muniCode || '').trim();
   STATE.currentMuniCode = muniCode;
 
-  const ord2 = await loadPrefeitoJson2008(uf, municipio, 'ord', 2).catch(() => null);
+  const ord2 = (typeof hasMunicipalSecondTurnArchive === 'function' && !hasMunicipalSecondTurnArchive(2008, uf, 'ord'))
+    ? null
+    : await loadPrefeitoJson2008(uf, municipio, 'ord', 2).catch(() => null);
   const sup1 = await loadPrefeitoJson2008(uf, municipio, 'sup', 1).catch(() => null);
 
   const ordKeys = new Set(Object.keys(ord1.json.RESULTS || {}));

@@ -155,6 +155,7 @@ function setupControls() {
       }
 
       updateLoadButtonState();
+      updateElectionTypeUI();
 
       if (type === 'municipal') {
         const uf = dom.selectUFMunicipal?.value;
@@ -402,6 +403,8 @@ function setupControls() {
   });
   dom.selectMunicipio.addEventListener('change', () => {
     updateLoadButtonState();
+    updateElectionTypeUI();
+    updateConditionalUI();
     if (!dom.selectMunicipio.value) {
       const uf = dom.selectUFMunicipal?.value;
       if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
@@ -660,6 +663,28 @@ function setupControls() {
 
   if (dom.btnClearSelection) {
     dom.btnClearSelection.addEventListener('click', () => {
+      if (STATE.currentElectionType === 'municipal' && dom.selectMunicipio?.value) {
+        currentOffice = 'prefeito';
+        currentSubType = 'ord';
+        currentCargo = 'prefeito_ord';
+        applyDefaultVizColorStyleForCurrentCargo();
+        if (dom.officeChipsMunicipal) {
+          dom.officeChipsMunicipal.querySelectorAll('.chip-button').forEach((b) => {
+            b.classList.toggle('active', b.dataset.value === 'prefeito');
+          });
+        }
+        dom.selectMunicipio.value = '';
+        clearSelection(true);
+        updateElectionTypeUI();
+        updateConditionalUI();
+        updateApplyButtonText();
+        const uf = dom.selectUFMunicipal?.value;
+        if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
+          window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+        }
+        return;
+      }
+
       clearSelection(true);
       updateApplyButtonText();
       applyFiltersAndRedraw();

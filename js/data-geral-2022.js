@@ -348,8 +348,14 @@ async function loadMajoritariaCargo2022(cargo, uf) {
 
   let mergedTurno2 = null;
   if (cargo !== 'senador') {
+    const turno2Ufs = ufs.filter((sigla) => {
+      if (cargo === 'presidente') return true;
+      return typeof hasGeneralSecondTurnArchive === 'function'
+        ? hasGeneralSecondTurnArchive(2022, cargo, sigla)
+        : true;
+    });
     const turno2Payloads = (await Promise.all(
-      ufs.map((sigla) => loadGeneralMajoritariaJson2022(cargo, sigla, 2).catch(() => null))
+      turno2Ufs.map((sigla) => loadGeneralMajoritariaJson2022(cargo, sigla, 2).catch(() => null))
     )).filter((payload) => payload?.RESULTS);
 
     if (turno2Payloads.length) {

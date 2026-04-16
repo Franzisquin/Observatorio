@@ -346,13 +346,89 @@ const PARTY_COLORS = new Map(Object.entries({
   'PRD': '#007c3c', 'SD': '#f37021', 'PRONA': '#34b233', 'PRP': '#006db8', 'PMB': '#8e2a4e', 'Agir': '#9370db', 'AGIR': '#9370db'
 }));
 
+const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
+  'AVANTE': '#36aeba',
+  'CIDADANIA': '#ec5fa6',
+  'DC': '#809eff',
+  'DEM': '#6dbf36',
+  'MDB': '#16a250',
+  'MISSAO': '#fdbe21',
+  'NOVO': '#ff6600',
+  'PCB': '#c40823',
+  'PCDOB': '#b4251d',
+  'PC DO B': '#b4251d',
+  'PCO': '#8e3d10',
+  'PDS': '#6391d4',
+  'PDT': '#ffad99',
+  'PHS': '#e25850',
+  'PL': '#304091',
+  'PMN': '#ff3333',
+  'PODE': '#23a840',
+  'PODEMOS': '#23a840',
+  'PP': '#6391d4',
+  'PPB': '#6391d4',
+  'PPL': '#c6a815',
+  'PROS': '#e6661e',
+  'PRTB': '#1a7e2f',
+  'PSC': '#2f8e4f',
+  'PSB': '#edd355',
+  'PSD': '#eb8100',
+  'PSDB': '#0097fd',
+  'PSL': '#5dca53',
+  'PSOL': '#e95dd2',
+  'PSTU': '#620411',
+  'PT': '#ff3859',
+  'PTB': '#71def4',
+  'PTC': '#37c884',
+  'PTN': '#23a840',
+  'PTR': '#1a7e2f',
+  'PV': '#1f9439',
+  'PRP': '#ffe099',
+  'PRONA': '#0f6c36',
+  'PRD': '#007c3c',
+  'PFL': '#6dbf36',
+  'PPS': '#ec5fa6',
+  'PR': '#304091',
+  'PRB': '#45bdc9',
+  'REDE': '#7dd1d9',
+  'REPUBLICANOS': '#1f646b',
+  'SOLIDARIEDADE': '#ff633d',
+  'SD': '#ff633d',
+  'PATRIOTA': '#5fa72f',
+  'PATRI': '#5fa72f',
+  'PMDB': '#16a250',
+  'PMB': '#384ba8',
+  'PSDC': '#809eff',
+  'AGIR': '#254d88',
+  'UNIAO': '#2eccff',
+  'UNIAO BRASIL': '#2eccff',
+  'UP': '#5e5e5e',
+  'OUTROS': '#7a8699'
+}));
+
 const CUSTOM_CANDIDATE_COLORS = new Map();
+
+function getNormalizedPartyColorKey(partido) {
+  let cleanParty = String(partido || '').trim().toUpperCase();
+  if (!cleanParty) return '';
+  cleanParty = cleanParty.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  cleanParty = cleanParty.replace(/\s+/g, ' ').trim();
+  cleanParty = cleanParty.replace(/^FEDERACAO /, '');
+
+  if (cleanParty === 'PATRI') return 'PATRIOTA';
+  if (cleanParty === 'PODE') return 'PODEMOS';
+  if (cleanParty === 'SD') return 'SOLIDARIEDADE';
+  if (cleanParty === 'PC DO B') return 'PCDOB';
+
+  return cleanParty;
+}
 
 function getColorForCandidate(nome, partido) {
   if (CUSTOM_CANDIDATE_COLORS.has(nome)) {
     return CUSTOM_CANDIDATE_COLORS.get(nome);
   }
-  return PARTY_COLORS.get((partido || '').toUpperCase()) || DEFAULT_SWATCH;
+  const cleanParty = getNormalizedPartyColorKey(partido);
+  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
 }
 
 const DEFAULT_SWATCH = "#7a8699";

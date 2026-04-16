@@ -18,11 +18,7 @@ function updateSelectionUI(isFilterAggregation = false) {
   const year = STATE.currentElectionYear;
 
   if (dom.btnLocateSelection) {
-    dom.btnLocateSelection.style.display = 'inline-flex';
-    dom.btnLocateSelection.textContent = selectedLocationIDs.size === 1 ? 'Ver no mapa' : 'Enquadrar no mapa';
-    dom.btnLocateSelection.title = selectedLocationIDs.size === 1
-      ? 'Voltar para o local selecionado no mapa'
-      : 'Enquadrar a selecao atual no mapa';
+    dom.btnLocateSelection.style.display = 'none';
   }
 
   // --- LÃ“GICA DE TÍTULO ATUALIZADA ---
@@ -711,19 +707,20 @@ function renderResultsPanel(props, cargo) {
     const safeNome = escapeHtml(r.nome);
     const safePartido = escapeHtml(r.partido);
     div.innerHTML = `
-      <div class="cand-header">
+      <div class="cand-indicator-wrapper">
         ${renderCandidateColorControl(r.nome, r.partido, sw, true)}
-        <div class="cand-info">
-          <h4 title="${safeNome}">${safeNome}</h4>
-          <small title="${safePartido}">${safePartido}</small>
+      </div>
+      <div class="cand-name-wrapper cand-name-wrapper-stack">
+        <div class="cand-name" title="${safeNome}">${safeNome}</div>
+        <div class="cand-party" title="${safePartido}">${safePartido}</div>
+        <div class="cand-status-row">
+          ${getStatusBadge(r.status)}
         </div>
       </div>
-      <div class="cand-stats">
-        <div>
-          <span class="bigPct">${fmtPct(r.pct)}</span>
-          <span class="smallVotos">${fmtInt(r.votos)}</span>
-        </div>
-        ${getStatusBadge(r.status)}
+      <div class="cand-bar-wrapper cand-bar-wrapper-major">
+        <div class="cand-bar-fill" style="background:${sw}; width:${Math.max(0, Math.min(100, r.pct * 100))}%;"></div>
+        <div class="cand-votos">${fmtInt(r.votos)}</div>
+        <div class="cand-pct">${fmtPct(r.pct)}</div>
       </div>
     `;
     grid.appendChild(div);
@@ -3142,6 +3139,7 @@ window.parseCandidateKey = parseCandidateKey;
 window.selectedLocationIDs = selectedLocationIDs;
 window.getColorForCandidate = typeof getColorForCandidate === 'function' ? getColorForCandidate : null;
 window.PARTY_COLORS = PARTY_COLORS;
+window.PARTY_COLOR_OVERRIDES = PARTY_COLOR_OVERRIDES;
 // Expor currentTurno como getter para sempre pegar o valor atualizado
 Object.defineProperty(window, 'currentTurno', { get() { return currentTurno; }, configurable: true });
 Object.defineProperty(window, 'currentCargo', { get() { return currentCargo; }, configurable: true });

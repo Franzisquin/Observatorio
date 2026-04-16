@@ -456,13 +456,25 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 0;
+  padding: 6px 0;
   border-radius: 0;
   border: none;
   background: transparent;
   position: relative;
   transition: background .2s;
   font-size: 0.85rem;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.12);
+}
+
+.cand:last-child {
+  border-bottom: none;
+}
+
+.cand-indicator-wrapper {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex-shrink: 0;
 }
 
 .cand-indicator {
@@ -486,6 +498,14 @@ body {
   flex-shrink: 0;
 }
 
+.cand-name-wrapper-stack {
+  width: 160px;
+  min-width: 0;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .cand-name {
   flex: 1;
   white-space: nowrap;
@@ -507,6 +527,12 @@ body {
   flex-shrink: 0;
 }
 
+.cand-status-row {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+}
+
 .cand-bar-wrapper {
   flex: 1;
   display: flex;
@@ -515,6 +541,10 @@ body {
   position: relative;
   border-radius: 4px;
   min-height: 22px;
+}
+
+.cand-bar-wrapper-major {
+  min-height: 26px;
 }
 
 .cand-bar-fill {

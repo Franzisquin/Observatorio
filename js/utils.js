@@ -57,7 +57,12 @@ function escapeHtml(value) {
 function escapeAttribute(value) {
   return escapeHtml(value);
 }
-function colorForParty(sg) { return PARTY_COLORS.get((sg || '').toUpperCase()) || DEFAULT_SWATCH; }
+function colorForParty(sg) {
+  const cleanParty = typeof getNormalizedPartyColorKey === 'function'
+    ? getNormalizedPartyColorKey(sg)
+    : String(sg || '').trim().toUpperCase();
+  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
+}
 function fmtPct(x) { return isFinite(x) ? (x * 100).toFixed(2).replace('.', ',') + "%" : "-"; }
 function fmtInt(n) { return (n || 0).toLocaleString('pt-BR'); }
 function ensureNumber(v) {
@@ -83,6 +88,99 @@ function ensureNumber(v) {
   // 5. Converte para número final
   const n = Number(s);
   return isFinite(n) ? n : 0;
+}
+
+const GENERAL_METRIC_NAMES = new Set([
+  'TOTAL_VOTOS_VALIDOS',
+  'VOTOS_BRANCOS',
+  'VOTOS_NULOS',
+  'ELEITORES_APTOS',
+  'ELEITORES_APTOS_MUNICIPAL',
+  'ABSTENCOES',
+  'COMPARECIMENTO',
+  'VOTOS_LEGENDA',
+  'NR_TURNO'
+]);
+
+function isCandidateVoteKey(key) {
+  const rawKey = String(key || '').trim();
+  const turnoMatch = rawKey.match(/ (1T|2T)$/);
+  if (!turnoMatch) return false;
+
+  const coreKey = rawKey.replace(/ (1T|2T)$/, '');
+  const normalizedCore = norm(coreKey)
+    .replace(/[()]/g, '')
+    .replace(/\s+/g, '_');
+
+  return !GENERAL_METRIC_NAMES.has(normalizedCore);
+}
+
+const GENERAL_SECOND_TURN_AVAILABILITY = {
+  '2022': {
+    presidente: 'ALL',
+    governador: { ord: ['AL', 'AM', 'BA', 'ES', 'MS', 'PB', 'PE', 'RO', 'RS', 'SC', 'SE', 'SP'] },
+    senador: { ord: [] }
+  },
+  '2018': {
+    presidente: 'ALL',
+    governador: { ord: ['AM', 'AP', 'DF', 'MG', 'MS', 'PA', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
+    senador: { ord: [], sup: [] }
+  },
+  '2014': {
+    presidente: 'ALL',
+    governador: { ord: ['AC', 'AM', 'AP', 'CE', 'DF', 'GO', 'MS', 'PA', 'PB', 'RJ', 'RN', 'RO', 'RR', 'RS'], sup: ['AM'] },
+    senador: { ord: [], sup: [] }
+  },
+  '2010': {
+    presidente: 'ALL',
+    governador: { ord: ['AL', 'AP', 'DF', 'GO', 'PA', 'PB', 'PI', 'RO', 'RR'] },
+    senador: { ord: [] }
+  },
+  '2006': {
+    presidente: 'ALL',
+    governador: { ord: ['GO', 'MA', 'PA', 'PB', 'PE', 'PR', 'RJ', 'RN', 'RS', 'SC'] },
+    senador: { ord: [] }
+  }
+};
+
+function hasGeneralSecondTurnArchive(year, cargo, uf, subtype = 'ord') {
+  const yearKey = String(year || '').trim();
+  const cargoKey = String(cargo || '').trim().toLowerCase();
+  const ufKey = String(uf || '').trim().toUpperCase();
+  const subtypeKey = String(subtype || 'ord').trim().toLowerCase() === 'sup' ? 'sup' : 'ord';
+
+  if (!yearKey || !cargoKey || !ufKey) return false;
+
+  const yearAvailability = GENERAL_SECOND_TURN_AVAILABILITY[yearKey];
+  const cargoAvailability = yearAvailability?.[cargoKey];
+  if (!cargoAvailability) return false;
+  if (cargoAvailability === 'ALL') return true;
+
+  const availableUfs = cargoAvailability[subtypeKey] || cargoAvailability.ord || [];
+  return availableUfs.includes(ufKey);
+}
+
+const MUNICIPAL_SECOND_TURN_AVAILABILITY = {
+  '2024': { ord: ['AM', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SE', 'SP', 'TO'] },
+  '2020': { ord: ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
+  '2016': { ord: ['AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PE', 'PR', 'RJ', 'RO', 'RS', 'SC', 'SE', 'SP'] },
+  '2012': { ord: ['AC', 'AM', 'AP', 'BA', 'CE', 'ES', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
+  '2008': { ord: ['AM', 'AP', 'BA', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PR', 'RJ', 'RS', 'SC', 'SP'] }
+};
+
+function hasMunicipalSecondTurnArchive(year, uf, subtype = 'ord') {
+  const yearKey = String(year || '').trim();
+  const ufKey = String(uf || '').trim().toUpperCase();
+  const subtypeKey = String(subtype || 'ord').trim().toLowerCase() === 'sup' ? 'sup' : 'ord';
+  if (!yearKey || !ufKey) return false;
+  const availableUfs = MUNICIPAL_SECOND_TURN_AVAILABILITY[yearKey]?.[subtypeKey] || [];
+  return availableUfs.includes(ufKey);
+}
+
+if (typeof window !== 'undefined') {
+  window.isCandidateVoteKey = isCandidateVoteKey;
+  window.hasGeneralSecondTurnArchive = hasGeneralSecondTurnArchive;
+  window.hasMunicipalSecondTurnArchive = hasMunicipalSecondTurnArchive;
 }
 
 // --- COLOR UTILS (UNIVERSAL GRADIENT) ---
@@ -152,51 +250,28 @@ function hslToHex(h, s, l) {
   return "#" + r + g + b;
 }
 
-function getUniversalGradientColor(baseColorHex, pct) {
-  if (pct < 0) pct = 0;
-  if (pct > 100) pct = 100;
+function getUniversalGradientColor(baseColorHex, marginPct) {
+  const BASE_MARGIN = 20;
+  const MIN_MARGIN = 0;
+  const MAX_MARGIN = 60;
+  const MAX_LIGHTEN = 14;
+  const MAX_DARKEN = 18;
+  const EASING_EXPONENT = 1.35;
 
-  let hex = String(baseColorHex || '').trim();
-  if (!hex.startsWith('#')) return baseColorHex;
+  const numericMargin = Number.isFinite(marginPct) ? marginPct : BASE_MARGIN;
+  const clampedMargin = Math.max(MIN_MARGIN, Math.min(MAX_MARGIN, numericMargin));
+  const hsl = hexToHSL(baseColorHex);
+  let targetL = hsl.l;
 
-  if (hex.length === 4) {
-    hex = `#${hex[1]}${hex[1]}${hex[2]}${hex[2]}${hex[3]}${hex[3]}`;
+  if (clampedMargin < BASE_MARGIN) {
+    const progress = Math.pow((BASE_MARGIN - clampedMargin) / (BASE_MARGIN - MIN_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l + (MAX_LIGHTEN * progress);
+  } else if (clampedMargin > BASE_MARGIN) {
+    const progress = Math.pow((clampedMargin - BASE_MARGIN) / (MAX_MARGIN - BASE_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l - (MAX_DARKEN * progress);
   }
 
-  const num = parseInt(hex.slice(1), 16);
-  if (!Number.isFinite(num)) return baseColorHex;
-
-  const base = {
-    r: (num >> 16) & 255,
-    g: (num >> 8) & 255,
-    b: num & 255
-  };
-  const isYellowish = base.r > 200 && base.g > 200 && base.b < 100;
-  const dark = isYellowish ? { r: 140, g: 60, b: 0 } : { r: 30, g: 30, b: 35 };
-  const white = { r: 255, g: 255, b: 255 };
-  const step = Math.max(10, Math.min(95, Math.round((pct / 100) * 85) + 10));
-
-  let r;
-  let g;
-  let b;
-  if (step < 50) {
-    const f = 0.92 - ((step - 10) / 35) * 0.82;
-    r = base.r + (white.r - base.r) * f;
-    g = base.g + (white.g - base.g) * f;
-    b = base.b + (white.b - base.b) * f;
-  } else if (step === 50) {
-    r = base.r;
-    g = base.g;
-    b = base.b;
-  } else {
-    const f = 0.10 + ((step - 55) / 40) * 0.83;
-    r = base.r + (dark.r - base.r) * f;
-    g = base.g + (dark.g - base.g) * f;
-    b = base.b + (dark.b - base.b) * f;
-  }
-
-  const toHex = (value) => Math.round(Math.max(0, Math.min(255, value))).toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  return hslToHex(hsl.h, hsl.s, Math.max(8, Math.min(92, targetL)));
 }
 
 // Calcula min/max/média de votos para o candidato selecionado no modo Desempenho
@@ -595,3 +670,11 @@ function selectMunicipalitiesInBounds(bounds) {
   if (firstSelected) firstSelected.fire('click');
 }
 
+function getMarginAdjustedColor(baseColorHex, marginPct) {
+  const safeMargin = Math.max(0, Math.min(100, ensureNumber(marginPct)));
+  return getUniversalGradientColor(baseColorHex, safeMargin);
+}
+
+if (typeof window !== 'undefined') {
+  window.getMarginAdjustedColor = getMarginAdjustedColor;
+}
