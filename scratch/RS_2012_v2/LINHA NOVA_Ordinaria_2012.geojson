@@ -1,0 +1,8 @@
+{
+"type": "FeatureCollection",
+"name": "LINHA NOVA_Ordinaria_2012",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+"features": [
+{ "type": "Feature", "properties": { "SG_UF": "RS", "CD_MUNICIPIO": "86924", "NR_ZONA": "165", "NR_LOCAL_VOTACAO": "1015", "local_id": 747633, "ano": 2012, "sg_uf": "RS", "cd_localidade_tse": 86924, "cod_localidade_ibge": 4311643, "nr_locvot": 1015, "nr_cep": 95768000.0, "nm_localidade": "LINHA NOVA", "nm_locvot": "ESC. EST. DE ENS. FUND. PASTOR HEINRICH HUNSCHE", "ds_endereco": "RUA HENRIQUE SPIER, 1841", "ds_bairro": "CENTRO", "pred_long": -51.2023, "pred_lat": -29.46305, "pred_dist": 0.0272887196854413, "tse_long": null, "tse_lat": null, "long": -51.2023, "lat": -29.46305, "ID_UNICO": "LOC_071659", "NICOLAU HAAS (PDT) (ELEITO) 1T": 731, "REMI SCHROER (PT) (NÃO ELEITO) 1T": 555, "Total_Votos_Validos 1T": 1286, "Votos_Brancos 1T": 9, "Votos_Nulos 1T": 25, "Votos_Legenda 1T": 0, "Abstenções 1T": 68, "Eleitores_Aptos_Municipal 1T": 1388 }, "geometry": { "type": "Point", "coordinates": [ -51.2023, -29.46305 ] } }
+]
+}

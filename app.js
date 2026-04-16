@@ -6,8 +6,9 @@ let MUNICIPAL_DATA_INDEX = null;
 let REGIOES_IBGE = null;
 let aggregatedMuniResults = {}; // cache de resumos municipais por UF/ano/tipo
 let aggregatedMuniResultsPromises = new Map();
-let municipalResultDetailCache = new Map();
 let municipalResultDetailPromises = new Map();
+const CANDIDATES_CACHE = new Map();
+
 
 // CORES E PARTIDOS
 const PARTY_COLORS = new Map(Object.entries({
@@ -306,14 +307,17 @@ function isCandidateVoteKey(key) {
 
 function getProp(properties, key) {
   if (!properties) return null;
+  // Fast path for exact match
   if (properties[key] !== undefined) return properties[key];
-  const lowerKey = String(key).toLowerCase();
+
+  // Optimization: use a normalized cache for large objects if needed, 
+  // but for now, just avoid repeated norm() calls.
+  const lowerKey = key.toLowerCase();
   if (properties[lowerKey] !== undefined) return properties[lowerKey];
-  const upperKey = String(key).toUpperCase();
+  
+  const upperKey = key.toUpperCase();
   if (properties[upperKey] !== undefined) return properties[upperKey];
-  for (const k in properties) {
-    if (String(k).toLowerCase() === lowerKey) return properties[k];
-  }
+
   return null;
 }
 const norm = s => (s || "").normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/'/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -434,6 +438,7 @@ const MUNI_ALIASES = {
   'PRESIDENTE CASTELO BRANCO': ['PRESIDENTE CASTELO BRANCO', 'PRESIDENTE CASTELLO BRANCO'],
   'COUTO MAGALHAES': ['COUTO DE MAGALHÃES', 'COUTO MAGALHÃES'],
   'COUTO DE MAGALHAES': ['COUTO DE MAGALHÃES', 'COUTO MAGALHÃES'],
+  'WESTFALIA': ['WESTFALIA', 'WESTFÁLIA', 'WESTFALIA-RS'],
   'SAO VALERIO': ['SÃO VALÉRIO DO TOCANTINS', 'SÃO VALÉRIO DA NATIVIDADE', 'SÃO VALÉRIO'],
   'SAO VALERIO DA NATIVIDADE': ['SÃO VALÉRIO DO TOCANTINS', 'SÃO VALÉRIO DA NATIVIDADE', 'SÃO VALÉRIO'],
   'TABOCAO': ['FORTALEZA DO TABOCÃO', 'TABOCÃO'],
@@ -487,7 +492,8 @@ function extractMunicipalityOverviewFromGeoJSON(geojson, subtype = 'ord') {
 function summarizeMunicipalityGeoJSON(geojson, subtype = 'ord') {
   if (!geojson?.features?.length) return null;
 
-  const localState = discoverCandidatesAndMetrics(geojson);
+  const actualCargoKey = (typeof currentCargo !== 'undefined') ? currentCargo : 'unknown_ord';
+  const localState = discoverCandidatesAndMetrics(geojson, actualCargoKey);
   const turnoKey = localState.dataHas2T ? '2T' : '1T';
   const suffix = ` ${turnoKey}`;
   const totals = {};
@@ -2834,6 +2840,14 @@ async function loadZipIndex() {
       const res = await fetch(DATA_BASE_URL + 'zip_index.json');
       if (res.ok) {
         ZIP_INDEX = await res.json();
+        
+        // Correção manual para Westfália (encodings corrompidos no arquivo zip_index.json original)
+        for (let key in ZIP_INDEX) {
+          if (key.includes("WESTFALIA")) {
+            ZIP_INDEX[key].file = ZIP_INDEX[key].file.replace("WESTFµLIA", "WESTFÁLIA");
+          }
+        }
+        
         console.log("ZIP Index loaded with " + Object.keys(ZIP_INDEX).length + " entries.");
       } else {
         console.warn("zip_index.json not found. Fallback to direct fetch.");
@@ -3245,7 +3259,20 @@ async function loadMunicipalityDetailedSummary(uf, year, subtype = 'ord', munici
 
 // ====== DATA PROCESSING ======
 
-function discoverCandidatesAndMetrics(geojson, options = {}) {
+function discoverCandidatesAndMetrics(geojson, cargoKey = 'unknown_ord') {
+  // Ensure we have a string to avoid crashes with undefined cargoKey
+  const safeCargoKey = cargoKey || 'unknown_ord';
+
+  // Extract a unique identifier for the specific dataset (municipality)
+  const firstProps = geojson.features?.[0]?.properties || {};
+  const muniId = getPointMunicipalityCode(firstProps) || getProp(firstProps, 'nm_localidade') || '';
+
+  // CACHE: Unique key for these data, including muniId to prevent cross-city collisions
+  const cacheKey = `${STATE.currentElectionYear}_${safeCargoKey}_${geojson.features?.length || 0}_${muniId}`;
+  if (CANDIDATES_CACHE.has(cacheKey)) {
+    return CANDIDATES_CACHE.get(cacheKey);
+  }
+
   const localState = {
     candidates: { '1T': [], '2T': [] },
     metrics: { '1T': [], '2T': [] },
@@ -3255,7 +3282,8 @@ function discoverCandidatesAndMetrics(geojson, options = {}) {
   };
 
   const allKeys = new Set();
-  const shouldFullScan = options.fullScan === true;
+  const office = safeCargoKey.replace(/_(ord|sup)$/, '');
+  const shouldFullScan = isProportionalOffice(office);
   const sampleSize = shouldFullScan ? geojson.features.length : Math.min(geojson.features.length, 1000);
   for (let i = 0; i < sampleSize; i++) {
     const props = geojson.features[i]?.properties;
@@ -3295,6 +3323,8 @@ function discoverCandidatesAndMetrics(geojson, options = {}) {
 
   localState.candidates['1T'].sort();
   localState.candidates['2T'].sort();
+
+  CANDIDATES_CACHE.set(cacheKey, localState);
   return localState;
 }
 
@@ -3368,9 +3398,7 @@ function processLoadedGeoJSON(geojson, cargoKey) {
   }
 
   const office = cargoKey.replace(/_(ord|sup)$/, '');
-  const { candidates, metrics, inaptos, dataHas2T, dataHasInaptos } = discoverCandidatesAndMetrics(geojson, {
-    fullScan: isProportionalOffice(office)
-  });
+  const { candidates, metrics, inaptos, dataHas2T, dataHasInaptos } = discoverCandidatesAndMetrics(geojson, cargoKey);
 
   STATE.candidates[cargoKey] = candidates;
   STATE.metrics[cargoKey] = metrics;
@@ -3379,13 +3407,14 @@ function processLoadedGeoJSON(geojson, cargoKey) {
   STATE.dataHasInaptos[cargoKey] = dataHasInaptos;
 
   if (STATE.currentElectionType === 'geral') {
-    // Se for geral, adiciona cidades à lista única
     geojson.features.forEach(f => {
       const cidade = getProp(f.properties, 'nm_localidade');
       if (cidade) uniqueCidades.add(cidade);
     });
   }
 }
+
+
 
 function createCombobox(elements, onSelect) {
   const { box, input, list } = elements;
@@ -3484,39 +3513,48 @@ let cidadeCombobox = null;
 let bairroCombobox = null;
 
 function populateCidadeDropdown() {
-  if (!cidadeCombobox) {
-    console.warn("Combobox not initialized yet");
-    return;
-  }
-
-  if (STATE.currentElectionType === 'municipal') {
-    const items = getMunicipalSelectionItems();
-    cidadeCombobox.setItems(items, "Todos os municÃ­pios");
-    cidadeCombobox.setValue(currentCidadeFilter === 'all' ? "Todos os municÃ­pios" : currentCidadeFilter);
-    cidadeCombobox.disable(items.length === 0);
-    return;
-  }
+  if (!dom.inputCidade) return;
 
   const geojson = currentDataCollection[currentCargo];
   if (!geojson || !geojson.features) return;
 
-  // Group features by City
-  const cityGroups = {};
-  geojson.features.forEach(f => {
-    const cidade = getProp(f.properties, 'nm_localidade');
+  const cityGroups = new Map();
+  const features = geojson.features;
+  
+  for (let i = 0; i < features.length; i++) {
+    const p = features[i].properties;
+    const cidade = p.nm_localidade;
     if (cidade) {
-      if (!cityGroups[cidade]) cityGroups[cidade] = [];
-      cityGroups[cidade].push(f.properties);
+      if (!cityGroups.has(cidade)) cityGroups.set(cidade, []);
+      cityGroups.get(cidade).push(p);
     }
+  }
+
+  const cidadeNames = Array.from(cityGroups.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const isProp = isProportionalOffice(currentCargo.replace(/_(ord|sup)$/, ''));
+  const items = [];
+
+  cidadeNames.forEach(cidade => {
+    const propsList = cityGroups.get(cidade);
+    let stats;
+
+    if (isProp) {
+        // Optimization: For proportional, don't calculate winner for the whole city list upfront
+        // This is extremely slow for SP.
+        stats = { text: 'Clique para ver', color: '#666' };
+    } else {
+        const aggProps = aggregatePropsList(propsList);
+        stats = calculateWinnerStats(aggProps);
+    }
+
+    items.push({
+      label: cidade,
+      info: stats.text,
+      color: stats.color
+    });
   });
 
-  const cidadeNames = Object.keys(cityGroups).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const items = cidadeNames;
-
   cidadeCombobox.setItems(items, "Todos os municípios");
-
-  // If valid logic exists to keep selection, do it, else reset
-  // For now, reset to All or keep if matches
   if (currentCidadeFilter === 'all') {
     cidadeCombobox.setValue("Todos os municípios");
   } else {
@@ -3527,26 +3565,22 @@ function populateCidadeDropdown() {
 }
 
 function populateBairroDropdown() {
-  // 1. Identify Bairros
-  uniqueBairros.clear();
-
   if (!bairroCombobox) return;
 
-  if (!isSingleMunicipalityAggregationActive()) {
-    currentBairroFilter = 'all';
+  if (STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
     bairroCombobox.disable(true);
-    bairroCombobox.setValue("Todos os bairros");
+    bairroCombobox.setValue("");
     return;
   }
 
   const geojson = currentDataCollection[currentCargo];
   if (!geojson || !geojson.features) return;
 
-  // Group by Bairro
-  const bairroGroups = {};
+  const bairroGroups = new Map();
+  const features = geojson.features;
 
-  geojson.features.forEach(f => {
-    const props = f.properties;
+  for (let i = 0; i < features.length; i++) {
+    const props = features[i].properties;
     let adicionar = false;
 
     if (STATE.currentElectionType === 'geral') {
@@ -3558,29 +3592,37 @@ function populateBairroDropdown() {
     if (adicionar) {
       const bairro = (getProp(props, 'ds_bairro') || 'Bairro não inf.').trim();
       if (bairro && bairro.toUpperCase() !== 'N/D') {
-        uniqueBairros.add(bairro);
-        if (!bairroGroups[bairro]) bairroGroups[bairro] = [];
-        bairroGroups[bairro].push(props);
+        if (!bairroGroups.has(bairro)) bairroGroups.set(bairro, []);
+        bairroGroups.get(bairro).push(props);
       }
     }
-  });
+  }
 
-  const bairros = Array.from(uniqueBairros).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const bairros = Array.from(bairroGroups.keys()).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const isProp = isProportionalOffice(currentCargo.replace(/_(ord|sup)$/, ''));
   const items = [];
 
   bairros.forEach(bairro => {
-    const propsList = bairroGroups[bairro];
-    const aggProps = aggregatePropsList(propsList);
+    const propsList = bairroGroups.get(bairro);
+    let stats;
 
-    if (!aggProps) return;
-
-    const cargo = currentCargo;
-    const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
-    const { totalValidos } = getVotosValidos(aggProps, cargo, turnoKey, STATE.filterInaptos);
-
-    if (totalValidos > 0) {
-      items.push(bairro);
+    if (isProp) {
+        stats = { text: 'Clique para ver', color: '#666' };
+    } else {
+        const aggProps = aggregatePropsList(propsList);
+        if (!aggProps) return;
+        const cargo = currentCargo;
+        const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
+        const { totalValidos } = getVotosValidos(aggProps, cargo, turnoKey, STATE.filterInaptos);
+        if (totalValidos <= 0) return;
+        stats = calculateWinnerStats(aggProps);
     }
+
+    items.push({
+      label: bairro,
+      info: stats.text,
+      color: stats.color
+    });
   });
 
   bairroCombobox.setItems(items, "Todos os bairros");
@@ -3879,47 +3921,38 @@ function filterFeature(feature) {
 function getFeatureStyle(feature) {
   const props = feature.properties;
   let fillColor = DEFAULT_SWATCH;
-  let fillOpacity = 1; // Default to solid opacity for Universal Gradient and Static
-  let pctVal = 0;      // Value used for gradient calc
+  let fillOpacity = 0.8;
+  let pctVal = 0;
 
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
   const { totalValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
 
-  // 1. Determine Base Color and Percentage based on Mode
   if (!STATE.selectedCandidateMap) {
     const sorted = getSortedVoteEntitiesFromProps(props, currentCargo, turnoKey, STATE.filterInaptos);
-    const vencedor = sorted.length > 0 ? sorted[0] : { name: 'N/D', party: 'N/D', votes: 0 };
+    const vencedor = sorted.length > 0 ? sorted[0] : null;
     
-    let displayName = vencedor.name;
-    const acronym = PARTY_ACRONYMS.get(normalizePartyKey(vencedor.name));
-    if (acronym) displayName = acronym;
-    
-    let colorCandidateName = isProportionalOffice(currentCargo) ? displayName : vencedor.name;
-    let colorPartyName = isProportionalOffice(currentCargo) ? displayName : vencedor.party;
-    fillColor = getColorForCandidate(colorCandidateName, colorPartyName);
-    if (fillColor === DEFAULT_SWATCH && isProportionalOffice(currentCargo)) {
-      fillColor = getColorForCandidate(colorCandidateName, vencedor.party);
+    if (vencedor) {
+      let displayName = vencedor.name;
+      const acronym = PARTY_ACRONYMS.get(normalizePartyKey(vencedor.name));
+      if (acronym) displayName = acronym;
+      
+      const isProp = isProportionalOffice(currentCargo);
+      let colorCand = isProp ? displayName : vencedor.name;
+      let colorParty = isProp ? displayName : vencedor.party;
+      fillColor = getColorForCandidate(colorCand, colorParty);
+      
+      let votos1 = vencedor.votes;
+      let votos2 = sorted.length > 1 ? sorted[1].votes : 0;
+      pctVal = (totalValidos > 0) ? ((votos1 - votos2) / totalValidos) * 100 : 0;
     }
-
-    let votos1 = sorted.length > 0 ? sorted[0].votes : 0;
-    let votos2 = sorted.length > 1 ? sorted[1].votes : 0;
-
-    if (totalValidos > 0) {
-      pctVal = ((votos1 - votos2) / totalValidos) * 100;
-    } else {
-      pctVal = 0;
-    }
-
   } else {
     const candidato = STATE.selectedCandidateMap;
-    if (candidato) {
-      const votosCand = ensureNumber(getProp(props, candidato));
-      pctVal = (totalValidos > 0) ? (votosCand / totalValidos) * 100 : 0;
-
-      const candInfo = parseCandidateKey(candidato);
-      fillColor = getColorForCandidate(candInfo.nome, candInfo.partido);
-    }
+    const votosCand = ensureNumber(getProp(props, candidato));
+    pctVal = (totalValidos > 0) ? (votosCand / totalValidos) * 100 : 0;
+    const candInfo = parseCandidateKey(candidato);
+    fillColor = getColorForCandidate(candInfo.nome, candInfo.partido);
   }
+
 
   // 2. Aplicar degradê fixo (0 a 50%+ de margem)
   // pctVal já é a margem em pontos percentuais (ou percentual nominal do candidato)
@@ -3960,17 +3993,21 @@ function getFeatureStyle(feature) {
 function getVotosValidos(props, cargo, turno, filtrarInaptos) {
   if (!props) return { totalValidos: 0, votosInaptos: 0 };
 
-  const candidatos = STATE.candidates[cargo]?.[turno] || [];
+  const candidates = STATE.candidates[cargo]?.[turno] || [];
+  const candidatesSet = new Set(candidates);
   let somaVotosCandidatos = 0;
   let votosInaptos = 0;
 
-  candidatos.forEach(key => {
-    const votos = ensureNumber(getProp(props, key));
+  // Optimized scan: only check properties that actually exist
+  for (const key in props) {
+    if (!candidatesSet.has(key)) continue;
+    
+    const votos = ensureNumber(props[key]);
     somaVotosCandidatos += votos;
     if (filtrarInaptos && (STATE.inaptos[cargo]?.[turno] || []).includes(key)) {
       votosInaptos += votos;
     }
-  });
+  }
 
   const totalValidos = filtrarInaptos ? (somaVotosCandidatos - votosInaptos) : somaVotosCandidatos;
   return { totalValidos: totalValidos, votosInaptos: votosInaptos };
@@ -3980,16 +4017,20 @@ function getSortedVoteEntitiesFromProps(props, cargo, turno, filtrarInaptos) {
   if (!props) return [];
 
   const candidates = STATE.candidates[cargo]?.[turno] || [];
+  const candidatesSet = new Set(candidates);
   const inaptos = STATE.inaptos[cargo]?.[turno] || [];
   const office = cargo.replace(/_(ord|sup)$/, '');
 
   if (isProportionalOffice(office)) {
     const coalitionGroups = new Map();
-    candidates.forEach(key => {
+    // OPTIMIZATION: Iterate over present properties instead of all candidate keys
+    for (const key in props) {
+      if (!candidatesSet.has(key)) continue;
+
       const cand = parseCandidateKey(key);
-      if (filtrarInaptos && (cand.status === 'INAPTO' || inaptos.includes(key))) return;
+      if (filtrarInaptos && (cand.status === 'INAPTO' || inaptos.includes(key))) continue;
       
-      const votos = ensureNumber(getProp(props, key));
+      const votos = ensureNumber(props[key]);
       let groupName = cand.partido;
       const details = STATE.candidateDetails?.[key];
       
@@ -4009,23 +4050,25 @@ function getSortedVoteEntitiesFromProps(props, cargo, turno, filtrarInaptos) {
         });
       }
       coalitionGroups.get(groupKey).votes += votos;
-    });
+    }
 
     return Array.from(coalitionGroups.values()).sort((a, b) => b.votes - a.votes);
   } else {
     const results = [];
-    candidates.forEach(key => {
+    for (const key in props) {
+      if (!candidatesSet.has(key)) continue;
+      
       const cand = parseCandidateKey(key);
       if (filtrarInaptos && inaptos.includes(key)) return;
       
-      const votos = ensureNumber(getProp(props, key));
+      const votos = ensureNumber(props[key]);
       results.push({
         name: cand.nome,
         party: cand.partido,
         votes: votos,
         key: key
       });
-    });
+    }
     return results.sort((a, b) => b.votes - a.votes);
   }
 }
