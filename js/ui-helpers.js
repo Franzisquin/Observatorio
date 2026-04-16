@@ -298,6 +298,7 @@ async function init() {
   dom.resultsSubtitle = document.getElementById('resultsSubtitle');
   dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
   dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
+  dom.layerToggleGroup = document.querySelector('.layer-toggle-group');
   dom.btnLocateSelection = document.getElementById('btnLocateSelection');
   dom.btnClearSelection = document.getElementById('btnClearSelection');
   dom.turnTabs = document.getElementById('turnTabs');
@@ -535,4 +536,8 @@ function updateAvailabilityBars(geojson) {
 function calculateAgeSumForProps(props, mode) {
   const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
   return ageAggregate.buckets[mode] || 0;
+}
+
+if (typeof window !== 'undefined') {
+  window.toTitleCase = toTitleCase;
 }

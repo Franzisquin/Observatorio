@@ -443,8 +443,21 @@ function updateElectionTypeUI() {
   if (!isMunicipal) {
     dom.cargoChipsMunicipal.innerHTML = '';
     dom.cargoBoxMunicipal.classList.add('section-hidden');
-    return;
   }
+
+  // --- MUNICIPAL UI REFINEMENTS ---
+  // Hide map mode toggle group in municipal elections
+  if (dom.layerToggleGroup) {
+      dom.layerToggleGroup.style.display = isMunicipal ? 'none' : '';
+  }
+
+  // Hide neighborhood profile in statewide overview (if isMunicipal and no city selected)
+  if (dom.neighborhoodProfile) {
+      const shouldShowProfile = !isMunicipal || hasMunicipalSelection;
+      dom.neighborhoodProfile.style.display = shouldShowProfile ? '' : 'none';
+  }
+
+  if (!isMunicipal) return;
 
   if (!hasMunicipalSelection) {
     dom.cargoChipsMunicipal.innerHTML = '';

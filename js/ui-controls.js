@@ -503,7 +503,7 @@ function setupControls() {
     dom.btnMapModeMunicipios.addEventListener('click', () => {
       if (STATE.currentElectionType === 'geral') {
         const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
-        if (!uf || uf === 'BR' || String(currentCargo || '').startsWith('deputado')) return;
+        if (!uf || uf === 'BR') return;
 
         currentCidadeFilter = 'all';
         currentBairroFilter = 'all';
@@ -707,6 +707,21 @@ function setupControls() {
 
   if (dom.btnClearSelection) {
     dom.btnClearSelection.addEventListener('click', () => {
+      if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
+        currentCidadeFilter = 'all';
+        currentBairroFilter = 'all';
+        currentLocalFilter = '';
+        if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
+        if (bairroCombobox) bairroCombobox.setValue('');
+        if (dom.searchLocal) dom.searchLocal.value = '';
+        
+        STATE.currentMapMode = 'municipios';
+        clearSelection(true);
+        updateApplyButtonText();
+        applyFiltersAndRedraw();
+        return;
+      }
+
       if (STATE.currentElectionType === 'municipal' && dom.selectMunicipio?.value) {
         currentOffice = 'prefeito';
         currentSubType = 'ord';

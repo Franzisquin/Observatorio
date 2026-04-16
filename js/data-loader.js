@@ -434,7 +434,13 @@ async function onClickLoadData_Deputies_legado(uf, year) {
       dom.btnToggleInaptos.textContent = 'Filtrar Inaptos';
     }
 
-    console.log(`[onClickLoadData_Deputies] Chamando applyFiltersAndRedraw...`);
+    if (currentCidadeFilter === 'all') {
+      STATE.currentMapMode = 'municipios';
+    } else {
+      STATE.currentMapMode = 'locais';
+    }
+
+    console.log(`[onClickLoadData_Deputies] Chamando applyFiltersAndRedraw... MapMode: ${STATE.currentMapMode}`);
     applyFiltersAndRedraw();
 
     if (currentLayer) {

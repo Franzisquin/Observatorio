@@ -1,4 +1,4 @@
-﻿
+
 function resolveFeatureSelectionId(properties) {
   if (typeof getFeatureSelectionId === 'function') {
     return getFeatureSelectionId(properties);
@@ -759,16 +759,41 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       grouped.set(cityName, entry);
     }
 
-    Object.keys(props).forEach((key) => {
-      if (!key.endsWith(` ${turnoKey}`) || !isCandidateVoteKey(key)) return;
-      if (STATE.filterInaptos && inaptosTurno.includes(key)) return;
+    if (cargoKey.startsWith('deputado')) {
+      const isEstadual = cargoKey === 'deputado_estadual';
+      const typeKey = isEstadual ? 'e' : 'f';
+      const locId = resolveFeatureSelectionId(props);
+      const data = STATE.deputyResults?.[locId];
+      if (!data || !data[typeKey]) return;
 
-      const votes = ensureNumber(props[key]);
-      if (votes <= 0) return;
+      const votes = data[typeKey]; // { candId: votes }
+      Object.entries(votes).forEach(([candId, count]) => {
+        if (candId === '95' || candId === '96') return; // Skip brancos/nulos here
+        if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
 
-      entry.votes[key] = (entry.votes[key] || 0) + votes;
-      entry.totalValid += votes;
-    });
+        const v = ensureNumber(count);
+        if (v <= 0) return;
+
+        // Aggregate by Party Name for Tooltips and Municipality Summary
+        const meta = STATE.deputyMetadata?.[candId];
+        const party = meta ? meta[1] : (candId.length === 2 ? candId : 'N/D');
+        const partyKey = `${party} (${party})`;
+
+        entry.votes[partyKey] = (entry.votes[partyKey] || 0) + v;
+        entry.totalValid += v;
+      });
+    } else {
+      Object.keys(props).forEach((key) => {
+        if (!key.endsWith(` ${turnoKey}`) || !isCandidateVoteKey(key)) return;
+        if (STATE.filterInaptos && inaptosTurno.includes(key)) return;
+
+        const votes = ensureNumber(props[key]);
+        if (votes <= 0) return;
+
+        entry.votes[key] = (entry.votes[key] || 0) + votes;
+        entry.totalValid += votes;
+      });
+    }
   });
 
   const summary = {};
@@ -781,7 +806,13 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
     const [winnerKey, winnerVotesRaw] = orderedVotes[0];
     const [, secondVotesRaw] = orderedVotes[1] || [null, 0];
-    const winnerInfo = parseCandidateKey(winnerKey);
+    let winnerInfo;
+    if (cargoKey.startsWith('deputado')) {
+      // For deputies, the key is already "PARTY (PARTY)"
+      winnerInfo = parseCandidateKey(winnerKey);
+    } else {
+      winnerInfo = parseCandidateKey(winnerKey);
+    }
     const winnerVotes = ensureNumber(winnerVotesRaw);
     const secondVotes = ensureNumber(secondVotesRaw);
 
@@ -836,7 +867,7 @@ function shouldRenderGeneralMunicipalityOverview() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
   if (STATE.currentElectionType !== 'geral') return false;
   if (!uf || uf === 'BR') return false;
-  if (String(currentCargo || '').startsWith('deputado')) return false;
+  // if (String(currentCargo || '').startsWith('deputado')) return false; // REMOVED: Allow deputies
   if (STATE.currentMapMode === 'locais') return false;
   if (currentCidadeFilter !== 'all') return false;
   if (currentBairroFilter !== 'all') return false;

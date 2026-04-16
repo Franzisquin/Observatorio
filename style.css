@@ -1,4 +1,4 @@
-﻿[data-theme="dark"] {
+[data-theme="dark"] {
   --bg: #0a0a0a;
   --card: #151515;
   --muted: #a3a3a3;
@@ -456,7 +456,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 0;
+  padding: 4px 0;
   border-radius: 0;
   border: none;
   background: transparent;
@@ -503,7 +503,7 @@ body {
   min-width: 0;
   align-items: flex-start;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
 }
 
 .cand-name {
@@ -544,7 +544,7 @@ body {
 }
 
 .cand-bar-wrapper-major {
-  min-height: 26px;
+  min-height: 20px;
 }
 
 .cand-bar-fill {
@@ -2010,4 +2010,228 @@ input:disabled {
 
 .toggle-btn.active:hover {
   background: var(--accent-hover);
+}
+
+/* CANDIDATE COLOR CUSTOMIZATION */
+
+.swatch-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  width: 12px; /* Wider clickable area */
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.1s;
+}
+
+.swatch-button:hover {
+  transform: scaleY(1.1);
+}
+
+.swatch {
+  width: 4px;
+  height: 80%; /* Slightly smaller than full height for aesthetics */
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.candidate-color-popover {
+  position: absolute;
+  z-index: 10000;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
+  animation: popover-appear 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes popover-appear {
+  from { opacity: 0; transform: scale(0.95) translateY(5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.candidate-color-popover.hidden {
+  display: none !important;
+}
+
+.candidate-color-card {
+  background: var(--card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  width: 260px;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.candidate-color-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.candidate-color-kicker {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.candidate-color-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.candidate-color-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.candidate-color-close:hover {
+  color: var(--text);
+}
+
+.candidate-color-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.candidate-color-preview {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  border: 2px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.candidate-color-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.candidate-color-meta span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.candidate-color-meta strong {
+  font-size: 0.85rem;
+  font-family: monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.candidate-color-presets {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+
+.candidate-color-chip {
+  background: none;
+  border: 1px solid transparent;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.candidate-color-chip:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.candidate-color-chip span {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 2px;
+}
+
+.candidate-color-advanced {
+  position: relative;
+}
+
+.candidate-color-picker-btn {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-sec);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.candidate-color-picker-btn:hover {
+  border-color: var(--muted);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#candidateColorNativeInput {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.candidate-color-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.candidate-color-field span {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.candidate-color-field input {
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.candidate-color-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.candidate-color-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.candidate-color-actions .button {
+  padding: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 6px;
 }

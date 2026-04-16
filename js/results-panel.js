@@ -185,7 +185,7 @@ function renderSummaryBoxes(aggregatedProps) {
                      data-cargo="${office}" data-turno="${turnoKey}" data-filter-inaptos="false"
                      data-status="${winnerWithInaptos.status}">
                     <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; display:block;">Com Inaptos</span>
-                    <h5 style="margin:0; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${winnerWithInaptos.nome}</h5>
+                    <h5 style="margin:0; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${toTitleCase(winnerWithInaptos.nome)}</h5>
                     <p style="margin:0; font-size:0.75rem; color:var(--muted);">${winnerWithInaptos.partido}</p>
                     <strong style="display:block; margin-top:4px; color:var(--accent-2); font-size:0.8rem;">${fmtPct(getPct(winnerWithInaptos.votos, totalValidosComInaptos))}</strong>
                 </div>
@@ -193,7 +193,7 @@ function renderSummaryBoxes(aggregatedProps) {
                      data-cargo="${office}" data-turno="${turnoKey}" data-filter-inaptos="true"
                      data-status="${vencedorSemInaptos.status}">
                     <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; display:block;">Sem Inaptos</span>
-                    <h5 style="margin:0; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${vencedorSemInaptos.nome}</h5>
+                    <h5 style="margin:0; font-size:0.85rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${toTitleCase(vencedorSemInaptos.nome)}</h5>
                     <p style="margin:0; font-size:0.75rem; color:var(--muted);">${vencedorSemInaptos.partido}</p>
                     <strong style="display:block; margin-top:4px; color:var(--accent-2); font-size:0.8rem;">${fmtPct(getPct(vencedorSemInaptos.votos, totalValidosSemInaptos))}</strong>
                 </div>
@@ -216,7 +216,7 @@ function renderSummaryBoxes(aggregatedProps) {
 
       box.innerHTML = `
                 <h4 class="cargo-title">${office.charAt(0).toUpperCase() + office.slice(1)} (${turnoKey})</h4>
-                <h5>${vencedorSemInaptos.nome}</h5>
+                <h5>${toTitleCase(vencedorSemInaptos.nome)}</h5>
                 <p>${vencedorSemInaptos.partido}</p>
                 <span class="margin">+${fmtInt(margemVotos)} (${fmtPct(margemPct)})</span>
             `;
@@ -708,11 +708,8 @@ function renderResultsPanel(props, cargo) {
         ${renderCandidateColorControl(r.nome, r.partido, sw, true)}
       </div>
       <div class="cand-name-wrapper cand-name-wrapper-stack">
-        <div class="cand-name" title="${safeNome}">${safeNome}</div>
+        <div class="cand-name" title="${safeNome}">${toTitleCase(r.nome)}</div>
         <div class="cand-party" title="${safePartido}">${safePartido}</div>
-        <div class="cand-status-row">
-          ${getStatusBadge(r.status)}
-        </div>
       </div>
       <div class="cand-bar-wrapper cand-bar-wrapper-major">
         <div class="cand-bar-fill" style="background:${sw}; width:${Math.max(0, Math.min(100, r.pct * 100))}%;"></div>
