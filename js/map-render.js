@@ -51,8 +51,8 @@ function clearVizCandidateSelectionState() {
 
 function formatVizCandidateLabel(candidateData) {
   if (!candidateData) return '';
-  if (candidateData.isLegenda) return `Voto de Legenda — ${candidateData.partido}`;
-  return `${toTitleCase(candidateData.nome)} (${candidateData.partido}) • Nº ${candidateData.numero}`;
+  if (candidateData.isLegenda) return `Voto de Legenda â€” ${candidateData.partido}`;
+  return `${toTitleCase(candidateData.nome)} (${candidateData.partido}) â€¢ NÂº ${candidateData.numero}`;
 }
 
 function getResolvedVisualizationCandidateId(candidatoKey, cargo = currentCargo) {
@@ -100,7 +100,7 @@ function populateVizCandidatoDropdown(turno) {
       ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
       : (STATE.inaptos[currentCargo]?.['1T'] || []);
 
-    // Lookup local_id → chave (zona_local para vereador, zona_muni_local para deputado)
+    // Lookup local_id â†’ chave (zona_local para vereador, zona_muni_local para deputado)
     const lookupKey = isVereador ? 'vereadorLookup' : 'deputyLookup';
     const lookupCargoKey = isVereador ? 'vereadorLookupCargo' : 'deputyLookupCargo';
     if (!STATE[lookupKey] || STATE[lookupCargoKey] !== currentCargo) {
@@ -214,7 +214,7 @@ function populateVizCandidatoDropdown(turno) {
         if (isLegenda) {
           const partidoResolvido = STATE[partyPrefixKey]?.[id];
           if (partidoResolvido) partido = normalizePartyAlias(partidoResolvido.toUpperCase());
-          nome = `Voto de Legenda — ${partido}`;
+          nome = `Voto de Legenda â€” ${partido}`;
         }
         return { id, nome, partido, status: meta[2] || '', votos: totalVotesByCand[id] || 0, numero: id, isLegenda };
       })
@@ -230,8 +230,8 @@ function populateVizCandidatoDropdown(turno) {
     if (deputySearchInput) {
       deputySearchInput.value = '';
       deputySearchInput.placeholder = deputySearchCandList.length > 0
-        ? `Buscar entre ${deputySearchCandList.length} candidatos (nome ou nº)...`
-        : 'Nenhum candidato disponível';
+        ? `Buscar entre ${deputySearchCandList.length} candidatos (nome ou nÂº)...`
+        : 'Nenhum candidato disponÃ­vel';
       deputySearchInput.disabled = deputySearchCandList.length === 0;
     }
     if (deputySearchResults) {
@@ -269,11 +269,11 @@ function populateVizCandidatoDropdown(turno) {
     return;
   }
 
-  // Não é deputado: esconde search box, mostra select
+  // NÃ£o Ã© deputado: esconde search box, mostra select
   dom.selectVizCandidato.style.display = '';
   if (deputySearchBox) deputySearchBox.style.display = 'none';
 
-  // Eleições gerais/municipais: comportamento original
+  // EleiÃ§Ãµes gerais/municipais: comportamento original
   const candidatos = STATE.candidates[currentCargo]?.[turno] || [];
   candidatos.forEach(key => {
     if (STATE.filterInaptos && (STATE.inaptos[currentCargo]?.[turno] || []).includes(key)) {
@@ -325,7 +325,7 @@ function setupDeputySearch(input, resultsContainer) {
     }
   });
 
-  // Navegação por teclado
+  // NavegaÃ§Ã£o por teclado
   input.addEventListener('keydown', (e) => {
     const items = resultsContainer.querySelectorAll('.search-result-item');
     if (items.length === 0) return;
@@ -380,14 +380,14 @@ function getMunicipalityFeatureCode(props) {
 }
 
 function getMunicipalityFeatureName(props) {
-  if (!props) return 'Município';
+  if (!props) return 'MunicÃ­pio';
   return String(
     props.NM_MUN ||
     props.nm_mun ||
     props.municipio ||
     props.nm_localidade ||
     props.NOME ||
-    'Município'
+    'MunicÃ­pio'
   ).trim();
 }
 
@@ -653,13 +653,13 @@ function buildLocationTooltip(feature) {
   }
 
   if (!rows) {
-    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos válidos neste local.</div>';
+    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos vÃ¡lidos neste local.</div>';
   }
 
   return `<div style="min-width:190px;max-width:250px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nomeLocal)}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(nomeCidade)}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(totalValidos)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(totalValidos)}</div>
     <hr style="margin:4px 0;border-color:#444;">
     ${rows}
   </div>`;
@@ -675,7 +675,7 @@ function buildMunicipalityTooltip(feature, summary) {
     return `<div style="min-width:180px;max-width:240px;">
       <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
       <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(ufLabel)}</div>
-      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponíveis.</div>
+      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponÃ­veis.</div>
     </div>`;
   }
 
@@ -706,9 +706,9 @@ function buildMunicipalityTooltip(feature, summary) {
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:4px;">${escapeHtml(ufLabel)}</div>
     <div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${escapeHtml(result.turnoLabel || 'Resultado final')}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(result.totalValid)}</div>
     <hr style="margin:4px 0;border-color:#444;">
-    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponível.</div>'}
+    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponÃ­vel.</div>'}
   </div>`;
 }
 
@@ -737,7 +737,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   if (!geojson?.features?.length) return {};
 
   const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
-  const turnoLabel = turnoKey === '2T' ? '2º Turno' : '1º Turno';
+  const turnoLabel = turnoKey === '2T' ? '2Âº Turno' : '1Âº Turno';
   const inaptosTurno = STATE.inaptos[cargoKey]?.[turnoKey] || [];
   const grouped = new Map();
 
@@ -857,8 +857,8 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
   dom.summaryBoxContainer.classList.add('section-hidden');
   if (dom.turnTabs) dom.turnTabs.innerHTML = '';
   dom.resultsTitle.textContent = `Estado Completo (${uf})`;
-  dom.resultsSubtitle.textContent = `${ufName} • nenhum local encontrado`;
-  dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum local agregado disponível para este recorte.</p>';
+  dom.resultsSubtitle.textContent = `${ufName} â€¢ nenhum local encontrado`;
+  dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum local agregado disponÃ­vel para este recorte.</p>';
   dom.resultsMetrics.innerHTML = '';
   if (typeof updateNeighborhoodProfileUI === 'function') updateNeighborhoodProfileUI();
 }
@@ -879,7 +879,7 @@ async function showGeneralMunicipalityOverview(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
 
-  showMapLoading(`Carregando visão municipal de ${ufNorm}...`);
+  showMapLoading(`Carregando visÃ£o municipal de ${ufNorm}...`);
 
   try {
     STATE.currentMapMode = 'municipios';
@@ -938,8 +938,8 @@ async function showGeneralMunicipalityOverview(uf) {
 
     renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
   } catch (error) {
-    console.error('[Geral] Falha ao montar visão municipal:', error);
-    showToast(`Erro ao carregar a visão municipal: ${error.message}`, 'error');
+    console.error('[Geral] Falha ao montar visÃ£o municipal:', error);
+    showToast(`Erro ao carregar a visÃ£o municipal: ${error.message}`, 'error');
   } finally {
     hideMapLoading();
   }
@@ -962,7 +962,7 @@ function performDeputySearch(query, resultsContainer) {
 
   let results;
   if (isNumericSearch) {
-    // Busca por número: exata no início
+    // Busca por nÃºmero: exata no inÃ­cio
     results = deputySearchCandList.filter(c =>
       c.numero.startsWith(query.trim())
     );
@@ -1051,15 +1051,15 @@ function renderDeputySearchResults(results, container, query) {
       const input = document.getElementById('deputySearchInput');
       if (input) {
         const label = candData.isLegenda
-          ? `Voto de Legenda — ${candData.partido}`
-          : `${toTitleCase(candData.nome)} (${candData.partido}) • Nº ${candData.numero}`;
+          ? `Voto de Legenda â€” ${candData.partido}`
+          : `${toTitleCase(candData.nome)} (${candData.partido}) â€¢ NÂº ${candData.numero}`;
         input.value = label;
       }
 
       // Fechar dropdown
       container.classList.remove('visible');
 
-      // Disparar evento de mudança
+      // Disparar evento de mudanÃ§a
       dom.selectVizCandidato.dispatchEvent(new Event('change'));
     });
   });
@@ -1067,7 +1067,7 @@ function renderDeputySearchResults(results, container, query) {
 
 // ====== MAP RENDERING ======
 
-// Variável para guardar o listener de movimento
+// VariÃ¡vel para guardar o listener de movimento
 let moveEndListener = null;
 
 function applyFiltersAndRedraw() {
@@ -1107,12 +1107,12 @@ function applyFiltersAndRedraw() {
   }
 
   // O renderer canvas do Leaflet pode ter sido desalojado durante trocas
-  // rápidas de eleição/cargo. Se ele ficou órfão, recriamos antes de renderizar.
+  // rÃ¡pidas de eleiÃ§Ã£o/cargo. Se ele ficou Ã³rfÃ£o, recriamos antes de renderizar.
   if (!mapCanvasRenderer || mapCanvasRenderer._map !== map) {
     mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
   }
 
-  // Recalcular estatísticas do candidato se estiver no modo Desempenho
+  // Recalcular estatÃ­sticas do candidato se estiver no modo Desempenho
   if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
     const candidatoKey = dom.selectVizCandidato.value;
     performanceModeStats = calculateCandidateStats(candidatoKey) || {
@@ -1123,7 +1123,7 @@ function applyFiltersAndRedraw() {
 
   updateAvailabilityBars(geojson);
 
-  // Precomputa vencedores de vereador se necessário
+  // Precomputa vencedores de vereador se necessÃ¡rio
   if (currentCargo.startsWith('vereador') && STATE.vereadorResults && Object.keys(STATE.vereadorResults).length > 0) {
     precomputeVereadorWinners();
   }
@@ -1168,7 +1168,7 @@ function applyFiltersAndRedraw() {
 
 
 
-// --- HELPER FUNCTIONS (Extraídas para reaproveitar nos dois modos) ---
+// --- HELPER FUNCTIONS (ExtraÃ­das para reaproveitar nos dois modos) ---
 
 function createPointLayer(feature, latlng) {
   return L.circleMarker(latlng, { radius: getPointRadiusForFeature(feature) });
@@ -1262,7 +1262,7 @@ function refreshTurnDependentUI() {
 function filterFeature(feature) {
   const props = feature.properties;
 
-  // Filtro de Presídios/Locais Especiais (Exclusão Global)
+  // Filtro de PresÃ­dios/Locais Especiais (ExclusÃ£o Global)
   const nomeLocalForExclusion = norm(getProp(props, 'nm_locvot'));
   const exclusoes = ['PRISAO', 'PENITENCIARIA', 'PENINTENCIARI', 'DETENCAO', 'INTERNATO', 'CDP ', 'PRESIDIO', 'FUNDACAO CASA', 'FUND. CASA', 'UI-', 'UNID. DE INT', 'PENAL'];
   for (let kw of exclusoes) {
@@ -1288,7 +1288,7 @@ function filterFeature(feature) {
 
   if (!matchesLocationFilters(props)) return false;
 
-  // --- FILTRO DE DESEMPENHO (porcentagem mínima) ---
+  // --- FILTRO DE DESEMPENHO (porcentagem mÃ­nima) ---
   if (currentVizMode.startsWith('desempenho') && performanceFilterMinPct > 0) {
     const candidatoKey = dom.selectVizCandidato?.value;
     if (candidatoKey) {
@@ -1331,7 +1331,7 @@ function filterFeature(feature) {
     }
   }
 
-  // --- FILTROS CENSITÁRIOS ---
+  // --- FILTROS CENSITÃRIOS ---
 
   // 1. Renda (Direto)
   const renda = ensureNumber(getProp(props, 'Renda Media'));
@@ -1355,37 +1355,37 @@ function filterFeature(feature) {
     return 0;
   };
 
-  // Helper de checagem genérica Pct ou Absoluto Calculado
+  // Helper de checagem genÃ©rica Pct ou Absoluto Calculado
   const checkDynamic = (filterVal, filterMode, type) => {
     if (filterVal === null) return true;
 
-    // Se for Modo Legacy (2006) ou se o dado já vier como Pct explícito:
-    // (Ainda precisamos suportar Pct direto para Raça e Saneamento)
+    // Se for Modo Legacy (2006) ou se o dado jÃ¡ vier como Pct explÃ­cito:
+    // (Ainda precisamos suportar Pct direto para RaÃ§a e Saneamento)
 
-    // Raça & Saneamento (Sempre Pct)
+    // RaÃ§a & Saneamento (Sempre Pct)
     if (type === 'raca' || type === 'saneamento') {
       const propVal = ensureNumber(getProp(props, filterMode));
       return propVal >= filterVal;
     }
 
-    // Para Gênero, Idade, Escolaridade, Civil: Calcular dinamicamente
+    // Para GÃªnero, Idade, Escolaridade, Civil: Calcular dinamicamente
     let numerator = 0;
     let denominator = 0;
 
-    // Gênero
+    // GÃªnero
     if (type === 'genero') {
       const h = getVal(['MASCULINO', 'HOMENS', 'Homens', 'Pct Homens']);
       const m = getVal(['FEMININO', 'MULHERES', 'Mulheres', 'Pct Mulheres']);
 
-      // Fallback para legacy Pct direto se não tiver absoluto
-      // Se tiver Pct Homens e Pct Mulheres, getVal retornará eles.
-      // Se for Pct, a soma deve ser ~100 (ou perto). Se for Absoluto, soma é pop.
+      // Fallback para legacy Pct direto se nÃ£o tiver absoluto
+      // Se tiver Pct Homens e Pct Mulheres, getVal retornarÃ¡ eles.
+      // Se for Pct, a soma deve ser ~100 (ou perto). Se for Absoluto, soma Ã© pop.
 
       const total = h + m;
       if (total === 0) return false;
 
-      // Se for Pct, total é ~100.
-      // filterVal é 0-100.
+      // Se for Pct, total Ã© ~100.
+      // filterVal Ã© 0-100.
 
       // 'Pct Mulheres' vs 'Pct Homens'
       if (filterMode === 'Pct Mulheres') numerator = m;
@@ -1400,11 +1400,11 @@ function filterFeature(feature) {
       const s = getVal(['SOLTEIRO', 'Solteiro', 'Pct Solteiro']);
       const c = getVal(['CASADO', 'Casado', 'Pct Casado']);
       const d = getVal(['DIVORCIADO', 'Divorciado', 'Pct Divorciado']);
-      const v = getVal(['VIÚVO', 'VIUVO', 'Viúvo', 'Pct Viúvo']);
+      const v = getVal(['VIÃšVO', 'VIUVO', 'ViÃºvo', 'Pct ViÃºvo']);
       const sep = getVal(['SEPARADO JUDICIALMENTE', 'SEPARADO', 'Separado', 'Pct Separado']);
 
-      // Detecção de Modo Percentual (Legacy)
-      // Se a soma for significativamente < da população total esperada (em absolutos) ou se for ~100
+      // DetecÃ§Ã£o de Modo Percentual (Legacy)
+      // Se a soma for significativamente < da populaÃ§Ã£o total esperada (em absolutos) ou se for ~100
       // Mas melhor: verificar se usamos keys de Pct
       const isPct = (props['Pct Solteiro'] !== undefined || props['Pct Casado'] !== undefined);
 
@@ -1419,22 +1419,22 @@ function filterFeature(feature) {
       if (filterMode === 'Solteiro') num = s;
       else if (filterMode === 'Casado') num = c;
       else if (filterMode === 'Divorciado') num = d;
-      else if (filterMode === 'Viúvo') num = v;
+      else if (filterMode === 'ViÃºvo') num = v;
       else num = sep;
 
       return (num / den * 100) >= filterVal;
     }
     else if (type === 'escolaridade') {
       const ana = getVal(['ANALFABETO', 'Analfabeto', 'Pct Analfabeto']);
-      const le = getVal(['LÊ E ESCREVE', 'LE E ESCREVE', 'Lê e Escreve', 'Pct Lê e Escreve']);
+      const le = getVal(['LÃŠ E ESCREVE', 'LE E ESCREVE', 'LÃª e Escreve', 'Pct LÃª e Escreve']);
       const fi = getVal(['ENSINO FUNDAMENTAL INCOMPLETO', 'FUNDAMENTAL INCOMPLETO', 'Pct Fundamental Incompleto']);
       const fc = getVal(['ENSINO FUNDAMENTAL COMPLETO', 'FUNDAMENTAL COMPLETO', 'Pct Fundamental Completo']);
-      const mi = getVal(['ENSINO MÉDIO INCOMPLETO', 'MEDIO INCOMPLETO', 'Pct Médio Incompleto']);
-      const mc = getVal(['ENSINO MÉDIO COMPLETO', 'MEDIO COMPLETO', 'Pct Médio Completo']);
+      const mi = getVal(['ENSINO MÃ‰DIO INCOMPLETO', 'MEDIO INCOMPLETO', 'Pct MÃ©dio Incompleto']);
+      const mc = getVal(['ENSINO MÃ‰DIO COMPLETO', 'MEDIO COMPLETO', 'Pct MÃ©dio Completo']);
       const si = getVal(['ENSINO SUPERIOR INCOMPLETO', 'SUPERIOR INCOMPLETO', 'Pct Superior Incompleto']);
       const sc = getVal(['ENSINO SUPERIOR COMPLETO', 'SUPERIOR COMPLETO', 'Pct Superior Completo']);
 
-      const isPct = (props['Pct Analfabeto'] !== undefined || props['Pct Médio Completo'] !== undefined);
+      const isPct = (props['Pct Analfabeto'] !== undefined || props['Pct MÃ©dio Completo'] !== undefined);
 
       let den;
       let num;
@@ -1445,11 +1445,11 @@ function filterFeature(feature) {
       if (den === 0) return false;
 
       if (filterMode.includes('Analfabeto')) num = ana;
-      else if (filterMode.includes('Lê')) num = le;
+      else if (filterMode.includes('LÃª')) num = le;
       else if (filterMode === 'Fund. Incomp.') num = fi;
       else if (filterMode === 'Fund. Completo') num = fc;
-      else if (filterMode === 'Médio Incomp.') num = mi;
-      else if (filterMode === 'Médio Completo') num = mc;
+      else if (filterMode === 'MÃ©dio Incomp.') num = mi;
+      else if (filterMode === 'MÃ©dio Completo') num = mc;
       else if (filterMode === 'Superior Incompleto') num = si;
       else if (filterMode === 'Superior Completo') num = sc;
 
@@ -1966,7 +1966,7 @@ function clearSelection(updateMap = true) {
   if (dom.resultsContent) dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);"><p style="margin-bottom:8px">&#x1F446;</p>Clique no mapa ou use filtros para ver resultados.</div>';
   if (dom.resultsMetrics) dom.resultsMetrics.innerHTML = '';
   if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
-  if (dom.resultsTitle) dom.resultsTitle.textContent = 'Resultados da Seleção';
+  if (dom.resultsTitle) dom.resultsTitle.textContent = 'Resultados da SeleÃ§Ã£o';
   if (dom.resultsSubtitle) dom.resultsSubtitle.textContent = '';
   if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
   // Reset Unified View
@@ -1997,7 +1997,7 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
       }
     }
 
-    throw new Error(`Geometria municipal não encontrada para ${ufNorm}.`);
+    throw new Error(`Geometria municipal nÃ£o encontrada para ${ufNorm}.`);
   })();
 
   MUNICIPAL_POLYGON_CACHE.set(ufNorm, promise);
@@ -2050,7 +2050,7 @@ function renderMunicipalOverviewTurnTabs(summaryByTurn) {
   if (has1T) {
     const tab = document.createElement('div');
     tab.className = 'tab' + (currentTurno === 1 ? ' active' : '');
-    tab.textContent = '1º Turno';
+    tab.textContent = '1Âº Turno';
     tab.dataset.turno = 1;
     tab.addEventListener('click', () => {
       if (currentTurno === 1) return;
@@ -2063,7 +2063,7 @@ function renderMunicipalOverviewTurnTabs(summaryByTurn) {
   if (has2T) {
     const tab = document.createElement('div');
     tab.className = 'tab' + (currentTurno === 2 ? ' active' : '');
-    tab.textContent = '2º Turno';
+    tab.textContent = '2Âº Turno';
     tab.dataset.turno = 2;
     tab.addEventListener('click', () => {
       if (currentTurno === 2) return;
@@ -2100,7 +2100,7 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
   dom.summaryBoxContainer.classList.add('section-hidden');
   renderMunicipalOverviewTurnTabs(STATE.currentMapMuniSummaryByTurn);
   dom.resultsTitle.textContent = 'Prefeituras por partido';
-  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municípios`;
+  dom.resultsSubtitle.textContent = `${ufName} â€¢ ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municÃ­pios`;
   dom.resultsContent.innerHTML = '';
 
   if (!results.length) {
@@ -2343,7 +2343,7 @@ function syncResultsPanelToCurrentView() {
 
 function getAllFeaturesForAggregation() {
   // Retorna TODAS as features que passam pelos filtros atuais
-  // Não apenas as visíveis no viewport
+  // NÃ£o apenas as visÃ­veis no viewport
   const geojson = currentDataCollection[currentCargo];
   if (!geojson || !geojson.features) return [];
 
@@ -2510,21 +2510,21 @@ function selectFeaturesInBounds(bounds) {
 }
 
 
-// Função auxiliar para gerar o texto do título baseado nos filtros ativos
+// FunÃ§Ã£o auxiliar para gerar o texto do tÃ­tulo baseado nos filtros ativos
 function getActiveCensusFilterLabel() {
   const f = STATE.censusFilters;
 
   // 1. Filtro de Renda
   if (f.rendaMin !== null || f.rendaMax !== null) {
     const min = (f.rendaMin || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-    const max = f.rendaMax ? (f.rendaMax).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Máx (+R$ 10k)';
-    return `Renda Média: ${min} a ${max}`;
+    const max = f.rendaMax ? (f.rendaMax).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'MÃ¡x (+R$ 10k)';
+    return `Renda MÃ©dia: ${min} a ${max}`;
   }
 
-  // 2. Filtro de Raça/Cor
+  // 2. Filtro de RaÃ§a/Cor
   if (f.racaVal > 0) {
-    // Remove o "Pct" para ficar mais bonito (ex: "Pct Preta" vira "População Preta")
-    const label = f.racaMode.replace('Pct ', 'População ');
+    // Remove o "Pct" para ficar mais bonito (ex: "Pct Preta" vira "PopulaÃ§Ã£o Preta")
+    const label = f.racaMode.replace('Pct ', 'PopulaÃ§Ã£o ');
     return `${label}: Acima de ${f.racaVal}%`;
   }
 
@@ -2533,10 +2533,10 @@ function getActiveCensusFilterLabel() {
     return `Idade ${f.idadeMode}: Acima de ${f.idadeVal}% dos eleitores`;
   }
 
-  // 4. Filtro de Gênero
+  // 4. Filtro de GÃªnero
   if (f.generoVal > 0) {
     const label = f.generoMode.replace('Pct ', ''); // "Mulheres" ou "Homens"
-    return `Gênero (${label}): Acima de ${f.generoVal}%`;
+    return `GÃªnero (${label}): Acima de ${f.generoVal}%`;
   }
 
   // 5. Filtro de Escolaridade
@@ -2557,3 +2557,57 @@ function getActiveCensusFilterLabel() {
 
   return null; // Nenhum filtro censitário ativo
 }
+
+/**
+ * Atualiza instantaneamente as cores e os tooltips de todas as camadas do mapa
+ * para refletir mudanças nos CUSTOM_PARTY_COLORS.
+ */
+function refreshMapStylesAndTooltips() {
+  const summary = STATE.currentMapMuniSummary;
+
+  // 1. Atualiza camada de municípios (overview)
+  if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
+    STATE.municipiosLayer.eachLayer((layer) => {
+      const feature = layer?.feature;
+      if (!feature) return;
+
+      // Atualiza o estilo (fillColor)
+      if (typeof layer.setStyle === 'function') {
+        layer.setStyle(getMunicipalPolygonStyle(feature, summary));
+      }
+
+      // Atualiza o conteúdo do tooltip (pois cores em tooltips são strings estáticas no binding)
+      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
+        layer.setTooltipContent(buildMunicipalityTooltip(feature, summary));
+      }
+    });
+  }
+
+  // 2. Atualiza camada de pontos (locais de votação)
+  if (currentLayer && map.hasLayer(currentLayer)) {
+    currentLayer.eachLayer((layer) => {
+      const feature = layer?.feature;
+      if (!feature) return;
+
+      // Pontos (circleMarkers)
+      if (typeof layer.setStyle === 'function') {
+        layer.setStyle(getFeatureStyle(feature));
+      }
+
+      // Tooltips dos pontos
+      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
+        if (typeof buildLocationTooltip === 'function') {
+           layer.setTooltipContent(buildLocationTooltip(feature));
+        }
+      }
+    });
+  }
+
+  // Sincroniza painéis secundários que dependem da visão atual
+  if (typeof syncResultsPanelToCurrentView === 'function') {
+    syncResultsPanelToCurrentView();
+  }
+}
+
+// Exporta para uso global
+window.refreshMapStylesAndTooltips = refreshMapStylesAndTooltips;
