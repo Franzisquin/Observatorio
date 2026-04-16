@@ -505,13 +505,15 @@ function finalizeGeneralLoadUI(ufToLoad) {
   currentLocalFilter = preservedLocal;
   dom.searchLocal.value = preservedLocal ? preservedLocal : '';
 
+  STATE.currentMapMode = (
+    ufToLoad !== 'BR'
+    && !String(currentCargo || '').startsWith('deputado')
+    && preservedCidade === 'all'
+  ) ? 'municipios' : 'locais';
+
   updateElectionTypeUI();
 
-  if (ufToLoad !== 'BR') {
-    dom.summaryBoxContainer.classList.remove('section-hidden');
-  } else {
-    dom.summaryBoxContainer.classList.add('section-hidden');
-  }
+  dom.summaryBoxContainer.classList.add('section-hidden');
 
   const hasAnyInaptos = Object.values(STATE.dataHasInaptos).some((value) => value);
   dom.btnToggleInaptos.disabled = !hasAnyInaptos;

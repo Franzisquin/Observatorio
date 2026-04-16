@@ -85,13 +85,10 @@ function updateSelectionUI(isFilterAggregation = false) {
     }
 
     // --- CORREÇÃO: Exibe o container e Atualiza o ANO do título ---
-    dom.summaryBoxContainer.classList.remove('section-hidden');
+    dom.summaryBoxContainer.classList.add('section-hidden');
 
     // Atualiza o texto do título (h3) para o ano correto
-    const titleEl = dom.summaryBoxContainer.querySelector('h3');
-    if (titleEl) titleEl.textContent = `Comparativo ${year}`;
-
-    renderSummaryBoxes(aggregatedProps);
+    if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
   }
 
   dom.resultsBox.classList.remove('section-hidden');
@@ -320,6 +317,7 @@ function aggregatePropsList(listOfProps) {
 
 function setupTurnTabs(props) {
   dom.turnTabs.innerHTML = '';
+  if (STATE.currentElectionType === 'geral' && STATE.currentMapMode === 'municipios') return;
   const has1T = (STATE.candidates[currentCargo]?.['1T'] || []).length > 0;
   let has2T = STATE.dataHas2T[currentCargo] || false;
 
@@ -1184,11 +1182,9 @@ function updateAvailabilityBars(geojson) {
 
     // --- IDADE (CORRIGIDO) ---
     if (type === 'idade') {
-      let buckets = { '16-24': 0, '25-34': 0, '35-44': 0, '45-59': 0, '60-74': 0, '75-100': 0 };
-      let totalAge = 0;
-      let foundAny = false;
+      const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
 
-      for (const key in props) {
+      for (const key in {}) {
         if (!isValidKey(key, props[key])) continue;
 
         const val = ensureNumber(props[key]);
@@ -1223,10 +1219,10 @@ function updateAvailabilityBars(geojson) {
       // --- FILTRO DE RUÍDO ESTATÍSTICO ---
       // Se a soma das pessoas for muito baixa (ex: < 15), a porcentagem é irrelevante/ruído.
       // Isso evita que um local com 1 pessoa de 18 anos gere "100%" e estrague a barra.
-      if (!foundAny || totalAge < 15) return null;
+      if (!ageAggregate.hasData || ageAggregate.total < 15) return null;
 
-      num = buckets[mode] || 0;
-      den = totalAge;
+      num = ageAggregate.buckets[mode] || 0;
+      den = ageAggregate.total;
 
       // Auto-correção matemática (garante que bucket nunca é maior que total)
       if (num > den) den = num;
@@ -1374,27 +1370,8 @@ function updateAvailabilityBars(geojson) {
 }
 
 function calculateAgeSumForProps(props, mode) {
-  let sumPct = 0;
-  for (const k in props) {
-    if (k.startsWith('Pct ') && k.includes('anos')) {
-      const match = k.match(/Pct (\d+) a/);
-      if (match) {
-        const age = parseInt(match[1]);
-        let bucket = null;
-        if (age >= 15 && age <= 24) bucket = '16-24';
-        else if (age >= 25 && age <= 34) bucket = '25-34';
-        else if (age >= 35 && age <= 44) bucket = '35-44';
-        else if (age >= 45 && age <= 59) bucket = '45-59';
-        else if (age >= 60 && age <= 74) bucket = '60-74';
-        else if (age >= 75) bucket = '75-100';
-
-        if (bucket === mode) sumPct += ensureNumber(props[k]);
-      } else if ((k.includes('95 a 99') || k.includes('100') || k.includes('mais'))) {
-        if (mode === '75-100') sumPct += ensureNumber(props[k]);
-      }
-    }
-  }
-  return sumPct;
+  const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
+  return ageAggregate.buckets[mode] || 0;
 }
 
 function setBar(id, min, max, scale) {

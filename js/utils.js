@@ -90,6 +90,101 @@ function ensureNumber(v) {
   return isFinite(n) ? n : 0;
 }
 
+const AGE_BUCKETS_STANDARD = [
+  { key: '16-29', label: '16 a 29 anos', min: 16, max: 29 },
+  { key: '30-45', label: '30 a 45 anos', min: 30, max: 45 },
+  { key: '46-59', label: '46 a 59 anos', min: 46, max: 59 },
+  { key: '60+', label: '60+ anos', min: 60, max: 200 }
+];
+
+function parseAgeRangeFromKey(key) {
+  const raw = String(key || '');
+  if (!/anos/i.test(raw)) return null;
+
+  const matchRange = raw.match(/(\d+)\s*(?:a|A|ate|ate|to|-|_)\s*(\d+)/i);
+  if (matchRange) {
+    return [parseInt(matchRange[1], 10), parseInt(matchRange[2], 10)];
+  }
+
+  const matchPlus = raw.match(/(\d+)\s*(?:anos)?\s*(?:ou)?\s*mais/i);
+  if (matchPlus) {
+    const start = parseInt(matchPlus[1], 10);
+    return [start, 200];
+  }
+
+  const matchSingle = raw.match(/(\d+)\s*anos/i);
+  if (matchSingle) {
+    const age = parseInt(matchSingle[1], 10);
+    return [age, age];
+  }
+
+  return null;
+}
+
+function getAgeRangeOverlapRatio(sourceRange, targetRange) {
+  const [sourceStart, sourceEnd] = sourceRange;
+  const [targetStart, targetEnd] = targetRange;
+  const overlapStart = Math.max(sourceStart, targetStart);
+  const overlapEnd = Math.min(sourceEnd, targetEnd);
+
+  if (overlapEnd < overlapStart) return 0;
+
+  const sourceSpan = Math.max(1, sourceEnd - sourceStart + 1);
+  const overlapSpan = overlapEnd - overlapStart + 1;
+  return overlapSpan / sourceSpan;
+}
+
+function getAgeEntriesFromProps(props) {
+  const absoluteEntries = [];
+  const pctEntries = [];
+
+  for (const key in (props || {})) {
+    if (!/anos/i.test(key)) continue;
+
+    const value = ensureNumber(props[key]);
+    if (value <= 0) continue;
+
+    const range = parseAgeRangeFromKey(key);
+    if (!range) continue;
+
+    const entry = { key, range, value, isPct: /^Pct/i.test(key) };
+    if (entry.isPct) pctEntries.push(entry);
+    else absoluteEntries.push(entry);
+  }
+
+  return absoluteEntries.length > 0 ? absoluteEntries : pctEntries;
+}
+
+function aggregateAgeBucketsFromProps(props, bucketDefs = AGE_BUCKETS_STANDARD) {
+  const defs = Array.isArray(bucketDefs) && bucketDefs.length > 0 ? bucketDefs : AGE_BUCKETS_STANDARD;
+  const buckets = Object.fromEntries(defs.map(def => [def.key, 0]));
+  const entries = getAgeEntriesFromProps(props);
+  let total = 0;
+
+  entries.forEach(entry => {
+    total += entry.value;
+
+    defs.forEach(def => {
+      const ratio = getAgeRangeOverlapRatio(entry.range, [def.min, def.max]);
+      if (ratio > 0) buckets[def.key] += entry.value * ratio;
+    });
+  });
+
+  return {
+    buckets,
+    total,
+    hasData: entries.length > 0,
+    sourceType: entries.length > 0 && entries[0].isPct ? 'pct' : 'absolute'
+  };
+}
+
+if (typeof window !== 'undefined') {
+  window.AGE_BUCKETS_STANDARD = AGE_BUCKETS_STANDARD;
+  window.parseAgeRangeFromKey = parseAgeRangeFromKey;
+  window.getAgeEntriesFromProps = getAgeEntriesFromProps;
+  window.aggregateAgeBucketsFromProps = aggregateAgeBucketsFromProps;
+}
+
 const GENERAL_METRIC_NAMES = new Set([
   'TOTAL_VOTOS_VALIDOS',
   'VOTOS_BRANCOS',
@@ -670,11 +765,23 @@ function selectMunicipalitiesInBounds(bounds) {
   if (firstSelected) firstSelected.fire('click');
 }
 
+function isMunicipalityVisibleInCurrentContext(codM) {
+  const code = String(codM || '').trim();
+  if (!code) return false;
+
+  const summary = STATE.currentMapMuniSummary;
+  if (!summary) return true;
+  if (summary[code]) return true;
+
+  return Object.values(summary).some((entry) => String(entry?.muniCode || '').trim() === code);
+}
+
 function getMarginAdjustedColor(baseColorHex, marginPct) {
   const safeMargin = Math.max(0, Math.min(100, ensureNumber(marginPct)));
   return getUniversalGradientColor(baseColorHex, safeMargin);
 }
 
 if (typeof window !== 'undefined') {
+  window.isMunicipalityVisibleInCurrentContext = isMunicipalityVisibleInCurrentContext;
   window.getMarginAdjustedColor = getMarginAdjustedColor;
 }

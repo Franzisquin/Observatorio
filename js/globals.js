@@ -551,6 +551,11 @@ const STATE = {
     governador: null,
     senador: null
   },
+  currentMapMode: 'locais',
+  currentMapMuniUF: null,
+  currentMapMuniSummary: null,
+  currentMapMuniSummaryByTurn: null,
+  municipiosLayer: null,
   currentMuniCode: null,
   generalOfficialTotals: {},
   generalOfficialTotalsByCity: {},
@@ -565,7 +570,7 @@ const STATE = {
 
     // Idade
     idadeVal: null,
-    idadeMode: '16-24',
+    idadeMode: '16-29',
 
     // Gênero
     generoVal: null,

@@ -273,6 +273,7 @@ async function init() {
   dom.selectRGINT = document.getElementById('filterRGINT');
   dom.selectRGI = document.getElementById('filterRGI');
 
+  dom.ctrlCidadeFilter = document.getElementById('ctrlCidadeFilter');
   dom.boxCidade = document.getElementById('boxCidade');
   dom.inputCidade = document.getElementById('inputCidade');
   dom.listCidade = document.getElementById('listCidade');
@@ -295,6 +296,8 @@ async function init() {
   dom.resultsBox = document.getElementById('resultsBox');
   dom.resultsTitle = document.getElementById('resultsTitle');
   dom.resultsSubtitle = document.getElementById('resultsSubtitle');
+  dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
+  dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
   dom.btnLocateSelection = document.getElementById('btnLocateSelection');
   dom.btnClearSelection = document.getElementById('btnClearSelection');
   dom.turnTabs = document.getElementById('turnTabs');
@@ -311,8 +314,7 @@ async function init() {
   dom.profileRacaChart = document.getElementById('profileRacaChart');
   dom.profileIdadeChart = document.getElementById('profileIdadeChart');
   dom.profileSaneamentoChart = document.getElementById('profileSaneamentoChart');
-  dom.profileAlfabetizacaoBar = document.getElementById('profileAlfabetizacaoBar');
-  dom.profileAlfabetizacaoVal = document.getElementById('profileAlfabetizacaoVal');
+  dom.profileEscolaridadeChart = document.getElementById('profileEscolaridadeChart');
   dom.profileGeneroChart = document.getElementById('profileGeneroChart');
 
   // Census Filters DOM
@@ -531,22 +533,6 @@ function updateAvailabilityBars(geojson) {
 }
 
 function calculateAgeSumForProps(props, mode) {
-  let sumPct = 0;
-  for (const k in props) {
-    if (k.startsWith('Pct ') && k.includes('anos')) {
-      const match = k.match(/Pct (\d+) a/);
-      if (match) {
-        const age = parseInt(match[1]);
-        let bucket = '';
-        if (age >= 16 && age <= 24) bucket = '16-24';
-        else if (age >= 25 && age <= 34) bucket = '25-34';
-        else if (age >= 35 && age <= 44) bucket = '35-44';
-        else if (age >= 45 && age <= 59) bucket = '45-59';
-        else if (age >= 60 && age <= 74) bucket = '60-74';
-        else if (age >= 75) bucket = '75+';
-        if (bucket === mode) sumPct += ensureNumber(props[k]);
-      }
-    }
-  }
-  return sumPct;
+  const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
+  return ageAggregate.buckets[mode] || 0;
 }

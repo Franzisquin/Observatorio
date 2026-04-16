@@ -34,12 +34,10 @@ const CORR_AXES = [
     { id: 'indigena',    label: 'Indígena',    group: 'Cor/Raça', groupColor: '#fb923c', unit: '%', keys: ['Pct Indigena', 'PCT INDIGENA'] },
 
     // ── Faixa Etária ───────────────────────────────────────────────────────
-    { id: 'idade_16_24', label: '16–24 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [16, 24] },
-    { id: 'idade_25_34', label: '25–34 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [25, 34] },
-    { id: 'idade_35_44', label: '35–44 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [35, 44] },
-    { id: 'idade_45_59', label: '45–59 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [45, 59] },
-    { id: 'idade_60_74', label: '60–74 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [60, 74] },
-    { id: 'idade_75p',   label: '75+ anos',    group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [75, 200] },
+    { id: 'idade_16_29', label: '16–29 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [16, 29] },
+    { id: 'idade_30_45', label: '30–45 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [30, 45] },
+    { id: 'idade_46_59', label: '46–59 anos',  group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [46, 59] },
+    { id: 'idade_60p',   label: '60+ anos',    group: 'Faixa Etária', groupColor: '#34d399', unit: '%', ageRange: [60, 200] },
 
     // ── Escolaridade ───────────────────────────────────────────────────────
     { id: 'analfabeto',  label: 'Analfabeto',  group: 'Escolaridade', groupColor: '#60a5fa', unit: '%', isAbs: true, keys: ['ANALFABETO', 'Analfabeto'] },

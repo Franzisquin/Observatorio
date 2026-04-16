@@ -217,8 +217,9 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
   }
 
   const promise = (async () => {
-    const stateSummary = {};
+    const stateSummary = { '1T': {}, '2T': {} };
     const loadTurnEntries = async (turno) => {
+      const turnoKey = Number(turno) === 2 ? '2T' : '1T';
       const zipUrl = `${DATA_BASE_URL}Municipais ${year}/prefeito_${year}_${subtype}_t${turno}_${ufNorm}.zip`;
       try {
         const reader = await getZipReader(zipUrl);
@@ -231,7 +232,7 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
           const payload = JSON.parse(await (await entry.blob()).text());
           const overview = buildMunicipalOverviewEntry(payload, subtype);
           if (!overview.muniCode) continue;
-          stateSummary[overview.muniCode] = overview;
+          stateSummary[turnoKey][overview.muniCode] = overview;
         }
       } catch (error) {
         console.warn(`[Municipal ${year}] Resumo estadual indisponível para ${ufNorm} turno ${turno}:`, error);
@@ -1242,14 +1243,17 @@ async function ensureOfficialTotalsVereadores(ano) {
 }
 
 function finalizeMunicipalLoadUI(municipio, isVereador) {
+  currentTurno = 1;
   currentCidadeFilter = 'all';
   currentBairroFilter = 'all';
   currentLocalFilter = '';
+  STATE.currentMapMode = 'locais';
 
   if (STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
     map.removeLayer(STATE.municipiosLayer);
   }
   STATE.currentMapMuniSummary = null;
+  STATE.currentMapMuniSummaryByTurn = null;
   STATE.currentMapMuniUF = null;
 
   updateElectionTypeUI();

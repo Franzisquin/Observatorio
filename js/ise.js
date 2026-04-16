@@ -1721,12 +1721,10 @@ const ISE_FACTORS = {
         label: 'Faixa Etária',
         color: '#34d399',
         factors: [
-            { id: 'idade_16_24', label: '16–24', ageRange: [16, 24] },
-            { id: 'idade_25_34', label: '25–34', ageRange: [25, 34] },
-            { id: 'idade_35_44', label: '35–44', ageRange: [35, 44] },
-            { id: 'idade_45_59', label: '45–59', ageRange: [45, 59] },
-            { id: 'idade_60_74', label: '60–74', ageRange: [60, 74] },
-            { id: 'idade_75', label: '75+', ageRange: [75, 200] },
+            { id: 'idade_16_29', label: '16–29', ageRange: [16, 29] },
+            { id: 'idade_30_45', label: '30–45', ageRange: [30, 45] },
+            { id: 'idade_46_59', label: '46–59', ageRange: [46, 59] },
+            { id: 'idade_60', label: '60+', ageRange: [60, 200] },
         ]
     },
     escolaridade: {
@@ -1792,35 +1790,10 @@ function _getFactorValue(props, factorDef) {
     // ── Faixa Etária ─────────────────────────────────────────────────────────
     if (factorDef.ageRange) {
         const [minAge, maxAge] = factorDef.ageRange;
-        let sumInRange = 0, totalAge = 0;
-
-        // Tenta absolutos primeiro (chaves com "anos" mas sem "Pct")
-        for (const key in props) {
-            if (!key.match(/anos/i) || key.match(/^Pct/i)) continue;
-            const v = Number(props[key]) || 0;
-            if (v === 0) continue;
-            const m = key.match(/(\d+)/);
-            if (!m) continue;
-            const age = parseInt(m[1]);
-            totalAge += v;
-            if (age >= minAge && age <= maxAge) sumInRange += v;
-        }
-
-        // Fallback legacy: "Pct X a Y anos"
-        if (totalAge === 0) {
-            for (const key in props) {
-                if (!key.startsWith('Pct ') || !key.includes('anos')) continue;
-                const v = Number(props[key]) || 0;
-                if (v === 0) continue;
-                const m = key.match(/(\d+)/);
-                if (!m) continue;
-                const age = parseInt(m[1]);
-                totalAge += v;
-                if (age >= minAge && age <= maxAge) sumInRange += v;
-            }
-        }
-
-        return totalAge > 0 ? (sumInRange / totalAge) * 100 : -1;
+        const ageAggregate = aggregateAgeBucketsFromProps(props, [
+            { key: 'target', min: minAge, max: maxAge }
+        ]);
+        return ageAggregate.total > 0 ? (ageAggregate.buckets.target / ageAggregate.total) * 100 : -1;
     }
 
     // ── Gênero ────────────────────────────────────────────────────────────────

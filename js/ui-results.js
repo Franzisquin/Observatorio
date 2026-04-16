@@ -75,9 +75,13 @@ function updateNeighborhoodProfileUI() {
   };
 
   // Idade Buckets
-  const ageBuckets = {
-    '16 - 24': 0, '25 - 34': 0, '35 - 44': 0, '45 - 59': 0, '60 - 74': 0, '75+': 0
-  };
+  const ageBucketDefs = window.AGE_BUCKETS_STANDARD || [
+    { key: '16-29', min: 16, max: 29 },
+    { key: '30-45', min: 30, max: 45 },
+    { key: '46-59', min: 46, max: 59 },
+    { key: '60+', min: 60, max: 200 }
+  ];
+  const ageBuckets = Object.fromEntries(ageBucketDefs.map(def => [def.key, 0]));
 
   // Pct Media (Raça/Saneamento)
   const pctSum = {
@@ -147,25 +151,9 @@ function updateNeighborhoodProfileUI() {
         abs.SupIncomp += getVal(p, ['ENSINO SUPERIOR INCOMPLETO', 'SUPERIOR INCOMPLETO']);
         abs.SupComp += getVal(p, ['ENSINO SUPERIOR COMPLETO', 'SUPERIOR COMPLETO']);
 
-        // Idade (Varredura inteligente)
-        for (const key in p) {
-          // Procura chaves que contenham "ANOS" ou "anos", ignora "Pct"
-          if (key.match(/anos/i) && !key.match(/^Pct/i)) {
-            const v = ensureNumber(p[key]);
-            if (v === 0) continue;
-
-            // Extrai numero inicial: "16 anos" -> 16, "21 a 24" -> 21
-            const match = key.match(/(\d+)/);
-            if (match) {
-              const age = parseInt(match[1]);
-              if (age >= 16 && age <= 24) ageBuckets['16 - 24'] += v;
-              else if (age >= 25 && age <= 34) ageBuckets['25 - 34'] += v;
-              else if (age >= 35 && age <= 44) ageBuckets['35 - 44'] += v;
-              else if (age >= 45 && age <= 59) ageBuckets['45 - 59'] += v;
-              else if (age >= 60 && age <= 74) ageBuckets['60 - 74'] += v;
-              else if (age >= 75) ageBuckets['75+'] += v;
-            }
-          }
+        const ageAggregate = aggregateAgeBucketsFromProps(p, ageBucketDefs);
+        for (const [bucket, value] of Object.entries(ageAggregate.buckets)) {
+          ageBuckets[bucket] += value;
         }
       }
     }
@@ -270,23 +258,9 @@ function updateNeighborhoodProfileUI() {
 }
 
 function processAgeLegacy(p, buckets) {
-  // Logica pct antiga (Pct X a Y anos)
-  for (const k in p) {
-    if (k.startsWith('Pct ') && k.includes('anos')) {
-      const match = k.match(/Pct (\d+) a/);
-      const val = ensureNumber(p[k]);
-      if (match) {
-        const age = parseInt(match[1]);
-        if (age >= 16 && age <= 24) buckets['16 - 24'] += val;
-        else if (age >= 25 && age <= 34) buckets['25 - 34'] += val;
-        else if (age >= 35 && age <= 44) buckets['35 - 44'] += val;
-        else if (age >= 45 && age <= 59) buckets['45 - 59'] += val;
-        else if (age >= 60 && age <= 74) buckets['60 - 74'] += val;
-        else if (age >= 75) buckets['75+'] += val;
-      } else if (k.includes('95 a 99') || k.includes('100')) {
-        buckets['75+'] += val;
-      }
-    }
+  const ageAggregate = aggregateAgeBucketsFromProps(p, window.AGE_BUCKETS_STANDARD);
+  for (const [bucket, value] of Object.entries(ageAggregate.buckets)) {
+    buckets[bucket] = (buckets[bucket] || 0) + value;
   }
 }
 
@@ -458,6 +432,7 @@ function updateConditionalUI() {
 function updateElectionTypeUI() {
   const isMunicipal = STATE.currentElectionType === 'municipal';
   const hasMunicipalSelection = !!(dom.selectMunicipio?.value);
+  if (dom.ctrlCidadeFilter) dom.ctrlCidadeFilter.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxGeneral) dom.officeBoxGeneral.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxMunicipal) dom.officeBoxMunicipal.classList.toggle('section-hidden', !isMunicipal || !hasMunicipalSelection);
   if (!isMunicipal) {

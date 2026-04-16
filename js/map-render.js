@@ -678,6 +678,266 @@ function getMunicipalSummaryEntryForFeature(props, summary) {
   }) || null;
 }
 
+function getActiveTurnoKeyForCurrentCargo(cargoKey = currentCargo) {
+  return (currentTurno === 2 && STATE.dataHas2T[cargoKey]) ? '2T' : '1T';
+}
+
+function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
+  const geojson = currentDataCollection[cargoKey];
+  if (!geojson?.features?.length) return {};
+
+  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+  const turnoLabel = turnoKey === '2T' ? '2º Turno' : '1º Turno';
+  const inaptosTurno = STATE.inaptos[cargoKey]?.[turnoKey] || [];
+  const grouped = new Map();
+
+  geojson.features.forEach((feature) => {
+    if (!filterFeature(feature)) return;
+
+    const props = feature.properties || {};
+    const cityName = String(getProp(props, 'nm_localidade') || '').trim();
+    if (!cityName) return;
+
+    let entry = grouped.get(cityName);
+    if (!entry) {
+      entry = {
+        nome: cityName,
+        muniCode: String(getMunicipalityFeatureCode(props) || '').trim(),
+        votes: {},
+        totalValid: 0
+      };
+      grouped.set(cityName, entry);
+    }
+
+    Object.keys(props).forEach((key) => {
+      if (!key.endsWith(` ${turnoKey}`) || !isCandidateVoteKey(key)) return;
+      if (STATE.filterInaptos && inaptosTurno.includes(key)) return;
+
+      const votes = ensureNumber(props[key]);
+      if (votes <= 0) return;
+
+      entry.votes[key] = (entry.votes[key] || 0) + votes;
+      entry.totalValid += votes;
+    });
+  });
+
+  const summary = {};
+  grouped.forEach((entry) => {
+    const orderedVotes = Object.entries(entry.votes)
+      .filter(([, votes]) => ensureNumber(votes) > 0)
+      .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
+
+    if (!orderedVotes.length || entry.totalValid <= 0) return;
+
+    const [winnerKey, winnerVotesRaw] = orderedVotes[0];
+    const [, secondVotesRaw] = orderedVotes[1] || [null, 0];
+    const winnerInfo = parseCandidateKey(winnerKey);
+    const winnerVotes = ensureNumber(winnerVotesRaw);
+    const secondVotes = ensureNumber(secondVotesRaw);
+
+    const summaryEntry = {
+      nome: entry.nome,
+      muniCode: entry.muniCode,
+      winnerCode: winnerKey,
+      winnerName: winnerInfo.nome || 'N/D',
+      winnerParty: winnerInfo.partido || '',
+      totalValid: entry.totalValid,
+      margin: entry.totalValid > 0 ? ((winnerVotes - secondVotes) / entry.totalValid) * 100 : 0,
+      turno: turnoKey,
+      turnoLabel,
+      votes: entry.votes,
+      rawTotals: entry.votes,
+      isDetailed: true
+    };
+    if (entry.muniCode) summary[entry.muniCode] = summaryEntry;
+    summary[normalizeMunicipioSlug(entry.nome)] = summaryEntry;
+  });
+
+  return summary;
+}
+
+function renderGeneralStatewideMunicipalityResults(summary, uf) {
+  const ufName = UF_MAP.get(uf) || uf;
+  const uniqueResults = new Map();
+  const winners = new Map();
+  const candidateTotals = new Map();
+  let totalValidVotes = 0;
+
+  Object.values(summary || {}).forEach((result) => {
+    const muniKey = String(result?.muniCode || normalizeMunicipioSlug(result?.nome || '')).trim();
+    if (!muniKey || uniqueResults.has(muniKey)) return;
+    uniqueResults.set(muniKey, result);
+  });
+
+  uniqueResults.forEach((result) => {
+    const winnerName = String(result?.winnerName || '').trim();
+    const winnerParty = String(result?.winnerParty || '').trim();
+    const votesMap = result?.votes || {};
+
+    Object.entries(votesMap).forEach(([candidateKey, rawVotes]) => {
+      const votes = ensureNumber(rawVotes);
+      if (votes <= 0) return;
+      candidateTotals.set(candidateKey, (candidateTotals.get(candidateKey) || 0) + votes);
+      totalValidVotes += votes;
+    });
+
+    if (!winnerName) return;
+
+    const winnerKey = `${winnerName}|||${winnerParty}`;
+    if (!winners.has(winnerKey)) {
+      winners.set(winnerKey, {
+        nome: winnerName,
+        partido: winnerParty,
+        color: getColorForCandidate(winnerName, winnerParty),
+        count: 0,
+        totalVotes: 0,
+        winnerVoteKey: String(result?.winnerCode || '').trim()
+      });
+    }
+    winners.get(winnerKey).count += 1;
+  });
+
+  winners.forEach((winnerEntry) => {
+    if (winnerEntry.winnerVoteKey) {
+      winnerEntry.totalVotes = candidateTotals.get(winnerEntry.winnerVoteKey) || 0;
+    }
+  });
+
+  const results = Array.from(winners.values()).sort((a, b) => {
+    if (b.totalVotes !== a.totalVotes) return b.totalVotes - a.totalVotes;
+    if (b.count !== a.count) return b.count - a.count;
+    return a.nome.localeCompare(b.nome, 'pt-BR');
+  });
+
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.summaryBoxContainer.classList.add('section-hidden');
+  if (dom.turnTabs) dom.turnTabs.innerHTML = '';
+  dom.resultsTitle.textContent = 'Municípios por vencedor';
+  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(uniqueResults.size)} municípios`;
+  dom.resultsContent.innerHTML = '';
+
+  if (!results.length) {
+    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum resultado municipal agregado disponível para este recorte.</p>';
+    dom.resultsMetrics.innerHTML = '';
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  const totalMunicipios = uniqueResults.size;
+
+  results.forEach((result) => {
+    const barRatio = totalValidVotes > 0 ? (result.totalVotes / totalValidVotes) : 0;
+    const div = document.createElement('div');
+    div.className = 'cand';
+    div.innerHTML = `
+      <div class="cand-indicator" style="background:${result.color}"></div>
+      <div class="cand-name-wrapper">
+        <div class="cand-name" title="${escapeHtml(result.nome)}">
+          <span class="scroll-text">${escapeHtml(result.nome)}</span>
+        </div>
+        <div style="font-size:0.72rem; color:var(--muted); margin-top:2px;">${escapeHtml(result.partido || 'Sem partido')}</div>
+      </div>
+      <div class="cand-bar-wrapper">
+        <div class="cand-bar-fill" style="background:${result.color}; width:${barRatio * 100}%;"></div>
+        <div class="cand-votos">${fmtInt(result.count)}</div>
+        <div class="cand-pct">${fmtInt(result.totalVotes)}</div>
+      </div>
+    `;
+    grid.appendChild(div);
+  });
+
+  dom.resultsContent.appendChild(grid);
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-item"><span>Votos válidos no estado</span><strong>${fmtInt(totalValidVotes)}</strong></div>
+      <div class="metric-item"><span>Municípios computados</span><strong>${fmtInt(totalMunicipios)}</strong></div>
+    </div>
+  `;
+}
+
+function shouldRenderGeneralMunicipalityOverview() {
+  const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+  if (STATE.currentElectionType !== 'geral') return false;
+  if (!uf || uf === 'BR') return false;
+  if (String(currentCargo || '').startsWith('deputado')) return false;
+  if (STATE.currentMapMode === 'locais') return false;
+  if (currentCidadeFilter !== 'all') return false;
+  if (currentBairroFilter !== 'all') return false;
+  if (currentLocalFilter.trim().length > 2) return false;
+  return true;
+}
+
+async function showGeneralMunicipalityOverview(uf) {
+  const ufNorm = String(uf || '').toUpperCase();
+  if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
+
+  showMapLoading(`Carregando visão municipal de ${ufNorm}...`);
+
+  try {
+    STATE.currentMapMode = 'municipios';
+    STATE.currentMapMuniUF = ufNorm;
+    STATE.currentMapMuniSummary = buildGeneralMunicipalityOverviewSummary(currentCargo);
+
+    const geojson = await fetchMunicipalPolygonGeoJSON(ufNorm);
+    if (!shouldRenderGeneralMunicipalityOverview() || String(dom.selectUFGeneral?.value || '').toUpperCase() !== ufNorm) {
+      return;
+    }
+
+    if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
+      map.removeLayer(STATE.municipiosLayer);
+    }
+
+    STATE.municipiosLayer = L.geoJSON(geojson, {
+      style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+      onEachFeature: (feature, layer) => {
+        layer.bindTooltip(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary), {
+          className: 'sim-tooltip',
+          sticky: true
+        });
+
+        layer.on({
+          mouseover: () => {
+            layer.setStyle({ weight: 1.4, color: '#ffffff' });
+          },
+          mouseout: () => {
+            STATE.municipiosLayer?.resetStyle(layer);
+          },
+          click: () => {
+            const nome = getMunicipalityFeatureName(feature.properties);
+            const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
+            currentCidadeFilter = matchedCity;
+            currentBairroFilter = 'all';
+            currentLocalFilter = '';
+            STATE.currentMapMode = 'locais';
+            if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
+            if (bairroCombobox) bairroCombobox.setValue('');
+            if (dom.searchLocal) dom.searchLocal.value = '';
+            populateBairroDropdown();
+            updateApplyButtonText();
+            applyFiltersAndRedraw();
+          }
+        });
+      }
+    }).addTo(map);
+
+    const bounds = STATE.municipiosLayer.getBounds?.();
+    if (bounds?.isValid?.()) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
+    if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
+
+    renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
+  } catch (error) {
+    console.error('[Geral] Falha ao montar visão municipal:', error);
+    showToast(`Erro ao carregar a visão municipal: ${error.message}`, 'error');
+  } finally {
+    hideMapLoading();
+  }
+}
+
 function showTopDeputyCandidates(resultsContainer) {
   const top = deputySearchCandList.slice(0, 15);
   renderDeputySearchResults(top, resultsContainer, '');
@@ -829,6 +1089,16 @@ function applyFiltersAndRedraw() {
     return;
   }
 
+  if (shouldRenderGeneralMunicipalityOverview()) {
+    CURRENT_VISIBLE_FEATURES_CACHE = [];
+    CURRENT_VISIBLE_PROPS_CACHE = [];
+    void showGeneralMunicipalityOverview(dom.selectUFGeneral?.value);
+    if (STATE.isLoadingDataset) {
+      clearPendingFilterChanges();
+    }
+    return;
+  }
+
   // O renderer canvas do Leaflet pode ter sido desalojado durante trocas
   // rápidas de eleição/cargo. Se ele ficou órfão, recriamos antes de renderizar.
   if (!mapCanvasRenderer || mapCanvasRenderer._map !== map) {
@@ -854,6 +1124,10 @@ function applyFiltersAndRedraw() {
   if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
     map.removeLayer(STATE.municipiosLayer);
   }
+
+  STATE.currentMapMode = 'locais';
+  if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.remove('active');
+  if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.add('active');
 
   currentLayer = L.geoJSON(geojson, {
     renderer: mapCanvasRenderer,
@@ -922,6 +1196,18 @@ function shouldFullRedrawOnTurnChange() {
 }
 
 function refreshTurnDependentUI() {
+  if (STATE.currentMapMode === 'municipios') {
+    if (STATE.currentElectionType === 'geral' && shouldRenderGeneralMunicipalityOverview()) {
+      void showGeneralMunicipalityOverview(STATE.currentMapMuniUF || dom.selectUFGeneral?.value);
+      return;
+    }
+
+    if (STATE.currentElectionType === 'municipal') {
+      void refreshMunicipalStatewideOverviewForTurn();
+      return;
+    }
+  }
+
   if (!currentDataCollection[currentCargo]) return;
 
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
@@ -1165,49 +1451,11 @@ function filterFeature(feature) {
 
     // Idade
     if (type === 'idade') {
-      // Calcular buckets
-      let buckets = { '16-24': 0, '25-34': 0, '35-44': 0, '45-59': 0, '60-74': 0, '75-100': 0 };
-      let totalAge = 0;
+      const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
+      if (ageAggregate.total === 0) return false;
 
-      // Varredura para montar buckets desta feature
-      for (const key in props) {
-        if (key.match(/anos/i) && !key.match(/^Pct/i)) {
-          const v = ensureNumber(props[key]);
-          if (v === 0) continue;
-          const match = key.match(/(\d+)/);
-          if (match) {
-            const age = parseInt(match[1]);
-            totalAge += v;
-            if (age >= 16 && age <= 24) buckets['16-24'] += v;
-            else if (age >= 25 && age <= 34) buckets['25-34'] += v;
-            else if (age >= 35 && age <= 44) buckets['35-44'] += v;
-            else if (age >= 45 && age <= 59) buckets['45-59'] += v;
-            else if (age >= 60 && age <= 74) buckets['60-74'] += v;
-            else if (age >= 75) buckets['75-100'] += v;
-          }
-        } else if (key.startsWith('Pct ') && key.includes('anos')) {
-          // Tratamento Legacy Pct
-          // Se cair aqui, totalAge será soma de PCTS (~100).
-          // filterMode será comparado com a soma das PCTs do bucket.
-          const val = ensureNumber(props[key]);
-          const match = key.match(/(\d+)/);
-          if (match) {
-            const age = parseInt(match[1]);
-            // buckets... (simplificado, mas ok se assumirmos que ou tem absoluto ou tem pct)
-            totalAge += val; // Isso vai dar ~100
-            if (age >= 16 && age <= 24) buckets['16-24'] += val;
-            else if (age >= 25 && age <= 34) buckets['25-34'] += val;
-            else if (age >= 35 && age <= 44) buckets['35-44'] += val;
-            else if (age >= 45 && age <= 59) buckets['45-59'] += val;
-            else if (age >= 60 && age <= 74) buckets['60-74'] += val;
-            else if (age >= 75) buckets['75-100'] += val;
-          }
-        }
-      }
-
-      if (totalAge === 0) return false;
-      numerator = buckets[filterMode] || 0;
-      const valCalc = (numerator / totalAge) * 100;
+      numerator = ageAggregate.buckets[filterMode] || 0;
+      const valCalc = (numerator / ageAggregate.total) * 100;
       return valCalc >= filterVal;
     }
 
@@ -1772,6 +2020,53 @@ function getMunicipalPolygonStyle(feature, summary) {
   };
 }
 
+function getMunicipalOverviewSummaryForTurn(summaryByTurn, turnoKey = getActiveTurnoKeyForCurrentCargo()) {
+  const preferredTurno = String(turnoKey || '1T').toUpperCase();
+  const preferredSummary = summaryByTurn?.[preferredTurno];
+  if (preferredSummary && Object.keys(preferredSummary).length) return preferredSummary;
+  if (preferredTurno !== '1T' && summaryByTurn?.['1T']) return summaryByTurn['1T'];
+  if (summaryByTurn?.['2T']) return summaryByTurn['2T'];
+  return {};
+}
+
+function renderMunicipalOverviewTurnTabs(summaryByTurn) {
+  if (!dom.turnTabs) return;
+
+  dom.turnTabs.innerHTML = '';
+
+  const has1T = Object.keys(summaryByTurn?.['1T'] || {}).length > 0;
+  const has2T = Object.keys(summaryByTurn?.['2T'] || {}).length > 0;
+
+  if (currentTurno === 2 && !has2T) currentTurno = 1;
+  if (currentTurno === 1 && !has1T && has2T) currentTurno = 2;
+
+  if (has1T) {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (currentTurno === 1 ? ' active' : '');
+    tab.textContent = '1º Turno';
+    tab.dataset.turno = 1;
+    tab.addEventListener('click', () => {
+      if (currentTurno === 1) return;
+      currentTurno = 1;
+      refreshTurnDependentUI();
+    });
+    dom.turnTabs.appendChild(tab);
+  }
+
+  if (has2T) {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (currentTurno === 2 ? ' active' : '');
+    tab.textContent = '2º Turno';
+    tab.dataset.turno = 2;
+    tab.addEventListener('click', () => {
+      if (currentTurno === 2) return;
+      currentTurno = 2;
+      refreshTurnDependentUI();
+    });
+    dom.turnTabs.appendChild(tab);
+  }
+}
+
 function renderMunicipalStatewidePartyResults(summary, uf) {
   const ufName = UF_MAP.get(uf) || uf;
   const partyTotals = new Map();
@@ -1796,6 +2091,7 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
 
   dom.resultsBox.classList.remove('section-hidden');
   dom.summaryBoxContainer.classList.add('section-hidden');
+  renderMunicipalOverviewTurnTabs(STATE.currentMapMuniSummaryByTurn);
   dom.resultsTitle.textContent = 'Prefeituras por partido';
   dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municípios`;
   dom.resultsContent.innerHTML = '';
@@ -1839,6 +2135,37 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
   `;
 }
 
+async function refreshMunicipalStatewideOverviewForTurn() {
+  const uf = String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase();
+  if (!uf || STATE.currentElectionType !== 'municipal' || STATE.currentMapMode !== 'municipios') return false;
+
+  const summaryByTurn = STATE.currentMapMuniSummaryByTurn
+    || (typeof window.loadMunicipalOverviewSummary === 'function'
+      ? await window.loadMunicipalOverviewSummary(uf, STATE.currentElectionYear, currentSubType || 'ord')
+      : null);
+
+  if (!summaryByTurn) return false;
+
+  STATE.currentMapMuniSummaryByTurn = summaryByTurn;
+  STATE.currentMapMuniSummary = getMunicipalOverviewSummaryForTurn(summaryByTurn);
+
+  STATE.municipiosLayer?.eachLayer?.((layer) => {
+    const feature = layer?.feature;
+    if (!feature) return;
+
+    if (typeof layer.setStyle === 'function') {
+      layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
+    }
+
+    if (typeof layer.setTooltipContent === 'function') {
+      layer.setTooltipContent(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary));
+    }
+  });
+
+  renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
+  return true;
+}
+
 async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
   if (!map || !uf || STATE.currentElectionType !== 'municipal') return;
 
@@ -1860,7 +2187,8 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
         : Promise.resolve({}))
     ]);
 
-    STATE.currentMapMuniSummary = summary || {};
+    STATE.currentMapMuniSummaryByTurn = summary || { '1T': {}, '2T': {} };
+    STATE.currentMapMuniSummary = getMunicipalOverviewSummaryForTurn(STATE.currentMapMuniSummaryByTurn);
 
     if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
       map.removeLayer(STATE.municipiosLayer);

@@ -132,6 +132,7 @@ function setupControls() {
         dom.loaderBoxGeneral.classList.remove('section-hidden');
         dom.loaderBoxMunicipal.classList.add('section-hidden');
         STATE.currentElectionYear = dom.selectYearGeneral.value;
+        currentTurno = 1;
         currentOffice = 'presidente';
         currentSubType = 'ord';
         // Reset chips
@@ -144,6 +145,7 @@ function setupControls() {
         dom.loaderBoxGeneral.classList.add('section-hidden');
         dom.loaderBoxMunicipal.classList.remove('section-hidden');
         STATE.currentElectionYear = dom.selectYearMunicipal.value;
+        currentTurno = 1;
         currentOffice = 'prefeito';
         currentSubType = 'ord';
         // Reset chips
@@ -376,6 +378,7 @@ function setupControls() {
 
   // SELEÇÃO MUNICIPAL
   dom.selectUFMunicipal.addEventListener('change', () => {
+    currentTurno = 1;
     const uf = dom.selectUFMunicipal.value;
     const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
 
@@ -402,6 +405,7 @@ function setupControls() {
     }
   });
   dom.selectMunicipio.addEventListener('change', () => {
+    currentTurno = 1;
     updateLoadButtonState();
     updateElectionTypeUI();
     updateConditionalUI();
@@ -416,6 +420,7 @@ function setupControls() {
   });
 
   dom.selectYearMunicipal?.addEventListener('change', () => {
+    currentTurno = 1;
     STATE.currentElectionYear = dom.selectYearMunicipal.value;
     updateLoadButtonState();
     clearPendingFilterChanges();
@@ -477,6 +482,7 @@ function setupControls() {
     // Ao selecionar Cidade
     currentCidadeFilter = val; // val será 'all' ou o nome da cidade
     currentBairroFilter = 'all';
+    STATE.currentMapMode = (STATE.currentElectionType === 'geral' && val === 'all') ? 'municipios' : 'locais';
 
     // Reset da lógica de bairros
     populateBairroDropdown();
@@ -492,6 +498,44 @@ function setupControls() {
     updateApplyButtonText();
     debouncedAutoApplyFilters();
   });
+
+  if (dom.btnMapModeMunicipios) {
+    dom.btnMapModeMunicipios.addEventListener('click', () => {
+      if (STATE.currentElectionType === 'geral') {
+        const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+        if (!uf || uf === 'BR' || String(currentCargo || '').startsWith('deputado')) return;
+
+        currentCidadeFilter = 'all';
+        currentBairroFilter = 'all';
+        currentLocalFilter = '';
+        if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
+        if (bairroCombobox) bairroCombobox.setValue('');
+        if (dom.searchLocal) dom.searchLocal.value = '';
+
+        STATE.currentMapMode = 'municipios';
+        clearSelection(true);
+        updateApplyButtonText();
+        applyFiltersAndRedraw();
+        return;
+      }
+
+      const uf = dom.selectUFMunicipal?.value;
+      if (uf && !dom.selectMunicipio?.value && typeof window.showMunicipalStatewideOverview === 'function') {
+        window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+      }
+    });
+  }
+
+  if (dom.btnMapModeLocais) {
+    dom.btnMapModeLocais.addEventListener('click', () => {
+      if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) return;
+
+      STATE.currentMapMode = 'locais';
+      clearSelection(true);
+      updateApplyButtonText();
+      applyFiltersAndRedraw();
+    });
+  }
 
   bairroCombobox = createCombobox({
     box: dom.boxBairro,
@@ -728,6 +772,7 @@ function setupControls() {
   dom.cargoChipsMunicipal.addEventListener('click', (e) => {
     const btn = e.target.closest('.chip-button');
     if (!btn) return;
+    currentTurno = 1;
     currentSubType = btn.dataset.type; // 'ord' ou 'sup'
     currentCargo = `${currentOffice}_${currentSubType}`;
 
@@ -757,6 +802,7 @@ function setupControls() {
 
       currentOffice = newOffice;
       currentSubType = 'ord';
+      currentTurno = 1;
       currentCargo = `${currentOffice}_ord`;
       applyDefaultVizColorStyleForCurrentCargo();
 
@@ -927,6 +973,24 @@ function setupTabs() {
 
   document.querySelectorAll('.filter-tabs').forEach(enhanceScrollableTabStrip);
 
+  const selectDemo = document.getElementById('selectDemoCategory');
+  if (selectDemo) {
+    const syncCensusTabVisibility = (targetId) => {
+      censusIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('hidden', id !== targetId);
+        if (id === targetId) el.classList.remove('section-hidden');
+      });
+      refreshCensusAvailabilityBars();
+    };
+
+    syncCensusTabVisibility(selectDemo.value || 'tab-renda');
+    selectDemo.addEventListener('change', () => {
+      syncCensusTabVisibility(selectDemo.value);
+    });
+  }
+
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetId = tab.dataset.tab;
@@ -1063,8 +1127,9 @@ function setupSliders() {
 
   // 2. SIMPLE SLIDERS (DYNAMIC)
   // Helper para configurar o par Slider + Select
-  function setupDynamicFilter(idSlider, idSelect, idDisp, idValDisp, stateKeyVal, stateKeyMode) {
+  function setupDynamicFilter(idSlider, idInput, idSelect, idDisp, idValDisp, stateKeyVal, stateKeyMode) {
     const slider = document.getElementById(idSlider);
+    const input = document.getElementById(idInput);
     const select = document.getElementById(idSelect);
     const disp = document.getElementById(idDisp);
     const valDisp = document.getElementById(idValDisp);
@@ -1078,12 +1143,14 @@ function setupSliders() {
     select.value = initialMode;
     STATE.censusFilters[stateKeyMode] = initialMode;
     const initialVal = parseInt(slider.value, 10) || 0;
+    if (input) input.value = initialVal;
     if (disp) disp.textContent = `${initialVal}%`;
     if (valDisp) valDisp.textContent = `${initialVal}%`;
 
-    // Atualiza Estado e UI quando o slider move
-    slider.addEventListener('input', () => {
-      const val = parseInt(slider.value);
+    const applyDynamicValue = (rawVal) => {
+      const val = Math.max(0, Math.min(100, parseInt(rawVal, 10) || 0));
+      slider.value = val;
+      if (input) input.value = val;
       if (disp) disp.textContent = `${val}%`;
       if (valDisp) valDisp.textContent = `${val}%`;
 
@@ -1091,7 +1158,21 @@ function setupSliders() {
       debouncedMarkDirty();
       updateApplyButtonText();
       debouncedAutoApplyFilters();
+    };
+
+    // Atualiza Estado e UI quando o slider move
+    slider.addEventListener('input', () => {
+      applyDynamicValue(slider.value);
     });
+
+    if (input) {
+      input.addEventListener('input', () => {
+        applyDynamicValue(input.value);
+      });
+      input.addEventListener('change', () => {
+        applyDynamicValue(input.value);
+      });
+    }
 
     // Atualiza Estado e UI quando o select muda
     select.addEventListener('change', () => {
@@ -1117,12 +1198,12 @@ function setupSliders() {
     });
   }
 
-  setupDynamicFilter('sliderRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
-  setupDynamicFilter('sliderIdosos', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
-  setupDynamicFilter('sliderGenero', 'selectGenero', 'dispGenero', 'valDispGenero', 'generoVal', 'generoMode');
-  setupDynamicFilter('sliderEscolaridade', 'selectEscolaridade', 'dispEscolaridade', 'valDispEscolaridade', 'escolaridadeVal', 'escolaridadeMode');
-  setupDynamicFilter('sliderEstadoCivil', 'selectEstadoCivil', 'dispEstadoCivil', 'valDispEstadoCivil', 'estadoCivilVal', 'estadoCivilMode');
-  setupDynamicFilter('sliderSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
+  setupDynamicFilter('sliderRaca', 'inputRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
+  setupDynamicFilter('sliderIdosos', 'inputIdade', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
+  setupDynamicFilter('sliderGenero', 'inputGenero', 'selectGenero', 'dispGenero', 'valDispGenero', 'generoVal', 'generoMode');
+  setupDynamicFilter('sliderEscolaridade', 'inputEscolaridade', 'selectEscolaridade', 'dispEscolaridade', 'valDispEscolaridade', 'escolaridadeVal', 'escolaridadeMode');
+  setupDynamicFilter('sliderEstadoCivil', 'inputEstadoCivil', 'selectEstadoCivil', 'dispEstadoCivil', 'valDispEstadoCivil', 'estadoCivilVal', 'estadoCivilMode');
+  setupDynamicFilter('sliderSaneamento', 'inputSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
 }
 
 // ====== RESULTS TABS REMOVED ======
