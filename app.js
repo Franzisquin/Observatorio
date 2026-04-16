@@ -32,7 +32,10 @@ const PARTY_ACRONYMS = new Map(Object.entries({
   'SOLIDARIEDADE': 'SD',
   'REPUBLICANOS': 'REP',
   'PATRIOTA': 'PATRI',
-  'CIDADANIA': 'CID'
+  'CIDADANIA': 'CID',
+  'FEDERACAO PSOL REDE(PSOL/REDE)': 'PSOL-REDE',
+  'FEDERACAO PSDB CIDADANIA(PSDB/CIDADANIA)': 'PSDB-Cidadania',
+  'FEDERACAO BRASIL DA ESPERANCA - FE BRASIL(PT/PC DO B/PV)': 'Brasil da Esperança'
 }));
 
 const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
@@ -92,7 +95,10 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'UNIÃƒO': '#2eccff',
   'UNIÃƒO BRASIL': '#2eccff',
   'UP': '#5e5e5e',
-  'OUTROS': '#7a8699'
+  'OUTROS': '#7a8699',
+  'FEDERACAO PSOL REDE(PSOL/REDE)': '#e95dd2', // Cor PSOL
+  'FEDERACAO PSDB CIDADANIA(PSDB/CIDADANIA)': '#0097fd', // Cor PSDB
+  'FEDERACAO BRASIL DA ESPERANCA - FE BRASIL(PT/PC DO B/PV)': '#ff3859' // Cor PT
 }));
 
 PARTY_COLOR_OVERRIDES.set('MISSAO', '#fdbe21');
@@ -134,7 +140,7 @@ function parseCandidateStatusToken(value) {
   if (normalized.includes('2 TURNO')) return '2° TURNO';
   if (normalized.includes('SUPLENTE')) return 'SUPLENTE';
   if (normalized.includes('LEGENDA')) return 'LEGENDA';
-  if (normalized.startsWith('ELEITO')) return 'ELEITO';
+  if (normalized.startsWith('ELEITO') || normalized.includes('MEDIA') || normalized.includes('QP')) return 'ELEITO';
   return null;
 }
 
@@ -253,7 +259,8 @@ const STATE = {
   selectedMuniCode: null,
   ibgeMuniGeoCache: {},
   currentMapMuniSummary: null,
-  currentMapMuniUF: null
+  currentMapMuniUF: null,
+  candidateDetails: {}
 };
 
 let uniqueCidades = new Set();
@@ -498,6 +505,51 @@ function summarizeMunicipalityGeoJSON(geojson, subtype = 'ord') {
     });
   });
 
+  const office = (currentCargo || '').replace(/_(ord|sup)$/, '');
+  if (office && isProportionalOffice(office)) {
+    const coalitionGroups = new Map();
+    Object.entries(totals).forEach(([key, votos]) => {
+      const cand = parseCandidateKey(key);
+      let groupName = cand.partido;
+      const details = STATE.candidateDetails?.[key];
+      if (details && details.composicao && 
+          details.composicao !== 'PARTIDO ISOLADO' && 
+          details.composicao !== 'FEDERACAO') {
+        groupName = details.composicao;
+      }
+
+      const groupKey = normalizePartyKey(groupName);
+      if (!coalitionGroups.has(groupKey)) {
+        coalitionGroups.set(groupKey, {
+          name: groupName,
+          party: cand.partido,
+          votes: 0,
+          key: key
+        });
+      }
+      coalitionGroups.get(groupKey).votes += votos;
+    });
+
+    const sortedGroups = Array.from(coalitionGroups.values()).sort((a, b) => b.votes - a.votes);
+    if (!sortedGroups.length) return null;
+
+    const winner = sortedGroups[0];
+    const margin = totalValid > 0 ? ((winner.votes - (sortedGroups[1]?.votes || 0)) / totalValid) * 100 : 0;
+
+    return {
+      winnerCode: winner.key,
+      winnerName: winner.name,
+      winnerParty: winner.party,
+      nome,
+      turno: turnoKey,
+      turnoLabel: getMunicipalTurnLabel(turnoKey, subtype, localState.dataHas2T),
+      totalValid,
+      votes: totals,
+      margin,
+      isDetailed: true
+    };
+  }
+
   const sorted = Object.entries(totals)
     .map(([key, votos]) => ({ key, votos }))
     .sort((a, b) => b.votos - a.votos);
@@ -703,6 +755,7 @@ async function returnToMunicipalStatewideView() {
 
   currentDataCollection = {};
   currentDataCollection_2022 = {};
+  STATE.candidateDetails = {};
   uniqueCidades.clear();
   uniqueBairros.clear();
   STATE.candidates = {};
@@ -1080,6 +1133,12 @@ function parseCandidateKey(key) {
 
   if (partidoIndex !== -1) {
     result.partido = groups[partidoIndex].value;
+  }
+
+  // Extract Number if present (#123)
+  const numberMatch = coreKey.match(/\(#(\d+)\)/);
+  if (numberMatch) {
+    result.numero = numberMatch[1];
   }
 
   const statuses = groups
@@ -2363,6 +2422,7 @@ async function onClickLoadData_General() {
   clearSelection(true);
   currentDataCollection = {}; // Zera tudo do estado anterior
   currentDataCollection_2022 = {};
+  STATE.candidateDetails = {};
   STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
   if (STATE.municipiosLayer) {
     map.removeLayer(STATE.municipiosLayer);
@@ -3012,11 +3072,12 @@ function classifyLegislativeVote(voteCode, metadataEntry) {
   return 'candidate';
 }
 
-function buildLegislativeCandidateKey(metadataEntry, turnoKey = '1T') {
+function buildLegislativeCandidateKey(metadataEntry, turnoKey = '1T', voteCode = '') {
   const nome = String(metadataEntry?.[0] || 'N/D').trim() || 'N/D';
   const partido = String(metadataEntry?.[1] || 'OUTROS').trim() || 'OUTROS';
   const status = String(metadataEntry?.[2] || 'NÃO ELEITO').trim() || 'NÃO ELEITO';
-  return `${nome} (${partido}) (${status}) ${turnoKey}`;
+  const idStr = voteCode ? ` (#${voteCode})` : '';
+  return `${nome} (${partido}) (${status})${idStr} ${turnoKey}`;
 }
 
 function buildLegislativeFeatureCollection(baseGeojson, rawData, options = {}) {
@@ -3059,8 +3120,20 @@ function buildLegislativeFeatureCollection(baseGeojson, rawData, options = {}) {
         return;
       }
 
-      props[buildLegislativeCandidateKey(metadataEntry, turnoKey)] = votos;
+      const candKey = buildLegislativeCandidateKey(metadataEntry, turnoKey, voteCode);
+      props[candKey] = votos;
       totalNominal += votos;
+
+      // Populate STATE.candidateDetails for grouping
+      if (metadataEntry) {
+        if (!STATE.candidateDetails) STATE.candidateDetails = {};
+        STATE.candidateDetails[candKey] = {
+          nome: String(metadataEntry[0] || '').trim(),
+          partido: String(metadataEntry[1] || '').trim(),
+          status: String(metadataEntry[2] || '').trim(),
+          composicao: String(metadataEntry[4] || metadataEntry[3] || metadataEntry[1] || '').trim()
+        };
+      }
     });
 
     props[`Total_Votos_Validos ${turnoKey}`] = totalNominal;
@@ -3747,6 +3820,7 @@ function filterFeatureWithOptions(feature, options = {}) {
   if (!checkSimple(STATE.censusFilters.racaVal, STATE.censusFilters.racaMode)) return false;
   if (!checkSimple(STATE.censusFilters.saneamentoVal, STATE.censusFilters.saneamentoMode)) return false;
 
+
   if (STATE.censusFilters.idadeVal !== null) {
     let sumPct = 0;
     const mode = STATE.censusFilters.idadeMode;
@@ -3793,18 +3867,22 @@ function getFeatureStyle(feature) {
 
   // 1. Determine Base Color and Percentage based on Mode
   if (!STATE.selectedCandidateMap) {
-    const { nome, partido, votos } = getVencedor(props, currentCargo, turnoKey, STATE.filterInaptos);
-    fillColor = getColorForCandidate(nome, partido);
+    const sorted = getSortedVoteEntitiesFromProps(props, currentCargo, turnoKey, STATE.filterInaptos);
+    const vencedor = sorted.length > 0 ? sorted[0] : { name: 'N/D', party: 'N/D', votes: 0 };
+    
+    let displayName = vencedor.name;
+    const acronym = PARTY_ACRONYMS.get(normalizePartyKey(vencedor.name));
+    if (acronym) displayName = acronym;
+    
+    let colorCandidateName = isProportionalOffice(currentCargo) ? displayName : vencedor.name;
+    let colorPartyName = isProportionalOffice(currentCargo) ? displayName : vencedor.party;
+    fillColor = getColorForCandidate(colorCandidateName, colorPartyName);
+    if (fillColor === DEFAULT_SWATCH && isProportionalOffice(currentCargo)) {
+      fillColor = getColorForCandidate(colorCandidateName, vencedor.party);
+    }
 
-    // Calcular margem (1º - 2º) em pontos percentuais
-    const candidatos = STATE.candidates[currentCargo]?.[turnoKey] || [];
-    const allVotos = candidatos.map(key => {
-      if (STATE.filterInaptos && (STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key)) return -1;
-      return ensureNumber(getProp(props, key));
-    }).filter(v => v >= 0).sort((a, b) => b - a);
-
-    let votos1 = allVotos.length > 0 ? allVotos[0] : 0;
-    let votos2 = allVotos.length > 1 ? allVotos[1] : 0;
+    let votos1 = sorted.length > 0 ? sorted[0].votes : 0;
+    let votos2 = sorted.length > 1 ? sorted[1].votes : 0;
 
     if (totalValidos > 0) {
       pctVal = ((votos1 - votos2) / totalValidos) * 100;
@@ -3878,27 +3956,65 @@ function getVotosValidos(props, cargo, turno, filtrarInaptos) {
   return { totalValidos: totalValidos, votosInaptos: votosInaptos };
 }
 
+function getSortedVoteEntitiesFromProps(props, cargo, turno, filtrarInaptos) {
+  if (!props) return [];
+
+  const candidates = STATE.candidates[cargo]?.[turno] || [];
+  const inaptos = STATE.inaptos[cargo]?.[turno] || [];
+  const office = cargo.replace(/_(ord|sup)$/, '');
+
+  if (isProportionalOffice(office)) {
+    const coalitionGroups = new Map();
+    candidates.forEach(key => {
+      const cand = parseCandidateKey(key);
+      if (filtrarInaptos && (cand.status === 'INAPTO' || inaptos.includes(key))) return;
+      
+      const votos = ensureNumber(getProp(props, key));
+      let groupName = cand.partido;
+      const details = STATE.candidateDetails?.[key];
+      
+      if (details && details.composicao && 
+          details.composicao !== 'PARTIDO ISOLADO' && 
+          details.composicao !== 'FEDERACAO') {
+        groupName = details.composicao;
+      }
+
+      const groupKey = normalizePartyKey(groupName);
+      if (!coalitionGroups.has(groupKey)) {
+        coalitionGroups.set(groupKey, {
+          name: groupName,
+          party: cand.partido,
+          votes: 0,
+          key: key
+        });
+      }
+      coalitionGroups.get(groupKey).votes += votos;
+    });
+
+    return Array.from(coalitionGroups.values()).sort((a, b) => b.votes - a.votes);
+  } else {
+    const results = [];
+    candidates.forEach(key => {
+      const cand = parseCandidateKey(key);
+      if (filtrarInaptos && inaptos.includes(key)) return;
+      
+      const votos = ensureNumber(getProp(props, key));
+      results.push({
+        name: cand.nome,
+        party: cand.partido,
+        votes: votos,
+        key: key
+      });
+    });
+    return results.sort((a, b) => b.votes - a.votes);
+  }
+}
+
 function getVencedor(props, cargo, turno, filtrarInaptos) {
-  const candidatos = STATE.candidates[cargo]?.[turno];
-  if (!candidatos) return { nome: 'N/D', partido: 'N/D', votos: 0, status: 'N/D' };
-
-  let maxVotos = -1;
-  let vencedorKey = null;
-
-  candidatos.forEach(key => {
-    if (filtrarInaptos && (STATE.inaptos[cargo]?.[turno] || []).includes(key)) {
-      return;
-    }
-    const votos = ensureNumber(getProp(props, key));
-    if (votos > maxVotos) {
-      maxVotos = votos;
-      vencedorKey = key;
-    }
-  });
-
-  if (vencedorKey) {
-    const cand = parseCandidateKey(vencedorKey);
-    return { ...cand, votos: maxVotos };
+  const sorted = getSortedVoteEntitiesFromProps(props, cargo, turno, filtrarInaptos);
+  if (sorted.length > 0) {
+    const v = sorted[0];
+    return { nome: v.name, partido: v.party, votos: v.votes, status: 'N/D', key: v.key };
   }
   return { nome: 'N/D', partido: 'N/D', votos: 0, status: 'N/D' };
 }
@@ -3911,28 +4027,24 @@ function buildLocationTooltip(feature) {
   const { totalValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
 
   let rows = '';
-  const candKeys = Object.keys(props)
-    .filter(key => key.endsWith(` ${turnoKey}`) && isCandidateVoteKey(key))
-    .filter(key => !STATE.filterInaptos || !(STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key))
-    .map(key => {
-      const info = parseCandidateKey(key);
-      return {
-        key,
-        name: info.nome,
-        party: info.partido,
-        votes: ensureNumber(getProp(props, key))
-      };
-    })
-    .filter(cand => cand.votes > 0)
-    .sort((a, b) => b.votes - a.votes)
-    .slice(0, 4);
+  const sortedEntities = getSortedVoteEntitiesFromProps(props, currentCargo, turnoKey, STATE.filterInaptos).slice(0, 4);
 
-  candKeys.forEach(cand => {
-    const cor = getColorForCandidate(cand.name, cand.party);
+  sortedEntities.forEach(cand => {
+    let displayName = cand.name;
+    const acronym = PARTY_ACRONYMS.get(normalizePartyKey(cand.name));
+    if (acronym) displayName = acronym;
+    
+    let colorCandidateName = isProportionalOffice(currentCargo) ? displayName : cand.name;
+    let colorPartyName = isProportionalOffice(currentCargo) ? displayName : cand.party;
+    let cor = getColorForCandidate(colorCandidateName, colorPartyName);
+    if (cor === DEFAULT_SWATCH && isProportionalOffice(currentCargo)) {
+      cor = getColorForCandidate(colorCandidateName, cand.party);
+    }
+    
     const pct = totalValidos > 0 ? (cand.votes / totalValidos) * 100 : 0;
     rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
       <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
-      <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cand.name}</span>
+      <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</span>
       <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
       <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(cand.votes)})</span>
     </div>`;
@@ -3974,30 +4086,28 @@ function buildMunicipalityTooltip(feature, summary) {
     </div>`;
   }
 
-  Object.keys(res.votes || {})
-    .filter(key => isCandidateVoteKey(key))
-    .map(key => {
-      const info = parseCandidateKey(key);
-      return {
-        key,
-        name: info.nome,
-        party: info.partido,
-        votes: ensureNumber(res.votes[key])
-      };
-    })
-    .filter(cand => cand.votes > 0)
-    .sort((a, b) => b.votes - a.votes)
-    .slice(0, 4)
-    .forEach(cand => {
-      const cor = getColorForCandidate(cand.name, cand.party);
-      const pct = res.totalValid > 0 ? (cand.votes / res.totalValid) * 100 : 0;
-      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${cand.name}</span>
-        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(cand.votes)})</span>
-      </div>`;
-    });
+  const sortedEntities = getSortedVoteEntitiesFromProps(res.votes || {}, currentCargo, res.turno, STATE.filterInaptos).slice(0, 4);
+    
+  sortedEntities.forEach(cand => {
+    let displayName = cand.name;
+    const acronym = PARTY_ACRONYMS.get(normalizePartyKey(cand.name));
+    if (acronym) displayName = acronym;
+
+    let colorCandidateName = isProportionalOffice(currentCargo) ? displayName : cand.name;
+    let colorPartyName = isProportionalOffice(currentCargo) ? displayName : cand.party;
+    let cor = getColorForCandidate(colorCandidateName, colorPartyName);
+    if (cor === DEFAULT_SWATCH && isProportionalOffice(currentCargo)) {
+      cor = getColorForCandidate(colorCandidateName, cand.party);
+    }
+    
+    const pct = res.totalValid > 0 ? (cand.votes / res.totalValid) * 100 : 0;
+    rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
+      <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</span>
+      <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+      <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(cand.votes)})</span>
+    </div>`;
+  });
 
   return `<div style="min-width:190px;max-width:260px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
@@ -4585,31 +4695,42 @@ function renderProportionalResultsPanel(props, cargo) {
     allCandidates.push({ ...cand, votos, pct: totalValidos > 0 ? votos / totalValidos : 0, key });
   });
 
-  // Group by partido
-  const partyGroups = new Map();
+  // Group by coalition/federation
+  const coalitionGroups = new Map();
   allCandidates.forEach(c => {
-    const partyKey = normalizePartyKey(c.partido);
-    if (!partyGroups.has(partyKey)) {
-      partyGroups.set(partyKey, {
-        partido: c.partido,
-        partyKey,
+    let groupName = c.partido;
+    const details = STATE.candidateDetails?.[c.key];
+    if (details && details.composicao && 
+        details.composicao !== 'PARTIDO ISOLADO' && 
+        details.composicao !== 'FEDERACAO') {
+      groupName = details.composicao;
+    }
+
+    const groupKey = normalizePartyKey(groupName);
+    if (!coalitionGroups.has(groupKey)) {
+      coalitionGroups.set(groupKey, {
+        name: groupName,
+        groupKey,
         totalVotos: 0,
         elected: 0,
-        candidates: []
+        candidates: [],
+        mainParty: c.partido // Use first party for base coloring
       });
     }
-    const group = partyGroups.get(partyKey);
+    const group = coalitionGroups.get(groupKey);
     group.totalVotos += c.votos;
-    if (c.status && c.status.toUpperCase().startsWith('ELEITO')) group.elected++;
+    const statusUpper = (c.status || '').toUpperCase();
+    const isElected = statusUpper.startsWith('ELEITO') || statusUpper.includes('MEDIA') || statusUpper.includes('QP') || statusUpper.includes('MÉDIA');
+    if (c.status && isElected) group.elected++;
     group.candidates.push(c);
   });
 
-  // Sort parties by total votes descending
-  const sortedParties = Array.from(partyGroups.values())
+  // Sort groups by total votes descending
+  const sortedGroups = Array.from(coalitionGroups.values())
     .sort((a, b) => b.totalVotos - a.totalVotos);
 
-  // Sort candidates inside each party by votes descending
-  sortedParties.forEach(group => {
+  // Sort candidates inside each group by votes descending
+  sortedGroups.forEach(group => {
     group.candidates.sort((a, b) => b.votos - a.votos);
     group.pct = totalValidos > 0 ? group.totalVotos / totalValidos : 0;
   });
@@ -4618,14 +4739,21 @@ function renderProportionalResultsPanel(props, cargo) {
   const container = document.createElement('div');
   container.className = 'prop-results-container';
 
-  sortedParties.forEach(group => {
-    if (group.totalVotos === 0 && sortedParties.length > 2) return;
+  sortedGroups.forEach(group => {
+    if (group.totalVotos === 0 && sortedGroups.length > 2) return;
 
     const partyDiv = document.createElement('div');
     partyDiv.className = 'party-group';
 
-    const displayParty = PARTY_ACRONYMS.get(group.partyKey) || group.partido;
-    const sw = colorForParty(group.partido);
+    // Display Name: Show Party Acronym if it's a single party, else show Coalition name
+    let displayName = group.name;
+    const acronym = PARTY_ACRONYMS.get(group.groupKey);
+    if (acronym) {
+      displayName = acronym;
+    }
+    
+    const colorFromGroupName = colorForParty(group.name);
+    const sw = (colorFromGroupName !== DEFAULT_SWATCH) ? colorFromGroupName : colorForParty(group.mainParty);
 
     // Party header
     const header = document.createElement('div');
@@ -4635,7 +4763,7 @@ function renderProportionalResultsPanel(props, cargo) {
         <span class="party-header-arrow">▶</span>
         <div class="cand-indicator" style="background:${sw}"></div>
         <div class="party-header-info">
-          <span class="party-header-name" title="${group.partido}">${displayParty}</span>
+          <span class="party-header-name" title="${group.name}">${displayName}</span>
           ${group.elected > 0 ? `<span class="party-mandate-badge">${group.elected} eleito${group.elected > 1 ? 's' : ''}</span>` : ''}
         </div>
       </div>
@@ -4658,7 +4786,8 @@ function renderProportionalResultsPanel(props, cargo) {
 
       const statusUpper = (c.status || '').toUpperCase();
       let candClass = 'prop-cand';
-      if (statusUpper.startsWith('ELEITO')) {
+      const isElected = statusUpper.startsWith('ELEITO') || statusUpper.includes('MEDIA') || statusUpper.includes('QP') || statusUpper.includes('MÉDIA');
+      if (isElected) {
         candClass += ' prop-cand-elected';
       } else if (statusUpper === 'INAPTO') {
         candClass += ' prop-cand-inapto';
@@ -4666,11 +4795,14 @@ function renderProportionalResultsPanel(props, cargo) {
         candClass += ' prop-cand-not-elected';
       }
 
+      const showParty = group.name !== c.partido;
+      const partySuffix = showParty ? ` (${c.partido})` : '';
+
       const candDiv = document.createElement('div');
       candDiv.className = candClass;
       const candPct = totalValidos > 0 ? c.votos / totalValidos : 0;
       candDiv.innerHTML = `
-        <span class="prop-cand-name" title="${c.nome}">${c.nome}</span>
+        <span class="prop-cand-name" title="${c.nome}">${c.nome}${partySuffix}</span>
         <span class="prop-cand-votes">${fmtInt(c.votos)}</span>
         <span class="prop-cand-pct">${fmtPct(candPct)}</span>
       `;
@@ -4698,8 +4830,8 @@ function renderProportionalResultsPanel(props, cargo) {
   const nulos = ensureNumber(getProp(props, `Votos_Nulos ${turnoKey}`));
   const legenda = ensureNumber(getProp(props, `Votos_Legenda ${turnoKey}`));
   const comparecimento = totalValidos + legenda + brancos + nulos;
-  const totalParties = sortedParties.filter(g => g.totalVotos > 0).length;
-  const totalElected = sortedParties.reduce((sum, g) => sum + g.elected, 0);
+  const totalGroups = sortedGroups.filter(g => g.totalVotos > 0).length;
+  const totalElected = sortedGroups.reduce((sum, g) => sum + g.elected, 0);
 
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
@@ -4708,7 +4840,7 @@ function renderProportionalResultsPanel(props, cargo) {
       ${legenda > 0 ? `<div class="metric-item"><span>Legenda</span><strong>${fmtInt(legenda)} (${fmtPct(comparecimento > 0 ? legenda / comparecimento : 0)})</strong></div>` : ''}
       <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong></div>
       <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong></div>
-      <div class="metric-item"><span>Partidos</span><strong>${fmtInt(totalParties)}</strong></div>
+      <div class="metric-item"><span>Partidos/Grupos</span><strong>${fmtInt(totalGroups)}</strong></div>
       ${totalElected > 0 ? `<div class="metric-item"><span>Mandatos</span><strong>${fmtInt(totalElected)}</strong></div>` : ''}
       ${votosInaptos > 0 ? `<div class="metric-item"><span>Inaptos (na soma)</span><strong style="color:var(--err)">${fmtInt(votosInaptos)}</strong></div>` : ''}
     </div>
@@ -4980,6 +5112,9 @@ function refreshMunicipiosLayerStyle() {
   if (!STATE.municipiosLayer) return;
 
   const summary = STATE.currentMapMuniSummary;
+  const office = (currentCargo || '').replace(/_(ord|sup)$/, '');
+  const isProp = office && isProportionalOffice(office);
+
   STATE.municipiosLayer.eachLayer(layer => {
     const codM = getMunicipalityFeatureCode(layer.feature.properties);
     const isVisible = isMunicipalityVisibleInCurrentContext(codM);
@@ -4988,7 +5123,9 @@ function refreshMunicipiosLayerStyle() {
     let color = DEFAULT_SWATCH;
     if (res && (res.totalValid > 0 || res.winnerParty)) {
       const winnerName = res.winnerName || parseCandidateKey(res.winnerCode).nome;
-      color = getColorForCandidate(winnerName, res.winnerParty);
+      const winnerParty = isProp ? (res.winnerName || res.winnerParty) : res.winnerParty;
+      color = getColorForCandidate(winnerName, winnerParty);
+
       if (res.totalValid > 0) {
         if (STATE.currentElectionType !== 'municipal') {
           color = getMarginAdjustedColor(color, res.margin);
@@ -5140,32 +5277,77 @@ function aggregateVotesByMunicipality(data, uf, turno = '1T', options = {}) {
 
   // Calculate winner and margin per city
   const summary = {};
+  const office = (currentCargo || '').replace(/_(ord|sup)$/, '');
+  const isProp = office && isProportionalOffice(office);
+
   for (let [codM, res] of Object.entries(results)) {
     const suffix = ` ${turno}`;
     const cands = Object.keys(res).filter(k => k.endsWith(suffix) && isCandidateVoteKey(k));
     if (cands.length === 0) continue;
 
-    const sorted = cands.map(k => ({ key: k, votos: res[k] })).sort((a, b) => b.votos - a.votos);
-    const winner = sorted[0].key;
-    const winnerInfo = parseCandidateKey(winner);
-    const margin = res.totalValid > 0 ? ((sorted[0].votos - (sorted[1]?.votos || 0)) / res.totalValid) * 100 : 0;
-    
-    let partido = "OUTROS";
-    const matches = Array.from(winner.matchAll(/\((.*?)\)/g));
-    if (matches.length > 0) partido = matches[0][1].toUpperCase();
+    if (isProp) {
+      const coalitionGroups = new Map();
+      cands.forEach(key => {
+        const cand = parseCandidateKey(key);
+        let groupName = cand.partido;
+        const details = STATE.candidateDetails?.[key];
+        if (details && details.composicao && 
+            details.composicao !== 'PARTIDO ISOLADO' && 
+            details.composicao !== 'FEDERACAO') {
+          groupName = details.composicao;
+        }
 
-    summary[codM] = {
-      winnerCode: winner,
-      winnerName: winnerInfo.nome,
-      winnerParty: partido,
-      margin: margin,
-      totalValid: res.totalValid,
-      nome: res.nome,
-      votes: res,
-      turno,
-      turnoLabel: turno === '2T' ? '2º Turno' : '1º Turno',
-      isDetailed: true
-    };
+        const groupKey = normalizePartyKey(groupName);
+        if (!coalitionGroups.has(groupKey)) {
+          coalitionGroups.set(groupKey, {
+            name: groupName,
+            party: cand.partido,
+            votes: 0,
+            key: key
+          });
+        }
+        coalitionGroups.get(groupKey).votes += res[key];
+      });
+
+      const sortedGroups = Array.from(coalitionGroups.values()).sort((a, b) => b.votes - a.votes);
+      const winner = sortedGroups[0];
+      const margin = res.totalValid > 0 ? ((winner.votes - (sortedGroups[1]?.votes || 0)) / res.totalValid) * 100 : 0;
+
+      summary[codM] = {
+        winnerCode: winner.key,
+        winnerName: winner.name,
+        winnerParty: winner.party,
+        margin: margin,
+        totalValid: res.totalValid,
+        nome: res.nome,
+        votes: res,
+        turno,
+        turnoLabel: turno === '2T' ? '2º Turno' : '1º Turno',
+        isDetailed: true
+      };
+    } else {
+      const sorted = cands.map(k => ({ key: k, votos: res[k] })).sort((a, b) => b.votos - a.votos);
+      const winner = sorted[0].key;
+      const winnerInfo = parseCandidateKey(winner);
+      const margin = res.totalValid > 0 ? ((sorted[0].votos - (sorted[1]?.votos || 0)) / res.totalValid) * 100 : 0;
+      
+      let partido = "OUTROS";
+      const matches = Array.from(winner.matchAll(/\((.*?)\)/g));
+      if (matches.length > 0) partido = matches[0][1].toUpperCase();
+
+      summary[codM] = {
+        winnerCode: winner,
+        winnerName: winnerInfo.nome,
+        winnerParty: partido,
+        margin: margin,
+        totalValid: res.totalValid,
+        nome: res.nome,
+        votes: res,
+        turno,
+        turnoLabel: turno === '2T' ? '2º Turno' : '1º Turno',
+        isDetailed: true
+      };
+    }
   }
   return summary;
 }
@@ -5375,5 +5557,4 @@ function hslToHex(h, s, l) {
   g = Math.round((g + m) * 255).toString(16).padStart(2, '0');
   b = Math.round((b + m) * 255).toString(16).padStart(2, '0');
   return '#' + r + g + b;
-}
-
+ }
