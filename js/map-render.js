@@ -362,6 +362,291 @@ function setupDeputySearch(input, resultsContainer) {
   });
 }
 
+const MUNICIPAL_POLYGON_CACHE = new Map();
+
+function getMunicipalityFeatureCode(props) {
+  if (!props) return '';
+  return String(
+    props.CD_MUN ||
+    props.cd_mun ||
+    props.CD_IBGE ||
+    props.cd_ibge ||
+    props.cod_localidade_ibge ||
+    props.CD_LOCALIDADE_IBGE ||
+    props.NR_LOCALIDADE_IBGE ||
+    props.id ||
+    ''
+  ).trim();
+}
+
+function getMunicipalityFeatureName(props) {
+  if (!props) return 'Município';
+  return String(
+    props.NM_MUN ||
+    props.nm_mun ||
+    props.municipio ||
+    props.nm_localidade ||
+    props.NOME ||
+    'Município'
+  ).trim();
+}
+
+function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
+  const candidateKey = String(candidateId || '').trim();
+  const meta = metaStore?.[candidateKey] || null;
+
+  if (candidateKey.length <= 2) {
+    const legendParty = normalizePartyAlias(String(prefixCache?.[candidateKey] || meta?.[1] || candidateKey).toUpperCase());
+    return {
+      key: `party:${legendParty}`,
+      name: legendParty,
+      composition: legendParty,
+      party: legendParty,
+      isGroup: false
+    };
+  }
+
+  const rawParty = normalizePartyAlias(String(meta?.[1] || '').toUpperCase());
+  const rawCoalitionName = String(meta?.[3] || '').trim();
+  const rawComposition = String(meta?.[4] || '').trim();
+  const normalizedComposition = rawComposition
+    .split('/')
+    .map((value) => normalizePartyAlias(value.trim().toUpperCase()))
+    .filter(Boolean)
+    .join('/');
+
+  const hasGroupedComposition = normalizedComposition && normalizedComposition.includes('/');
+  const validCoalitionName = rawCoalitionName
+    && !/^PARTIDO ISOLADO$/i.test(rawCoalitionName)
+    && !/^FEDERACAO$/i.test(norm(rawCoalitionName))
+    && !/^COLIGACAO$/i.test(norm(rawCoalitionName));
+
+  if (hasGroupedComposition) {
+    return {
+      key: `group:${norm(normalizedComposition)}`,
+      name: validCoalitionName ? rawCoalitionName : rawComposition,
+      composition: rawComposition,
+      party: rawParty,
+      isGroup: true
+    };
+  }
+
+  return {
+    key: `party:${rawParty}`,
+    name: rawParty || rawComposition || rawCoalitionName || candidateKey,
+    composition: rawParty || rawComposition || rawCoalitionName || candidateKey,
+    party: rawParty,
+    isGroup: false
+  };
+}
+
+function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache) {
+  const groups = new Map();
+  let total = 0;
+
+  Object.entries(votesMap || {}).forEach(([candidateId, rawVotes]) => {
+    if (candidateId === '95' || candidateId === '96') return;
+    const votes = ensureNumber(rawVotes);
+    if (votes <= 0) return;
+
+    const groupInfo = resolveProportionalGroupInfo(candidateId, metaStore, prefixCache);
+    const existing = groups.get(groupInfo.key) || {
+      ...groupInfo,
+      votes: 0,
+      parties: new Map(),
+      candidates: []
+    };
+
+    existing.votes += votes;
+    existing.parties.set(groupInfo.party, (existing.parties.get(groupInfo.party) || 0) + votes);
+
+    const meta = metaStore?.[candidateId] || null;
+    if (candidateId.length > 2) {
+      existing.candidates.push({
+        id: candidateId,
+        nome: meta?.[0] || candidateId,
+        partido: groupInfo.party,
+        status: meta?.[2] || '',
+        votos: votes
+      });
+    }
+
+    groups.set(groupInfo.key, existing);
+    total += votes;
+  });
+
+  const results = Array.from(groups.values()).map((group) => {
+    let dominantParty = group.party;
+    let dominantVotes = -1;
+    group.parties.forEach((votes, party) => {
+      if (votes > dominantVotes) {
+        dominantVotes = votes;
+        dominantParty = party;
+      }
+    });
+
+    group.candidates.sort((a, b) => b.votos - a.votos);
+    return {
+      ...group,
+      color: colorForParty(dominantParty),
+      party: dominantParty
+    };
+  }).sort((a, b) => b.votes - a.votes);
+
+  return { groups: results, total };
+}
+
+function getWinningProportionalListData(votesMap, type = 'deputado') {
+  const isVereadorList = type === 'vereador';
+  const metaStore = isVereadorList ? STATE.vereadorMetadata : STATE.deputyMetadata;
+  const prefixCache = isVereadorList ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache;
+  const aggregated = aggregateProportionalVotesByList(votesMap, metaStore, prefixCache);
+  const winner = aggregated.groups[0] || null;
+  if (!winner) return null;
+  return {
+    ...winner,
+    total: aggregated.total,
+    pct: aggregated.total > 0 ? (winner.votes / aggregated.total) * 100 : 0
+  };
+}
+
+function buildLocationTooltip(feature) {
+  const props = feature.properties || {};
+  const nomeLocal = getProp(props, 'nm_locvot') || 'Local';
+  const nomeCidade = getProp(props, 'nm_localidade') || 'Cidade';
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+
+  let totalValidos = 0;
+  let rows = '';
+
+  if (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')) {
+    const proportionalData = currentCargo.startsWith('vereador')
+      ? getVereadorFeatureData(props)
+      : getDeputyFeatureData(props);
+    const grouped = proportionalData?.votes
+      ? aggregateProportionalVotesByList(
+        proportionalData.votes,
+        currentCargo.startsWith('vereador') ? STATE.vereadorMetadata : STATE.deputyMetadata,
+        currentCargo.startsWith('vereador') ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
+      )
+      : { groups: [], total: 0 };
+
+    totalValidos = grouped.total || 0;
+    grouped.groups.slice(0, 4).forEach((group) => {
+      const pct = totalValidos > 0 ? (group.votes / totalValidos) * 100 : 0;
+      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${group.color};flex-shrink:0;"></span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(group.name)}</span>
+        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(group.votes)})</span>
+      </div>`;
+    });
+  } else {
+    const { totalValidos: votosValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
+    totalValidos = votosValidos;
+    const candidateRows = Object.keys(props)
+      .filter((key) => key.endsWith(` ${turnoKey}`) && isCandidateVoteKey(key))
+      .filter((key) => !STATE.filterInaptos || !(STATE.inaptos[currentCargo]?.[turnoKey] || []).includes(key))
+      .map((key) => {
+        const info = parseCandidateKey(key);
+        return {
+          key,
+          name: info.nome,
+          party: info.partido,
+          votes: ensureNumber(getProp(props, key))
+        };
+      })
+      .filter((candidate) => candidate.votes > 0)
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, 4);
+
+    candidateRows.forEach((candidate) => {
+      const pct = totalValidos > 0 ? (candidate.votes / totalValidos) * 100 : 0;
+      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(candidate.name)}</span>
+        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
+      </div>`;
+    });
+  }
+
+  if (!rows) {
+    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos válidos neste local.</div>';
+  }
+
+  return `<div style="min-width:190px;max-width:250px;">
+    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nomeLocal)}</div>
+    <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(nomeCidade)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(totalValidos)}</div>
+    <hr style="margin:4px 0;border-color:#444;">
+    ${rows}
+  </div>`;
+}
+
+function buildMunicipalityTooltip(feature, summary) {
+  const nome = getMunicipalityFeatureName(feature?.properties);
+  const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
+  const uf = dom.selectUFMunicipal?.value || dom.selectUFGeneral?.value || '';
+  const ufLabel = UF_MAP.get(uf) || uf;
+
+  if (!result) {
+    return `<div style="min-width:180px;max-width:240px;">
+      <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
+      <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(ufLabel)}</div>
+      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponíveis.</div>
+    </div>`;
+  }
+
+  let rows = '';
+  Object.entries(result.votes || {})
+    .map(([key, votes]) => {
+      const info = parseCandidateKey(key);
+      return {
+        name: info.nome,
+        party: info.partido,
+        votes: ensureNumber(votes)
+      };
+    })
+    .filter((candidate) => candidate.votes > 0)
+    .sort((a, b) => b.votes - a.votes)
+    .slice(0, 4)
+    .forEach((candidate) => {
+      const pct = result.totalValid > 0 ? (candidate.votes / result.totalValid) * 100 : 0;
+      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
+        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(candidate.name)}</span>
+        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
+        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
+      </div>`;
+    });
+
+  return `<div style="min-width:190px;max-width:260px;">
+    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
+    <div style="font-size:0.72rem;color:#aaa;margin-bottom:4px;">${escapeHtml(ufLabel)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${escapeHtml(result.turnoLabel || 'Resultado final')}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
+    <hr style="margin:4px 0;border-color:#444;">
+    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponível.</div>'}
+  </div>`;
+}
+
+function getMunicipalSummaryEntryForFeature(props, summary) {
+  if (!props || !summary) return null;
+  const directCode = getMunicipalityFeatureCode(props);
+  if (directCode && summary[directCode]) return summary[directCode];
+
+  const nome = getMunicipalityFeatureName(props);
+  const aliases = typeof getMunicipioAliasSlugs === 'function'
+    ? getMunicipioAliasSlugs(nome)
+    : [normalizeMunicipioSlug(nome)];
+
+  return Object.values(summary).find((entry) => {
+    const slug = normalizeMunicipioSlug(entry?.nome || '');
+    return aliases.includes(slug);
+  }) || null;
+}
+
 function showTopDeputyCandidates(resultsContainer) {
   const top = deputySearchCandList.slice(0, 15);
   renderDeputySearchResults(top, resultsContainer, '');
@@ -533,6 +818,10 @@ function applyFiltersAndRedraw() {
   // Precomputa vencedores de vereador se necessário
   if (currentCargo.startsWith('vereador') && STATE.vereadorResults && Object.keys(STATE.vereadorResults).length > 0) {
     precomputeVereadorWinners();
+  }
+
+  if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
+    map.removeLayer(STATE.municipiosLayer);
   }
 
   currentLayer = L.geoJSON(geojson, {
@@ -1111,15 +1400,14 @@ function getFeatureStyle(feature) {
     if (!depData || depData.total === 0) {
       return { stroke: false, fillColor: '#888888', fillOpacity: 0.2, opacity: 1 };
     }
-    const { total, winner, winnerVotes, winningParty } = depData;
+    const { total, winner, winnerVotes } = depData;
+    const winningList = getWinningProportionalListData(depData.votes, 'vereador');
     let fillColor = DEFAULT_SWATCH, fillOpacity = DEFAULT_POINT_FILL_OPACITY, pctVal = 0;
 
     if (currentVizMode.startsWith('vencedor')) {
-      if (STATE.vereadorViewMode === 'party') {
-        if (winningParty) {
-          fillColor = colorForParty(winningParty);
-          pctVal = 100;
-        }
+      if (winningList) {
+        fillColor = winningList.color;
+        pctVal = winningList.pct;
       } else if (winner) {
         const meta = STATE.vereadorMetadata[winner];
         fillColor = getColorForCandidate(meta ? meta[0] : '', meta ? meta[1] : '');
@@ -1168,23 +1456,19 @@ function getFeatureStyle(feature) {
       };
     }
 
-    const { total, winner, winnerVotes, winningParty } = depData;
+    const { total, winner, winnerVotes } = depData;
+    const winningList = getWinningProportionalListData(depData.votes, 'deputado');
 
     if (currentVizMode.startsWith('vencedor')) {
-      if (STATE.deputyViewMode === 'party') {
-        if (winningParty) {
-          fillColor = colorForParty(winningParty);
-          pctVal = 100; // Solid party color
-        }
-      } else {
-        // Candidate Mode - winner is always a real candidate (legend votes excluded)
-        if (winner) {
-          const meta = STATE.deputyMetadata[winner];
-          const party = meta ? meta[1] : '';
-          const name = meta ? meta[0] : winner;
-          fillColor = getColorForCandidate(name, party);
-          pctVal = (total > 0) ? (winnerVotes / total) * 100 : 0;
-        }
+      if (winningList) {
+        fillColor = winningList.color;
+        pctVal = winningList.pct;
+      } else if (winner) {
+        const meta = STATE.deputyMetadata[winner];
+        const party = meta ? meta[1] : '';
+        const name = meta ? meta[0] : winner;
+        fillColor = getColorForCandidate(name, party);
+        pctVal = (total > 0) ? (winnerVotes / total) * 100 : 0;
       }
     } else if (currentVizMode.startsWith('desempenho')) {
       const candidatoKey = dom.selectVizCandidato.value;
@@ -1350,10 +1634,7 @@ function getVencedor(props, cargo, turno, filtrarInaptos) {
 // ====== MAP INTERACTION ======
 
 function onEachFeature(feature, layer) {
-  const props = feature.properties;
-  const nomeLocal = getProp(props, 'nm_locvot') || 'Local';
-  const nomeCidade = getProp(props, 'nm_localidade') || 'Cidade';
-  layer.bindTooltip(`<b>${nomeLocal}</b><br>${nomeCidade}`, { sticky: true });
+  layer.bindTooltip(buildLocationTooltip(feature), { className: 'sim-tooltip', sticky: false });
   layer.on('click', onFeatureClick);
 }
 
@@ -1397,6 +1678,204 @@ function clearSelection(updateMap = true) {
   // Reset Unified View
   if (dom.unifiedResultsContainer) dom.unifiedResultsContainer.classList.remove('hidden');
   updateNeighborhoodProfileUI();
+}
+
+async function fetchMunicipalPolygonGeoJSON(uf) {
+  const ufNorm = String(uf || '').toUpperCase();
+  if (!ufNorm) return null;
+  if (MUNICIPAL_POLYGON_CACHE.has(ufNorm)) {
+    return MUNICIPAL_POLYGON_CACHE.get(ufNorm);
+  }
+
+  const promise = (async () => {
+    const urls = [
+      `${DATA_BASE_URL}municipios_hd/municipios_${ufNorm}.geojson`,
+      `${DATA_BASE_URL}municipios/municipios_${ufNorm}.geojson`
+    ];
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url);
+        if (!response.ok) continue;
+        return await response.json();
+      } catch (error) {
+        console.warn(`[Municipios] Falha ao carregar ${url}:`, error);
+      }
+    }
+
+    throw new Error(`Geometria municipal não encontrada para ${ufNorm}.`);
+  })();
+
+  MUNICIPAL_POLYGON_CACHE.set(ufNorm, promise);
+  return promise;
+}
+
+function getMunicipalPolygonStyle(feature, summary) {
+  const result = summary?.[getMunicipalityFeatureCode(feature?.properties)];
+  if (!result) {
+    return {
+      fillColor: DEFAULT_SWATCH,
+      fillOpacity: 0.25,
+      color: 'rgba(255, 255, 255, 0.28)',
+      weight: 0.8,
+      opacity: 1
+    };
+  }
+
+  const baseColor = getColorForCandidate(result.winnerName, result.winnerParty);
+  return {
+    fillColor: getMarginAdjustedColor(baseColor, result.margin),
+    fillOpacity: 0.78,
+    color: 'rgba(255, 255, 255, 0.28)',
+    weight: 0.8,
+    opacity: 1
+  };
+}
+
+function renderMunicipalStatewidePartyResults(summary, uf) {
+  const ufName = UF_MAP.get(uf) || uf;
+  const partyTotals = new Map();
+
+  Object.values(summary || {}).forEach((result) => {
+    const partyKey = normalizePartyAlias(String(result?.winnerParty || '').toUpperCase());
+    if (!partyKey) return;
+    if (!partyTotals.has(partyKey)) {
+      partyTotals.set(partyKey, {
+        partido: partyKey,
+        color: colorForParty(partyKey),
+        count: 0
+      });
+    }
+    partyTotals.get(partyKey).count += 1;
+  });
+
+  const results = Array.from(partyTotals.values()).sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    return a.partido.localeCompare(b.partido, 'pt-BR');
+  });
+
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.summaryBoxContainer.classList.add('section-hidden');
+  dom.resultsTitle.textContent = 'Prefeituras por partido';
+  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municípios`;
+  dom.resultsContent.innerHTML = '';
+
+  if (!results.length) {
+    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum resultado estadual encontrado para esta UF.</p>';
+    dom.resultsMetrics.innerHTML = '';
+    return;
+  }
+
+  const grid = document.createElement('div');
+  grid.className = 'grid';
+  const totalMunicipios = results.reduce((sum, item) => sum + item.count, 0);
+
+  results.forEach((result) => {
+    const pct = totalMunicipios > 0 ? (result.count / totalMunicipios) : 0;
+    const div = document.createElement('div');
+    div.className = 'cand';
+    div.innerHTML = `
+      <div class="cand-indicator" style="background:${result.color}"></div>
+      <div class="cand-name-wrapper">
+        <div class="cand-name" title="${escapeHtml(result.partido)}">
+          <span class="scroll-text">${escapeHtml(result.partido)}</span>
+        </div>
+      </div>
+      <div class="cand-bar-wrapper">
+        <div class="cand-bar-fill" style="background:${result.color}; width:${pct * 100}%;"></div>
+        <div class="cand-votos">${fmtInt(result.count)}</div>
+        <div class="cand-pct">${fmtPct(pct)}</div>
+      </div>
+    `;
+    grid.appendChild(div);
+  });
+
+  dom.resultsContent.appendChild(grid);
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-item"><span>Partidos vencedores</span><strong>${fmtInt(results.length)}</strong></div>
+      <div class="metric-item"><span>Prefeituras computadas</span><strong>${fmtInt(totalMunicipios)}</strong></div>
+    </div>
+  `;
+}
+
+async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
+  if (!map || !uf || STATE.currentElectionType !== 'municipal') return;
+
+  showMapLoading(`Carregando resumo estadual de ${uf} (${year})...`);
+  clearSelection(true);
+
+  try {
+    STATE.currentMapMode = 'municipios';
+    STATE.currentMapMuniUF = uf;
+
+    if (currentLayer && map.hasLayer(currentLayer)) {
+      map.removeLayer(currentLayer);
+    }
+
+    const [geojson, summary] = await Promise.all([
+      fetchMunicipalPolygonGeoJSON(uf),
+      (typeof window.loadMunicipalOverviewSummary === 'function'
+        ? window.loadMunicipalOverviewSummary(uf, year, subtype)
+        : Promise.resolve({}))
+    ]);
+
+    STATE.currentMapMuniSummary = summary || {};
+
+    if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
+      map.removeLayer(STATE.municipiosLayer);
+    }
+
+    STATE.municipiosLayer = L.geoJSON(geojson, {
+      style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+      onEachFeature: (feature, layer) => {
+        layer.bindTooltip(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary), {
+          className: 'sim-tooltip',
+          sticky: true
+        });
+
+        layer.on({
+          mouseover: () => {
+            layer.setStyle({ weight: 1.4, color: '#ffffff' });
+          },
+          mouseout: () => {
+            STATE.municipiosLayer?.resetStyle(layer);
+          },
+          click: () => {
+            const nome = getMunicipalityFeatureName(feature.properties);
+            const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
+            if (matchedOption) {
+              dom.selectMunicipio.value = matchedOption.value;
+            } else if (dom.selectMunicipio) {
+              dom.selectMunicipio.value = nome;
+            }
+            dom.selectMunicipio?.dispatchEvent(new Event('change'));
+          }
+        });
+      }
+    }).addTo(map);
+
+    const bounds = STATE.municipiosLayer.getBounds?.();
+    if (bounds?.isValid?.()) {
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+
+    if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
+    if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
+
+    renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
+  } catch (error) {
+    console.error('[Municipal] Falha ao montar resumo estadual:', error);
+    showToast(`Erro ao carregar o resumo estadual: ${error.message}`, 'error');
+  } finally {
+    hideMapLoading();
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.getMunicipalityFeatureCode = getMunicipalityFeatureCode;
+  window.getMunicipalityFeatureName = getMunicipalityFeatureName;
+  window.showMunicipalStatewideOverview = showMunicipalStatewideOverview;
 }
 
 function focusSelectionOnMap(options = {}) {

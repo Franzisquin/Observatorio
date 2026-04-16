@@ -78,12 +78,187 @@ async function loadCensoJson2024(uf) {
   return promise;
 }
 
+const MUNICIPAL_NAME_ALIASES = {
+  PARATY: ['PARATY', 'PARATI'],
+  PARATI: ['PARATY', 'PARATI'],
+  'EMBU DAS ARTES': ['EMBU DAS ARTES', 'EMBU'],
+  EMBU: ['EMBU DAS ARTES', 'EMBU'],
+  'TRAJANO DE MORAES': ['TRAJANO DE MORAES', 'TRAJANO DE MORAIS'],
+  'TRAJANO DE MORAIS': ['TRAJANO DE MORAES', 'TRAJANO DE MORAIS'],
+  'SAO TOME DAS LETRAS': ['SAO TOME DAS LETRAS', 'SAO THOME DAS LETRAS'],
+  'SAO THOME DAS LETRAS': ['SAO TOME DAS LETRAS', 'SAO THOME DAS LETRAS'],
+  ITAPAJE: ['ITAPAJE', 'ITAPAGE'],
+  ITAPAGE: ['ITAPAJE', 'ITAPAGE'],
+  'MOGI MIRIM': ['MOGI MIRIM', 'MOJI MIRIM'],
+  'MOJI MIRIM': ['MOGI MIRIM', 'MOJI MIRIM'],
+  IGUARACY: ['IGUARACY', 'IGUARACI'],
+  IGUARACI: ['IGUARACY', 'IGUARACI'],
+  'ELDORADO DOS CARAJAS': ['ELDORADO DOS CARAJAS', 'ELDORADO DO CARAJAS'],
+  'ELDORADO DO CARAJAS': ['ELDORADO DOS CARAJAS', 'ELDORADO DO CARAJAS'],
+  'SANTA ISABEL DO PARA': ['SANTA ISABEL DO PARA', 'SANTA IZABEL DO PARA'],
+  'SANTA IZABEL DO PARA': ['SANTA ISABEL DO PARA', 'SANTA IZABEL DO PARA'],
+  'SANTANA DO LIVRAMENTO': ['SANTANA DO LIVRAMENTO', 'SANT ANA DO LIVRAMENTO', 'SANT ANA DO LIVRAMENTO'],
+  'SANT ANA DO LIVRAMENTO': ['SANTANA DO LIVRAMENTO', 'SANT ANA DO LIVRAMENTO'],
+  MACAMBARA: ['MACAMBARA', 'MASSAMBARA'],
+  MASSAMBARA: ['MACAMBARA', 'MASSAMBARA'],
+  AMAPARI: ['AMAPARI', 'PEDRA BRANCA DO AMAPARI'],
+  'PEDRA BRANCA DO AMAPARI': ['AMAPARI', 'PEDRA BRANCA DO AMAPARI'],
+  'BARRO PRETO': ['BARRO PRETO', 'GOVERNADOR LOMANTO JUNIOR'],
+  'GOVERNADOR LOMANTO JUNIOR': ['BARRO PRETO', 'GOVERNADOR LOMANTO JUNIOR'],
+  CAMACA: ['CAMACA', 'CAMACAN'],
+  CAMACAN: ['CAMACA', 'CAMACAN'],
+  QUIJINGUE: ['QUIJINGUE', 'QUINJINGUE'],
+  QUINJINGUE: ['QUIJINGUE', 'QUINJINGUE'],
+  BRAZOPOLIS: ['BRAZOPOLIS', 'BRASOPOLIS'],
+  BRASOPOLIS: ['BRAZOPOLIS', 'BRASOPOLIS'],
+  'JOCA CLAUDINO': ['JOCA CLAUDINO', 'SANTAREM'],
+  SANTAREM: ['JOCA CLAUDINO', 'SANTAREM'],
+  'SAO DOMINGOS': ['SAO DOMINGOS', 'SAO DOMINGOS DE POMBAL'],
+  'SAO DOMINGOS DE POMBAL': ['SAO DOMINGOS', 'SAO DOMINGOS DE POMBAL'],
+  TACIMA: ['TACIMA', 'CAMPO DE SANTANA'],
+  'CAMPO DE SANTANA': ['TACIMA', 'CAMPO DE SANTANA'],
+  'BELEM DO SAO FRANCISCO': ['BELEM DO SAO FRANCISCO', 'BELEM DE SAO FRANCISCO'],
+  'BELEM DE SAO FRANCISCO': ['BELEM DO SAO FRANCISCO', 'BELEM DE SAO FRANCISCO'],
+  'ILHA DE ITAMARACA': ['ILHA DE ITAMARACA', 'ITAMARACA'],
+  ITAMARACA: ['ILHA DE ITAMARACA', 'ITAMARACA'],
+  'MUNHOZ DE MELLO': ['MUNHOZ DE MELLO', 'MUNHOZ DE MELO'],
+  'MUNHOZ DE MELO': ['MUNHOZ DE MELLO', 'MUNHOZ DE MELO'],
+  AREZ: ['AREZ', 'ARES'],
+  ARES: ['AREZ', 'ARES'],
+  ERERE: ['ERERE'],
+  'SANTO ANTONIO DO CAIUA': ['SANTO ANTONIO DO CAIUA'],
+  'SAO VICENTE FERRER': ['SAO VICENTE FERRER'],
+  ITAOCA: ['ITAOCA'],
+  'ALTA FLORESTA D OESTE': ['ALTA FLORESTA D OESTE', 'ALTA FLORESTA DO OESTE'],
+  'ALTA FLORESTA DO OESTE': ['ALTA FLORESTA D OESTE', 'ALTA FLORESTA DO OESTE'],
+  'MACHADINHO D OESTE': ['MACHADINHO D OESTE', 'MACHADINHO DO OESTE'],
+  'MACHADINHO DO OESTE': ['MACHADINHO D OESTE', 'MACHADINHO DO OESTE'],
+  'NOVA BRASILANDIA D OESTE': ['NOVA BRASILANDIA D OESTE', 'NOVA BRASILANDIA DO OESTE'],
+  'NOVA BRASILANDIA DO OESTE': ['NOVA BRASILANDIA D OESTE', 'NOVA BRASILANDIA DO OESTE'],
+  'SANTA LUZIA D OESTE': ['SANTA LUZIA D OESTE', 'SANTA LUZIA DO OESTE'],
+  'SANTA LUZIA DO OESTE': ['SANTA LUZIA D OESTE', 'SANTA LUZIA DO OESTE'],
+  'SAO FELIPE D OESTE': ['SAO FELIPE D OESTE', 'SAO FELIPE DO OESTE'],
+  'SAO FELIPE DO OESTE': ['SAO FELIPE D OESTE', 'SAO FELIPE DO OESTE'],
+  'LUIZ ALVES': ['LUIZ ALVES', 'LUIS ALVES'],
+  'LUIS ALVES': ['LUIZ ALVES', 'LUIS ALVES'],
+  'PRESIDENTE CASTELLO BRANCO': ['PRESIDENTE CASTELLO BRANCO', 'PRESIDENTE CASTELO BRANCO'],
+  'PRESIDENTE CASTELO BRANCO': ['PRESIDENTE CASTELLO BRANCO', 'PRESIDENTE CASTELO BRANCO'],
+  'COUTO MAGALHAES': ['COUTO MAGALHAES', 'COUTO DE MAGALHAES'],
+  'COUTO DE MAGALHAES': ['COUTO MAGALHAES', 'COUTO DE MAGALHAES'],
+  'SAO VALERIO': ['SAO VALERIO', 'SAO VALERIO DA NATIVIDADE'],
+  'SAO VALERIO DA NATIVIDADE': ['SAO VALERIO', 'SAO VALERIO DA NATIVIDADE'],
+  TABOCAO: ['TABOCAO', 'FORTALEZA DO TABOCAO'],
+  'FORTALEZA DO TABOCAO': ['TABOCAO', 'FORTALEZA DO TABOCAO']
+};
+
+const MUNICIPAL_STATEWIDE_OVERVIEW_CACHE = new Map();
+
+function getMunicipioAliasSlugs(value) {
+  const normalized = normalizeMunicipioSlug(value);
+  const aliases = MUNICIPAL_NAME_ALIASES[normalized] || [normalized];
+  return Array.from(new Set([normalized, ...aliases].map(normalizeMunicipioSlug).filter(Boolean)));
+}
+
+function matchesMunicipioName(requestedName, candidateName) {
+  if (!requestedName) return false;
+  const candidateSlug = normalizeMunicipioSlug(candidateName);
+  if (!candidateSlug) return false;
+  return getMunicipioAliasSlugs(requestedName).includes(candidateSlug);
+}
+
+function buildMunicipalOverviewEntry(summaryJson, subtype = 'ord') {
+  const metadata = summaryJson?.METADATA || {};
+  const rawTotals = summaryJson?.TOTALS || {};
+  const turno = Number(metadata.turno) === 2 ? '2T' : '1T';
+  const validEntries = Object.entries(rawTotals)
+    .filter(([candidateId]) => candidateId !== '95' && candidateId !== '96')
+    .map(([candidateId, votes]) => ({
+      candidateId,
+      votes: ensureNumber(votes),
+      meta: metadata.cand_names?.[candidateId] || null
+    }))
+    .filter((entry) => entry.votes > 0)
+    .sort((a, b) => b.votes - a.votes);
+
+  const winner = validEntries[0] || null;
+  const second = validEntries[1] || null;
+  const totalValid = validEntries.reduce((sum, entry) => sum + entry.votes, 0);
+  const winnerMeta = winner?.meta || [];
+  const votesByDisplayKey = {};
+
+  validEntries.forEach((entry) => {
+    const entryMeta = entry.meta || [];
+    const displayKey = `${entryMeta[0] || `Candidato ${entry.candidateId}`} (${entryMeta[1] || '?'}) (${entryMeta[2] || 'N/D'}) ${turno}`;
+    votesByDisplayKey[displayKey] = entry.votes;
+  });
+
+  return {
+    muniCode: String(metadata.cd_municipio || '').trim(),
+    nome: metadata.nm_municipio || 'Município',
+    winnerCode: winner?.candidateId || '',
+    winnerName: winnerMeta[0] || 'N/D',
+    winnerParty: winnerMeta[1] || '',
+    totalValid,
+    margin: totalValid > 0 ? (((winner?.votes || 0) - (second?.votes || 0)) / totalValid) * 100 : 0,
+    turno,
+    turnoLabel: turno === '2T' ? '2º Turno' : (subtype === 'sup' ? 'Suplementar' : '1º Turno'),
+    votes: votesByDisplayKey,
+    rawTotals,
+    isDetailed: true
+  };
+}
+
+async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
+  const ufNorm = String(uf || '').toUpperCase();
+  const cacheKey = `${ufNorm}|${year}|${subtype}`;
+  if (!ufNorm) return {};
+  if (MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.has(cacheKey)) {
+    return MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    const stateSummary = {};
+    const loadTurnEntries = async (turno) => {
+      const zipUrl = `${DATA_BASE_URL}Municipais ${year}/prefeito_${year}_${subtype}_t${turno}_${ufNorm}.zip`;
+      try {
+        const reader = await getZipReader(zipUrl);
+        const entryNames = Object.keys(reader?.entries || {})
+          .filter((name) => name.toLowerCase().endsWith('_resumo.json'));
+
+        for (const entryName of entryNames) {
+          const entry = reader.entries[entryName];
+          if (!entry) continue;
+          const payload = JSON.parse(await (await entry.blob()).text());
+          const overview = buildMunicipalOverviewEntry(payload, subtype);
+          if (!overview.muniCode) continue;
+          stateSummary[overview.muniCode] = overview;
+        }
+      } catch (error) {
+        console.warn(`[Municipal ${year}] Resumo estadual indisponível para ${ufNorm} turno ${turno}:`, error);
+      }
+    };
+
+    await loadTurnEntries(1);
+    if (String(subtype) === 'ord') {
+      await loadTurnEntries(2);
+    }
+    return stateSummary;
+  })();
+
+  MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.set(cacheKey, promise);
+  return promise;
+}
+
+if (typeof window !== 'undefined') {
+  window.loadMunicipalOverviewSummary = loadMunicipalOverviewSummary;
+}
+
 function mergeCensoJson2024(baseGeo, censusJson, muniCode, municipio) {
   if (!baseGeo?.features?.length || !censusJson?.RESULTS) return;
 
   const censusIndex = new Map();
   const targetMuniCode = String(muniCode || '').trim();
-  const targetMunicipio = normalizeMunicipioSlug(municipio);
+  const targetMunicipioAliases = getMunicipioAliasSlugs(municipio);
 
   Object.entries(censusJson.RESULTS).forEach(([fallbackKey, row]) => {
     if (!row) return;
@@ -91,7 +266,7 @@ function mergeCensoJson2024(baseGeo, censusJson, muniCode, municipio) {
     const rowMuniCode = String(row.cd_localidade_tse || '').trim();
     if (targetMuniCode) {
       if (rowMuniCode && rowMuniCode !== targetMuniCode) return;
-    } else if (targetMunicipio && normalizeMunicipioSlug(row.nm_localidade) !== targetMunicipio) {
+    } else if (targetMunicipioAliases.length && !targetMunicipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) {
       return;
     }
 
@@ -134,7 +309,7 @@ function mergeCensoJson2020(baseGeo, censusJson, muniCode, municipio) {
 
   const censusIndex = new Map();
   const targetMuniCode = String(muniCode || '').trim();
-  const targetMunicipio = normalizeMunicipioSlug(municipio);
+  const targetMunicipioAliases = getMunicipioAliasSlugs(municipio);
 
   Object.entries(censusJson.RESULTS).forEach(([fallbackKey, row]) => {
     if (!row) return;
@@ -142,7 +317,7 @@ function mergeCensoJson2020(baseGeo, censusJson, muniCode, municipio) {
     const rowMuniCode = String(row.cd_localidade_tse || '').trim();
     if (targetMuniCode) {
       if (rowMuniCode && rowMuniCode !== targetMuniCode) return;
-    } else if (targetMunicipio && normalizeMunicipioSlug(row.nm_localidade) !== targetMunicipio) {
+    } else if (targetMunicipioAliases.length && !targetMunicipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) {
       return;
     }
 
@@ -185,7 +360,7 @@ function mergeCensoJson2016(baseGeo, censusJson, muniCode, municipio) {
 
   const censusIndex = new Map();
   const targetMuniCode = String(muniCode || '').trim();
-  const targetMunicipio = normalizeMunicipioSlug(municipio);
+  const targetMunicipioAliases = getMunicipioAliasSlugs(municipio);
 
   Object.entries(censusJson.RESULTS).forEach(([fallbackKey, row]) => {
     if (!row) return;
@@ -193,7 +368,7 @@ function mergeCensoJson2016(baseGeo, censusJson, muniCode, municipio) {
     const rowMuniCode = String(row.cd_localidade_tse || '').trim();
     if (targetMuniCode) {
       if (rowMuniCode && rowMuniCode !== targetMuniCode) return;
-    } else if (targetMunicipio && normalizeMunicipioSlug(row.nm_localidade) !== targetMunicipio) {
+    } else if (targetMunicipioAliases.length && !targetMunicipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) {
       return;
     }
 
@@ -236,7 +411,7 @@ function mergeCensoJson2012(baseGeo, censusJson, muniCode, municipio) {
 
   const censusIndex = new Map();
   const targetMuniCode = String(muniCode || '').trim();
-  const targetMunicipio = normalizeMunicipioSlug(municipio);
+  const targetMunicipioAliases = getMunicipioAliasSlugs(municipio);
 
   Object.entries(censusJson.RESULTS).forEach(([fallbackKey, row]) => {
     if (!row) return;
@@ -244,7 +419,7 @@ function mergeCensoJson2012(baseGeo, censusJson, muniCode, municipio) {
     const rowMuniCode = String(row.cd_localidade_tse || '').trim();
     if (targetMuniCode) {
       if (rowMuniCode && rowMuniCode !== targetMuniCode) return;
-    } else if (targetMunicipio && normalizeMunicipioSlug(row.nm_localidade) !== targetMunicipio) {
+    } else if (targetMunicipioAliases.length && !targetMunicipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) {
       return;
     }
 
@@ -287,7 +462,7 @@ function mergeCensoJson2008(baseGeo, censusJson, muniCode, municipio) {
 
   const censusIndex = new Map();
   const targetMuniCode = String(muniCode || '').trim();
-  const targetMunicipio = normalizeMunicipioSlug(municipio);
+  const targetMunicipioAliases = getMunicipioAliasSlugs(municipio);
 
   Object.entries(censusJson.RESULTS).forEach(([fallbackKey, row]) => {
     if (!row) return;
@@ -295,7 +470,7 @@ function mergeCensoJson2008(baseGeo, censusJson, muniCode, municipio) {
     const rowMuniCode = String(row.cd_localidade_tse || '').trim();
     if (targetMuniCode) {
       if (rowMuniCode && rowMuniCode !== targetMuniCode) return;
-    } else if (targetMunicipio && normalizeMunicipioSlug(row.nm_localidade) !== targetMunicipio) {
+    } else if (targetMunicipioAliases.length && !targetMunicipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) {
       return;
     }
 
@@ -467,12 +642,12 @@ async function loadMunicipalBaseFromGpkg2016(uf, municipio, muniCode, resultKeys
       WHERE sg_uf = ?
     `);
 
-    const municipioNorm = normalizeMunicipioSlug(municipio);
+    const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
-      if (normalizeMunicipioSlug(row.nm_localidade) !== municipioNorm) continue;
+      if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
       rows.push(row);
     }
@@ -520,12 +695,12 @@ async function loadMunicipalBaseFromGpkg2012(uf, municipio, muniCode, resultKeys
       WHERE sg_uf = ?
     `);
 
-    const municipioNorm = normalizeMunicipioSlug(municipio);
+    const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
-      if (normalizeMunicipioSlug(row.nm_localidade) !== municipioNorm) continue;
+      if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
       rows.push(row);
     }
@@ -573,12 +748,12 @@ async function loadMunicipalBaseFromGpkg2008(uf, municipio, muniCode, resultKeys
       WHERE sg_uf = ?
     `);
 
-    const municipioNorm = normalizeMunicipioSlug(municipio);
+    const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
-      if (normalizeMunicipioSlug(row.nm_localidade) !== municipioNorm) continue;
+      if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
       rows.push(row);
     }
@@ -626,12 +801,12 @@ async function loadMunicipalBaseFromGpkg2020(uf, municipio, muniCode, resultKeys
       WHERE sg_uf = ?
     `);
 
-    const municipioNorm = normalizeMunicipioSlug(municipio);
+    const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
-      if (normalizeMunicipioSlug(row.nm_localidade) !== municipioNorm) continue;
+      if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
       rows.push(row);
     }
@@ -679,12 +854,12 @@ async function loadMunicipalBaseFromGpkg2024(uf, municipio, muniCode, resultKeys
       WHERE sg_uf = ?
     `);
 
-    const municipioNorm = normalizeMunicipioSlug(municipio);
+    const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
-      if (normalizeMunicipioSlug(row.nm_localidade) !== municipioNorm) continue;
+      if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
       rows.push(row);
     }
@@ -846,7 +1021,7 @@ function extractMunicipioCodeFromVereadorFile(filename) {
 
 async function loadPrefeitoJson2024(uf, municipio, subtype, turno) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais 2024/prefeito_2024_${subtype}_t${turno}_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -854,7 +1029,7 @@ async function loadPrefeitoJson2024(uf, municipio, subtype, turno) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromPrefeitoFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromPrefeitoFile(entryName))
   );
 
   return {
@@ -866,7 +1041,7 @@ async function loadPrefeitoJson2024(uf, municipio, subtype, turno) {
 
 async function loadPrefeitoJson2020(uf, municipio, subtype, turno) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais 2020/prefeito_2020_${subtype}_t${turno}_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -874,7 +1049,7 @@ async function loadPrefeitoJson2020(uf, municipio, subtype, turno) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromPrefeitoFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromPrefeitoFile(entryName))
   );
 
   return {
@@ -886,7 +1061,7 @@ async function loadPrefeitoJson2020(uf, municipio, subtype, turno) {
 
 async function loadPrefeitoJson2016(uf, municipio, subtype, turno) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais 2016/prefeito_2016_${subtype}_t${turno}_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -894,7 +1069,7 @@ async function loadPrefeitoJson2016(uf, municipio, subtype, turno) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromPrefeitoFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromPrefeitoFile(entryName))
   );
 
   return {
@@ -906,7 +1081,7 @@ async function loadPrefeitoJson2016(uf, municipio, subtype, turno) {
 
 async function loadPrefeitoJson2012(uf, municipio, subtype, turno) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais 2012/prefeito_2012_${subtype}_t${turno}_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -914,7 +1089,7 @@ async function loadPrefeitoJson2012(uf, municipio, subtype, turno) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromPrefeitoFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromPrefeitoFile(entryName))
   );
 
   return {
@@ -926,7 +1101,7 @@ async function loadPrefeitoJson2012(uf, municipio, subtype, turno) {
 
 async function loadPrefeitoJson2008(uf, municipio, subtype, turno) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais 2008/prefeito_2008_${subtype}_t${turno}_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -934,7 +1109,7 @@ async function loadPrefeitoJson2008(uf, municipio, subtype, turno) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromPrefeitoFile2008(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromPrefeitoFile2008(entryName))
   );
 
   return {
@@ -946,7 +1121,7 @@ async function loadPrefeitoJson2008(uf, municipio, subtype, turno) {
 
 async function loadVereadorJson2024(uf, municipio) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais_Legislativas 2024/vereadores_2024_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -954,7 +1129,7 @@ async function loadVereadorJson2024(uf, municipio) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromVereadorFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromVereadorFile(entryName))
   );
 
   return {
@@ -966,7 +1141,7 @@ async function loadVereadorJson2024(uf, municipio) {
 
 async function loadVereadorJson2012(uf, municipio) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais_Legislativas 2012/vereadores_2012_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -974,7 +1149,7 @@ async function loadVereadorJson2012(uf, municipio) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromVereadorFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromVereadorFile(entryName))
   );
 
   return {
@@ -986,7 +1161,7 @@ async function loadVereadorJson2012(uf, municipio) {
 
 async function loadVereadorJson2016(uf, municipio) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais_Legislativas 2016/vereadores_2016_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -994,7 +1169,7 @@ async function loadVereadorJson2016(uf, municipio) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromVereadorFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromVereadorFile(entryName))
   );
 
   return {
@@ -1006,7 +1181,7 @@ async function loadVereadorJson2016(uf, municipio) {
 
 async function loadVereadorJson2020(uf, municipio) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais_Legislativas 2020/vereadores_2020_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -1014,7 +1189,7 @@ async function loadVereadorJson2020(uf, municipio) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromVereadorFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromVereadorFile(entryName))
   );
 
   return {
@@ -1026,7 +1201,7 @@ async function loadVereadorJson2020(uf, municipio) {
 
 async function loadVereadorJson2008(uf, municipio) {
   const ufNorm = String(uf || '').toUpperCase();
-  const municipioNorm = normalizeMunicipioSlug(municipio);
+  const municipioAliases = getMunicipioAliasSlugs(municipio);
   const zipUrl = `${DATA_BASE_URL}Municipais_Legislativas 2008/vereadores_2008_${ufNorm}.zip`;
 
   const { data, name } = await fetchJsonFromZipEntry(
@@ -1034,7 +1209,7 @@ async function loadVereadorJson2008(uf, municipio) {
     null,
     (entryName) => entryName.toLowerCase().endsWith('.json')
       && !entryName.toLowerCase().endsWith('_resumo.json')
-      && extractMunicipioSlugFromVereadorFile(entryName) === municipioNorm
+      && municipioAliases.includes(extractMunicipioSlugFromVereadorFile(entryName))
   );
 
   return {
@@ -1064,6 +1239,12 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
   currentCidadeFilter = 'all';
   currentBairroFilter = 'all';
   currentLocalFilter = '';
+
+  if (STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
+    map.removeLayer(STATE.municipiosLayer);
+  }
+  STATE.currentMapMuniSummary = null;
+  STATE.currentMapMuniUF = null;
 
   updateElectionTypeUI();
   dom.summaryBoxContainer.classList.add('section-hidden');

@@ -812,6 +812,11 @@ function renderDeputyResults(cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
 
+  STATE.deputyViewMode = 'party';
+  STATE.deputyPartyViewMode = 'federation';
+  renderDeputyPartyResults(cargo);
+  return;
+
   // 0. Toggle Logic
   if (!STATE.deputyViewMode) STATE.deputyViewMode = 'candidate';
 
@@ -1409,6 +1414,278 @@ function setBar(id, min, max, scale) {
   el.style.width = `${width.toFixed(2)}%`;
 }
 
+function getCandidateStatusInfo(status) {
+  const normalized = String(status || '').toUpperCase();
+  if (normalized.includes('INAPTO')) return { label: 'Inapto', badgeClass: 'inapto', rowClass: 'prop-cand-inapto', elected: false };
+  if (normalized.includes('NÃO ELEITO') || normalized.includes('NAO ELEITO')) return { label: 'Não eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
+  if (normalized.includes('QP')) return { label: 'Eleito por QP', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  if (normalized.includes('MÉDIA') || normalized.includes('MEDIA')) return { label: 'Eleito por média', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  if (normalized.includes('ELEITO')) return { label: 'Eleito', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  if (normalized.includes('SUPLENTE')) return { label: 'Suplente', badgeClass: 'suplente', rowClass: 'prop-cand-not-elected', elected: false };
+  return { label: 'Não eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
+}
+
+function ensureDeputyLookupForCargo(cargo) {
+  if (STATE.deputyLookup && STATE.deputyLookupCargo === cargo) return;
+  STATE.deputyLookup = new Map();
+  STATE.deputyLookupCargo = cargo;
+  const geojson = currentDataCollection[cargo];
+  geojson?.features?.forEach((feature) => {
+    const props = feature.properties;
+    const id = getFeatureSelectionId(props);
+    const z = getProp(props, 'nr_zona');
+    const l = getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao');
+    const m = getProp(props, 'cd_localidade_tse') || getProp(props, 'CD_MUNICIPIO');
+    if (id && z && l && m) {
+      STATE.deputyLookup.set(id, `${parseInt(z, 10)}_${parseInt(m, 10)}_${parseInt(l, 10)}`);
+    }
+  });
+}
+
+function ensureVereadorLookupForCargo(cargo) {
+  if (STATE.vereadorLookup && STATE.vereadorLookupCargo === cargo) return;
+  STATE.vereadorLookup = new Map();
+  STATE.vereadorLookupCargo = cargo;
+  const geojson = currentDataCollection[cargo];
+  geojson?.features?.forEach((feature) => {
+    const props = feature.properties;
+    const id = getFeatureSelectionId(props);
+    const z = getProp(props, 'nr_zona');
+    const l = getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao');
+    if (id && z && l) {
+      STATE.vereadorLookup.set(id, `${parseInt(z, 10)}_${parseInt(l, 10)}`);
+    }
+  });
+}
+
+function aggregateProportionalGroupsForSelection(cargo) {
+  const isVereador = cargo.startsWith('vereador');
+  const typeKey = isVereador ? 'v' : (cargo === 'deputado_federal' ? 'f' : 'e');
+  const resultStore = isVereador ? (STATE.vereadorResults || {}) : (STATE.deputyResults || {});
+  const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
+  const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
+  const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[cargo]?.['1T'] || []);
+  const groups = new Map();
+  let totalVotes = 0;
+  let brancos = 0;
+  let nulos = 0;
+
+  const addVotesMap = (votesMap) => {
+    Object.entries(votesMap || {}).forEach(([candidateId, rawVotes]) => {
+      const votes = ensureNumber(rawVotes);
+      if (candidateId === '95') {
+        brancos += votes;
+        return;
+      }
+      if (candidateId === '96') {
+        nulos += votes;
+        return;
+      }
+      if (STATE.filterInaptos && inaptos.includes(candidateId)) return;
+
+      totalVotes += votes;
+      const groupInfo = resolveProportionalGroupInfo(candidateId, metaStore, prefixCache);
+      const group = groups.get(groupInfo.key) || {
+        ...groupInfo,
+        votes: 0,
+        dominantParties: new Map(),
+        candidates: new Map()
+      };
+
+      group.votes += votes;
+      group.dominantParties.set(groupInfo.party, (group.dominantParties.get(groupInfo.party) || 0) + votes);
+
+      if (String(candidateId).length > 2) {
+        const metadata = metaStore[candidateId] || [];
+        const candidate = group.candidates.get(candidateId) || {
+          id: candidateId,
+          nome: metadata[0] || candidateId,
+          partido: groupInfo.party,
+          status: metadata[2] || '',
+          votos: 0
+        };
+        candidate.votos += votes;
+        group.candidates.set(candidateId, candidate);
+      }
+
+      groups.set(groupInfo.key, group);
+    });
+  };
+
+  if (isVereador && shouldUseMunicipalOfficialTotals()) {
+    const officialSummary = STATE.municipalOfficialTotals?.[cargo]?.['1T'];
+    if (officialSummary?.votesById) {
+      addVotesMap(officialSummary.votesById);
+      return {
+        groups: Array.from(groups.values()),
+        totalVotes,
+        brancos: ensureNumber(officialSummary.brancos),
+        nulos: ensureNumber(officialSummary.nulos),
+        comparecimento: ensureNumber(officialSummary.comparecimento) || (totalVotes + brancos + nulos)
+      };
+    }
+  }
+
+  if (!isVereador && (shouldUseGeneralDeputyJsonTotals(cargo) || (
+    STATE.isFilterAggregationActive &&
+    STATE.currentElectionType === 'geral' &&
+    !hasRegionalScopeFilters() &&
+    currentCidadeFilter === 'all' &&
+    selectedLocationIDs.size > 100
+  ))) {
+    Object.values(resultStore).forEach((entry) => {
+      if (entry?.[typeKey]) addVotesMap(entry[typeKey]);
+    });
+  } else {
+    const processedKeys = new Set();
+    if (isVereador) {
+      ensureVereadorLookupForCargo(cargo);
+      Array.from(selectedLocationIDs).forEach((id) => {
+        const key = STATE.vereadorLookup?.get(id);
+        if (!key || processedKeys.has(key)) return;
+        processedKeys.add(key);
+        if (resultStore[key]?.[typeKey]) addVotesMap(resultStore[key][typeKey]);
+      });
+    } else {
+      ensureDeputyLookupForCargo(cargo);
+      Array.from(selectedLocationIDs).forEach((id) => {
+        const key = STATE.deputyLookup?.get(id);
+        if (!key || processedKeys.has(key)) return;
+        processedKeys.add(key);
+        if (resultStore[key]?.[typeKey]) addVotesMap(resultStore[key][typeKey]);
+      });
+    }
+  }
+
+  return {
+    groups: Array.from(groups.values()),
+    totalVotes,
+    brancos,
+    nulos,
+    comparecimento: totalVotes + brancos + nulos
+  };
+}
+
+function renderProportionalExpandableList(groupsPayload, metrics = {}) {
+  const groups = (groupsPayload.groups || []).map((group) => {
+    let dominantParty = group.party;
+    let dominantVotes = -1;
+    group.dominantParties?.forEach((votes, party) => {
+      if (votes > dominantVotes) {
+        dominantVotes = votes;
+        dominantParty = party;
+      }
+    });
+
+    const candidates = Array.from(group.candidates?.values?.() || [])
+      .sort((a, b) => b.votos - a.votos)
+      .map((candidate) => ({
+        ...candidate,
+        statusInfo: getCandidateStatusInfo(candidate.status)
+      }));
+
+    const electedCount = candidates.filter((candidate) => candidate.statusInfo.elected).length;
+    return {
+      ...group,
+      color: colorForParty(dominantParty),
+      dominantParty,
+      candidates,
+      electedCount
+    };
+  }).sort((a, b) => b.votes - a.votes);
+
+  const totalValidos = groupsPayload.totalVotes || 0;
+  dom.resultsContent.innerHTML = '';
+
+  if (!groups.length) {
+    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Sem votos válidos para esta seleção.</p>';
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.className = 'prop-results-container';
+
+  groups.forEach((group) => {
+    const pct = totalValidos > 0 ? (group.votes / totalValidos) : 0;
+    const item = document.createElement('div');
+    item.className = 'party-group';
+
+    const normalizedComposition = String(group.composition || '').replace(/\s+/g, '').toUpperCase();
+    const normalizedName = String(group.name || '').replace(/\s+/g, '').toUpperCase();
+    const compositionHtml = group.isGroup && normalizedComposition && normalizedComposition !== normalizedName
+      ? `<div class="party-result-subtitle">${escapeHtml(group.composition)}</div>`
+      : '';
+    const electedBadge = group.electedCount > 0
+      ? `<span class="party-mandate-badge">${group.electedCount} eleito${group.electedCount > 1 ? 's' : ''}</span>`
+      : '';
+
+    const header = document.createElement('div');
+    header.className = 'party-header';
+    header.innerHTML = `
+      <div class="party-header-left">
+        <span class="party-header-arrow">▶</span>
+        <div class="cand-indicator" style="background:${group.color}"></div>
+        <div class="party-header-info">
+          <span class="party-header-name" title="${escapeHtml(group.name)}">${escapeHtml(group.name)}</span>
+          ${compositionHtml}
+          ${electedBadge}
+        </div>
+      </div>
+      <div class="party-header-right">
+        <div class="cand-bar-wrapper">
+          <div class="cand-bar-fill" style="background:${group.color}; width:${pct * 100}%;"></div>
+          <div class="cand-votos">${fmtInt(group.votes)}</div>
+          <div class="cand-pct">${fmtPct(pct)}</div>
+        </div>
+      </div>
+    `;
+
+    const list = document.createElement('div');
+    list.className = 'party-candidates';
+    list.style.display = 'none';
+
+    group.candidates.forEach((candidate) => {
+      const row = document.createElement('div');
+      row.className = `prop-cand ${candidate.statusInfo.rowClass}`;
+      row.innerHTML = `
+        <span class="prop-cand-name" title="${escapeHtml(candidate.nome)}">${escapeHtml(candidate.nome)}</span>
+        <span class="prop-cand-votes">${fmtInt(candidate.votos)}</span>
+        <span class="prop-cand-pct">${fmtPct(totalValidos > 0 ? candidate.votos / totalValidos : 0)}</span>
+        <span class="status-badge ${candidate.statusInfo.badgeClass}">${candidate.statusInfo.label}</span>
+      `;
+      list.appendChild(row);
+    });
+
+    header.addEventListener('click', () => {
+      const isOpen = list.style.display !== 'none';
+      list.style.display = isOpen ? 'none' : 'block';
+      item.classList.toggle('party-group-open', !isOpen);
+      const arrow = header.querySelector('.party-header-arrow');
+      if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
+    });
+
+    item.appendChild(header);
+    item.appendChild(list);
+    container.appendChild(item);
+  });
+
+  dom.resultsContent.appendChild(container);
+
+  const extraMetrics = metrics.extraMetrics || '';
+  const comparecimento = metrics.comparecimento ?? (groupsPayload.comparecimento || totalValidos);
+  const brancos = metrics.brancos ?? groupsPayload.brancos ?? 0;
+  const nulos = metrics.nulos ?? groupsPayload.nulos ?? 0;
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      ${extraMetrics}
+      <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(totalValidos)}</strong></div>
+      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
+      <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)}</strong></div>
+      <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)}</strong></div>
+    </div>
+  `;
+}
+
 function renderDeputyPartyResults(cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
@@ -1828,6 +2105,11 @@ function renderDeputyPartyResults(cargo) {
 function renderVereadorResults(cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
+
+  STATE.vereadorViewMode = 'party';
+  STATE.vereadorPartyViewMode = 'coalition';
+  renderVereadorPartyResults(cargo);
+  return;
 
   // Toggle Candidatos / Partidos (igual ao de deputados)
   const existingToggle = document.getElementById('vereador-view-toggle');
@@ -2794,6 +3076,66 @@ function precomputeDeputyWinners() {
 // ====== EXPORTAÇÕES PARA ISE.JS ======
 // const/let/function não criam propriedades em window automaticamente.
 // ise.js precisa acessar estes objetos para renderizar os gráficos do ISE.
+function renderDeputyResults(cargo) {
+  STATE.deputyViewMode = 'party';
+  STATE.deputyPartyViewMode = 'federation';
+  renderDeputyPartyResults(cargo);
+}
+
+function renderVereadorResults(cargo) {
+  STATE.vereadorViewMode = 'party';
+  STATE.vereadorPartyViewMode = 'coalition';
+  renderVereadorPartyResults(cargo);
+}
+
+function renderDeputyPartyResults(cargo) {
+  initializeCandidateColorUI();
+  closeCandidateColorPopoverOnViewChange();
+
+  const payload = aggregateProportionalGroupsForSelection(cargo);
+  const typeKey = cargo === 'deputado_federal' ? 'f' : 'e';
+  const officialData = STATE.officialTotals?.[STATE.currentElectionYear]?.[dom.selectUFGeneral?.value || '']?.[typeKey] || null;
+  const extraMetrics = officialData?.stats
+    ? `
+      ${officialData.stats.qt_vagas ? `<div class="metric-item"><span>Vagas em jogo</span><strong>${fmtInt(officialData.stats.qt_vagas)}</strong></div>` : ''}
+      ${officialData.stats.vr_qe ? `<div class="metric-item"><span>Quociente eleitoral</span><strong>${fmtInt(officialData.stats.vr_qe)}</strong></div>` : ''}
+    `
+    : '';
+
+  dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
+  renderProportionalExpandableList(payload, {
+    extraMetrics,
+    comparecimento: payload.comparecimento,
+    brancos: payload.brancos,
+    nulos: payload.nulos
+  });
+}
+
+function renderVereadorPartyResults(cargo) {
+  initializeCandidateColorUI();
+  closeCandidateColorPopoverOnViewChange();
+
+  const payload = aggregateProportionalGroupsForSelection(cargo);
+  const totalsKey = `vereadores_${STATE.currentElectionYear}`;
+  const uf = loadedVereadorState.uf || dom.selectUFMunicipal?.value || '';
+  const muniSanitized = loadedVereadorState.muniSanitized || normalizeMunicipioSlug(dom.selectMunicipio?.value || '');
+  const officialStats = STATE.officialTotals?.[totalsKey]?.[uf]?.[muniSanitized]?.stats || null;
+  const extraMetrics = officialStats
+    ? `
+      ${officialStats.qt_vagas ? `<div class="metric-item"><span>Vagas em jogo</span><strong>${fmtInt(officialStats.qt_vagas)}</strong></div>` : ''}
+      ${officialStats.vr_qe ? `<div class="metric-item"><span>Quociente eleitoral</span><strong>${fmtInt(officialStats.vr_qe)}</strong></div>` : ''}
+    `
+    : '';
+
+  dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
+  renderProportionalExpandableList(payload, {
+    extraMetrics,
+    comparecimento: payload.comparecimento,
+    brancos: payload.brancos,
+    nulos: payload.nulos
+  });
+}
+
 window.STATE = STATE;
 window.getProp = getProp;
 window.parseCandidateKey = parseCandidateKey;

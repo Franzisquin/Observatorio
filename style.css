@@ -1,4 +1,4 @@
-[data-theme="dark"] {
+﻿[data-theme="dark"] {
   --bg: #0a0a0a;
   --card: #151515;
   --muted: #a3a3a3;
@@ -580,6 +580,11 @@ body {
   color: #fff;
 }
 
+.status-badge.suplente {
+  background-color: var(--muted);
+  color: #fff;
+}
+
 .status-badge.inapto {
   background-color: var(--err);
   color: #fff;
@@ -654,6 +659,13 @@ body {
   flex: 1;
 }
 
+.party-result-subtitle {
+  font-size: 0.68rem;
+  color: var(--muted);
+  line-height: 1.2;
+  white-space: normal;
+}
+
 .party-header-name {
   font-size: 0.82rem;
   font-weight: 600;
@@ -703,9 +715,10 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 0;
+  padding: 5px 0;
   font-size: 0.78rem;
   border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+  flex-wrap: wrap;
 }
 
 .prop-cand:last-child {
@@ -734,6 +747,11 @@ body {
   width: 50px;
   text-align: right;
   font-size: 0.75rem;
+}
+
+.prop-cand .status-badge {
+  margin-top: 0;
+  margin-left: auto;
 }
 
 /* Status styles */
@@ -856,6 +874,11 @@ body {
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
   max-width: 250px !important;
+}
+
+.leaflet-tooltip.sim-tooltip {
+  font-size: 0.8rem !important;
+  line-height: 1.35 !important;
 }
 
 .leaflet-tooltip-left::before { border-left-color: #444 !important; }

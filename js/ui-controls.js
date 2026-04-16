@@ -23,7 +23,7 @@ function setupControls() {
     let disabled = false;
     let label = 'Carregar dados';
 
-    dom.btnLoadData.style.display = 'block';
+    dom.btnLoadData.style.display = 'none';
 
     if (STATE.currentElectionType === 'geral') {
       const year = STATE.currentElectionYear;
@@ -58,6 +58,51 @@ function setupControls() {
     dom.btnLoadData.textContent = label;
     dom.btnLoadData.disabled = disabled;
     dom.btnLoadData.classList.toggle('cta-ready', !disabled);
+  };
+
+  const canInstantLoadCurrentContext = () => {
+    if (STATE.currentElectionType === 'geral') {
+      const uf = dom.selectUFGeneral?.value;
+      if (!uf) return false;
+      if (currentOffice === 'presidente') return true;
+      return uf !== 'BR';
+    }
+
+    return !!(dom.selectUFMunicipal?.value && dom.selectMunicipio?.value);
+  };
+
+  const runInstantLoad = async () => {
+    if (STATE.isLoadingDataset || !canInstantLoadCurrentContext()) return;
+    if (typeof rememberMapViewportForNextLoad === 'function') {
+      rememberMapViewportForNextLoad();
+    }
+
+    try {
+      if (STATE.currentElectionType === 'geral') {
+        const uf = dom.selectUFGeneral?.value;
+        const year = STATE.currentElectionYear;
+        if (currentOffice === 'deputado') {
+          await window.onClickLoadData_Deputies(uf, year);
+        } else {
+          await window.onClickLoadData_General();
+        }
+      } else {
+        await window.onClickLoadData_Municipal();
+      }
+    } catch (error) {
+      console.error('[Auto-Load] Falha no carregamento instantâneo:', error);
+      showToast(`Erro ao carregar dados: ${error.message}`, 'error');
+    }
+  };
+
+  const scheduleInstantLoad = (delay = 90) => {
+    if (autoLoadTimer) {
+      clearTimeout(autoLoadTimer);
+    }
+    autoLoadTimer = setTimeout(() => {
+      autoLoadTimer = null;
+      runInstantLoad();
+    }, delay);
   };
 
   // MUDANÇA DE ELEIÇÃO (ANO/TIPO) via Selects originais
@@ -110,6 +155,13 @@ function setupControls() {
       }
 
       updateLoadButtonState();
+
+      if (type === 'municipal') {
+        const uf = dom.selectUFMunicipal?.value;
+        if (uf && !dom.selectMunicipio?.value && typeof window.showMunicipalStatewideOverview === 'function') {
+          window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+        }
+      }
     });
   }
 
@@ -307,12 +359,18 @@ function setupControls() {
     if (dom.searchLocal) dom.searchLocal.value = '';
     populateRegionalDropdowns();
     updateLoadButtonState();
+    if (canInstantLoadCurrentContext()) {
+      scheduleInstantLoad();
+    }
   });
 
   dom.selectYearGeneral?.addEventListener('change', () => {
     STATE.currentElectionYear = dom.selectYearGeneral.value;
     updateLoadButtonState();
     clearPendingFilterChanges();
+    if (canInstantLoadCurrentContext()) {
+      scheduleInstantLoad();
+    }
   });
 
   // SELEÇÃO MUNICIPAL
@@ -320,7 +378,7 @@ function setupControls() {
     const uf = dom.selectUFMunicipal.value;
     const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
 
-    dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione Município</option>';
+    dom.selectMunicipio.innerHTML = '<option value="" selected>Resumo estadual</option>';
     municipios.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
       const opt = document.createElement('option');
       opt.value = nome;
@@ -337,15 +395,36 @@ function setupControls() {
       dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
     }
     updateLoadButtonState();
+
+    if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
+      window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+    }
   });
   dom.selectMunicipio.addEventListener('change', () => {
     updateLoadButtonState();
+    if (!dom.selectMunicipio.value) {
+      const uf = dom.selectUFMunicipal?.value;
+      if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
+        window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+      }
+      return;
+    }
+    scheduleInstantLoad();
   });
 
   dom.selectYearMunicipal?.addEventListener('change', () => {
     STATE.currentElectionYear = dom.selectYearMunicipal.value;
     updateLoadButtonState();
     clearPendingFilterChanges();
+    const uf = dom.selectUFMunicipal?.value;
+    if (!uf) return;
+    if (!dom.selectMunicipio?.value) {
+      if (typeof window.showMunicipalStatewideOverview === 'function') {
+        window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+      }
+      return;
+    }
+    scheduleInstantLoad();
   });
 
 
@@ -549,12 +628,8 @@ function setupControls() {
   }
   if (dom.selectVizColorStyle) {
     dom.selectVizColorStyle.addEventListener('change', (e) => {
-      if (typeof isGradientVizBlockedForCurrentCargo === 'function' && isGradientVizBlockedForCurrentCargo() && e.target.value === 'gradient') {
-        currentVizColorStyle = 'static';
-        e.target.value = 'static';
-        return;
-      }
-      currentVizColorStyle = e.target.value;
+      currentVizColorStyle = 'gradient';
+      e.target.value = 'gradient';
       applyFiltersAndRedraw();
     });
   }

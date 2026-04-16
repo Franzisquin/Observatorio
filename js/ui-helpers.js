@@ -222,7 +222,7 @@ async function loadMunicipalIndex() {
 }
 
 async function init() {
-  document.body.dataset.theme = 'light';
+  document.body.dataset.theme = 'dark';
   mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
 
   await loadMunicipalIndex();
@@ -319,7 +319,7 @@ async function init() {
 
   map = L.map('map', { zoomControl: false, minZoom: 4 }).setView([-15, -55], 4);
 
-  STATE.mapTileLayer = L.tileLayer(MAP_TILES.light, {
+  STATE.mapTileLayer = L.tileLayer(MAP_TILES.dark, {
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     subdomains: 'abcd', maxZoom: 20
   }).addTo(map);

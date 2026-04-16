@@ -376,29 +376,21 @@ function updateVizModeUI() {
 }
 
 function getDefaultVizColorStyleForOffice(office = currentOffice) {
-  return ['presidente', 'governador', 'senador', 'prefeito'].includes(office) ? 'gradient' : 'static';
+  return 'gradient';
 }
 
 function isGradientVizBlockedForCurrentCargo() {
-  return currentOffice === 'deputado' || currentOffice === 'vereador';
+  return false;
 }
 
 function syncVizColorStyleControl() {
   if (!dom.selectVizColorStyle) return;
 
-  const gradientOption = dom.selectVizColorStyle.querySelector('option[value="gradient"]');
-  const gradientBlocked = isGradientVizBlockedForCurrentCargo();
-
-  if (gradientOption) {
-    gradientOption.hidden = gradientBlocked;
-    gradientOption.disabled = gradientBlocked;
-  }
-
-  if (gradientBlocked && currentVizColorStyle === 'gradient') {
-    currentVizColorStyle = 'static';
-  }
-
-  dom.selectVizColorStyle.value = currentVizColorStyle;
+  currentVizColorStyle = 'gradient';
+  dom.selectVizColorStyle.value = 'gradient';
+  dom.selectVizColorStyle.disabled = true;
+  const colorStyleCtrl = document.getElementById('vizColorStyleCtrl');
+  if (colorStyleCtrl) colorStyleCtrl.classList.add('section-hidden');
 }
 
 function applyDefaultVizColorStyleForCurrentCargo() {
