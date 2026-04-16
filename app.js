@@ -35,7 +35,7 @@ const PARTY_ACRONYMS = new Map(Object.entries({
   'CIDADANIA': 'CID',
   'FEDERACAO PSOL REDE(PSOL/REDE)': 'PSOL-REDE',
   'FEDERACAO PSDB CIDADANIA(PSDB/CIDADANIA)': 'PSDB-Cidadania',
-  'FEDERACAO BRASIL DA ESPERANCA - FE BRASIL(PT/PC DO B/PV)': 'Brasil da Esperança'
+  'FEDERACAO BRASIL DA ESPERANCA - FE BRASIL(PT/PC DO B/PV)': 'FE Brasil'
 }));
 
 const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
@@ -494,15 +494,35 @@ function summarizeMunicipalityGeoJSON(geojson, subtype = 'ord') {
   let totalValid = 0;
   let nome = 'Município';
 
+  // Optimization: use discovered candidate keys to avoid looping all properties with regex
+  const candidateKeys = localState.candidates[turnoKey] || [];
+  const useFastPath = candidateKeys.length > 0;
+
   geojson.features.forEach(feature => {
     const props = feature.properties || {};
     nome = props.nm_localidade || props.NM_MUN || props.nm_mun || props.municipio || nome;
-    Object.keys(props).forEach(key => {
-      if (!key.endsWith(suffix) || !isCandidateVoteKey(key)) return;
-      const votos = ensureNumber(props[key]);
-      totals[key] = (totals[key] || 0) + votos;
-      totalValid += votos;
-    });
+    
+    if (useFastPath) {
+      for (const key of candidateKeys) {
+        if (props[key] !== undefined) {
+          const votos = ensureNumber(props[key]);
+          if (votos > 0) {
+            totals[key] = (totals[key] || 0) + votos;
+            totalValid += votos;
+          }
+        }
+      }
+    } else {
+      for (const key in props) {
+        if (key.endsWith(suffix) && isCandidateVoteKey(key)) {
+          const votos = ensureNumber(props[key]);
+          if (votos > 0) {
+            totals[key] = (totals[key] || 0) + votos;
+            totalValid += votos;
+          }
+        }
+      }
+    }
   });
 
   const office = (currentCargo || '').replace(/_(ord|sup)$/, '');
@@ -5248,6 +5268,15 @@ function aggregateVotesByMunicipality(data, uf, turno = '1T', options = {}) {
   if (!data || !data.features || data.features.length === 0) return null;
   const results = {}; // codMun -> { totalValid, [cand]: count }
 
+  // Get pre-discovered candidates for current cargo if available to speed up iteration
+  let candidateKeys = [];
+  if (currentCargo && STATE.candidates[currentCargo]) {
+    const turnoKey = turno === '2T' ? '2T' : '1T';
+    candidateKeys = STATE.candidates[currentCargo][turnoKey] || [];
+  }
+  const useFastPath = candidateKeys.length > 0;
+  const suffix = ` ${turno}`;
+
   data.features.forEach(f => {
     const p = f.properties;
     if (options.useCurrentFilters && !filterFeatureWithOptions(f, options)) return;
@@ -5265,12 +5294,25 @@ function aggregateVotesByMunicipality(data, uf, turno = '1T', options = {}) {
       results[codM] = { totalValid: 0, nome: p.NM_MUN || p.nm_localidade || p.nm_mun || "Município" };
     }
 
-    const suffix = ` ${turno}`;
-    for (let k in p) {
-      if (k.endsWith(suffix) && isCandidateVoteKey(k)) {
-        const val = Number(p[k]) || 0;
-        results[codM][k] = (results[codM][k] || 0) + val;
-        results[codM].totalValid += val;
+    if (useFastPath) {
+      for (const k of candidateKeys) {
+        if (p[k] !== undefined) {
+          const val = Number(p[k]) || 0;
+          if (val > 0) {
+            results[codM][k] = (results[codM][k] || 0) + val;
+            results[codM].totalValid += val;
+          }
+        }
+      }
+    } else {
+      for (let k in p) {
+        if (k.endsWith(suffix) && isCandidateVoteKey(k)) {
+          const val = Number(p[k]) || 0;
+          if (val > 0) {
+            results[codM][k] = (results[codM][k] || 0) + val;
+            results[codM].totalValid += val;
+          }
+        }
       }
     }
   });
@@ -5282,7 +5324,7 @@ function aggregateVotesByMunicipality(data, uf, turno = '1T', options = {}) {
 
   for (let [codM, res] of Object.entries(results)) {
     const suffix = ` ${turno}`;
-    const cands = Object.keys(res).filter(k => k.endsWith(suffix) && isCandidateVoteKey(k));
+    const cands = Object.keys(res).filter(k => k !== 'totalValid' && k !== 'nome');
     if (cands.length === 0) continue;
 
     if (isProp) {
