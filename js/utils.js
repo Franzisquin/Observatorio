@@ -58,6 +58,9 @@ function escapeAttribute(value) {
   return escapeHtml(value);
 }
 function colorForParty(sg) {
+  if (typeof getResolvedPartyColor === 'function') {
+    return getResolvedPartyColor(sg);
+  }
   const cleanParty = typeof getNormalizedPartyColorKey === 'function'
     ? getNormalizedPartyColorKey(sg)
     : String(sg || '').trim().toUpperCase();

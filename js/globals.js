@@ -406,6 +406,7 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'OUTROS': '#7a8699'
 }));
 
+const CUSTOM_PARTY_COLORS = new Map();
 const CUSTOM_CANDIDATE_COLORS = new Map();
 
 function getNormalizedPartyColorKey(partido) {
@@ -423,12 +424,19 @@ function getNormalizedPartyColorKey(partido) {
   return cleanParty;
 }
 
+function getResolvedPartyColor(partido) {
+  const cleanParty = getNormalizedPartyColorKey(partido);
+  return CUSTOM_PARTY_COLORS.get(cleanParty)
+    || PARTY_COLOR_OVERRIDES.get(cleanParty)
+    || PARTY_COLORS.get(cleanParty)
+    || DEFAULT_SWATCH;
+}
+
 function getColorForCandidate(nome, partido) {
   if (CUSTOM_CANDIDATE_COLORS.has(nome)) {
     return CUSTOM_CANDIDATE_COLORS.get(nome);
   }
-  const cleanParty = getNormalizedPartyColorKey(partido);
-  return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
+  return getResolvedPartyColor(partido);
 }
 
 const DEFAULT_SWATCH = "#7a8699";
@@ -709,7 +717,12 @@ function matchesLocationFilters(props, options = {}) {
   const { ignoreCidade = false, ignoreBairro = false, ignoreLocal = false } = options;
   if (!matchesRegionalScope(props)) return false;
   if (!ignoreCidade && STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
-    if (getProp(props, 'nm_localidade') !== currentCidadeFilter) return false;
+    const cityName = String(getProp(props, 'nm_localidade') || '').trim();
+    const selectedCity = String(currentCidadeFilter || '').trim();
+    const sameCity = cityName === selectedCity
+      || normalizeMunicipioSlug(cityName) === normalizeMunicipioSlug(selectedCity)
+      || (typeof matchesMunicipioName === 'function' && matchesMunicipioName(selectedCity, cityName));
+    if (!sameCity) return false;
   }
   if (!ignoreBairro && currentBairroFilter !== 'all') {
     const bairro = getProp(props, 'ds_bairro');

@@ -391,12 +391,62 @@ function getMunicipalityFeatureName(props) {
   ).trim();
 }
 
+const PROPORTIONAL_PARTY_GROUP_CACHE = new WeakMap();
+
+function getGroupedProportionalInfoByParty(metaStore) {
+  if (!metaStore || typeof metaStore !== 'object') return new Map();
+  if (PROPORTIONAL_PARTY_GROUP_CACHE.has(metaStore)) {
+    return PROPORTIONAL_PARTY_GROUP_CACHE.get(metaStore);
+  }
+
+  const partyGroups = new Map();
+
+  Object.entries(metaStore).forEach(([candidateId, meta]) => {
+    if (String(candidateId || '').trim().length <= 2) return;
+
+    const rawParty = normalizePartyAlias(String(meta?.[1] || '').toUpperCase());
+    const rawCoalitionName = String(meta?.[3] || '').trim();
+    const rawComposition = String(meta?.[4] || '').trim();
+    const normalizedComposition = rawComposition
+      .split('/')
+      .map((value) => normalizePartyAlias(value.trim().toUpperCase()))
+      .filter(Boolean)
+      .join('/');
+
+    const hasGroupedComposition = normalizedComposition && normalizedComposition.includes('/');
+    const validCoalitionName = rawCoalitionName
+      && !/^PARTIDO ISOLADO$/i.test(rawCoalitionName)
+      && !/^FEDERACAO$/i.test(norm(rawCoalitionName))
+      && !/^COLIGACAO$/i.test(norm(rawCoalitionName));
+
+    if (!rawParty || !hasGroupedComposition || partyGroups.has(rawParty)) return;
+
+    partyGroups.set(rawParty, {
+      key: `group:${norm(normalizedComposition)}`,
+      name: validCoalitionName ? rawCoalitionName : rawComposition,
+      composition: rawComposition,
+      party: rawParty,
+      isGroup: true
+    });
+  });
+
+  PROPORTIONAL_PARTY_GROUP_CACHE.set(metaStore, partyGroups);
+  return partyGroups;
+}
+
 function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
   const candidateKey = String(candidateId || '').trim();
   const meta = metaStore?.[candidateKey] || null;
 
   if (candidateKey.length <= 2) {
     const legendParty = normalizePartyAlias(String(prefixCache?.[candidateKey] || meta?.[1] || candidateKey).toUpperCase());
+    const groupedPartyInfo = getGroupedProportionalInfoByParty(metaStore).get(legendParty);
+    if (groupedPartyInfo) {
+      return {
+        ...groupedPartyInfo,
+        party: legendParty
+      };
+    }
     return {
       key: `party:${legendParty}`,
       name: legendParty,
@@ -757,103 +807,29 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 }
 
 function renderGeneralStatewideMunicipalityResults(summary, uf) {
-  const ufName = UF_MAP.get(uf) || uf;
-  const uniqueResults = new Map();
-  const winners = new Map();
-  const candidateTotals = new Map();
-  let totalValidVotes = 0;
+  const geojson = currentDataCollection[currentCargo];
+  const filteredFeatures = geojson?.features?.filter((feature) => filterFeature(feature)) || [];
 
-  Object.values(summary || {}).forEach((result) => {
-    const muniKey = String(result?.muniCode || normalizeMunicipioSlug(result?.nome || '')).trim();
-    if (!muniKey || uniqueResults.has(muniKey)) return;
-    uniqueResults.set(muniKey, result);
+  selectedLocationIDs.clear();
+  filteredFeatures.forEach((feature) => {
+    const id = getFeatureSelectionId(feature?.properties || {});
+    if (id) selectedLocationIDs.add(id);
   });
 
-  uniqueResults.forEach((result) => {
-    const winnerName = String(result?.winnerName || '').trim();
-    const winnerParty = String(result?.winnerParty || '').trim();
-    const votesMap = result?.votes || {};
-
-    Object.entries(votesMap).forEach(([candidateKey, rawVotes]) => {
-      const votes = ensureNumber(rawVotes);
-      if (votes <= 0) return;
-      candidateTotals.set(candidateKey, (candidateTotals.get(candidateKey) || 0) + votes);
-      totalValidVotes += votes;
-    });
-
-    if (!winnerName) return;
-
-    const winnerKey = `${winnerName}|||${winnerParty}`;
-    if (!winners.has(winnerKey)) {
-      winners.set(winnerKey, {
-        nome: winnerName,
-        partido: winnerParty,
-        color: getColorForCandidate(winnerName, winnerParty),
-        count: 0,
-        totalVotes: 0,
-        winnerVoteKey: String(result?.winnerCode || '').trim()
-      });
-    }
-    winners.get(winnerKey).count += 1;
-  });
-
-  winners.forEach((winnerEntry) => {
-    if (winnerEntry.winnerVoteKey) {
-      winnerEntry.totalVotes = candidateTotals.get(winnerEntry.winnerVoteKey) || 0;
-    }
-  });
-
-  const results = Array.from(winners.values()).sort((a, b) => {
-    if (b.totalVotes !== a.totalVotes) return b.totalVotes - a.totalVotes;
-    if (b.count !== a.count) return b.count - a.count;
-    return a.nome.localeCompare(b.nome, 'pt-BR');
-  });
-
-  dom.resultsBox.classList.remove('section-hidden');
-  dom.summaryBoxContainer.classList.add('section-hidden');
-  if (dom.turnTabs) dom.turnTabs.innerHTML = '';
-  dom.resultsTitle.textContent = 'Municípios por vencedor';
-  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(uniqueResults.size)} municípios`;
-  dom.resultsContent.innerHTML = '';
-
-  if (!results.length) {
-    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum resultado municipal agregado disponível para este recorte.</p>';
-    dom.resultsMetrics.innerHTML = '';
+  if (selectedLocationIDs.size > 0) {
+    updateSelectionUI(true);
     return;
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'grid';
-  const totalMunicipios = uniqueResults.size;
-
-  results.forEach((result) => {
-    const barRatio = totalValidVotes > 0 ? (result.totalVotes / totalValidVotes) : 0;
-    const div = document.createElement('div');
-    div.className = 'cand';
-    div.innerHTML = `
-      <div class="cand-indicator" style="background:${result.color}"></div>
-      <div class="cand-name-wrapper">
-        <div class="cand-name" title="${escapeHtml(result.nome)}">
-          <span class="scroll-text">${escapeHtml(result.nome)}</span>
-        </div>
-        <div style="font-size:0.72rem; color:var(--muted); margin-top:2px;">${escapeHtml(result.partido || 'Sem partido')}</div>
-      </div>
-      <div class="cand-bar-wrapper">
-        <div class="cand-bar-fill" style="background:${result.color}; width:${barRatio * 100}%;"></div>
-        <div class="cand-votos">${fmtInt(result.count)}</div>
-        <div class="cand-pct">${fmtInt(result.totalVotes)}</div>
-      </div>
-    `;
-    grid.appendChild(div);
-  });
-
-  dom.resultsContent.appendChild(grid);
-  dom.resultsMetrics.innerHTML = `
-    <div class="metrics-grid">
-      <div class="metric-item"><span>Votos válidos no estado</span><strong>${fmtInt(totalValidVotes)}</strong></div>
-      <div class="metric-item"><span>Municípios computados</span><strong>${fmtInt(totalMunicipios)}</strong></div>
-    </div>
-  `;
+  const ufName = UF_MAP.get(uf) || uf;
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.summaryBoxContainer.classList.add('section-hidden');
+  if (dom.turnTabs) dom.turnTabs.innerHTML = '';
+  dom.resultsTitle.textContent = `Estado Completo (${uf})`;
+  dom.resultsSubtitle.textContent = `${ufName} • nenhum local encontrado`;
+  dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum local agregado disponível para este recorte.</p>';
+  dom.resultsMetrics.innerHTML = '';
+  if (typeof updateNeighborhoodProfileUI === 'function') updateNeighborhoodProfileUI();
 }
 
 function shouldRenderGeneralMunicipalityOverview() {

@@ -376,7 +376,6 @@ function setupTurnTabs(props) {
 
 function getStatusBadge(status) {
   status = status.toUpperCase();
-  if (status.startsWith('ELEITO')) return `<span class="status-badge eleito"><svg><use href="#svg-check" /></svg> Eleito</span>`;
   if (status === '2° TURNO' || status === '2º TURNO') return `<span class="status-badge segundo-turno"><svg><use href="#svg-arrow" /></svg> 2º Turno</span>`;
   if (status === 'NÃO ELEITO') return `<span class="status-badge nao-eleito"><svg><use href="#svg-x" /></svg> Não Eleito</span>`;
   if (status === 'INAPTO') return `<span class="status-badge inapto"><svg><use href="#svg-x" /></svg> Inapto</span>`;
@@ -410,7 +409,7 @@ function renderCandidateColorControl(nome, partido, color, customizable = true) 
          data-candidate-name="${safeNome}"
          data-candidate-party="${safePartido}"
          data-current-color="${color}"
-         title="Personalizar cor do candidato">
+         title="Personalizar cor do partido">
       <div class="swatch" style="background:${color}"></div>
     </button>
   `;
@@ -427,7 +426,7 @@ function ensureCandidateColorPopover() {
     <div class="candidate-color-card">
       <div class="candidate-color-head">
         <div>
-          <div class="candidate-color-kicker">Personalizar Cor</div>
+          <div class="candidate-color-kicker">Cor do Partido</div>
           <div class="candidate-color-name" id="candidateColorPopoverName">Candidato</div>
         </div>
         <button type="button" class="candidate-color-close" data-color-action="close" aria-label="Fechar">×</button>
@@ -447,7 +446,7 @@ function ensureCandidateColorPopover() {
         <input id="candidateColorNativeInput" type="color" value="#2563EB" tabindex="-1" aria-hidden="true" />
       </div>
       <label class="candidate-color-field">
-        <span>Cor personalizada</span>
+        <span>Cor do partido</span>
         <input id="candidateColorHexInput" type="text" maxlength="7" placeholder="#2563EB" />
       </label>
       <div class="candidate-color-actions">
@@ -596,17 +595,17 @@ function applyCandidateColorPopover() {
   const popover = ensureCandidateColorPopover();
   const hexInput = popover.querySelector('#candidateColorHexInput');
   const color = normalizeCandidateHexColor(hexInput.value);
-  if (!color || !activeCandidateColorTarget?.nome) {
+  if (!color || !activeCandidateColorTarget?.partido) {
     showToast('Digite uma cor hexadecimal válida.', 'warn', 2200);
     return;
   }
-  setCandidateColor(activeCandidateColorTarget.nome, color);
+  setCandidateColor(activeCandidateColorTarget.partido, color);
   closeCandidateColorPopover();
 }
 
 function resetCandidateColorPopover() {
-  if (!activeCandidateColorTarget?.nome) return;
-  CUSTOM_CANDIDATE_COLORS.delete(activeCandidateColorTarget.nome);
+  if (!activeCandidateColorTarget?.partido) return;
+  CUSTOM_PARTY_COLORS.delete(getNormalizedPartyColorKey(activeCandidateColorTarget.partido));
   updateSelectionUI(STATE.isFilterAggregationActive);
   if (currentLayer) currentLayer.setStyle(getFeatureStyle);
   closeCandidateColorPopover();
@@ -1130,7 +1129,9 @@ function renderDeputyResults(cargo) {
 }
 
 function setCandidateColor(nome, novaCor) {
-  CUSTOM_CANDIDATE_COLORS.set(nome, novaCor);
+  const partyKey = getNormalizedPartyColorKey(nome);
+  if (!partyKey) return;
+  CUSTOM_PARTY_COLORS.set(partyKey, novaCor);
   updateSelectionUI(STATE.isFilterAggregationActive);
   if (currentLayer) currentLayer.setStyle(getFeatureStyle);
 }
@@ -1308,7 +1309,12 @@ function updateAvailabilityBars(geojson) {
     const p = f.properties;
 
     if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
-      if (getProp(p, 'nm_localidade') !== currentCidadeFilter) continue;
+      const cityName = String(getProp(p, 'nm_localidade') || '').trim();
+      const selectedCity = String(currentCidadeFilter || '').trim();
+      const sameCity = cityName === selectedCity
+        || normalizeMunicipioSlug(cityName) === normalizeMunicipioSlug(selectedCity)
+        || (typeof matchesMunicipioName === 'function' && matchesMunicipioName(selectedCity, cityName));
+      if (!sameCity) continue;
     }
     if (currentBairroFilter !== 'all') {
       const b = getProp(p, 'ds_bairro');

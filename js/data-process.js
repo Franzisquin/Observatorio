@@ -447,7 +447,15 @@ function populateBairroDropdown() {
     if (!matchesRegionalScope(props)) {
       adicionar = false;
     } else if (STATE.currentElectionType === 'geral') {
-      if (getProp(props, 'nm_localidade') === currentCidadeFilter) adicionar = true;
+      const cityName = String(getProp(props, 'nm_localidade') || '').trim();
+      const selectedCity = String(currentCidadeFilter || '').trim();
+      if (
+        cityName === selectedCity
+        || normalizeMunicipioSlug(cityName) === normalizeMunicipioSlug(selectedCity)
+        || (typeof matchesMunicipioName === 'function' && matchesMunicipioName(selectedCity, cityName))
+      ) {
+        adicionar = true;
+      }
     } else {
       adicionar = true;
     }

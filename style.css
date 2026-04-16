@@ -620,6 +620,11 @@ body {
   color: #fff;
   opacity: 0.8;
 }
+
+.cand-name-wrapper-stack .cand-status-row .status-badge.eleito,
+.cand-name-wrapper-stack .cand-status-row .status-badge.nao-eleito {
+  display: none;
+}
 /* ====== PROPORTIONAL RESULTS (Party-grouped) ====== */
 .prop-results-container {
   display: flex;

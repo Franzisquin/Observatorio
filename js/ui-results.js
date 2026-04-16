@@ -255,6 +255,11 @@ function updateNeighborhoodProfileUI() {
       item('Fossa Séptica', f, 'var(--warn)') +
       item('Inadequado', i, 'var(--err)');
   }
+  render('profileSaneamentoChart', {
+    'Rede Geral': pctSum.RedeGeral,
+    'Fossa SÃ©ptica': pctSum.FossaSeptica,
+    'Inadequado': pctSum.Inadequado
+  }, false);
 }
 
 function processAgeLegacy(p, buckets) {
