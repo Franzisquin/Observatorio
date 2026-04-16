@@ -4571,11 +4571,161 @@ function renderMunicipalStatewidePartyResults() {
   return true;
 }
 
+function renderProportionalResultsPanel(props, cargo) {
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
+  const candidatos = STATE.candidates[cargo]?.[turnoKey] || [];
+  const { totalValidos, votosInaptos } = getVotosValidos(props, cargo, turnoKey, STATE.filterInaptos);
+
+  // Collect all candidates
+  const allCandidates = [];
+  candidatos.forEach(key => {
+    const cand = parseCandidateKey(key);
+    if (STATE.filterInaptos && cand.status === 'INAPTO') return;
+    const votos = ensureNumber(getProp(props, key));
+    allCandidates.push({ ...cand, votos, pct: totalValidos > 0 ? votos / totalValidos : 0, key });
+  });
+
+  // Group by partido
+  const partyGroups = new Map();
+  allCandidates.forEach(c => {
+    const partyKey = normalizePartyKey(c.partido);
+    if (!partyGroups.has(partyKey)) {
+      partyGroups.set(partyKey, {
+        partido: c.partido,
+        partyKey,
+        totalVotos: 0,
+        elected: 0,
+        candidates: []
+      });
+    }
+    const group = partyGroups.get(partyKey);
+    group.totalVotos += c.votos;
+    if (c.status && c.status.toUpperCase().startsWith('ELEITO')) group.elected++;
+    group.candidates.push(c);
+  });
+
+  // Sort parties by total votes descending
+  const sortedParties = Array.from(partyGroups.values())
+    .sort((a, b) => b.totalVotos - a.totalVotos);
+
+  // Sort candidates inside each party by votes descending
+  sortedParties.forEach(group => {
+    group.candidates.sort((a, b) => b.votos - a.votos);
+    group.pct = totalValidos > 0 ? group.totalVotos / totalValidos : 0;
+  });
+
+  dom.resultsContent.innerHTML = '';
+  const container = document.createElement('div');
+  container.className = 'prop-results-container';
+
+  sortedParties.forEach(group => {
+    if (group.totalVotos === 0 && sortedParties.length > 2) return;
+
+    const partyDiv = document.createElement('div');
+    partyDiv.className = 'party-group';
+
+    const displayParty = PARTY_ACRONYMS.get(group.partyKey) || group.partido;
+    const sw = colorForParty(group.partido);
+
+    // Party header
+    const header = document.createElement('div');
+    header.className = 'party-header';
+    header.innerHTML = `
+      <div class="party-header-left">
+        <span class="party-header-arrow">▶</span>
+        <div class="cand-indicator" style="background:${sw}"></div>
+        <div class="party-header-info">
+          <span class="party-header-name" title="${group.partido}">${displayParty}</span>
+          ${group.elected > 0 ? `<span class="party-mandate-badge">${group.elected} eleito${group.elected > 1 ? 's' : ''}</span>` : ''}
+        </div>
+      </div>
+      <div class="party-header-right">
+        <div class="cand-bar-wrapper">
+          <div class="cand-bar-fill" style="background:${sw}; width: ${group.pct * 100}%;"></div>
+          <div class="cand-votos">${fmtInt(group.totalVotos)}</div>
+          <div class="cand-pct">${fmtPct(group.pct)}</div>
+        </div>
+      </div>
+    `;
+
+    // Candidates list (hidden by default)
+    const candList = document.createElement('div');
+    candList.className = 'party-candidates';
+    candList.style.display = 'none';
+
+    group.candidates.forEach(c => {
+      if (c.votos === 0 && group.candidates.length > 5) return;
+
+      const statusUpper = (c.status || '').toUpperCase();
+      let candClass = 'prop-cand';
+      if (statusUpper.startsWith('ELEITO')) {
+        candClass += ' prop-cand-elected';
+      } else if (statusUpper === 'INAPTO') {
+        candClass += ' prop-cand-inapto';
+      } else {
+        candClass += ' prop-cand-not-elected';
+      }
+
+      const candDiv = document.createElement('div');
+      candDiv.className = candClass;
+      const candPct = totalValidos > 0 ? c.votos / totalValidos : 0;
+      candDiv.innerHTML = `
+        <span class="prop-cand-name" title="${c.nome}">${c.nome}</span>
+        <span class="prop-cand-votes">${fmtInt(c.votos)}</span>
+        <span class="prop-cand-pct">${fmtPct(candPct)}</span>
+      `;
+      candList.appendChild(candDiv);
+    });
+
+    // Toggle expand/collapse
+    header.addEventListener('click', () => {
+      const isOpen = candList.style.display !== 'none';
+      candList.style.display = isOpen ? 'none' : 'block';
+      const arrow = header.querySelector('.party-header-arrow');
+      if (arrow) arrow.textContent = isOpen ? '▶' : '▼';
+      partyDiv.classList.toggle('party-group-open', !isOpen);
+    });
+
+    partyDiv.appendChild(header);
+    partyDiv.appendChild(candList);
+    container.appendChild(partyDiv);
+  });
+
+  dom.resultsContent.appendChild(container);
+
+  // Metrics
+  const brancos = ensureNumber(getProp(props, `Votos_Brancos ${turnoKey}`));
+  const nulos = ensureNumber(getProp(props, `Votos_Nulos ${turnoKey}`));
+  const legenda = ensureNumber(getProp(props, `Votos_Legenda ${turnoKey}`));
+  const comparecimento = totalValidos + legenda + brancos + nulos;
+  const totalParties = sortedParties.filter(g => g.totalVotos > 0).length;
+  const totalElected = sortedParties.reduce((sum, g) => sum + g.elected, 0);
+
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
+      <div class="metric-item"><span>Votos Nominais</span><strong>${fmtInt(totalValidos)}</strong></div>
+      ${legenda > 0 ? `<div class="metric-item"><span>Legenda</span><strong>${fmtInt(legenda)} (${fmtPct(comparecimento > 0 ? legenda / comparecimento : 0)})</strong></div>` : ''}
+      <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong></div>
+      <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong></div>
+      <div class="metric-item"><span>Partidos</span><strong>${fmtInt(totalParties)}</strong></div>
+      ${totalElected > 0 ? `<div class="metric-item"><span>Mandatos</span><strong>${fmtInt(totalElected)}</strong></div>` : ''}
+      ${votosInaptos > 0 ? `<div class="metric-item"><span>Inaptos (na soma)</span><strong style="color:var(--err)">${fmtInt(votosInaptos)}</strong></div>` : ''}
+    </div>
+  `;
+}
+
 function renderResultsPanel(props, cargo) {
   if (!props || Object.keys(props).length === 0) {
     dom.resultsContent.innerHTML = `<p style="color:var(--muted)">Sem dados para esta seleção.</p>`;
     dom.resultsMetrics.innerHTML = '';
     return;
+  }
+
+  // Delegate to proportional renderer for proportional offices
+  const office = cargo.replace(/_(ord|sup)$/, '');
+  if (isProportionalOffice(office)) {
+    return renderProportionalResultsPanel(props, cargo);
   }
 
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
@@ -4654,9 +4804,8 @@ function renderResultsPanel(props, cargo) {
   const brancos = ensureNumber(getProp(props, `Votos_Brancos ${turnoKey}`));
   const nulos = ensureNumber(getProp(props, `Votos_Nulos ${turnoKey}`));
   const legenda = ensureNumber(getProp(props, `Votos_Legenda ${turnoKey}`));
-  const office = cargo.replace(/_(ord|sup)$/, '');
   const comparecimento = totalValidos + legenda + brancos + nulos;
-  const totalLabel = isProportionalOffice(office) ? 'Votos Nominais' : 'Votos Válidos (Nominais)';
+  const totalLabel = 'Votos Válidos (Nominais)';
 
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">

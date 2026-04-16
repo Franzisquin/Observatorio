@@ -585,6 +585,178 @@ body {
   color: #fff;
   opacity: 0.8;
 }
+/* ====== PROPORTIONAL RESULTS (Party-grouped) ====== */
+.prop-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.party-group {
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.party-group-open {
+  border-color: var(--accent);
+}
+
+.party-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
+
+.party-header:hover {
+  background: rgba(125, 125, 125, 0.08);
+}
+
+.party-header-left {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  width: 140px;
+  min-width: 0;
+}
+
+.party-header-arrow {
+  font-size: 0.6rem;
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 12px;
+  text-align: center;
+  transition: color 0.15s;
+}
+
+.party-group-open .party-header-arrow {
+  color: var(--accent);
+}
+
+.party-header .cand-indicator {
+  width: 4px;
+  border-radius: 2px;
+  min-height: 22px;
+  flex-shrink: 0;
+}
+
+.party-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.party-header-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.party-mandate-badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ok);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.party-header-right {
+  flex: 1;
+  min-width: 0;
+}
+
+.party-header-right .cand-bar-wrapper {
+  min-height: 20px;
+}
+
+.party-header-right .cand-votos {
+  font-size: 0.75rem;
+}
+
+.party-header-right .cand-pct {
+  font-size: 0.78rem;
+}
+
+/* Expanded candidate list inside party group */
+.party-candidates {
+  border-top: 1px solid var(--border-color);
+  padding: 4px 6px 6px 27px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .party-candidates {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.prop-cand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+}
+
+.prop-cand:last-child {
+  border-bottom: none;
+}
+
+.prop-cand-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.prop-cand-votes {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.prop-cand-pct {
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  font-weight: 600;
+  width: 50px;
+  text-align: right;
+  font-size: 0.75rem;
+}
+
+/* Status styles */
+.prop-cand-elected {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.prop-cand-elected .prop-cand-pct {
+  color: var(--text);
+}
+
+.prop-cand-not-elected {
+  opacity: 0.45;
+}
+
+.prop-cand-inapto {
+  opacity: 0.4;
+}
+
+.prop-cand-inapto .prop-cand-name {
+  text-decoration: line-through;
+}
 
 
 
