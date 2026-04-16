@@ -86,14 +86,6 @@
                 <option value="2006">2006</option>
               </select>
             </div>
-            <div class="ctrl">
-              <label>Cargo</label>
-              <div class="chip-group" id="cargoChipsGeneral">
-                <button class="chip-button active" data-value="presidente">Presidente</button>
-                <button class="chip-button" data-value="governador">Governador</button>
-                <button class="chip-button" data-value="senador">Senador</button>
-              </div>
-            </div>
           </div>
 
           <div id="loaderBoxMunicipal" class="section-hidden"
@@ -146,24 +138,10 @@
           <button id="btnLoadData" class="button primary" style="display:none;" disabled>Carregar
             Dados</button>
 
-          <!-- SELETOR DE TURNO -->
-          <div id="turnoContainer" class="section-hidden" style="padding-top: 10px; border-top: 1px solid var(--border-color);">
-            <label style="font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; display: block;">Turno</label>
-            <div class="chip-group" id="turnoChips">
-              <button class="chip-button active" data-value="1">1º Turno</button>
-              <button class="chip-button" data-value="2">2º Turno</button>
-            </div>
-          </div>
         </div>
 
         <div class="section section-hidden" id="filterBox">
           <h3>Filtros da Visualização</h3>
-
-          <div class="ctrl section-hidden" id="cargoBoxMunicipal">
-            <label>Tipo de Eleição</label>
-            <div class="chip-group" id="cargoChipsMunicipal">
-            </div>
-          </div>
 
           <div class="row" style="grid-template-columns: 1fr 1fr;">
             <div class="ctrl section-hidden" id="ctrlCidadeFilter">
@@ -372,6 +350,43 @@
         <div class="title" id="panelTitle">Resultados</div>
       </div>
       <div class="body">
+
+        <div class="section" id="electionContextBox">
+          <div class="results-context">
+            <div class="results-context-block" id="officeBoxGeneral">
+              <label>Cargo</label>
+              <div class="chip-group" id="cargoChipsGeneral">
+                <button class="chip-button active" data-value="presidente">Presidente</button>
+                <button class="chip-button" data-value="governador">Governador</button>
+                <button class="chip-button" data-value="senador">Senador</button>
+                <button class="chip-button" data-value="deputado_federal">Dep. Federal</button>
+                <button class="chip-button" data-value="deputado_estadual">Dep. Estadual</button>
+              </div>
+            </div>
+
+            <div class="results-context-block section-hidden" id="officeBoxMunicipal">
+              <label>Cargo</label>
+              <div class="chip-group" id="officeChipsMunicipal">
+                <button class="chip-button active" data-value="prefeito">Prefeito</button>
+                <button class="chip-button" data-value="vereador">Vereador</button>
+              </div>
+            </div>
+
+            <div class="results-context-block section-hidden" id="cargoBoxMunicipal">
+              <label>Tipo de Eleição</label>
+              <div class="chip-group" id="cargoChipsMunicipal">
+              </div>
+            </div>
+
+            <div class="results-context-block section-hidden" id="turnoContainer">
+              <label>Turno</label>
+              <div class="chip-group" id="turnoChips">
+                <button class="chip-button active" data-value="1">1º Turno</button>
+                <button class="chip-button" data-value="2">2º Turno</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="section section-hidden" id="resultsBox">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 12px;">

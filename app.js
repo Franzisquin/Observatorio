@@ -132,6 +132,8 @@ function parseCandidateStatusToken(value) {
   if (normalized.includes('INAPTO')) return 'INAPTO';
   if (normalized.includes('NAO ELEITO')) return 'NÃO ELEITO';
   if (normalized.includes('2 TURNO')) return '2° TURNO';
+  if (normalized.includes('SUPLENTE')) return 'SUPLENTE';
+  if (normalized.includes('LEGENDA')) return 'LEGENDA';
   if (normalized.startsWith('ELEITO')) return 'ELEITO';
   return null;
 }
@@ -140,7 +142,9 @@ function resolveCandidateStatus(statuses) {
   if (statuses.includes('INAPTO')) return 'INAPTO';
   if (statuses.includes('2° TURNO')) return '2° TURNO';
   if (statuses.includes('ELEITO')) return 'ELEITO';
+  if (statuses.includes('SUPLENTE')) return 'SUPLENTE';
   if (statuses.includes('NÃO ELEITO')) return 'NÃO ELEITO';
+  if (statuses.includes('LEGENDA')) return 'LEGENDA';
   return statuses[0] || 'N/D';
 }
 
@@ -194,6 +198,18 @@ let currentBairroFilter = 'all';
 // Anos disponíveis para eleições gerais e municipais
 const GENERAL_YEARS = ['2022', '2018', '2014', '2010', '2006'];
 const MUNICIPAL_YEARS = ['2024', '2020', '2016', '2012', '2008'];
+const GENERAL_MAJORITARIAN_OFFICES = ['presidente', 'governador', 'senador'];
+const GENERAL_OFFICES = [...GENERAL_MAJORITARIAN_OFFICES, 'deputado_federal', 'deputado_estadual'];
+const MUNICIPAL_OFFICES = ['prefeito', 'vereador'];
+const PROPORTIONAL_OFFICES = new Set(['deputado_federal', 'deputado_estadual', 'vereador']);
+const GENERAL_LEGISLATIVE_FILE_PREFIX = {
+  deputado_federal: 'deputados_federal',
+  deputado_estadual: 'deputados_estadual'
+};
+const MUNICIPAL_LEGISLATIVE_FILE_PREFIX = {
+  vereador: 'vereadores'
+};
+const MUNICIPAL_LEGISLATIVE_YEARS = new Set(MUNICIPAL_YEARS);
 let currentLocalFilter = '';
 let lastLoadedMapLocation = null;
 
@@ -315,6 +331,18 @@ function getPointMunicipalityCode(props) {
 function getMunicipalityFeatureName(props) {
   if (!props) return "Municipio";
   return props.NM_MUN || props.nm_mun || props.municipio || props.NOME || "Municipio";
+}
+function isGeneralOffice(office) {
+  return GENERAL_OFFICES.includes(office);
+}
+function isMunicipalOffice(office) {
+  return MUNICIPAL_OFFICES.includes(office);
+}
+function isProportionalOffice(office = currentOffice) {
+  return PROPORTIONAL_OFFICES.has(office);
+}
+function isMunicipalLegislativeYear(year = STATE.currentElectionYear) {
+  return MUNICIPAL_LEGISLATIVE_YEARS.has(String(year || ''));
 }
 function getMunicipalSubtypeFileLabel(subtype = 'ord') {
   return subtype === 'sup' ? 'Suplementar' : 'Ordinaria';
@@ -796,6 +824,52 @@ function getMunicipalityCodeByName(municipioNome) {
   });
   return match ? getMunicipalityFeatureCode(match.feature?.properties) : '';
 }
+function syncChipGroupSelection(container, value, attribute = 'value') {
+  if (!container) return;
+  container.querySelectorAll('.chip-button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset[attribute] === value);
+  });
+}
+function setCurrentOfficeState(nextOffice, nextSubType = 'ord') {
+  currentOffice = nextOffice;
+  currentSubType = nextSubType;
+  currentCargo = `${currentOffice}_${currentSubType}`;
+}
+function ensureCurrentCargoAvailability() {
+  if (currentDataCollection[currentCargo]) return;
+
+  const officeOrder = STATE.currentElectionType === 'municipal' ? MUNICIPAL_OFFICES : GENERAL_OFFICES;
+  for (const office of officeOrder) {
+    const ordKey = `${office}_ord`;
+    if (!currentDataCollection[ordKey]) continue;
+
+    const preferredType = currentSubType === 'sup' && currentDataCollection[`${office}_sup`] ? 'sup' : 'ord';
+    setCurrentOfficeState(office, preferredType);
+    return;
+  }
+}
+function updateElectionOfficeControls() {
+  const isMunicipal = STATE.currentElectionType === 'municipal';
+  const vereadorAllowed = isMunicipal && isMunicipalLegislativeYear();
+  const vereadorBtn = dom.officeChipsMunicipal?.querySelector('.chip-button[data-value="vereador"]');
+
+  if (dom.officeBoxGeneral) {
+    dom.officeBoxGeneral.classList.toggle('section-hidden', isMunicipal);
+  }
+  if (dom.officeBoxMunicipal) {
+    dom.officeBoxMunicipal.classList.toggle('section-hidden', !isMunicipal);
+  }
+  if (vereadorBtn) {
+    vereadorBtn.classList.toggle('hidden', !vereadorAllowed);
+  }
+
+  if (!vereadorAllowed && currentOffice === 'vereador') {
+    setCurrentOfficeState('prefeito', 'ord');
+  }
+
+  syncChipGroupSelection(dom.cargoChipsGeneral, currentOffice);
+  syncChipGroupSelection(dom.officeChipsMunicipal, currentOffice);
+}
 function colorForParty(sg) {
   const cleanParty = normalizePartyKey(sg);
   return PARTY_COLOR_OVERRIDES.get(cleanParty) || PARTY_COLORS.get(cleanParty) || DEFAULT_SWATCH;
@@ -1097,9 +1171,12 @@ async function init() {
   dom.selectYearGeneral = document.getElementById('selectYearGeneral');
   dom.selectYearMunicipal = document.getElementById('selectYearMunicipal');
 
+  dom.officeBoxGeneral = document.getElementById('officeBoxGeneral');
   dom.cargoChipsGeneral = document.getElementById('cargoChipsGeneral');
   dom.selectUFGeneral = document.getElementById('selectUFGeneral');
 
+  dom.officeBoxMunicipal = document.getElementById('officeBoxMunicipal');
+  dom.officeChipsMunicipal = document.getElementById('officeChipsMunicipal');
   dom.selectUFMunicipal = document.getElementById('selectUFMunicipal');
   dom.selectRGINT = document.getElementById('selectRGINT');
   dom.selectRGI = document.getElementById('selectRGI');
@@ -1249,9 +1326,10 @@ function setupControls() {
       STATE.currentElectionYear = dom.selectYearGeneral.value;
       dom.loaderBoxGeneral.classList.remove('section-hidden');
       dom.loaderBoxMunicipal.classList.add('section-hidden');
-      currentOffice = dom.cargoChipsGeneral.querySelector('.active').dataset.value;
-      currentSubType = 'ord';
-      currentCargo = `${currentOffice}_ord`;
+      setCurrentOfficeState(
+        dom.cargoChipsGeneral.querySelector('.active')?.dataset.value || 'presidente',
+        'ord'
+      );
       dom.cargoBoxMunicipal.classList.add('section-hidden');
 
       // Reset UF selection
@@ -1261,9 +1339,10 @@ function setupControls() {
       STATE.currentElectionYear = dom.selectYearMunicipal.value;
       dom.loaderBoxGeneral.classList.add('section-hidden');
       dom.loaderBoxMunicipal.classList.remove('section-hidden');
-      currentOffice = 'prefeito';
-      currentSubType = 'ord';
-      currentCargo = 'prefeito_ord';
+      setCurrentOfficeState(
+        dom.officeChipsMunicipal.querySelector('.active')?.dataset.value || 'prefeito',
+        'ord'
+      );
       // Reset municipal selectors
       dom.selectUFMunicipal.value = '';
       dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Selecione UF...</option>';
@@ -1278,6 +1357,9 @@ function setupControls() {
         STATE.currentElectionYear = '2024';
       }
     }
+
+    updateElectionOfficeControls();
+    updateConditionalUI();
   });
 
   // BOTÃO CARREGAR (mantido oculto, mas funcional para uso programático)
@@ -1316,13 +1398,11 @@ function setupControls() {
     if (btn.dataset.value === currentOffice) return;
 
     // Atualiza UI
-    dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    syncChipGroupSelection(dom.cargoChipsGeneral, btn.dataset.value);
 
     // Atualiza Estado
-    currentOffice = btn.dataset.value;
-    currentSubType = 'ord'; // Reseta para ordinária ao trocar cargo
-    currentCargo = `${currentOffice}_${currentSubType}`;
+    setCurrentOfficeState(btn.dataset.value, 'ord');
+    updateElectionOfficeControls();
 
     // Verifica se temos os dados na memória (carregados no passo anterior)
     if (currentDataCollection[currentCargo] || currentDataCollection[`${currentOffice}_sup`]) {
@@ -1341,6 +1421,30 @@ function setupControls() {
       }
     }
   });
+
+  if (dom.officeChipsMunicipal) {
+    dom.officeChipsMunicipal.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip-button');
+      if (!btn || btn.classList.contains('hidden')) return;
+      if (btn.dataset.value === currentOffice) return;
+
+      setCurrentOfficeState(btn.dataset.value, 'ord');
+      updateElectionOfficeControls();
+
+      if (currentDataCollection[currentCargo]) {
+        updateElectionTypeUI();
+        if (currentCidadeFilter !== 'all') populateBairroDropdown();
+        updateConditionalUI();
+        applyFiltersAndRedraw();
+        updateSelectionUI(STATE.isFilterAggregationActive);
+        return;
+      }
+
+      if (dom.selectMunicipio?.value) {
+        onClickLoadData_Municipal();
+      }
+    });
+  }
 
   // CHIPS TURNO (1º Turno, 2º Turno)
   if (dom.turnoChips) {
@@ -1371,9 +1475,9 @@ function setupControls() {
   // SELEÇÃO MUNICIPAL — Cascata UF → Município
   dom.selectUFMunicipal.addEventListener('change', () => {
     const uf = dom.selectUFMunicipal.value;
-    currentOffice = 'prefeito';
-    currentSubType = 'ord';
-    currentCargo = 'prefeito_ord';
+    if (!isMunicipalOffice(currentOffice)) {
+      setCurrentOfficeState('prefeito', 'ord');
+    }
     // Lógica para mostrar anos exclusivos do RJ (2000, 2004)
     const yearOptions = dom.selectYearMunicipal.querySelectorAll('.year-rj-only');
     let needsYearReset = false;
@@ -1393,6 +1497,8 @@ function setupControls() {
       dom.selectYearMunicipal.value = "2024";
       STATE.currentElectionYear = "2024";
     }
+
+    updateElectionOfficeControls();
 
     // --- HIERARCHY REFACTOR ---
     // Clear sub-levels
@@ -1541,6 +1647,7 @@ function setupControls() {
     const uf = dom.selectUFMunicipal.value;
     const municipio = dom.selectMunicipio.value;
     STATE.currentElectionYear = dom.selectYearMunicipal.value;
+    updateElectionOfficeControls();
     if (!uf) return;
 
     if (municipio && currentLayer) {
@@ -1681,19 +1788,21 @@ function setupControls() {
   dom.cargoChipsMunicipal.addEventListener('click', (e) => {
     const btn = e.target.closest('.chip-button');
     if (!btn) return;
-    currentSubType = btn.dataset.type; // 'ord' ou 'sup'
-    currentCargo = `${currentOffice}_${currentSubType}`;
+    setCurrentOfficeState(currentOffice, btn.dataset.type); // 'ord' ou 'sup'
     if (!STATE.dataHas2T[currentCargo]) currentTurno = 1;
     STATE.selectedCandidateMap = null;
 
-    dom.cargoChipsMunicipal.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    syncChipGroupSelection(dom.cargoChipsMunicipal, btn.dataset.type, 'type');
 
     if (currentCidadeFilter !== 'all') populateBairroDropdown();
     updateConditionalUI();
     applyFiltersAndRedraw();
     if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
   });
+
+  dom.loaderBoxGeneral.classList.remove('section-hidden');
+  updateElectionOfficeControls();
+  updateConditionalUI();
 
 
   // --- CENSUS LISTENERS ---
@@ -2116,6 +2225,8 @@ function updateNeighborhoodProfileUI(locationIDs = selectedLocationIDs) {
 }
 
 function updateConditionalUI() {
+  ensureCurrentCargoAvailability();
+  updateElectionOfficeControls();
   const hasSupplementary = !!currentDataCollection[`${currentOffice}_sup`];
   const isMunicipal = STATE.currentElectionType === 'municipal';
 
@@ -2194,6 +2305,7 @@ function updateConditionalUI() {
 }
 
 function updateElectionTypeUI() {
+  updateElectionOfficeControls();
   dom.cargoChipsMunicipal.innerHTML = '';
 
   // Verifica se existe ordinaria
@@ -2264,8 +2376,7 @@ async function onClickLoadData_General() {
   // ------------------------------------------------------------------
 
   // Atualiza variáveis de estado
-  currentSubType = 'ord';
-  currentCargo = `${currentOffice}_${currentSubType}`;
+  setCurrentOfficeState(currentOffice, 'ord');
 
   try {
     const promises = [];
@@ -2279,6 +2390,12 @@ async function onClickLoadData_General() {
       return loadGeoJSON(cargo, ufToLoad, year, type);
     };
 
+    const queueGeneralLegislative = (office) => {
+      const key = `${office}_ord`;
+      keys.push(key);
+      return loadGeneralLegislativeRawData(office, ufToLoad, year);
+    };
+
     // LÓGICA DE CARREGAMENTO EM LOTE
     if (ufToLoad === 'BR') {
       // Se for Brasil, carrega apenas Presidente (Gov/Sen pesariam demais)
@@ -2290,6 +2407,9 @@ async function onClickLoadData_General() {
       ['presidente', 'governador', 'senador'].forEach(cargo => {
         promises.push(queueLoad(cargo, 'ord'));
         promises.push(queueLoad(cargo, 'sup'));
+      });
+      ['deputado_federal', 'deputado_estadual'].forEach(office => {
+        promises.push(queueGeneralLegislative(office));
       });
     }
 
@@ -2310,12 +2430,24 @@ async function onClickLoadData_General() {
 
       if (data) {
         const key = keys[index]; // Recupera a chave (ex: 'governador_ord')
-        if (censusData) mergeCensusData(data, censusData); // Aplica censo
-        currentDataCollection[key] = data; // Guarda na RAM
-        processLoadedGeoJSON(data, key);
+        const office = key.replace(/_(ord|sup)$/, '');
+        let finalData = data;
+        if (isProportionalOffice(office)) {
+          if (!censusData) return;
+          finalData = buildLegislativeFeatureCollection(censusData, data, {
+            joinKeyBuilder: buildGeneralLegislativeJoinKey
+          });
+          if (!finalData) return;
+        } else if (censusData) {
+          mergeCensusData(finalData, censusData); // Aplica censo
+        }
+        currentDataCollection[key] = finalData; // Guarda na RAM
+        processLoadedGeoJSON(finalData, key);
         dataFound = true;
       }
     });
+
+    ensureCurrentCargoAvailability();
 
     if (!dataFound) {
       throw new Error("Nenhum dado encontrado para os critérios selecionados.");
@@ -2401,10 +2533,11 @@ async function onClickLoadData_Municipal() {
   STATE.candidates = {}; STATE.metrics = {}; STATE.inaptos = {};
   STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
 
+  const requestedOffice = isMunicipalOffice(currentOffice) ? currentOffice : 'prefeito';
+  const requestedSubType = requestedOffice === 'prefeito' && currentSubType === 'sup' ? 'sup' : 'ord';
+
   try {
-    currentOffice = 'prefeito';
-    currentSubType = 'ord';
-    currentCargo = 'prefeito_ord';
+    setCurrentOfficeState(requestedOffice, 'ord');
 
     const dataOrdPromise = loadGeoJSON(municipio, uf, ano, 'Ordinaria'); // Mapeia para 'ord' interno
     const dataSupPromise = loadGeoJSON(municipio, uf, ano, 'Suplementar'); // Mapeia para 'sup' interno
@@ -2429,6 +2562,27 @@ async function onClickLoadData_Municipal() {
       if (censusData) mergeCensusData(dataSup, censusData);
       currentDataCollection['prefeito_sup'] = dataSup;
       processLoadedGeoJSON(dataSup, 'prefeito_sup');
+    }
+
+    if (isMunicipalLegislativeYear(ano)) {
+      const vereadorRaw = await loadMunicipalLegislativeRawData('vereador', dataOrd, uf, ano);
+      const vereadorBase = filterFeatureCollectionByMunicipality(censusData, dataOrd, municipio) || dataOrd;
+      const vereadorData = buildLegislativeFeatureCollection(vereadorBase, vereadorRaw, {
+        joinKeyBuilder: buildMunicipalLegislativeJoinKey
+      });
+
+      if (vereadorData) {
+        currentDataCollection['vereador_ord'] = vereadorData;
+        processLoadedGeoJSON(vereadorData, 'vereador_ord');
+      }
+    }
+
+    if (requestedOffice === 'prefeito' && requestedSubType === 'sup' && currentDataCollection['prefeito_sup']) {
+      setCurrentOfficeState('prefeito', 'sup');
+    } else if (currentDataCollection[`${requestedOffice}_ord`]) {
+      setCurrentOfficeState(requestedOffice, 'ord');
+    } else {
+      ensureCurrentCargoAvailability();
     }
 
     // Atualiza UI de chips (Ordinária/Suplementar)
@@ -2691,6 +2845,239 @@ async function fetchFromZip(zipUrl, filename) {
   return JSON.parse(text);
 }
 
+async function getZipEntries(zipRelativePath) {
+  const zipUrl = zipRelativePath.startsWith(DATA_BASE_URL)
+    ? zipRelativePath
+    : DATA_BASE_URL + zipRelativePath;
+
+  let reader = ZIP_READERS.get(zipUrl);
+  if (!reader) {
+    reader = await unzipit.unzip(zipUrl);
+    ZIP_READERS.set(zipUrl, reader);
+  }
+  return reader.entries || {};
+}
+
+async function fetchJsonFromZipRelativePath(zipRelativePath, innerFile, isOptional = false) {
+  const zipUrl = zipRelativePath.startsWith(DATA_BASE_URL)
+    ? zipRelativePath
+    : DATA_BASE_URL + zipRelativePath;
+
+  try {
+    return await fetchFromZip(zipUrl, innerFile);
+  } catch (e) {
+    if (isOptional) return null;
+    throw e;
+  }
+}
+
+function cleanBaseFeatureProperties(properties) {
+  const clean = {};
+  Object.entries(properties || {}).forEach(([key, value]) => {
+    if (/ (1T|2T)$/.test(String(key || ''))) return;
+    clean[key] = value;
+  });
+  return clean;
+}
+
+function cloneBaseFeature(feature) {
+  return {
+    type: feature?.type || 'Feature',
+    geometry: feature?.geometry || null,
+    properties: cleanBaseFeatureProperties(feature?.properties)
+  };
+}
+
+function getFirstFeaturePropertyValue(geojson, propertyName) {
+  const features = geojson?.features || [];
+  for (const feature of features) {
+    const value = getProp(feature?.properties, propertyName);
+    if (value !== null && value !== undefined && value !== '') {
+      return value;
+    }
+  }
+  return '';
+}
+
+function filterFeatureCollectionByMunicipality(baseGeojson, referenceGeojson, municipioNome) {
+  if (!baseGeojson?.features?.length) return null;
+
+  const ibgeCodes = new Set();
+  const tseCodes = new Set();
+  const aliases = new Set(getMunicipalAliases(municipioNome));
+
+  (referenceGeojson?.features || []).forEach(feature => {
+    const props = feature?.properties || {};
+    const ibgeCode = getPointMunicipalityCode(props);
+    const tseCode = getProp(props, 'cd_localidade_tse');
+    const nome = getProp(props, 'nm_localidade');
+
+    if (ibgeCode) ibgeCodes.add(String(ibgeCode));
+    if (tseCode) tseCodes.add(String(tseCode));
+    if (nome) aliases.add(norm(nome));
+  });
+
+  const features = baseGeojson.features.filter(feature => {
+    const props = feature?.properties || {};
+    const ibgeCode = getPointMunicipalityCode(props);
+    const tseCode = getProp(props, 'cd_localidade_tse');
+    const nome = getProp(props, 'nm_localidade');
+
+    if (ibgeCode && ibgeCodes.has(String(ibgeCode))) return true;
+    if (tseCode && tseCodes.has(String(tseCode))) return true;
+    return aliases.has(norm(nome));
+  });
+
+  return {
+    type: 'FeatureCollection',
+    features
+  };
+}
+
+function buildGeneralLegislativeJoinKey(props) {
+  const zona = getProp(props, 'NR_ZONA') || getProp(props, 'nr_zona');
+  const municipio = getProp(props, 'cd_localidade_tse');
+  const local = getProp(props, 'nr_locvot');
+  if (!zona || !municipio || !local) return '';
+  return `${String(zona).trim()}_${String(municipio).trim()}_${String(local).trim()}`;
+}
+
+function buildMunicipalLegislativeJoinKey(props) {
+  const zona = getProp(props, 'nr_zona') || getProp(props, 'NR_ZONA');
+  const local = getProp(props, 'nr_locvot');
+  if (!zona || !local) return '';
+  return `${String(zona).trim()}_${String(local).trim()}`;
+}
+
+function getGeneralLegislativeZipRelativePath(office, uf, year) {
+  const prefix = GENERAL_LEGISLATIVE_FILE_PREFIX[office];
+  if (!prefix || !uf || uf === 'BR') return null;
+  return `Legislativas ${year}/${prefix}_${year}_${String(uf).toUpperCase()}.zip`;
+}
+
+function getMunicipalLegislativeZipRelativePath(office, uf, year) {
+  const prefix = MUNICIPAL_LEGISLATIVE_FILE_PREFIX[office];
+  if (!prefix || !uf || !isMunicipalLegislativeYear(year)) return null;
+  return `Municipais_Legislativas ${year}/${prefix}_${year}_${String(uf).toUpperCase()}.zip`;
+}
+
+async function loadGeneralLegislativeRawData(office, uf, year) {
+  const prefix = GENERAL_LEGISLATIVE_FILE_PREFIX[office];
+  const zipRelativePath = getGeneralLegislativeZipRelativePath(office, uf, year);
+  if (!prefix || !zipRelativePath) return null;
+  return fetchJsonFromZipRelativePath(
+    zipRelativePath,
+    `${prefix}_${year}_${String(uf).toUpperCase()}.json`,
+    true
+  );
+}
+
+function findMunicipalLegislativeEntryName(entries, office, uf, year, cdLocalidadeTse) {
+  const prefix = MUNICIPAL_LEGISLATIVE_FILE_PREFIX[office];
+  if (!prefix || !cdLocalidadeTse) return '';
+
+  const expectedPrefix = `${prefix}_${year}_${String(uf).toUpperCase()}_`;
+  const expectedSuffix = `_${String(cdLocalidadeTse).trim()}.json`;
+
+  return Object.keys(entries || {}).find(name => (
+    name.startsWith(expectedPrefix) &&
+    name.endsWith(expectedSuffix) &&
+    !name.endsWith('_resumo.json')
+  )) || '';
+}
+
+async function loadMunicipalLegislativeRawData(office, municipioBaseGeojson, uf, year) {
+  const zipRelativePath = getMunicipalLegislativeZipRelativePath(office, uf, year);
+  if (!zipRelativePath) return null;
+
+  const cdLocalidadeTse = getFirstFeaturePropertyValue(municipioBaseGeojson, 'cd_localidade_tse');
+  if (!cdLocalidadeTse) return null;
+
+  const entries = await getZipEntries(zipRelativePath).catch(() => null);
+  if (!entries) return null;
+
+  const entryName = findMunicipalLegislativeEntryName(entries, office, uf, year, cdLocalidadeTse);
+  if (!entryName) return null;
+
+  return fetchJsonFromZipRelativePath(zipRelativePath, entryName, true);
+}
+
+function classifyLegislativeVote(voteCode, metadataEntry) {
+  const label = norm(metadataEntry?.[0] || '');
+  const status = norm(metadataEntry?.[2] || '');
+
+  if (voteCode === '95' || label.includes('BRANCO') || status.includes('BRANCO')) return 'branco';
+  if (voteCode === '96' || label.includes('NULO') || status.includes('NULO')) return 'nulo';
+  if (label.includes('LEGENDA') || status.includes('LEGENDA')) return 'legenda';
+  return 'candidate';
+}
+
+function buildLegislativeCandidateKey(metadataEntry, turnoKey = '1T') {
+  const nome = String(metadataEntry?.[0] || 'N/D').trim() || 'N/D';
+  const partido = String(metadataEntry?.[1] || 'OUTROS').trim() || 'OUTROS';
+  const status = String(metadataEntry?.[2] || 'NÃO ELEITO').trim() || 'NÃO ELEITO';
+  return `${nome} (${partido}) (${status}) ${turnoKey}`;
+}
+
+function buildLegislativeFeatureCollection(baseGeojson, rawData, options = {}) {
+  if (!baseGeojson?.features?.length || !rawData?.RESULTS) return null;
+
+  const turnoKey = options.turnoKey || '1T';
+  const joinKeyBuilder = options.joinKeyBuilder;
+  const candidateNames = rawData.METADATA?.cand_names || {};
+
+  if (typeof joinKeyBuilder !== 'function') return null;
+
+  const features = baseGeojson.features.map(feature => {
+    const cloned = cloneBaseFeature(feature);
+    const props = cloned.properties;
+    const joinKey = joinKeyBuilder(props);
+    const rawVotes = joinKey ? rawData.RESULTS?.[joinKey] : null;
+
+    let totalNominal = 0;
+    let votosBrancos = 0;
+    let votosNulos = 0;
+    let votosLegenda = 0;
+
+    Object.entries(rawVotes || {}).forEach(([voteCode, rawCount]) => {
+      const votos = ensureNumber(rawCount);
+      if (!votos) return;
+
+      const metadataEntry = candidateNames[voteCode] || [];
+      const voteKind = classifyLegislativeVote(voteCode, metadataEntry);
+
+      if (voteKind === 'branco') {
+        votosBrancos += votos;
+        return;
+      }
+      if (voteKind === 'nulo') {
+        votosNulos += votos;
+        return;
+      }
+      if (voteKind === 'legenda') {
+        votosLegenda += votos;
+        return;
+      }
+
+      props[buildLegislativeCandidateKey(metadataEntry, turnoKey)] = votos;
+      totalNominal += votos;
+    });
+
+    props[`Total_Votos_Validos ${turnoKey}`] = totalNominal;
+    props[`Votos_Brancos ${turnoKey}`] = votosBrancos;
+    props[`Votos_Nulos ${turnoKey}`] = votosNulos;
+    props[`Votos_Legenda ${turnoKey}`] = votosLegenda;
+    props[`NR_TURNO ${turnoKey}`] = turnoKey === '2T' ? 2 : 1;
+
+    return cloned;
+  });
+
+  return {
+    type: 'FeatureCollection',
+    features
+  };
+}
+
 async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
   const cacheKey = getMunicipalSummaryCacheKey(uf, year, subtype);
   if (aggregatedMuniResults[cacheKey]) return aggregatedMuniResults[cacheKey];
@@ -2765,7 +3152,7 @@ async function loadMunicipalityDetailedSummary(uf, year, subtype = 'ord', munici
 
 // ====== DATA PROCESSING ======
 
-function discoverCandidatesAndMetrics(geojson) {
+function discoverCandidatesAndMetrics(geojson, options = {}) {
   const localState = {
     candidates: { '1T': [], '2T': [] },
     metrics: { '1T': [], '2T': [] },
@@ -2775,7 +3162,8 @@ function discoverCandidatesAndMetrics(geojson) {
   };
 
   const allKeys = new Set();
-  const sampleSize = Math.min(geojson.features.length, 1000);
+  const shouldFullScan = options.fullScan === true;
+  const sampleSize = shouldFullScan ? geojson.features.length : Math.min(geojson.features.length, 1000);
   for (let i = 0; i < sampleSize; i++) {
     const props = geojson.features[i]?.properties;
     if (props) {
@@ -2886,7 +3274,10 @@ function processLoadedGeoJSON(geojson, cargoKey) {
     return;
   }
 
-  const { candidates, metrics, inaptos, dataHas2T, dataHasInaptos } = discoverCandidatesAndMetrics(geojson);
+  const office = cargoKey.replace(/_(ord|sup)$/, '');
+  const { candidates, metrics, inaptos, dataHas2T, dataHasInaptos } = discoverCandidatesAndMetrics(geojson, {
+    fullScan: isProportionalOffice(office)
+  });
 
   STATE.candidates[cargoKey] = candidates;
   STATE.metrics[cargoKey] = metrics;
@@ -4074,6 +4465,7 @@ function getStatusBadge(status) {
   status = status.toUpperCase();
   if (status.startsWith('ELEITO')) return `<span class="status-badge eleito"><svg><use href="#svg-check" /></svg> Eleito</span>`;
   if (status === '2° TURNO' || status === '2º TURNO') return `<span class="status-badge segundo-turno"><svg><use href="#svg-arrow" /></svg> 2º Turno</span>`;
+  if (status === 'SUPLENTE') return `<span class="status-badge segundo-turno"><svg><use href="#svg-arrow" /></svg> Suplente</span>`;
   if (status === 'NÃO ELEITO') return `<span class="status-badge nao-eleito"><svg><use href="#svg-x" /></svg> Não Eleito</span>`;
   if (status === 'INAPTO') return `<span class="status-badge inapto"><svg><use href="#svg-x" /></svg> Inapto</span>`;
   return '';
@@ -4261,12 +4653,16 @@ function renderResultsPanel(props, cargo) {
 
   const brancos = ensureNumber(getProp(props, `Votos_Brancos ${turnoKey}`));
   const nulos = ensureNumber(getProp(props, `Votos_Nulos ${turnoKey}`));
-  const comparecimento = totalValidos + brancos + nulos;
+  const legenda = ensureNumber(getProp(props, `Votos_Legenda ${turnoKey}`));
+  const office = cargo.replace(/_(ord|sup)$/, '');
+  const comparecimento = totalValidos + legenda + brancos + nulos;
+  const totalLabel = isProportionalOffice(office) ? 'Votos Nominais' : 'Votos Válidos (Nominais)';
 
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
-      <div class="metric-item"><span>Votos Válidos (Nominais)</span><strong>${fmtInt(totalValidos)}</strong></div>
+      <div class="metric-item"><span>${totalLabel}</span><strong>${fmtInt(totalValidos)}</strong></div>
+      ${legenda > 0 ? `<div class="metric-item"><span>Legenda</span><strong>${fmtInt(legenda)} (${fmtPct(comparecimento > 0 ? legenda / comparecimento : 0)})</strong></div>` : ''}
       <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong></div>
       <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong></div>
       ${votosInaptos > 0 ? `<div class="metric-item"><span>Inaptos (na soma)</span><strong style="color:var(--err)">${fmtInt(votosInaptos)}</strong></div>` : ''}

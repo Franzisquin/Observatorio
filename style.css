@@ -314,6 +314,44 @@ body {
   gap: 4px;
 }
 
+.results-context {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.results-context-block {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.results-context-block + .results-context-block {
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.results-context-block label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#electionContextBox {
+  gap: 0;
+}
+
+#electionContextBox .chip-group {
+  gap: 6px;
+}
+
+#electionContextBox .chip-button {
+  padding: 5px 10px;
+  font-size: 0.74rem;
+}
+
 .chip-button {
   padding: 3px 8px;
   border-radius: 0;
@@ -864,6 +902,13 @@ body {
 
   #map {
     height: 60vh;
+  }
+
+  #electionContextBox .chip-button {
+    display: flex;
+    align-items: center;
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
   }
 }
 
