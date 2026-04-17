@@ -235,29 +235,9 @@ function updateNeighborhoodProfileUI() {
     render('profileIdadeChart', ageBuckets, true);
   }
 
-  // Saneamento Special Render
-  const sanDiv = document.getElementById('profileSaneamentoChart');
-  if (sanDiv) {
-    const s = pctSum;
-    const r = s.RedeGeral / count;
-    const f = s.FossaSeptica / count;
-    const i = s.Inadequado / count;
-
-    const item = (l, v, c) => `
-      <div class="saneamento-item" style="border-top: 3px solid ${c}"
-           onmousemove="showHoverTooltip(event, '${l}: ${v.toFixed(1)}%')"
-           onmouseleave="hideHoverTooltip()">
-         <span class="saneamento-val" style="color:${c}">${v.toFixed(1)}%</span>
-         <span class="saneamento-lbl">${l}</span>
-      </div>`;
-
-    sanDiv.innerHTML = item('Rede Geral', r, 'var(--ok)') +
-      item('Fossa Séptica', f, 'var(--warn)') +
-      item('Inadequado', i, 'var(--err)');
-  }
   render('profileSaneamentoChart', {
     'Rede Geral': pctSum.RedeGeral,
-    'Fossa SÃ©ptica': pctSum.FossaSeptica,
+    'Fossa Séptica': pctSum.FossaSeptica,
     'Inadequado': pctSum.Inadequado
   }, false);
 }

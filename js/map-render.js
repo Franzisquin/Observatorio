@@ -434,12 +434,60 @@ function getGroupedProportionalInfoByParty(metaStore) {
   return partyGroups;
 }
 
+const STATIC_PARTY_FALLBACK = {
+  '10': 'REPUBLICANOS', '11': 'PP', '12': 'PDT', '13': 'PT', '14': 'PTB', '15': 'MDB',
+  '16': 'PSTU', '17': 'PSL', '18': 'REDE', '19': 'PODE', '20': 'PSC', '21': 'PCB',
+  '22': 'PL', '23': 'CIDADANIA', '25': 'DEM', '27': 'DC', '28': 'PRTB', '29': 'PCO',
+  '30': 'NOVO', '31': 'PHS', '33': 'PMN', '35': 'PMB', '36': 'AGIR', '40': 'PSB',
+  '43': 'PV', '44': 'UNIÃO', '45': 'PSDB', '50': 'PSOL', '51': 'PATRIOTA', '55': 'PSD',
+  '65': 'PC DO B', '70': 'AVANTE', '77': 'SOLIDARIEDADE', '80': 'UP', '90': 'PROS'
+};
+
+/**
+ * Centraliza a construção do cache de siglas de partidos por prefixo (o 'XX' de 'XXYYYY').
+ */
+function ensurePartyPrefixCache(isVereador = false) {
+  const cacheKey = isVereador ? '_vereadorPartyPrefixCache' : '_partyPrefixCache';
+  const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+  
+  if (!STATE[cacheKey]) {
+    // Começa com o fallback estático para garantir cobertura mínima
+    STATE[cacheKey] = { ...STATIC_PARTY_FALLBACK };
+    if (!metaStore) return;
+    
+    for (const [cid, cmeta] of Object.entries(metaStore)) {
+      // Candidatos reais (IDs > 2) costumam ter o partido real no metadado
+      if (cid.length > 2 && cmeta && cmeta[1]) {
+        const partyName = String(cmeta[1]).toUpperCase().trim();
+        // Se o partido no metadado não for um genérico "PARTIDO 11", guardamos a sigla
+        if (partyName && !partyName.startsWith('PARTIDO ')) {
+          const prefix = cid.substring(0, 2);
+          // O metadata dinâmico tem precedência sobre o fallback estático (para anos antigos)
+          STATE[cacheKey][prefix] = partyName;
+        }
+      }
+    }
+  }
+}
+
 function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
   const candidateKey = String(candidateId || '').trim();
   const meta = metaStore?.[candidateKey] || null;
 
+  // Função auxiliar para tentar resolver "PARTIDO XX" para uma sigla real
+  const tryResolveGenericParty = (name, code) => {
+    let p = String(name || '').toUpperCase().trim();
+    if (p.startsWith('PARTIDO ') || p.match(/^PARTIDO\d+$/)) {
+      const resolved = prefixCache?.[code];
+      if (resolved) return resolved;
+    }
+    return p;
+  };
+
   if (candidateKey.length <= 2) {
-    const legendParty = normalizePartyAlias(String(prefixCache?.[candidateKey] || meta?.[1] || candidateKey).toUpperCase());
+    const rawLegendName = prefixCache?.[candidateKey] || meta?.[1] || candidateKey;
+    const legendParty = normalizePartyAlias(tryResolveGenericParty(rawLegendName, candidateKey));
+    
     const groupedPartyInfo = getGroupedProportionalInfoByParty(metaStore).get(legendParty);
     if (groupedPartyInfo) {
       return {
@@ -456,12 +504,17 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
     };
   }
 
-  const rawParty = normalizePartyAlias(String(meta?.[1] || '').toUpperCase());
+  const rawParty = normalizePartyAlias(tryResolveGenericParty(meta?.[1], candidateKey.substring(0, 2)));
   const rawCoalitionName = String(meta?.[3] || '').trim();
   const rawComposition = String(meta?.[4] || '').trim();
   const normalizedComposition = rawComposition
     .split('/')
-    .map((value) => normalizePartyAlias(value.trim().toUpperCase()))
+    .map((value) => {
+        const v = value.trim().toUpperCase();
+        // Se o item da composição for um número de partido, tenta resolver
+        if (/^\d+$/.test(v)) return prefixCache?.[v] || v;
+        return normalizePartyAlias(v);
+    })
     .filter(Boolean)
     .join('/');
 
@@ -474,8 +527,8 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
   if (hasGroupedComposition) {
     return {
       key: `group:${norm(normalizedComposition)}`,
-      name: validCoalitionName ? rawCoalitionName : rawComposition,
-      composition: rawComposition,
+      name: validCoalitionName ? tryResolveGenericParty(rawCoalitionName, candidateKey.substring(0, 2)) : normalizedComposition,
+      composition: normalizedComposition || rawComposition,
       party: rawParty,
       isGroup: true
     };
@@ -653,13 +706,13 @@ function buildLocationTooltip(feature) {
   }
 
   if (!rows) {
-    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos vÃ¡lidos neste local.</div>';
+    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos válidos neste local.</div>';
   }
 
   return `<div style="min-width:190px;max-width:250px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nomeLocal)}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(nomeCidade)}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(totalValidos)}</div>
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(totalValidos)}</div>
     <hr style="margin:4px 0;border-color:#444;">
     ${rows}
   </div>`;
@@ -675,7 +728,7 @@ function buildMunicipalityTooltip(feature, summary) {
     return `<div style="min-width:180px;max-width:240px;">
       <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
       <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(ufLabel)}</div>
-      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponÃ­veis.</div>
+      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponíveis.</div>
     </div>`;
   }
 
@@ -702,13 +755,16 @@ function buildMunicipalityTooltip(feature, summary) {
       </div>`;
     });
 
+  const showTurn = STATE.dataHas2T?.[currentCargo] || (currentTurno === 2);
+  const turnoHtml = showTurn ? `<div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${escapeHtml(result.turnoLabel || 'Resultado final')}</div>` : '';
+
   return `<div style="min-width:190px;max-width:260px;">
     <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
     <div style="font-size:0.72rem;color:#aaa;margin-bottom:4px;">${escapeHtml(ufLabel)}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${escapeHtml(result.turnoLabel || 'Resultado final')}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos vÃ¡lidos: ${fmtInt(result.totalValid)}</div>
+    ${turnoHtml}
+    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
     <hr style="margin:4px 0;border-color:#444;">
-    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponÃ­vel.</div>'}
+    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponível.</div>'}
   </div>`;
 }
 
@@ -737,7 +793,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   if (!geojson?.features?.length) return {};
 
   const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
-  const turnoLabel = turnoKey === '2T' ? '2Âº Turno' : '1Âº Turno';
+  const turnoLabel = (turnoKey === '2T' || turnoKey === '2t') ? '2º Turno' : '1º Turno';
   const inaptosTurno = STATE.inaptos[cargoKey]?.[turnoKey] || [];
   const grouped = new Map();
 
@@ -962,7 +1018,7 @@ function performDeputySearch(query, resultsContainer) {
 
   let results;
   if (isNumericSearch) {
-    // Busca por nÃºmero: exata no inÃ­cio
+    // Busca por número: exata no início
     results = deputySearchCandList.filter(c =>
       c.numero.startsWith(query.trim())
     );
@@ -1051,15 +1107,15 @@ function renderDeputySearchResults(results, container, query) {
       const input = document.getElementById('deputySearchInput');
       if (input) {
         const label = candData.isLegenda
-          ? `Voto de Legenda â€” ${candData.partido}`
-          : `${toTitleCase(candData.nome)} (${candData.partido}) â€¢ NÂº ${candData.numero}`;
+          ? `Voto de Legenda — ${candData.partido}`
+          : `${toTitleCase(candData.nome)} (${candData.partido}) • Nº ${candData.numero}`;
         input.value = label;
       }
 
       // Fechar dropdown
       container.classList.remove('visible');
 
-      // Disparar evento de mudanÃ§a
+      // Disparar evento de mudança
       dom.selectVizCandidato.dispatchEvent(new Event('change'));
     });
   });
@@ -1107,7 +1163,7 @@ function applyFiltersAndRedraw() {
   }
 
   // O renderer canvas do Leaflet pode ter sido desalojado durante trocas
-  // rÃ¡pidas de eleiÃ§Ã£o/cargo. Se ele ficou Ã³rfÃ£o, recriamos antes de renderizar.
+  // rápidas de eleição/cargo. Se ele ficou órfão, recriamos antes de renderizar.
   if (!mapCanvasRenderer || mapCanvasRenderer._map !== map) {
     mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
   }
@@ -1123,7 +1179,7 @@ function applyFiltersAndRedraw() {
 
   updateAvailabilityBars(geojson);
 
-  // Precomputa vencedores de vereador se necessÃ¡rio
+  // Precomputa vencedores de vereador se necessário
   if (currentCargo.startsWith('vereador') && STATE.vereadorResults && Object.keys(STATE.vereadorResults).length > 0) {
     precomputeVereadorWinners();
   }
@@ -1168,7 +1224,7 @@ function applyFiltersAndRedraw() {
 
 
 
-// --- HELPER FUNCTIONS (ExtraÃ­das para reaproveitar nos dois modos) ---
+// --- HELPER FUNCTIONS (Extraídas para reaproveitar nos dois modos) ---
 
 function createPointLayer(feature, latlng) {
   return L.circleMarker(latlng, { radius: getPointRadiusForFeature(feature) });
@@ -1262,7 +1318,7 @@ function refreshTurnDependentUI() {
 function filterFeature(feature) {
   const props = feature.properties;
 
-  // Filtro de PresÃ­dios/Locais Especiais (ExclusÃ£o Global)
+  // Filtro de Presídios/Locais Especiais (Exclusão Global)
   const nomeLocalForExclusion = norm(getProp(props, 'nm_locvot'));
   const exclusoes = ['PRISAO', 'PENITENCIARIA', 'PENINTENCIARI', 'DETENCAO', 'INTERNATO', 'CDP ', 'PRESIDIO', 'FUNDACAO CASA', 'FUND. CASA', 'UI-', 'UNID. DE INT', 'PENAL'];
   for (let kw of exclusoes) {
@@ -1288,7 +1344,7 @@ function filterFeature(feature) {
 
   if (!matchesLocationFilters(props)) return false;
 
-  // --- FILTRO DE DESEMPENHO (porcentagem mÃ­nima) ---
+  // --- FILTRO DE DESEMPENHO (porcentagem mínima) ---
   if (currentVizMode.startsWith('desempenho') && performanceFilterMinPct > 0) {
     const candidatoKey = dom.selectVizCandidato?.value;
     if (candidatoKey) {
@@ -1355,31 +1411,31 @@ function filterFeature(feature) {
     return 0;
   };
 
-  // Helper de checagem genÃ©rica Pct ou Absoluto Calculado
+  // Helper de checagem genérica Pct ou Absoluto Calculado
   const checkDynamic = (filterVal, filterMode, type) => {
     if (filterVal === null) return true;
 
-    // Se for Modo Legacy (2006) ou se o dado jÃ¡ vier como Pct explÃ­cito:
-    // (Ainda precisamos suportar Pct direto para RaÃ§a e Saneamento)
+    // Se for Modo Legacy (2006) ou se o dado já vier como Pct explícito:
+    // (Ainda precisamos suportar Pct direto para Raça e Saneamento)
 
-    // RaÃ§a & Saneamento (Sempre Pct)
+    // Raça & Saneamento (Sempre Pct)
     if (type === 'raca' || type === 'saneamento') {
       const propVal = ensureNumber(getProp(props, filterMode));
       return propVal >= filterVal;
     }
 
-    // Para GÃªnero, Idade, Escolaridade, Civil: Calcular dinamicamente
+    // Para Gênero, Idade, Escolaridade, Civil: Calcular dinamicamente
     let numerator = 0;
     let denominator = 0;
 
-    // GÃªnero
+    // Gênero
     if (type === 'genero') {
       const h = getVal(['MASCULINO', 'HOMENS', 'Homens', 'Pct Homens']);
       const m = getVal(['FEMININO', 'MULHERES', 'Mulheres', 'Pct Mulheres']);
 
-      // Fallback para legacy Pct direto se nÃ£o tiver absoluto
-      // Se tiver Pct Homens e Pct Mulheres, getVal retornarÃ¡ eles.
-      // Se for Pct, a soma deve ser ~100 (ou perto). Se for Absoluto, soma Ã© pop.
+      // Fallback para legacy Pct direto se não tiver absoluto
+      // Se tiver Pct Homens e Pct Mulheres, getVal retornará eles.
+      // Se for Pct, a soma deve ser ~100 (ou perto). Se for Absoluto, soma é pop.
 
       const total = h + m;
       if (total === 0) return false;
@@ -1400,11 +1456,11 @@ function filterFeature(feature) {
       const s = getVal(['SOLTEIRO', 'Solteiro', 'Pct Solteiro']);
       const c = getVal(['CASADO', 'Casado', 'Pct Casado']);
       const d = getVal(['DIVORCIADO', 'Divorciado', 'Pct Divorciado']);
-      const v = getVal(['VIÃšVO', 'VIUVO', 'ViÃºvo', 'Pct ViÃºvo']);
+      const v = getVal(['VIÚVO', 'VIUVO', 'Viúvo', 'Pct Viúvo']);
       const sep = getVal(['SEPARADO JUDICIALMENTE', 'SEPARADO', 'Separado', 'Pct Separado']);
 
-      // DetecÃ§Ã£o de Modo Percentual (Legacy)
-      // Se a soma for significativamente < da populaÃ§Ã£o total esperada (em absolutos) ou se for ~100
+      // Detecção de Modo Percentual (Legacy)
+      // Se a soma for significativamente < da população total esperada (em absolutos) ou se for ~100
       // Mas melhor: verificar se usamos keys de Pct
       const isPct = (props['Pct Solteiro'] !== undefined || props['Pct Casado'] !== undefined);
 
@@ -1426,15 +1482,15 @@ function filterFeature(feature) {
     }
     else if (type === 'escolaridade') {
       const ana = getVal(['ANALFABETO', 'Analfabeto', 'Pct Analfabeto']);
-      const le = getVal(['LÃŠ E ESCREVE', 'LE E ESCREVE', 'LÃª e Escreve', 'Pct LÃª e Escreve']);
+      const le = getVal(['LÊ E ESCREVE', 'LE E ESCREVE', 'Lê e Escreve', 'Pct Lê e Escreve']);
       const fi = getVal(['ENSINO FUNDAMENTAL INCOMPLETO', 'FUNDAMENTAL INCOMPLETO', 'Pct Fundamental Incompleto']);
       const fc = getVal(['ENSINO FUNDAMENTAL COMPLETO', 'FUNDAMENTAL COMPLETO', 'Pct Fundamental Completo']);
-      const mi = getVal(['ENSINO MÃ‰DIO INCOMPLETO', 'MEDIO INCOMPLETO', 'Pct MÃ©dio Incompleto']);
-      const mc = getVal(['ENSINO MÃ‰DIO COMPLETO', 'MEDIO COMPLETO', 'Pct MÃ©dio Completo']);
+      const mi = getVal(['ENSINO MÉDIO INCOMPLETO', 'MEDIO INCOMPLETO', 'Pct Médio Incompleto']);
+      const mc = getVal(['ENSINO MÉDIO COMPLETO', 'MEDIO COMPLETO', 'Pct Médio Completo']);
       const si = getVal(['ENSINO SUPERIOR INCOMPLETO', 'SUPERIOR INCOMPLETO', 'Pct Superior Incompleto']);
       const sc = getVal(['ENSINO SUPERIOR COMPLETO', 'SUPERIOR COMPLETO', 'Pct Superior Completo']);
 
-      const isPct = (props['Pct Analfabeto'] !== undefined || props['Pct MÃ©dio Completo'] !== undefined);
+      const isPct = (props['Pct Analfabeto'] !== undefined || props['Pct Médio Completo'] !== undefined);
 
       let den;
       let num;
@@ -1958,6 +2014,11 @@ function onFeatureClick(e) {
 }
 
 function clearSelection(updateMap = true) {
+  if (dom.inputBairro && STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
+    dom.inputBairro.disabled = true;
+    dom.inputBairro.value = 'all';
+  }
+
   selectedLocationIDs.clear();
   STATE.isFilterAggregationActive = false;
 
@@ -1966,7 +2027,7 @@ function clearSelection(updateMap = true) {
   if (dom.resultsContent) dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);"><p style="margin-bottom:8px">&#x1F446;</p>Clique no mapa ou use filtros para ver resultados.</div>';
   if (dom.resultsMetrics) dom.resultsMetrics.innerHTML = '';
   if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
-  if (dom.resultsTitle) dom.resultsTitle.textContent = 'Resultados da SeleÃ§Ã£o';
+  if (dom.resultsTitle) dom.resultsTitle.textContent = 'Resultados da Seleção';
   if (dom.resultsSubtitle) dom.resultsSubtitle.textContent = '';
   if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
   // Reset Unified View
@@ -1997,7 +2058,7 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
       }
     }
 
-    throw new Error(`Geometria municipal nÃ£o encontrada para ${ufNorm}.`);
+    throw new Error(`Geometria municipal não encontrada para ${ufNorm}.`);
   })();
 
   MUNICIPAL_POLYGON_CACHE.set(ufNorm, promise);
@@ -2050,7 +2111,7 @@ function renderMunicipalOverviewTurnTabs(summaryByTurn) {
   if (has1T) {
     const tab = document.createElement('div');
     tab.className = 'tab' + (currentTurno === 1 ? ' active' : '');
-    tab.textContent = '1Âº Turno';
+    tab.textContent = '1º Turno';
     tab.dataset.turno = 1;
     tab.addEventListener('click', () => {
       if (currentTurno === 1) return;
@@ -2063,7 +2124,7 @@ function renderMunicipalOverviewTurnTabs(summaryByTurn) {
   if (has2T) {
     const tab = document.createElement('div');
     tab.className = 'tab' + (currentTurno === 2 ? ' active' : '');
-    tab.textContent = '2Âº Turno';
+    tab.textContent = '2º Turno';
     tab.dataset.turno = 2;
     tab.addEventListener('click', () => {
       if (currentTurno === 2) return;
@@ -2100,7 +2161,7 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
   dom.summaryBoxContainer.classList.add('section-hidden');
   renderMunicipalOverviewTurnTabs(STATE.currentMapMuniSummaryByTurn);
   dom.resultsTitle.textContent = 'Prefeituras por partido';
-  dom.resultsSubtitle.textContent = `${ufName} â€¢ ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municÃ­pios`;
+  dom.resultsSubtitle.textContent = `${ufName} • ${fmtInt(results.reduce((sum, item) => sum + item.count, 0))} municípios`;
   dom.resultsContent.innerHTML = '';
 
   if (!results.length) {
@@ -2517,14 +2578,13 @@ function getActiveCensusFilterLabel() {
   // 1. Filtro de Renda
   if (f.rendaMin !== null || f.rendaMax !== null) {
     const min = (f.rendaMin || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-    const max = f.rendaMax ? (f.rendaMax).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'MÃ¡x (+R$ 10k)';
-    return `Renda MÃ©dia: ${min} a ${max}`;
+    const max = f.rendaMax ? (f.rendaMax).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Máx (+R$ 10k)';
+    return `Renda Média: ${min} a ${max}`;
   }
 
-  // 2. Filtro de RaÃ§a/Cor
   if (f.racaVal > 0) {
-    // Remove o "Pct" para ficar mais bonito (ex: "Pct Preta" vira "PopulaÃ§Ã£o Preta")
-    const label = f.racaMode.replace('Pct ', 'PopulaÃ§Ã£o ');
+    // Remove o "Pct" para ficar mais bonito (ex: "Pct Preta" vira "População Preta")
+    const label = f.racaMode.replace('Pct ', 'População ');
     return `${label}: Acima de ${f.racaVal}%`;
   }
 
@@ -2533,10 +2593,10 @@ function getActiveCensusFilterLabel() {
     return `Idade ${f.idadeMode}: Acima de ${f.idadeVal}% dos eleitores`;
   }
 
-  // 4. Filtro de GÃªnero
+  // 4. Filtro de Gênero
   if (f.generoVal > 0) {
     const label = f.generoMode.replace('Pct ', ''); // "Mulheres" ou "Homens"
-    return `GÃªnero (${label}): Acima de ${f.generoVal}%`;
+    return `Gênero (${label}): Acima de ${f.generoVal}%`;
   }
 
   // 5. Filtro de Escolaridade

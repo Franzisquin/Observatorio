@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
@@ -145,19 +145,8 @@
         <div class="section section-hidden" id="filterBox">
           <h3>Filtros da Visualização</h3>
 
-          <div class="row" style="grid-template-columns: 1fr 1fr;">
-            <div class="ctrl section-hidden" id="ctrlCidadeFilter">
-              <label for="inputCidade">Município</label>
-              <div class="combobox-container" id="boxCidade">
-                <input type="text" class="combobox-input" id="inputCidade" placeholder="Selecionar município..."
-                  autocomplete="off" disabled>
-                <svg class="combobox-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-                <div class="combobox-dropdown" id="listCidade"></div>
-              </div>
-            </div>
+          
+          <div class="row">
             <div class="ctrl">
               <label for="filterRGINT">Região Intermediária</label>
               <select id="filterRGINT" class="select" disabled>
@@ -170,26 +159,19 @@
                 <option value="" selected>Todas as regiões imediatas</option>
               </select>
             </div>
-            <div class="ctrl" style="grid-column: 1 / -1;">
+            <div class="ctrl">
               <label for="inputBairro">Bairro</label>
-              <div class="combobox-container" id="boxBairro">
-                <input type="text" class="combobox-input" id="inputBairro" placeholder="Selecionar bairro..."
-                  autocomplete="off" disabled>
-                <svg class="combobox-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                  stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-                <div class="combobox-dropdown" id="listBairro"></div>
-              </div>
+              <select id="inputBairro" class="select" disabled>
+                <option value="all" selected>Todos os bairros</option>
+              </select>
             </div>
-            <div class="ctrl" style="grid-column: 1 / -1;">
-              <label for="searchLocal">Buscar por Local de Votação (mín. 3 letras)</label>
+            <div class="ctrl">
+              <label for="searchLocal">Buscar por Local de Votação</label>
               <div class="searchwrap">
                 <input id="searchLocal" class="select" placeholder="Digite o nome do local..." disabled />
               </div>
             </div>
           </div>
-
           <!-- FILTROS CENSITÁRIOS -->
           <div class="filter-group" id="demographicFilters">
             <h4 style="margin: 0 0 12px 0; font-size:0.9rem;">Filtros Demográficos (Censo)</h4>
@@ -495,7 +477,7 @@
               </div>
               <div class="profile-section">
                 <h4>Saneamento</h4>
-                <div class="saneamento-grid" id="profileSaneamentoChart"></div>
+                <div id="profileSaneamentoChart"></div>
               </div>
               <div class="profile-section">
                 <h4>ESCOLARIDADE</h4>

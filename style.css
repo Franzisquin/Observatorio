@@ -652,6 +652,32 @@ body {
   transition: background 0.15s;
   user-select: none;
 }
+.prop-results-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.party-group {
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.party-group-open {
+  border-color: var(--accent);
+}
+
+.party-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  user-select: none;
+}
 
 .party-header:hover {
   background: rgba(125, 125, 125, 0.08);
@@ -661,22 +687,26 @@ body {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-height: 22px;
   flex-shrink: 0;
-  width: 140px;
-  min-width: 0;
 }
 
 .party-header-arrow {
-  font-size: 0.6rem;
+  font-size: 0.8rem;
   color: var(--muted);
   flex-shrink: 0;
-  width: 12px;
+  width: 14px;
   text-align: center;
-  transition: color 0.15s;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .party-group-open .party-header-arrow {
   color: var(--accent);
+  transform: rotate(90deg);
 }
 
 .party-header .cand-indicator {
@@ -1184,7 +1214,7 @@ body {
 }
 
 .bar-chart-label {
-  width: 75px;
+  width: 110px;
   text-align: right;
   flex-shrink: 0;
   white-space: nowrap;

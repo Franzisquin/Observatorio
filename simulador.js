@@ -15,7 +15,10 @@ const PARTY_COLORS = new Map(Object.entries({
   'PSTU': '#c92127', 'PT': '#C0122D', 'PTB': '#71def4', 'PV': '#1f9439',
   'REDE': '#3ca08c', 'REPUBLICANOS': '#1f646b', 'SOLIDARIEDADE': '#f37021',
   'UNIÃO': '#01f6fe', 'UP': '#000000', 'PMDB': '#009959', 'SD': '#f37021',
-  'PR': '#304091', 'PC DO B': '#b4251d', 'PPB': '#3672c9'
+  'PR': '#304091', 'PC DO B': '#b4251d', 'PPB': '#3672c9',
+  'PSDB/CIDADANIA': '#0097fd',
+  'FE Brasil (PT/PCdoB/PV)': '#C0122D',
+  'PSOL/REDE': '#68018D'
 }));
 
 const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
@@ -75,7 +78,10 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'UNIAO': '#2eccff',
   'UNIAO BRASIL': '#2eccff',
   'UP': '#5e5e5e',
-  'OUTROS': '#7a8699'
+  'OUTROS': '#7a8699',
+  'PSDB/CIDADANIA': '#0097fd',
+  'FE Brasil (PT/PCdoB/PV)': '#ff3859',
+  'PSOL/REDE': '#e95dd2'
 }));
 
 const SIM_LAYERS = ['macro', 'estado', 'municipio', 'local'];

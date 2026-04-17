@@ -474,30 +474,7 @@ function setupControls() {
     });
   }
 
-  cidadeCombobox = createCombobox({
-    box: dom.boxCidade,
-    input: dom.inputCidade,
-    list: dom.listCidade
-  }, (val) => {
-    // Ao selecionar Cidade
-    currentCidadeFilter = val; // val será 'all' ou o nome da cidade
-    currentBairroFilter = 'all';
-    STATE.currentMapMode = (STATE.currentElectionType === 'geral' && val === 'all') ? 'municipios' : 'locais';
-
-    // Reset da lógica de bairros
-    populateBairroDropdown();
-
-    // Se escolheu 'all', desativa a busca por local específico (muito pesado para o estado todo)
-    // Se escolheu uma cidade, libera a busca por local
-    dom.searchLocal.disabled = false;
-
-    clearSelection(false);
-    markFiltersDirty();
-
-    // CORREÇÃO: Chama a nova função de texto que libera o botão
-    updateApplyButtonText();
-    debouncedAutoApplyFilters();
-  });
+  
 
   if (dom.btnMapModeMunicipios) {
     dom.btnMapModeMunicipios.addEventListener('click', () => {
@@ -508,8 +485,8 @@ function setupControls() {
         currentCidadeFilter = 'all';
         currentBairroFilter = 'all';
         currentLocalFilter = '';
-        if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
-        if (bairroCombobox) bairroCombobox.setValue('');
+        
+        
         if (dom.searchLocal) dom.searchLocal.value = '';
 
         STATE.currentMapMode = 'municipios';
@@ -537,17 +514,7 @@ function setupControls() {
     });
   }
 
-  bairroCombobox = createCombobox({
-    box: dom.boxBairro,
-    input: dom.inputBairro,
-    list: dom.listBairro
-  }, (val) => {
-    currentBairroFilter = val;
-    clearSelection(false);
-    markFiltersDirty();
-    updateApplyButtonText();
-    debouncedAutoApplyFilters();
-  });
+  
 
   const shouldAutoFrameFilteredArea = () => (
     currentMesorregiaoFilter !== 'all' ||
@@ -615,6 +582,16 @@ function setupControls() {
       });
     });
   };
+  
+  if (dom.inputBairro) {
+    dom.inputBairro.addEventListener('change', (e) => {
+      currentBairroFilter = e.target.value;
+      clearSelection(false);
+      markFiltersDirty();
+      updateApplyButtonText();
+      if (typeof applyFiltersAndRedraw === 'function') applyFiltersAndRedraw();
+    });
+  }
   // Removed old calls for Cidade/Bairro
   addSearchFilter(dom.searchMunicipio, dom.selectMunicipio);
 
@@ -632,7 +609,7 @@ function setupControls() {
     if (STATE.currentElectionType === 'municipal') {
       currentCidadeFilter = 'all';
       // CORREÇÃO: Usar combobox em vez de selectCidade direto
-      if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
+      
     }
 
     requestAnimationFrame(() => {
@@ -711,11 +688,15 @@ function setupControls() {
         currentCidadeFilter = 'all';
         currentBairroFilter = 'all';
         currentLocalFilter = '';
-        if (cidadeCombobox) cidadeCombobox.setValue('Todos os municípios');
-        if (bairroCombobox) bairroCombobox.setValue('');
+        
+        
         if (dom.searchLocal) dom.searchLocal.value = '';
         
         STATE.currentMapMode = 'municipios';
+        if (dom.inputBairro) { 
+          dom.inputBairro.disabled = true; 
+          dom.inputBairro.value = 'all'; 
+        }
         clearSelection(true);
         updateApplyButtonText();
         applyFiltersAndRedraw();
@@ -733,6 +714,10 @@ function setupControls() {
           });
         }
         dom.selectMunicipio.value = '';
+        if (dom.inputBairro) { 
+          dom.inputBairro.disabled = true; 
+          dom.inputBairro.value = 'all'; 
+        }
         clearSelection(true);
         updateElectionTypeUI();
         updateConditionalUI();
@@ -744,7 +729,11 @@ function setupControls() {
         return;
       }
 
-      clearSelection(true);
+      if (dom.inputBairro) { 
+          dom.inputBairro.disabled = true; 
+          dom.inputBairro.value = 'all'; 
+        }
+        clearSelection(true);
       updateApplyButtonText();
       applyFiltersAndRedraw();
     });

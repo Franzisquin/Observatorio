@@ -274,13 +274,13 @@ async function init() {
   dom.selectRGI = document.getElementById('filterRGI');
 
   dom.ctrlCidadeFilter = document.getElementById('ctrlCidadeFilter');
-  dom.boxCidade = document.getElementById('boxCidade');
+  
   dom.inputCidade = document.getElementById('inputCidade');
-  dom.listCidade = document.getElementById('listCidade');
+  
 
-  dom.boxBairro = document.getElementById('boxBairro');
+  
   dom.inputBairro = document.getElementById('inputBairro');
-  dom.listBairro = document.getElementById('listBairro');
+  
 
   dom.searchLocal = document.getElementById('searchLocal');
   dom.btnApplyFilters = document.getElementById('btnApplyFilters');

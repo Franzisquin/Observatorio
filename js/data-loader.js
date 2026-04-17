@@ -173,17 +173,31 @@ let loadedDeputyState = { uf: null, types: new Set(), year: null };
 
 function normalizePartyAlias(s) {
   let p = (s || '').toUpperCase().trim();
+  
+  // Normalização de Federações conhecidas (Brasil 2022+)
+  if (p.includes('BRASIL DA ESPERANÇA') || p.includes('(FE BRASIL)') || p.includes('PT/PC DO B/PV')) return 'FE Brasil (PT/PCdoB/PV)';
+  if (p.includes('PSDB CIDADANIA') || p.includes('PSDB/CIDADANIA')) return 'PSDB/CIDADANIA';
+  if (p.includes('PSOL REDE') || p.includes('PSOL/REDE')) return 'PSOL/REDE';
+  
   p = p.replace('FEDERAÇÃO ', '');
+  p = p.replace('FEDERACAO ', '');
+  
   if (p === 'PATRI') return 'PATRIOTA';
   if (p === 'PODE') return 'PODEMOS';
   if (p === 'SD') return 'SOLIDARIEDADE';
-  if (p === 'PC DO B') return 'PCDOB'; // Often written differently
+  if (p === 'PC DO B' || p === 'PC DO B' || p === 'PCDOB') return 'PC DO B';
+  
   return p;
 }
 
 function normalizeComp(str) {
   if (!str) return "";
-  return str.split('/').map(s => s.trim().toUpperCase()).sort().join('/');
+  // Resolve cada item da composição e ordena alfabeticamente
+  return str.split('/')
+    .map(s => normalizePartyAlias(s))
+    .filter(Boolean)
+    .sort()
+    .join('/');
 }
 
 async function onClickLoadData_Deputies_legado(uf, year) {

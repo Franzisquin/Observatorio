@@ -27,27 +27,27 @@ function updateSelectionUI(isFilterAggregation = false) {
       const censusLabel = getActiveCensusFilterLabel();
 
       if (censusLabel) {
-        dom.resultsTitle.textContent = `Filtro â€¢ ${censusLabel}`;
+        dom.resultsTitle.textContent = `Filtro • ${censusLabel}`;
         dom.resultsSubtitle.textContent = `${count} locais encontrados neste perfil`;
       } else {
         let title = dom.selectMunicipio.value;
-        if (currentBairroFilter !== 'all') title += ` â€¢ ${currentBairroFilter}`;
+        if (currentBairroFilter !== 'all') title += ` • ${currentBairroFilter}`;
         dom.resultsTitle.textContent = title;
         dom.resultsSubtitle.textContent = `${count} locais agregados`;
       }
     } else if (count === 1) {
       const props = aggregatedProps[currentCargo];
       const nomeLocal = getProp(props, 'nm_locvot');
-      const bairro = getProp(props, 'ds_bairro') || 'Bairro nÃ£o inf.';
-      const zona = getProp(props, 'nr_zona') || 'Zona nÃ£o inf.';
+      const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
+      const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
       dom.resultsSubtitle.textContent = `${bairro} â€¢ Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
-      dom.resultsSubtitle.textContent = isDragSelection ? 'SeleÃ§Ã£o manual com Shift+Arrasta' : 'SeleÃ§Ã£o manual com Shift+Click';
+      dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
     }
 
-    // Esconde comparativo em eleiÃ§Ãµes municipais
+    // Esconde comparativo em eleições municipais
     dom.summaryBoxContainer.classList.add('section-hidden');
 
   } else {
@@ -56,7 +56,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       const censusLabel = getActiveCensusFilterLabel();
 
       if (censusLabel) {
-        dom.resultsTitle.textContent = `Filtro â€¢ ${censusLabel}`;
+        dom.resultsTitle.textContent = `Filtro • ${censusLabel}`;
         dom.resultsSubtitle.textContent = `${count} locais correspondem ao filtro`;
       } else {
         let title = currentCidadeFilter;
@@ -67,7 +67,7 @@ function updateSelectionUI(isFilterAggregation = false) {
           const uf = dom.selectUFGeneral.value || 'BR';
           title = `Estado Completo (${uf})`;
         }
-        if (currentBairroFilter !== 'all') title += ` â€¢ ${currentBairroFilter}`;
+        if (currentBairroFilter !== 'all') title += ` • ${currentBairroFilter}`;
         dom.resultsTitle.textContent = title;
         dom.resultsSubtitle.textContent = `${count} locais agregados`;
       }
@@ -75,19 +75,19 @@ function updateSelectionUI(isFilterAggregation = false) {
       const props = aggregatedProps[currentCargo];
       const nomeLocal = getProp(props, 'nm_locvot');
       const nomeCidade = getProp(props, 'nm_localidade');
-      const bairro = getProp(props, 'ds_bairro') || 'Bairro nÃ£o inf.';
-      const zona = getProp(props, 'nr_zona') || 'Zona nÃ£o inf.';
+      const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
+      const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
       dom.resultsSubtitle.textContent = `${nomeCidade} â€¢ ${bairro} â€¢ Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
-      dom.resultsSubtitle.textContent = isDragSelection ? 'SeleÃ§Ã£o manual com Shift+Arrasta' : 'SeleÃ§Ã£o manual com Shift+Click';
+      dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
     }
 
-    // --- CORREÃ‡ÃƒO: Exibe o container e Atualiza o ANO do tÃ­tulo ---
+    // --- CORREÇÃO: Exibe o container e Atualiza o ANO do título ---
     dom.summaryBoxContainer.classList.add('section-hidden');
 
-    // Atualiza o texto do tÃ­tulo (h3) para o ano correto
+    // Atualiza o texto do título (h3) para o ano correto
     if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
   }
 
@@ -752,7 +752,7 @@ function renderResultsPanel(props, cargo) {
   );
   const participacaoHtml = turnoutStats.ratio !== null
     ? `<div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>ParticipaÃ§Ã£o${isEstadoCompleto ? ' *' : ''}</span>
+        <span>Participação${isEstadoCompleto ? ' *' : ''}</span>
         <strong>${fmtPct(turnoutStats.ratio)}</strong>
       </div>`
     : '';
@@ -768,7 +768,7 @@ function renderResultsPanel(props, cargo) {
     <div class="metrics-grid">
       ${avisoHtml}
       <div class="metric-item"${isEstadoCompleto ? ' style="border-left:3px solid var(--accent);"' : ''}>
-        <span>Votos VÃ¡lidos (Nominais)</span>
+        <span>Votos Válidos (Nominais)</span>
         <strong>${fmtInt(totalBase)}</strong>
       </div>
       <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
@@ -1119,7 +1119,7 @@ function renderDeputyResults(cargo) {
       <div class="metrics-grid">
         ${avisoDeputyHtml}
         <div class="metric-item"${usarResultadosCompletos ? ' style="border-left:3px solid var(--accent);"' : ''}>
-          <span>Votos VÃ¡lidos (Soma)</span>
+          <span>Votos Válidos (Soma)</span>
           <strong>${fmtInt(totalValidos)}</strong>
         </div>
         <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
@@ -1411,14 +1411,35 @@ function setBar(id, min, max, scale) {
 }
 
 function getCandidateStatusInfo(status) {
-  const normalized = String(status || '').toUpperCase();
-  if (normalized.includes('INAPTO')) return { label: 'Inapto', badgeClass: 'inapto', rowClass: 'prop-cand-inapto', elected: false };
-  if (normalized.includes('NÃƒO ELEITO') || normalized.includes('NAO ELEITO')) return { label: 'NÃ£o eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
-  if (normalized.includes('QP')) return { label: 'Eleito por QP', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
-  if (normalized.includes('MÃ‰DIA') || normalized.includes('MEDIA')) return { label: 'Eleito por mÃ©dia', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
-  if (normalized.includes('ELEITO')) return { label: 'Eleito', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
-  if (normalized.includes('SUPLENTE')) return { label: 'Suplente', badgeClass: 'suplente', rowClass: 'prop-cand-not-elected', elected: false };
-  return { label: 'NÃ£o eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
+  const normalized = String(status || '').toUpperCase().trim();
+
+  // 1. Inaptos primeiro
+  if (normalized.includes('INAPTO')) {
+    return { label: 'Inapto', badgeClass: 'inapto', rowClass: 'prop-cand-inapto', elected: false };
+  }
+
+  // 2. NEGATIVOS: "NÃO ELEITO" e "SUPLENTE" devem ser verificados ANTES de "ELEITO" 
+  // para evitar que o substring "ELEITO" em "NÃO ELEITO" cause falsos positivos.
+  if (normalized.includes('NAO ELEITO') || normalized.includes('NÃO ELEITO')) {
+    return { label: 'Não eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
+  }
+  if (normalized.includes('SUPLENTE')) {
+    return { label: 'Suplente', badgeClass: 'suplente', rowClass: 'prop-cand-not-elected', elected: false };
+  }
+
+  // 3. POSITIVOS
+  if (normalized.includes('QP')) {
+    return { label: 'Eleito por QP', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  }
+  if (normalized.includes('MEDIA') || normalized.includes('MÉDIA')) {
+    return { label: 'Eleito por média', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  }
+  if (normalized.includes('ELEITO')) {
+    return { label: 'Eleito', badgeClass: 'eleito', rowClass: 'prop-cand-elected', elected: true };
+  }
+
+  // Fallback padrão
+  return { label: 'Não eleito', badgeClass: 'nao-eleito', rowClass: 'prop-cand-not-elected', elected: false };
 }
 
 function ensureDeputyLookupForCargo(cargo) {
@@ -1460,6 +1481,12 @@ function aggregateProportionalGroupsForSelection(cargo) {
   const resultStore = isVereador ? (STATE.vereadorResults || {}) : (STATE.deputyResults || {});
   const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
   const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
+  
+  // Garante que o cache de siglas (PP, PT, etc) esteja populado para resolver "PARTIDO XX"
+  if (typeof ensurePartyPrefixCache === 'function') {
+    ensurePartyPrefixCache(isVereador);
+  }
+
   const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[cargo]?.['1T'] || []);
   const groups = new Map();
   let totalVotes = 0;
@@ -1594,7 +1621,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   dom.resultsContent.innerHTML = '';
 
   if (!groups.length) {
-    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Sem votos vÃ¡lidos para esta seleÃ§Ã£o.</p>';
+    dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Sem votos válidos para esta seleção.</p>';
     return;
   }
 
@@ -1619,7 +1646,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     header.className = 'party-header';
     header.innerHTML = `
       <div class="party-header-left">
-        <span class="party-header-arrow">â–¶</span>
+        <span class="party-header-arrow">&#9654;</span>
         <div class="cand-indicator" style="background:${group.color}"></div>
         <div class="party-header-info">
           <span class="party-header-name" title="${escapeHtml(group.name)}">${escapeHtml(group.name)}</span>
@@ -1656,8 +1683,6 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
       const isOpen = list.style.display !== 'none';
       list.style.display = isOpen ? 'none' : 'block';
       item.classList.toggle('party-group-open', !isOpen);
-      const arrow = header.querySelector('.party-header-arrow');
-      if (arrow) arrow.textContent = isOpen ? 'â–¶' : 'â–¼';
     });
 
     item.appendChild(header);
@@ -1674,7 +1699,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       ${extraMetrics}
-      <div class="metric-item"><span>Votos vÃ¡lidos</span><strong>${fmtInt(totalValidos)}</strong></div>
+      <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(totalValidos)}</strong></div>
       <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
       <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)}</strong></div>
       <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)}</strong></div>
@@ -1688,14 +1713,9 @@ function renderDeputyPartyResults(cargo) {
 
   // --- CONFIGURAÃ‡ÃƒO E CONSTANTES ---
   const FEDERATION_COLORS = {
-    'FE BRASIL': '#C0122D',
-    'FEDERAÃ‡ÃƒO BRASIL DA ESPERANÃ‡A - FE BRASIL(PT/PC DO B/PV)': '#C0122D',
-    'PSDB-CIDADANIA': '#0096ff',
-    'FederaÃ§Ã£o PSDB Cidadania(PSDB/CIDADANIA)': '#0096ff',
-    'FEDERAÃ‡ÃƒO PSDB CIDADANIA(PSDB/CIDADANIA)': '#0096ff',
-    'PSOL-REDE': '#68018D',
-    'FederaÃ§Ã£o PSOL REDE(PSOL/REDE)': '#68018D',
-    'FEDERAÃ‡ÃƒO PSOL REDE(PSOL/REDE)': '#68018D'
+    'FE Brasil (PT/PCdoB/PV)': '#C0122D',
+    'PSDB/CIDADANIA': '#0097fd',
+    'PSOL/REDE': '#68018D'
   };
 
   // 1. Alternador de VisualizaÃ§Ã£o
@@ -2082,13 +2102,13 @@ function renderDeputyPartyResults(cargo) {
   }
   const deputyPartyTurnoutStats = getTurnoutStatsForSelection(null, cargo, '1T');
   const deputyPartyTurnoutHtml = deputyPartyTurnoutStats.ratio !== null
-    ? `<div class="metric-item"><span>ParticipaÃ§Ã£o</span><strong>${fmtPct(deputyPartyTurnoutStats.ratio)}</strong></div>`
+    ? `<div class="metric-item"><span>Participação</span><strong>${fmtPct(deputyPartyTurnoutStats.ratio)}</strong></div>`
     : '';
 
   dom.resultsMetrics.innerHTML = `
       <div class="metrics-grid">
         ${extraMetrics}
-        <div class="metric-item"><span>Votos VÃ¡lidos (Total)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
+        <div class="metric-item"><span>Votos Válidos (Total)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
         ${deputyPartyTurnoutHtml}
       </div>
     `;
@@ -2268,7 +2288,7 @@ function renderVereadorResults(cargo) {
 
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
-      <div class="metric-item"><span>Votos Validos (Nominais)</span><strong>${fmtInt(totalVotes)}</strong></div>
+      <div class="metric-item"><span>Votos Válidos (Nominais)</span><strong>${fmtInt(totalVotes)}</strong></div>
       <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
       <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong></div>
       <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong></div>
@@ -2622,12 +2642,12 @@ function renderVereadorPartyResults(cargo) {
     officialSummary ? officialSummary.comparecimento : null
   );
   const vereadorPartyTurnoutHtml = vereadorPartyTurnoutStats.ratio !== null
-    ? `<div class="metric-item"><span>ParticipaÃ§Ã£o</span><strong>${fmtPct(vereadorPartyTurnoutStats.ratio)}</strong></div>`
+    ? `<div class="metric-item"><span>Participação</span><strong>${fmtPct(vereadorPartyTurnoutStats.ratio)}</strong></div>`
     : '';
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       ${extraMetrics}
-      <div class="metric-item"><span>Votos VÃ¡lidos (Nominais)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
+      <div class="metric-item"><span>Votos Válidos (Nominais)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
       ${vereadorPartyTurnoutHtml}
     </div>`;
 }
@@ -2801,7 +2821,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
   if (matchParenthesis) {
     targetParties = matchParenthesis[1].split('/').map(s => s.trim().toUpperCase());
   } else if (STATE.currentElectionYear === '2022') {
-    if (compUpper.includes('FE BRASIL') || compUpper.includes('BRASIL DA ESPERANÃ‡A')) {
+    if (compUpper.includes('FE BRASIL') || compUpper.includes('BRASIL DA ESPERANÇA')) {
       targetParties = ['PT', 'PC DO B', 'PV', 'PCDOB'];
     } else if (compUpper.includes('PSDB') && compUpper.includes('CIDADANIA')) {
       targetParties = ['PSDB', 'CIDADANIA'];
@@ -2897,7 +2917,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
 
   const totalLegendVotes = legendVotes.reduce((sum, l) => sum + l.votos, 0);
 
-  // 3. CONSTRUÃ‡ÃƒO DO HTML (COM A CORREÃ‡ÃƒO DE LÃ“GICA DO STATUS)
+  // 3. CONSTRUÇÃO DO HTML (COM A CORREÇÃO DE LÓGICA DO STATUS)
   let modalOverlay = document.getElementById('coalition-modal-overlay');
   if (!modalOverlay) {
     modalOverlay = document.createElement('div');
@@ -2907,7 +2927,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
     document.body.appendChild(modalOverlay);
   }
 
-  // Regra Global: Se a coligaÃ§Ã£o nÃ£o fez eleitos (card zerado), todo mundo vira NÃƒO ELEITO
+  // Regra Global: Se a coligação não fez eleitos (card zerado), todo mundo vira NÃO ELEITO
   const forceNotElected = (electedCount === 0);
 
   let listHtml = candidateList.map((c, idx) => {
@@ -2918,26 +2938,26 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
     let badgeClass = '';
 
     if (forceNotElected) {
-      label = 'NÃƒO ELEITO';
+      label = 'NÃO ELEITO';
       badgeClass = 'nao-eleito';
     } else {
-      // === LÃ“GICA DE STATUS CORRIGIDA E DETALHADA ===
-      // Verifica o NEGATIVO primeiro para evitar que "NÃƒO ELEITO" case com "ELEITO"
+      // === LÓGICA DE STATUS CORRIGIDA E DETALHADA ===
+      // Verifica o NEGATIVO primeiro para evitar que "NÃO ELEITO" case com "ELEITO"
 
-      if (st.includes('NÃƒO ELEITO') || st.includes('NÃƒO ELEITO')) {
-        label = 'NÃƒO ELEITO';
+      if (st.includes('NÃO ELEITO') || st.includes('NÃO ELEITO')) {
+        label = 'NÃO ELEITO';
         badgeClass = 'nao-eleito';
       }
       else if (st.includes('QP')) {
         label = 'ELEITO POR QP';
         badgeClass = 'eleito';
       }
-      else if (st.includes('MÃ‰DIA') || st.includes('MEDIA')) {
-        label = 'ELEITO POR MÃ‰DIA';
+      else if (st.includes('MÉDIA') || st.includes('MEDIA')) {
+        label = 'ELEITO POR MÉDIA';
         badgeClass = 'eleito';
       }
       else if (st.includes('ELEITO')) {
-        // Caso genÃ©rico se nÃ£o tiver QP/MÃ©dia explicito
+        // Caso genérico se não tiver QP/Média explicito
         label = 'ELEITO';
         badgeClass = 'eleito';
       }
@@ -2957,7 +2977,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
 
     return `
             <div style="display:flex; align-items:center; padding:6px 0 6px 8px; border-bottom:1px solid var(--border); font-size:0.85rem; border-left: 3px solid ${partyColor}; box-sizing:border-box; min-width:0;">
-                <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}Â°</span>
+                <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}°</span>
                 <div style="flex:1; margin-right:8px; overflow:hidden;">
                     <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.nome}</div>
                     <div style="font-size:0.7rem; color:var(--muted); margin-top:1px;">${c.partido}</div>
@@ -2986,7 +3006,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
 
   modalOverlay.innerHTML = `
         <div class="info-modal wide-modal" style="max-width:450px; max-height:85vh; display:flex; flex-direction:column; padding:20px; overflow:hidden;">
-            <button class="info-close" onclick="document.getElementById('coalition-modal-overlay').classList.remove('visible')">âœ•</button>
+            <button class="info-close" onclick="document.getElementById('coalition-modal-overlay').classList.remove('visible')">✕</button>
             <div style="${headerStyle}">
                 <h3 style="margin:0; font-size:1rem; text-transform:uppercase; letter-spacing:0.5px;">${titleName}</h3>
             </div>

@@ -423,182 +423,44 @@ function populateCidadeDropdown() {
 }
 
 function populateBairroDropdown() {
-  // 1. Identify Bairros
+  const select = dom.inputBairro;
+  if (!select) return;
   uniqueBairros.clear();
 
-  if (!bairroCombobox) return;
-
   if (STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
-    bairroCombobox.disable(true);
-    bairroCombobox.setValue("");
+    select.disabled = true;
+    select.value = 'all';
     return;
   }
 
   const geojson = currentDataCollection[currentCargo];
   if (!geojson || !geojson.features) return;
 
-  // Group by Bairro
   const bairroGroups = {};
-
   geojson.features.forEach(f => {
     const props = f.properties;
-    let adicionar = false;
-
-    if (!matchesRegionalScope(props)) {
-      adicionar = false;
-    } else if (STATE.currentElectionType === 'geral') {
-      const cityName = String(getProp(props, 'nm_localidade') || '').trim();
-      const selectedCity = String(currentCidadeFilter || '').trim();
-      if (
-        cityName === selectedCity
-        || normalizeMunicipioSlug(cityName) === normalizeMunicipioSlug(selectedCity)
-        || (typeof matchesMunicipioName === 'function' && matchesMunicipioName(selectedCity, cityName))
-      ) {
-        adicionar = true;
-      }
-    } else {
-      adicionar = true;
-    }
-
-    if (adicionar) {
-      const bairro = (getProp(props, 'ds_bairro') || 'Bairro não inf.').trim();
-      if (bairro && bairro.toUpperCase() !== 'N/D') {
-        uniqueBairros.add(bairro);
-        if (!bairroGroups[bairro]) bairroGroups[bairro] = [];
-        bairroGroups[bairro].push(props);
-      }
+    if (matchesRegionalScope(props)) {
+       const bairro = (getProp(props, 'ds_bairro') || 'Bairro não inf.').trim();
+       if (bairro && bairro.toUpperCase() !== 'N/D') {
+         uniqueBairros.add(bairro);
+         if (!bairroGroups[bairro]) bairroGroups[bairro] = [];
+         bairroGroups[bairro].push(props);
+       }
     }
   });
 
   const bairros = Array.from(uniqueBairros).sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  const items = [];
-
-  // Prepare Party Map if needed (Reuse logic)
-  let partyNumMap = null;
-  if (currentCargo.startsWith('deputado') && STATE.deputyViewMode === 'party' && STATE.deputyMetadata) {
-    partyNumMap = {};
-    Object.entries(STATE.deputyMetadata).forEach(([id, meta]) => {
-      if (id && meta[1]) {
-        const num = id.substring(0, 2);
-        if (num.length === 2) {
-          const name = meta[1].toUpperCase();
-          const isGeneric = name.startsWith('PARTIDO ') || name.match(/^PARTIDO\d+$/);
-          if (!isGeneric) partyNumMap[num] = meta[1];
-        }
-      }
-    });
-  }
-
-  bairros.forEach(bairro => {
-    const propsList = bairroGroups[bairro];
-    let stats;
-
-    if (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')) {
-      // Custom Aggregation for Deputies and Vereadores
-      const isVer = currentCargo.startsWith('vereador');
-      const typeKey = isVer ? 'v' : (currentCargo === 'deputado_federal') ? 'f' : 'e';
-      const resultStore = isVer ? STATE.vereadorResults : STATE.deputyResults;
-      const metaStore = isVer ? STATE.vereadorMetadata : STATE.deputyMetadata;
-      const aggVotes = {};
-      let totalValidos = 0;
-
-      propsList.forEach(p => {
-        const z = getProp(p, 'nr_zona');
-        const l = getProp(p, 'nr_locvot') || getProp(p, 'nr_local_votacao');
-        const m = getProp(p, 'cd_localidade_tse') || getProp(p, 'CD_MUNICIPIO');
-        if (z && l) {
-          const key = isVer ? `${parseInt(z)}_${parseInt(l)}` : `${parseInt(z)}_${parseInt(m)}_${parseInt(l)}`;
-          let res = resultStore[key];
-          if (res && res[typeKey]) {
-            for (const [cand, v] of Object.entries(res[typeKey])) {
-              if (cand !== '95' && cand !== '96') {
-                const vi = parseInt(v);
-                let akey = cand;
-                if (partyNumMap) {
-                  const partyCode = cand.substring(0, 2);
-                  let partyName = partyNumMap[partyCode];
-                  if (!partyName && metaStore[cand]) { const mm = metaStore[cand][1]; if (mm && !mm.toUpperCase().startsWith('PARTIDO ')) partyName = mm; }
-                  if (!partyName) partyName = `PARTIDO ${partyCode}`;
-                  akey = partyName;
-                }
-                aggVotes[akey] = (aggVotes[akey] || 0) + vi;
-                totalValidos += vi;
-              }
-            }
-          }
-        }
-      });
-
-      if (totalValidos > 0) {
-        // Find Winner & Second
-        let winnerId = null;
-        let winnerVotes = -1;
-        let secondVotes = -1;
-
-        const sorted = Object.entries(aggVotes).sort((a, b) => b[1] - a[1]);
-        if (sorted.length > 0) {
-          winnerId = sorted[0][0];
-          winnerVotes = sorted[0][1];
-          if (sorted.length > 1) secondVotes = sorted[1][1];
-          else secondVotes = 0;
-        }
-
-        if (winnerId) {
-          let nome, margin, color;
-
-          if (partyNumMap) {
-            nome = winnerId;
-            margin = (totalValidos > 0) ? (winnerVotes / totalValidos) - (secondVotes / totalValidos) : 0;
-            color = colorForParty(nome);
-          } else {
-            const meta = (isVer ? STATE.vereadorMetadata : STATE.deputyMetadata)[winnerId] || [winnerId, '?', '?'];
-            nome = meta[0];
-            const partido = meta[1];
-            margin = (totalValidos > 0) ? (winnerVotes / totalValidos) - (secondVotes / totalValidos) : 0;
-            color = getColorForCandidate(nome, partido);
-          }
-
-          stats = {
-            text: `${nome} (+${fmtPct(margin)})`,
-            color: color
-          };
-
-          items.push({
-            label: bairro,
-            info: stats.text,
-            color: stats.color
-          });
-        }
-      }
-
-    } else {
-      const aggProps = aggregatePropsList(propsList);
-      if (!aggProps) return;
-
-      const cargo = currentCargo;
-      const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
-      const { totalValidos } = getVotosValidos(aggProps, cargo, turnoKey, STATE.filterInaptos);
-
-      if (totalValidos > 0) {
-        stats = calculateWinnerStats(aggProps);
-        items.push({
-          label: bairro,
-          info: stats.text,
-          color: stats.color
-        });
-      }
-    }
+  
+  select.innerHTML = '<option value="all">Todos os bairros</option>';
+  bairros.forEach(b => {
+    const opt = document.createElement('option');
+    opt.value = b;
+    opt.textContent = b;
+    select.appendChild(opt);
   });
 
-  bairroCombobox.setItems(items, "Todos os bairros");
-
-  if (currentBairroFilter === 'all') {
-    bairroCombobox.setValue("Todos os bairros");
-  } else {
-    bairroCombobox.setValue(currentBairroFilter);
-  }
-
-  bairroCombobox.disable(items.length === 0);
+  select.disabled = (bairros.length === 0);
+  select.value = currentBairroFilter || 'all';
 }
 
 function calculateWinnerStats(props) {
