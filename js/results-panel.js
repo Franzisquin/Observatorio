@@ -1752,9 +1752,10 @@ function renderDeputyPartyResults(cargo) {
   });
 
 
-  // --- PREPARAÃ‡ÃƒO DOS DADOS ---
+  // --- PREPARAÇÃO DOS DADOS ---
   const typeKey = (cargo === 'deputado_federal') ? 'f' : 'e';
   const aggParty = {};
+  const processedKeys = new Set();
   let totalVotesMap = 0;
   const usarResultadosCompletos = shouldUseGeneralDeputyJsonTotals(cargo);
   const uf = dom.selectUFGeneral.value;
@@ -1791,21 +1792,21 @@ function renderDeputyPartyResults(cargo) {
         if (cand === '95' || cand === '96') continue;
         const v = parseInt(res[typeKey][cand]) || 0;
 
-        const partyCode = cand.substring(0, 2);
-        let partyName = partyNumMap[partyCode];
-        if (!partyName) {
-          const meta = STATE.deputyMetadata[cand];
-          if (meta && meta[1]) {
-            const n = meta[1].toUpperCase();
-            if (!n.startsWith('PARTIDO ')) partyName = n;
-          }
-        }
-        if (!partyName) partyName = `PARTIDO ${partyCode}`;
+        const groupInfo = resolveProportionalGroupInfo(cand, STATE.deputyMetadata, STATE._partyPrefixCache);
+        const groupKey = groupInfo.key; 
+        const groupName = groupInfo.name;
 
-        if (!aggParty[partyName]) {
-          aggParty[partyName] = { votes: 0, electedSet: new Set() };
+        if (!aggParty[groupKey]) {
+          aggParty[groupKey] = { 
+            votes: 0, 
+            electedSet: new Set(),
+            name: groupName,
+            composition: groupInfo.composition,
+            isGroup: groupInfo.isGroup,
+            dominantParty: groupInfo.party // Para cores
+          };
         }
-        aggParty[partyName].votes += v;
+        aggParty[groupKey].votes += v;
         totalVotesMap += v;
 
         if (cand.length > 2) {
@@ -1813,7 +1814,7 @@ function renderDeputyPartyResults(cargo) {
           if (meta) {
             const status = (meta[2] || '').toUpperCase();
             if ((status.includes('ELEITO') || status.includes('QP') || status.includes('MÃ‰DIA')) && !status.includes('NÃƒO')) {
-              aggParty[partyName].electedSet.add(cand);
+              aggParty[groupKey].electedSet.add(cand);
             }
           }
         }
@@ -1917,7 +1918,7 @@ function renderDeputyPartyResults(cargo) {
       } else {
         // Tenta achar o dominante nos votos do mapa
         members.forEach(sigla => {
-          const pData = aggParty[sigla];
+          const pData = aggParty[`party:${sigla}`];
           const votes = pData ? pData.votes : 0;
           if (votes > maxVotesInGroup) {
             maxVotesInGroup = votes;
@@ -1947,8 +1948,10 @@ function renderDeputyPartyResults(cargo) {
 
       const rawCompNorm2 = off.raw_comp.replace(/\s/g, '').toUpperCase();
       const finalNameNorm2 = finalName.replace(/\s/g, '').toUpperCase();
-      if (rawCompNorm2 === finalNameNorm2) {
-        finalName = off.raw_comp; // Uses the spaced-out version
+      // SE o nome da coligação for igual à sua composição (ex: FE BRASIL (PT/PCdoB/PV)), 
+      // ou se o nome já contiver a composição, evitamos a redundância.
+      if (rawCompNorm2 === finalNameNorm2 || finalNameNorm2.includes(rawCompNorm2)) {
+        finalName = off.raw_comp; 
       }
 
       results.push({
@@ -1969,16 +1972,16 @@ function renderDeputyPartyResults(cargo) {
     totalValidosDisplay = usarResultadosCompletos
       ? (officialData?.stats?.qt_votos_validos || totalVotesMap)
       : totalVotesMap;
-    for (const [partyName, data] of Object.entries(aggParty)) {
-      if (data.votes > 0) {
+    for (const [groupKey, data] of Object.entries(aggParty)) {
+      if (data.votes > 0) { 
         results.push({
-          name: partyName,
+          name: data.name,
           votes: data.votes,
           pct: (totalValidosDisplay > 0) ? (data.votes / totalValidosDisplay) : 0,
           elected: data.electedSet.size,
-          color: colorForParty(partyName),
-          isGroup: false,
-          composition: partyName
+          color: colorForParty(data.dominantParty) || DEFAULT_SWATCH,
+          isGroup: data.isGroup,
+          composition: data.composition
         });
       }
     }
@@ -2420,20 +2423,22 @@ function renderVereadorPartyResults(cargo) {
           if (cand === '95' || cand === '96') continue;
           if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cand)) continue;
           const v = parseInt(res[TYPE_KEY][cand]) || 0;
+          if (v <= 0) continue; // Pula candidatos sem voto nesta seleção local
 
-          const partyCode = cand.substring(0, 2);
-          let partyName = partyNumMap[partyCode];
-          if (!partyName) {
-            const meta = STATE.vereadorMetadata[cand];
-            if (meta && meta[1]) {
-              const n = meta[1].toUpperCase();
-              if (!n.startsWith('PARTIDO ')) partyName = n;
-            }
+          const groupInfo = window.resolveProportionalGroupInfo(cand, STATE.vereadorMetadata, STATE._vereadorPartyPrefixCache);
+          const groupKey = groupInfo.key;
+
+          if (!aggParty[groupKey]) {
+            aggParty[groupKey] = { 
+              votes: 0, 
+              electedSet: new Set(),
+              name: groupInfo.name,
+              composition: groupInfo.composition,
+              isGroup: groupInfo.isGroup,
+              dominantParty: groupInfo.party
+            };
           }
-          if (!partyName) partyName = `PARTIDO ${partyCode}`;
-
-          if (!aggParty[partyName]) aggParty[partyName] = { votes: 0, electedSet: new Set() };
-          aggParty[partyName].votes += v;
+          aggParty[groupKey].votes += v;
           totalVotesMap += v;
 
           if (cand.length > 2) {
@@ -2441,7 +2446,7 @@ function renderVereadorPartyResults(cargo) {
             if (meta) {
               const status = (meta[2] || '').toUpperCase();
               if ((status.includes('ELEITO') || status.includes('QP') || status.includes('MÃ‰DIA') || status.includes('MEDIA')) && !status.includes('NÃƒO') && !status.includes('NAO')) {
-                aggParty[partyName].electedSet.add(cand);
+                aggParty[groupKey].electedSet.add(cand);
               }
             }
           }
@@ -2485,11 +2490,11 @@ function renderVereadorPartyResults(cargo) {
       let bestColor = colorForParty(members[0]);
       let maxV = -1;
       members.forEach(sigla => {
-        const v = aggParty[sigla]?.votes || aggParty[Object.keys(aggParty).find(k => k.toUpperCase() === sigla)]?.votes || 0;
-        if (v > maxV) { maxV = v; bestColor = colorForParty(sigla); }
+        const pData = aggParty[`party:${sigla}`];
+        if (pData && pData.votes > maxV) { maxV = pData.votes; bestColor = colorForParty(sigla); }
       });
 
-      // Tenta achar nome da coligaÃ§Ã£o no metadata
+      // Tenta achar nome da coligação no metadata
       let coalitionName = null;
       if (members.length > 1) {
         const offNorm = off.raw_comp.split('/').map(normalizePartyAlias).join('').replace(/\s/g, '');
@@ -2497,41 +2502,50 @@ function renderVereadorPartyResults(cargo) {
           if (meta && meta.length > 4 && meta[3] && meta[4]) {
             const metaNorm = (meta[4] || '').split('/').map(normalizePartyAlias).join('').replace(/\s/g, '');
             if (metaNorm === offNorm) {
-              const n = meta[3];
-              if (n && n.toUpperCase() !== 'PARTIDO ISOLADO') { coalitionName = n; break; }
+              const potName = meta[3];
+              if (potName && potName.toUpperCase() !== 'PARTIDO ISOLADO') {
+                coalitionName = potName;
+                break;
+              }
             }
           }
         }
       }
 
-      const finalName = coalitionName || off.raw_comp;
+      let finalName = coalitionName || off.id || off.raw_comp;
+      const rawCompNorm = off.raw_comp.replace(/\s/g, '').toUpperCase();
+      const finalNameNorm = finalName.replace(/\s/g, '').toUpperCase();
+      
+      // Ajuste de redundância
+      if (rawCompNorm === finalNameNorm || finalNameNorm.includes(rawCompNorm)) {
+        finalName = off.raw_comp;
+      }
 
       results.push({
         name: finalName,
         votes: off.votes,
-        pct: totalValidosDisplay > 0 ? off.votes / totalValidosDisplay : 0,
-        elected: off.elected || 0,
+        pct: (totalValidosDisplay > 0) ? (off.votes / totalValidosDisplay) : 0,
+        elected: off.elected,
         color: bestColor,
-        isGroup: members.length > 1,
+        isGroup: true,
         composition: off.raw_comp
       });
     });
-
   } else {
     // MODO PARTIDOS INDIVIDUAIS
     totalValidosDisplay = officialSummary ? ensureNumber(officialSummary.totalValidos) : totalVotesMap;
     if (ufBlock) statsOfficial = ufBlock.stats;
 
-    for (const [partyName, data] of Object.entries(aggParty)) {
+    for (const [groupKey, data] of Object.entries(aggParty)) {
       if (data.votes > 0) {
         results.push({
-          name: partyName,
+          name: data.name,
           votes: data.votes,
           pct: totalValidosDisplay > 0 ? data.votes / totalValidosDisplay : 0,
           elected: data.electedSet.size,
-          color: colorForParty(partyName),
-          isGroup: false,
-          composition: partyName
+          color: colorForParty(data.dominantParty) || DEFAULT_SWATCH,
+          isGroup: data.isGroup,
+          composition: data.composition
         });
       }
     }
@@ -3162,3 +3176,4 @@ window.PARTY_COLOR_OVERRIDES = PARTY_COLOR_OVERRIDES;
 // Expor currentTurno como getter para sempre pegar o valor atualizado
 Object.defineProperty(window, 'currentTurno', { get() { return currentTurno; }, configurable: true });
 Object.defineProperty(window, 'currentCargo', { get() { return currentCargo; }, configurable: true });
+window.updateSelectionUI = updateSelectionUI;

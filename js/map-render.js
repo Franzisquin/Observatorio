@@ -1,3 +1,53 @@
+// Cache para resolver coligações/federações em loops de renderização (Performance)
+const _proportionalGroupCache = new WeakMap();
+
+function getCachedGroupedProportionalInfo(metaStore) {
+  if (!metaStore) return new Map();
+  if (_proportionalGroupCache.has(metaStore)) {
+    return _proportionalGroupCache.get(metaStore);
+  }
+
+  const grouped = new Map(); // Map<SiglaOuComposicao, Info>
+
+  Object.entries(metaStore).forEach(([id, meta]) => {
+    // Pula votos de legenda no loop de construção do mapa de grupos
+    if (id.length <= 2) return;
+    
+    const rawComposition = String(meta[4] || '').trim().toUpperCase();
+    const rawGroupName = String(meta[3] || '').trim();
+    if (!rawComposition) return;
+
+    const normalizedComposition = rawComposition
+      .split('/')
+      .map(s => s.trim().toUpperCase())
+      .filter(Boolean)
+      .join('/');
+    
+    // Evitar nome redundante (Ex: FE BRASIL (PT/PCdoB/PV) para apenas FE BRASIL)
+    let finalName = rawGroupName && rawGroupName.toUpperCase() !== 'PARTIDO ISOLADO' ? rawGroupName : normalizedComposition;
+    const nameNorm = String(finalName || '').toUpperCase().replace(/\s/g, '');
+    const compNorm = normalizedComposition.replace(/\s/g, '');
+    if (nameNorm === compNorm || nameNorm.includes(compNorm)) {
+       finalName = normalizedComposition;
+    }
+
+    const info = {
+      key: `group:${normalizedComposition}`,
+      name: finalName,
+      composition: normalizedComposition,
+      isGroup: normalizedComposition.includes('/')
+    };
+
+    // Indexa por composição e por sigla dos membros (para lookup de legenda)
+    grouped.set(normalizedComposition, info);
+    normalizedComposition.split('/').forEach(sigla => {
+      if (!grouped.has(sigla)) grouped.set(sigla, info);
+    });
+  });
+
+  _proportionalGroupCache.set(metaStore, grouped);
+  return grouped;
+}
 
 function resolveFeatureSelectionId(properties) {
   if (typeof getFeatureSelectionId === 'function') {
@@ -488,7 +538,8 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
     const rawLegendName = prefixCache?.[candidateKey] || meta?.[1] || candidateKey;
     const legendParty = normalizePartyAlias(tryResolveGenericParty(rawLegendName, candidateKey));
     
-    const groupedPartyInfo = getGroupedProportionalInfoByParty(metaStore).get(legendParty);
+    // Usa cache para evitar O(n^2)
+    const groupedPartyInfo = getCachedGroupedProportionalInfo(metaStore).get(legendParty);
     if (groupedPartyInfo) {
       return {
         ...groupedPartyInfo,
@@ -519,15 +570,40 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
     .join('/');
 
   const hasGroupedComposition = normalizedComposition && normalizedComposition.includes('/');
+  
+  // Se não tem composição de grupo explícita no candidato, tenta ver se o partido DELE 
+  // já foi identificado como parte de um grupo em outro candidato do mesmo metaStore.
+  if (!hasGroupedComposition) {
+      const globalGroupInfo = getCachedGroupedProportionalInfo(metaStore).get(rawParty);
+      if (globalGroupInfo) {
+          return {
+              ...globalGroupInfo,
+              party: rawParty
+          };
+      }
+  }
+
   const validCoalitionName = rawCoalitionName
     && !/^PARTIDO ISOLADO$/i.test(rawCoalitionName)
-    && !/^FEDERACAO$/i.test(norm(rawCoalitionName))
-    && !/^COLIGACAO$/i.test(norm(rawCoalitionName));
+    && !/^(FEDERACAO|FEDERACAO|FEDERAÃ‡ÃƒO)/i.test(norm(rawCoalitionName))
+    && !/^(COLIGACAO|COLIGACAO|COLIGAÃ‡ÃƒO)/i.test(norm(rawCoalitionName));
 
   if (hasGroupedComposition) {
+    let finalName = validCoalitionName ? tryResolveGenericParty(rawCoalitionName, candidateKey.substring(0, 2)) : normalizedComposition;
+    
+    // Evita redundância no nome se o nome da coligação já contiver a sigla/composição
+    const normComp = normalizedComposition.replace(/\s/g, '').toUpperCase();
+    const normFinal = finalName.replace(/\s/g, '').toUpperCase();
+    if (normFinal.includes(normComp) && normFinal.length > normComp.length + 2) {
+        // Se o nome é maior e contém a comp, provavelmente é o nome amigável + comp entre parenteses. 
+        // Mantemos, mas se for igual ou quase igual, simplificamos.
+    } else if (normComp === normFinal) {
+        finalName = normalizedComposition;
+    }
+
     return {
       key: `group:${norm(normalizedComposition)}`,
-      name: validCoalitionName ? tryResolveGenericParty(rawCoalitionName, candidateKey.substring(0, 2)) : normalizedComposition,
+      name: finalName,
       composition: normalizedComposition || rawComposition,
       party: rawParty,
       isGroup: true
@@ -735,10 +811,33 @@ function buildMunicipalityTooltip(feature, summary) {
   let rows = '';
   Object.entries(result.votes || {})
     .map(([key, votes]) => {
-      const info = parseCandidateKey(key);
+      let candName = 'N/D';
+      let candParty = '';
+
+      if (key.startsWith('group:') || key.startsWith('party:')) {
+        const isVereador = currentCargo.startsWith('vereador');
+        const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+        const parts = key.split(':');
+        const idOrComp = parts[1];
+        
+        if (key.startsWith('party:')) {
+          candName = idOrComp;
+          candParty = idOrComp;
+        } else {
+          const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
+          const found = groupedInfo.get(idOrComp) || Array.from(groupedInfo.values()).find(info => info.key === key);
+          candName = found ? found.name : idOrComp;
+          candParty = found ? (found.composition || idOrComp) : idOrComp;
+        }
+      } else {
+        const info = parseCandidateKey(key);
+        candName = info.nome;
+        candParty = info.partido;
+      }
+
       return {
-        name: info.nome,
-        party: info.partido,
+        name: candName,
+        party: candParty,
         votes: ensureNumber(votes)
       };
     })
@@ -815,27 +914,39 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       grouped.set(cityName, entry);
     }
 
-    if (cargoKey.startsWith('deputado')) {
-      const isEstadual = cargoKey === 'deputado_estadual';
-      const typeKey = isEstadual ? 'e' : 'f';
+    if (cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador')) {
+      const isVereador = cargoKey.startsWith('vereador');
+      const typeKey = isVereador ? 'v' : (cargoKey === 'deputado_estadual' ? 'e' : 'f');
       const locId = resolveFeatureSelectionId(props);
-      const data = STATE.deputyResults?.[locId];
+      
+      const resultStore = isVereador ? STATE.vereadorResults : STATE.deputyResults;
+      const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+      const prefixCache = isVereador ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache;
+      const lookup = isVereador ? STATE.vereadorLookup : STATE.deputyLookup;
+
+      let key = locId;
+      if (lookup) {
+        key = lookup.get(locId) || locId;
+      }
+      
+      const data = resultStore?.[key];
       if (!data || !data[typeKey]) return;
 
-      const votes = data[typeKey]; // { candId: votes }
+      const votes = data[typeKey]; 
       Object.entries(votes).forEach(([candId, count]) => {
-        if (candId === '95' || candId === '96') return; // Skip brancos/nulos here
+        if (candId === '95' || candId === '96') return; 
         if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
 
         const v = ensureNumber(count);
         if (v <= 0) return;
 
-        // Aggregate by Party Name for Tooltips and Municipality Summary
-        const meta = STATE.deputyMetadata?.[candId];
-        const party = meta ? meta[1] : (candId.length === 2 ? candId : 'N/D');
-        const partyKey = `${party} (${party})`;
+        const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+        const groupKey = groupInfo.key;
 
-        entry.votes[partyKey] = (entry.votes[partyKey] || 0) + v;
+        if (!entry.votes[groupKey]) {
+           entry.votes[groupKey] = 0;
+        }
+        entry.votes[groupKey] += v;
         entry.totalValid += v;
       });
     } else {
@@ -862,12 +973,29 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
     const [winnerKey, winnerVotesRaw] = orderedVotes[0];
     const [, secondVotesRaw] = orderedVotes[1] || [null, 0];
-    let winnerInfo;
-    if (cargoKey.startsWith('deputado')) {
-      // For deputies, the key is already "PARTY (PARTY)"
-      winnerInfo = parseCandidateKey(winnerKey);
+    let winnerName = 'N/D';
+    let winnerParty = '';
+
+    if (winnerKey.startsWith('group:') || winnerKey.startsWith('party:')) {
+      const isVereador = cargoKey.startsWith('vereador');
+      const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+      const parts = winnerKey.split(':');
+      const type = parts[0];
+      const idOrComp = parts[1];
+
+      if (type === 'party') {
+        winnerName = idOrComp;
+        winnerParty = idOrComp;
+      } else {
+        const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
+        const found = groupedInfo.get(idOrComp) || Array.from(groupedInfo.values()).find(info => info.key === winnerKey);
+        winnerName = found ? found.name : idOrComp;
+        winnerParty = found ? found.composition : idOrComp;
+      }
     } else {
-      winnerInfo = parseCandidateKey(winnerKey);
+      const winnerInfo = parseCandidateKey(winnerKey);
+      winnerName = winnerInfo.nome || 'N/D';
+      winnerParty = winnerInfo.partido || '';
     }
     const winnerVotes = ensureNumber(winnerVotesRaw);
     const secondVotes = ensureNumber(secondVotesRaw);
@@ -876,8 +1004,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       nome: entry.nome,
       muniCode: entry.muniCode,
       winnerCode: winnerKey,
-      winnerName: winnerInfo.nome || 'N/D',
-      winnerParty: winnerInfo.partido || '',
+      winnerName: winnerName,
+      winnerParty: winnerParty,
       totalValid: entry.totalValid,
       margin: entry.totalValid > 0 ? ((winnerVotes - secondVotes) / entry.totalValid) * 100 : 0,
       turno: turnoKey,
@@ -913,8 +1041,8 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
   dom.summaryBoxContainer.classList.add('section-hidden');
   if (dom.turnTabs) dom.turnTabs.innerHTML = '';
   dom.resultsTitle.textContent = `Estado Completo (${uf})`;
-  dom.resultsSubtitle.textContent = `${ufName} â€¢ nenhum local encontrado`;
-  dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum local agregado disponÃ­vel para este recorte.</p>';
+  dom.resultsSubtitle.textContent = `${ufName} • nenhum local encontrado`;
+  dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Nenhum local agregado disponível para este recorte.</p>';
   dom.resultsMetrics.innerHTML = '';
   if (typeof updateNeighborhoodProfileUI === 'function') updateNeighborhoodProfileUI();
 }
@@ -935,7 +1063,7 @@ async function showGeneralMunicipalityOverview(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
 
-  showMapLoading(`Carregando visÃ£o municipal de ${ufNorm}...`);
+  showMapLoading(`Carregando visão municipal de ${ufNorm}...`);
 
   try {
     STATE.currentMapMode = 'municipios';
@@ -994,8 +1122,8 @@ async function showGeneralMunicipalityOverview(uf) {
 
     renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
   } catch (error) {
-    console.error('[Geral] Falha ao montar visÃ£o municipal:', error);
-    showToast(`Erro ao carregar a visÃ£o municipal: ${error.message}`, 'error');
+    console.error('[Geral] Falha ao montar visão municipal:', error);
+    showToast(`Erro ao carregar a visão municipal: ${error.message}`, 'error');
   } finally {
     hideMapLoading();
   }
@@ -1123,7 +1251,7 @@ function renderDeputySearchResults(results, container, query) {
 
 // ====== MAP RENDERING ======
 
-// VariÃ¡vel para guardar o listener de movimento
+// Variável para guardar o listener de movimento
 let moveEndListener = null;
 
 function applyFiltersAndRedraw() {
@@ -1168,7 +1296,7 @@ function applyFiltersAndRedraw() {
     mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
   }
 
-  // Recalcular estatÃ­sticas do candidato se estiver no modo Desempenho
+  // Recalcular estatísticas do candidato se estiver no modo Desempenho
   if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
     const candidatoKey = dom.selectVizCandidato.value;
     performanceModeStats = calculateCandidateStats(candidatoKey) || {
@@ -1304,6 +1432,11 @@ function refreshTurnDependentUI() {
       if (typeof layer.setRadius === 'function') {
         layer.setRadius(getPointRadiusForFeature(feature));
       }
+
+      // Refresh tooltips to match new currentTurno
+      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
+        layer.setTooltipContent(buildLocationTooltip(feature));
+      }
     });
   }
 
@@ -1387,7 +1520,7 @@ function filterFeature(feature) {
     }
   }
 
-  // --- FILTROS CENSITÃRIOS ---
+  // --- FILTROS CENSITÁRIOS ---
 
   // 1. Renda (Direto)
   const renda = ensureNumber(getProp(props, 'Renda Media'));
@@ -1440,8 +1573,8 @@ function filterFeature(feature) {
       const total = h + m;
       if (total === 0) return false;
 
-      // Se for Pct, total Ã© ~100.
-      // filterVal Ã© 0-100.
+      // Se for Pct, total é ~100.
+      // filterVal é 0-100.
 
       // 'Pct Mulheres' vs 'Pct Homens'
       if (filterMode === 'Pct Mulheres') numerator = m;
@@ -1475,7 +1608,7 @@ function filterFeature(feature) {
       if (filterMode === 'Solteiro') num = s;
       else if (filterMode === 'Casado') num = c;
       else if (filterMode === 'Divorciado') num = d;
-      else if (filterMode === 'ViÃºvo') num = v;
+      else if (filterMode === 'Viúvo') num = v;
       else num = sep;
 
       return (num / den * 100) >= filterVal;
@@ -1501,11 +1634,11 @@ function filterFeature(feature) {
       if (den === 0) return false;
 
       if (filterMode.includes('Analfabeto')) num = ana;
-      else if (filterMode.includes('LÃª')) num = le;
+      else if (filterMode.includes('Lê')) num = le;
       else if (filterMode === 'Fund. Incomp.') num = fi;
       else if (filterMode === 'Fund. Completo') num = fc;
-      else if (filterMode === 'MÃ©dio Incomp.') num = mi;
-      else if (filterMode === 'MÃ©dio Completo') num = mc;
+      else if (filterMode === 'Médio Incomp.') num = mi;
+      else if (filterMode === 'Médio Completo') num = mc;
       else if (filterMode === 'Superior Incompleto') num = si;
       else if (filterMode === 'Superior Completo') num = sc;
 
@@ -2018,12 +2151,6 @@ function clearSelection(updateMap = true) {
     dom.inputBairro.disabled = true;
     dom.inputBairro.value = 'all';
   }
-
-  selectedLocationIDs.clear();
-  STATE.isFilterAggregationActive = false;
-
-  if (updateMap && currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
-  if (dom.resultsBox) dom.resultsBox.classList.add('section-hidden');
   if (dom.resultsContent) dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);"><p style="margin-bottom:8px">&#x1F446;</p>Clique no mapa ou use filtros para ver resultados.</div>';
   if (dom.resultsMetrics) dom.resultsMetrics.innerHTML = '';
   if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
@@ -2312,6 +2439,8 @@ if (typeof window !== 'undefined') {
   window.getMunicipalityFeatureCode = getMunicipalityFeatureCode;
   window.getMunicipalityFeatureName = getMunicipalityFeatureName;
   window.showMunicipalStatewideOverview = showMunicipalStatewideOverview;
+  window.resolveProportionalGroupInfo = resolveProportionalGroupInfo;
+  window.getCachedGroupedProportionalInfo = getCachedGroupedProportionalInfo;
 }
 
 function focusSelectionOnMap(options = {}) {
@@ -2671,3 +2800,10 @@ function refreshMapStylesAndTooltips() {
 
 // Exporta para uso global
 window.refreshMapStylesAndTooltips = refreshMapStylesAndTooltips;
+
+window.clearSelection = clearSelection;
+window.getAllFeaturesForAggregation = getAllFeaturesForAggregation;
+window.focusSelectionOnMap = focusSelectionOnMap;
+window.focusCurrentLayerOnMap = focusCurrentLayerOnMap;
+window.syncResultsPanelToCurrentView = syncResultsPanelToCurrentView;
+

@@ -317,6 +317,14 @@ async function onClickLoadData_Deputies_legado(uf, year) {
         STATE.deputyResults[locId][typeKey] = votes;
       });
 
+      // Clear metadata for the specific type to avoid "ghosts"
+      // Note: We could clear everything, but fullJson.METADATA contains the metadata for the CURRENT file (which is specific to a type)
+      // If we want to avoid Federal candidates showing up in Estadual, we should either:
+      // a) Clear STATE.deputyMetadata completely before assign (Simplest)
+      // b) Only clear IDs that are not in the new meta (Harder)
+      // Given how the app works, clearing completely is safer.
+      STATE.deputyMetadata = {}; 
+
       // Merge Metadata
       Object.assign(STATE.deputyMetadata, meta);
       deputyNameToIdCache = {}; // Invalidate reverse map cache
