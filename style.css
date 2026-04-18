@@ -537,10 +537,13 @@ body {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 14px;
   position: relative;
   border-radius: 4px;
   min-height: 22px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cand-bar-wrapper-major {
@@ -551,7 +554,7 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  right: 0;
   opacity: 0.3;
   border-radius: 4px;
   z-index: 0;
@@ -560,10 +563,15 @@ body {
 .cand-votos {
   position: relative;
   z-index: 1;
-  padding-left: 6px;
+  padding-left: 0;
   font-variant-numeric: tabular-nums;
   color: var(--text);
   font-size: 0.8rem;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  min-width: max-content;
+  margin-left: auto;
+  text-align: right;
 }
 
 .cand-pct {
@@ -574,6 +582,9 @@ body {
   font-weight: 600;
   color: var(--text);
   font-size: 0.85rem;
+  white-space: nowrap;
+  flex: 0 0 74px;
+  text-align: right;
 }
 
 .status-badge {
@@ -646,6 +657,7 @@ body {
 .party-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 4px;
   padding: 6px 6px;
   cursor: pointer;
@@ -672,7 +684,7 @@ body {
 .party-header {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 6px 6px;
   cursor: pointer;
   transition: background 0.15s;
@@ -688,7 +700,8 @@ body {
   align-items: center;
   gap: 5px;
   min-height: 22px;
-  flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .party-header-arrow {
@@ -728,7 +741,9 @@ body {
   font-size: 0.68rem;
   color: var(--muted);
   line-height: 1.2;
-  white-space: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .party-header-name {
@@ -749,20 +764,36 @@ body {
 }
 
 .party-header-right {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 clamp(168px, 42%, 240px);
+  min-width: 168px;
 }
 
 .party-header-right .cand-bar-wrapper {
-  min-height: 20px;
+  min-height: 22px;
+  width: 100%;
 }
 
 .party-header-right .cand-votos {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
 }
 
 .party-header-right .cand-pct {
-  font-size: 0.78rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 520px) {
+  .party-header {
+    gap: 6px;
+  }
+
+  .party-header-right {
+    flex-basis: 150px;
+    min-width: 150px;
+  }
+
+  .party-header-name {
+    font-size: 0.78rem;
+  }
 }
 
 /* Expanded candidate list inside party group */

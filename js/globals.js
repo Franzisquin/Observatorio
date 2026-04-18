@@ -424,8 +424,57 @@ function getNormalizedPartyColorKey(partido) {
   return cleanParty;
 }
 
+function getFederationColorPartyKey(partido) {
+  const raw = String(partido || '').trim();
+  if (!raw) return '';
+
+  const normalizedRaw = raw
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (normalizedRaw.includes('BRASIL DA ESPERANCA')) return 'PT';
+  if (normalizedRaw.includes('PSOL/REDE') || normalizedRaw.includes('PSOL REDE')) return 'PSOL';
+  if (normalizedRaw.includes('PSDB/CIDADANIA') || normalizedRaw.includes('PSDB CIDADANIA')) return 'PSDB';
+
+  const compositionSource = (() => {
+    const matches = Array.from(normalizedRaw.matchAll(/\(([^()]+)\)/g))
+      .map((match) => String(match[1] || '').trim())
+      .filter((value) => value.includes('/'));
+    if (matches.length) return matches[matches.length - 1];
+    return normalizedRaw.includes('/') ? normalizedRaw : '';
+  })();
+
+  if (!compositionSource) return '';
+
+  const normalizedParts = compositionSource
+    .split('/')
+    .map((part) => {
+      let token = part.trim();
+      token = token.replace(/^FEDERACAO\s+/, '');
+      token = token.replace(/^COLIGACAO\s+/, '');
+      return getNormalizedPartyColorKey(token);
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, 'pt-BR'));
+
+  const signature = normalizedParts.join('/');
+  if (signature === 'PCDOB/PT/PV') return 'PT';
+  if (signature === 'PSOL/REDE') return 'PSOL';
+  if (signature === 'CIDADANIA/PSDB') return 'PSDB';
+  return '';
+}
+
+function getProportionalListColorKey(groupName, composition, dominantParty = '') {
+  return getFederationColorPartyKey(groupName)
+    || getFederationColorPartyKey(composition)
+    || getNormalizedPartyColorKey(dominantParty)
+    || getNormalizedPartyColorKey(composition)
+    || getNormalizedPartyColorKey(groupName);
+}
+
 function getResolvedPartyColor(partido) {
-  const cleanParty = getNormalizedPartyColorKey(partido);
+  const cleanParty = getFederationColorPartyKey(partido) || getNormalizedPartyColorKey(partido);
   return CUSTOM_PARTY_COLORS.get(cleanParty)
     || PARTY_COLOR_OVERRIDES.get(cleanParty)
     || PARTY_COLORS.get(cleanParty)
@@ -755,7 +804,9 @@ let isDragSelection = false; // Flag to track if last selection was drag
 function clearDeputyData() {
   STATE.deputyResults = {};
   STATE.deputyMetadata = {};
+  STATE.deputyMetadataByType = { f: {}, e: {} };
   STATE.deputyAdjustments = {};
+  STATE.deputyAdjustmentsByType = { f: {}, e: {} };
   STATE.deputyCache = {};
   STATE.deputyLookup = null;
   STATE.deputyLookupCargo = null;
@@ -763,6 +814,25 @@ function clearDeputyData() {
   loadedDeputyState = { uf: null, types: new Set(), year: null };
 
   console.log('✓ Dados de deputados completamente limpos');
+}
+
+function ensureDeputyTypeStores() {
+  if (!STATE.deputyMetadataByType) STATE.deputyMetadataByType = { f: {}, e: {} };
+  if (!STATE.deputyAdjustmentsByType) STATE.deputyAdjustmentsByType = { f: {}, e: {} };
+}
+
+function getDeputyTypeKeyForCargo(cargo = currentCargo) {
+  return String(cargo || '').includes('estadual') ? 'e' : 'f';
+}
+
+function syncDeputyDataForCargo(cargo = currentCargo) {
+  ensureDeputyTypeStores();
+  const typeKey = getDeputyTypeKeyForCargo(cargo);
+  STATE.deputyMetadata = STATE.deputyMetadataByType[typeKey] || {};
+  STATE.deputyAdjustments = STATE.deputyAdjustmentsByType[typeKey] || {};
+  STATE._partyPrefixCache = null;
+  deputyNameToIdCache = {};
+  return typeKey;
 }
 
 // ====== ESTADO E LIMPEZA DE VEREADORES ======

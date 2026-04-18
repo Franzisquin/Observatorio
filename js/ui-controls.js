@@ -254,6 +254,9 @@ function setupControls() {
       }
 
       setTimeout(() => {
+        if (currentOffice === 'deputado' && typeof syncDeputyDataForCargo === 'function') {
+          syncDeputyDataForCargo(currentCargo);
+        }
         updateElectionTypeUI();
         populateCidadeDropdown();
         if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
@@ -410,12 +413,18 @@ function setupControls() {
     updateElectionTypeUI();
     updateConditionalUI();
     if (!dom.selectMunicipio.value) {
+      STATE.currentMuniCode = null;
       const uf = dom.selectUFMunicipal?.value;
       if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
         window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
       }
       return;
     }
+
+    if (typeof window.refreshMunicipalSelectionOverlay === 'function') {
+      window.refreshMunicipalSelectionOverlay({ focus: true });
+    }
+
     scheduleInstantLoad();
   });
 
@@ -497,7 +506,11 @@ function setupControls() {
       }
 
       const uf = dom.selectUFMunicipal?.value;
-      if (uf && !dom.selectMunicipio?.value && typeof window.showMunicipalStatewideOverview === 'function') {
+      if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
+        if (dom.selectMunicipio?.value) {
+          dom.selectMunicipio.value = '';
+          STATE.currentMuniCode = null;
+        }
         window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
       }
     });

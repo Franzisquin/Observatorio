@@ -525,7 +525,10 @@ async function onClickLoadData_Deputies_2014(uf, year) {
         STATE.deputyResults[locId][typeKey] = votes;
       });
 
-      Object.assign(STATE.deputyMetadata, meta);
+      ensureDeputyTypeStores();
+      STATE.deputyMetadataByType[typeKey] = { ...meta };
+      STATE.deputyMetadata = STATE.deputyMetadataByType[typeKey];
+      STATE._partyPrefixCache = null;
       deputyNameToIdCache = {};
 
       if (!STATE.inaptos) STATE.inaptos = {};
@@ -535,8 +538,9 @@ async function onClickLoadData_Deputies_2014(uf, year) {
         .map(([cid]) => cid);
 
       if (fullJson.METADATA?.coalition_adjustments) {
-        if (!STATE.deputyAdjustments) STATE.deputyAdjustments = {};
-        Object.assign(STATE.deputyAdjustments, fullJson.METADATA.coalition_adjustments);
+        ensureDeputyTypeStores();
+        STATE.deputyAdjustmentsByType[typeKey] = { ...fullJson.METADATA.coalition_adjustments };
+        STATE.deputyAdjustments = STATE.deputyAdjustmentsByType[typeKey];
       }
 
       loadedDeputyState.types.add(typeKey);

@@ -1273,12 +1273,20 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
   currentLocalFilter = '';
   STATE.currentMapMode = 'locais';
 
-  if (STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
+  const preserveMunicipalOverview =
+    STATE.currentElectionType === 'municipal'
+    && !!dom.selectMunicipio?.value
+    && !!STATE.municipiosLayer
+    && map?.hasLayer?.(STATE.municipiosLayer);
+
+  if (!preserveMunicipalOverview && STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
     map.removeLayer(STATE.municipiosLayer);
   }
-  STATE.currentMapMuniSummary = null;
-  STATE.currentMapMuniSummaryByTurn = null;
-  STATE.currentMapMuniUF = null;
+  if (!preserveMunicipalOverview) {
+    STATE.currentMapMuniSummary = null;
+    STATE.currentMapMuniSummaryByTurn = null;
+    STATE.currentMapMuniUF = null;
+  }
 
   updateElectionTypeUI();
   dom.summaryBoxContainer.classList.add('section-hidden');
@@ -1314,10 +1322,16 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
   updateConditionalUI();
   applyFiltersAndRedraw();
   try {
-    const bounds = currentLayer?.getBounds();
-    if (bounds?.isValid()) {
-      if (typeof applyMapViewportAfterDataLoad === 'function') applyMapViewportAfterDataLoad(bounds);
-      else map.fitBounds(bounds);
+    const focusedSelection = typeof window.focusSelectedMunicipalityOnMap === 'function'
+      ? window.focusSelectedMunicipalityOnMap({ animate: true, duration: 0.6 })
+      : false;
+
+    if (!focusedSelection) {
+      const bounds = currentLayer?.getBounds();
+      if (bounds?.isValid()) {
+        if (typeof applyMapViewportAfterDataLoad === 'function') applyMapViewportAfterDataLoad(bounds);
+        else map.fitBounds(bounds);
+      }
     }
   } catch (error) { }
 }

@@ -1477,15 +1477,18 @@ function ensureVereadorLookupForCargo(cargo) {
 
 function aggregateProportionalGroupsForSelection(cargo) {
   const isVereador = cargo.startsWith('vereador');
+  if (!isVereador && typeof syncDeputyDataForCargo === 'function') {
+    syncDeputyDataForCargo(cargo);
+  }
+
+  if (typeof ensurePartyPrefixCache === 'function') {
+    ensurePartyPrefixCache(isVereador);
+  }
+
   const typeKey = isVereador ? 'v' : (cargo === 'deputado_federal' ? 'f' : 'e');
   const resultStore = isVereador ? (STATE.vereadorResults || {}) : (STATE.deputyResults || {});
   const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
   const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
-  
-  // Garante que o cache de siglas (PP, PT, etc) esteja populado para resolver "PARTIDO XX"
-  if (typeof ensurePartyPrefixCache === 'function') {
-    ensurePartyPrefixCache(isVereador);
-  }
 
   const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[cargo]?.['1T'] || []);
   const groups = new Map();
@@ -1608,10 +1611,12 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
       }));
 
     const electedCount = candidates.filter((candidate) => candidate.statusInfo.elected).length;
+    const colorPartyKey = getProportionalListColorKey(group.name, group.composition, dominantParty);
     return {
       ...group,
-      color: colorForParty(dominantParty),
+      color: colorForParty(colorPartyKey),
       dominantParty,
+      colorPartyKey,
       candidates,
       electedCount
     };
@@ -1655,7 +1660,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         </div>
       </div>
       <div class="party-header-right">
-        <div class="cand-bar-wrapper">
+        <div class="cand-bar-wrapper cand-bar-wrapper-major">
           <div class="cand-bar-fill" style="background:${group.color}; width:${pct * 100}%;"></div>
           <div class="cand-votos">${fmtInt(group.votes)}</div>
           <div class="cand-pct">${fmtPct(pct)}</div>
@@ -3047,6 +3052,7 @@ function precomputeDeputyWinners() {
     ['f', 'e'].forEach(typeKey => {
       const votes = data[typeKey];
       if (!votes) return;
+      const metaStore = STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {};
 
       let maxV = -1;
       let winner = null;
@@ -3071,7 +3077,7 @@ function precomputeDeputyWinners() {
           }
 
           // Soma por Partido
-          const meta = STATE.deputyMetadata[cand];
+          const meta = metaStore[cand];
           if (meta) {
             const party = meta[1]; // Sigla do partido
             partyVotes[party] = (partyVotes[party] || 0) + vi;
@@ -3107,6 +3113,9 @@ function precomputeDeputyWinners() {
 // const/let/function nÃ£o criam propriedades em window automaticamente.
 // ise.js precisa acessar estes objetos para renderizar os grÃ¡ficos do ISE.
 function renderDeputyResults(cargo) {
+  if (typeof syncDeputyDataForCargo === 'function') {
+    syncDeputyDataForCargo(cargo);
+  }
   STATE.deputyViewMode = 'party';
   STATE.deputyPartyViewMode = 'federation';
   renderDeputyPartyResults(cargo);
@@ -3121,6 +3130,9 @@ function renderVereadorResults(cargo) {
 function renderDeputyPartyResults(cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
+  if (typeof syncDeputyDataForCargo === 'function') {
+    syncDeputyDataForCargo(cargo);
+  }
 
   const payload = aggregateProportionalGroupsForSelection(cargo);
   const typeKey = cargo === 'deputado_federal' ? 'f' : 'e';
