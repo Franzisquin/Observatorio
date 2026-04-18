@@ -41,7 +41,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
       const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
-      dom.resultsSubtitle.textContent = `${bairro} â€¢ Zona: ${zona}`;
+      dom.resultsSubtitle.textContent = `${bairro} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
       dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
@@ -78,7 +78,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
       const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
-      dom.resultsSubtitle.textContent = `${nomeCidade} â€¢ ${bairro} â€¢ Zona: ${zona}`;
+      dom.resultsSubtitle.textContent = `${nomeCidade} • ${bairro} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
       dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
@@ -172,7 +172,7 @@ function renderSummaryBoxes(aggregatedProps) {
       ? candidatosSemInaptos.reduce((sum, cand) => sum + ensureNumber(cand.votos), 0)
       : getVotosValidos(props, cargoKey, turnoKey, true).totalValidos;
 
-    const isInaptoWinner = (winnerWithInaptos.status === 'INAPTO' || winnerWithInaptos.status === 'RENÃšNCIA');
+    const isInaptoWinner = (winnerWithInaptos.status === 'INAPTO' || winnerWithInaptos.status === 'RENÚNCIA');
 
     if (isInaptoWinner) {
       const getPct = (v, total) => total > 0 ? v / total : 0;
@@ -386,8 +386,8 @@ function setupTurnTabs(props) {
 
 function getStatusBadge(status) {
   status = status.toUpperCase();
-  if (status === '2Â° TURNO' || status === '2Âº TURNO') return `<span class="status-badge segundo-turno"><svg><use href="#svg-arrow" /></svg> 2Âº Turno</span>`;
-  if (status === 'NÃƒO ELEITO') return `<span class="status-badge nao-eleito"><svg><use href="#svg-x" /></svg> NÃ£o Eleito</span>`;
+  if (status === '2º TURNO') return `<span class="status-badge segundo-turno"><svg><use href="#svg-arrow" /></svg> 2º Turno</span>`;
+  if (status === 'NÃO ELEITO') return `<span class="status-badge nao-eleito"><svg><use href="#svg-x" /></svg> Não Eleito</span>`;
   if (status === 'INAPTO') return `<span class="status-badge inapto"><svg><use href="#svg-x" /></svg> Inapto</span>`;
   return '';
 }
@@ -439,7 +439,7 @@ function ensureCandidateColorPopover() {
           <div class="candidate-color-kicker">Cor do Partido</div>
           <div class="candidate-color-name" id="candidateColorPopoverName">Candidato</div>
         </div>
-        <button type="button" class="candidate-color-close" data-color-action="close" aria-label="Fechar">Ã—</button>
+        <button type="button" class="candidate-color-close" data-color-action="close" aria-label="Fechar">×</button>
       </div>
       <div class="candidate-color-preview-row">
         <span class="candidate-color-preview" id="candidateColorPreview"></span>
@@ -460,7 +460,7 @@ function ensureCandidateColorPopover() {
         <input id="candidateColorHexInput" type="text" maxlength="7" placeholder="#2563EB" />
       </label>
       <div class="candidate-color-actions">
-        <button type="button" class="button ghost" data-color-action="reset">Cor padrÃ£o</button>
+        <button type="button" class="button ghost" data-color-action="reset">Cor padrão</button>
         <button type="button" class="button primary" data-color-action="apply">Aplicar</button>
       </div>
     </div>
@@ -553,7 +553,7 @@ function updateCandidateColorPopoverPreview(colorValue) {
   const normalized = normalizeCandidateHexColor(colorValue);
   preview.style.background = normalized || 'transparent';
   preview.style.borderColor = normalized || 'var(--border)';
-  valueEl.textContent = normalized || 'InvÃ¡lida';
+  valueEl.textContent = normalized || 'Inválida';
 
   popover.querySelectorAll('.candidate-color-chip').forEach((btn) => {
     btn.classList.toggle('active', btn.dataset.color === normalized);
@@ -606,7 +606,7 @@ function applyCandidateColorPopover() {
   const hexInput = popover.querySelector('#candidateColorHexInput');
   const color = normalizeCandidateHexColor(hexInput.value);
   if (!color || !activeCandidateColorTarget?.partido) {
-    showToast('Digite uma cor hexadecimal vÃ¡lida.', 'warn', 2200);
+    showToast('Digite uma cor hexadecimal válida.', 'warn', 2200);
     return;
   }
   setCandidateColor(activeCandidateColorTarget.partido, color);

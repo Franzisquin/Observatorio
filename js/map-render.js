@@ -101,8 +101,8 @@ function clearVizCandidateSelectionState() {
 
 function formatVizCandidateLabel(candidateData) {
   if (!candidateData) return '';
-  if (candidateData.isLegenda) return `Voto de Legenda â€” ${candidateData.partido}`;
-  return `${toTitleCase(candidateData.nome)} (${candidateData.partido}) â€¢ NÂº ${candidateData.numero}`;
+  if (candidateData.isLegenda) return `Voto de Legenda — ${candidateData.partido}`;
+  return `${toTitleCase(candidateData.nome)} (${candidateData.partido}) • Nº ${candidateData.numero}`;
 }
 
 function getResolvedVisualizationCandidateId(candidatoKey, cargo = currentCargo) {
@@ -264,7 +264,7 @@ function populateVizCandidatoDropdown(turno) {
         if (isLegenda) {
           const partidoResolvido = STATE[partyPrefixKey]?.[id];
           if (partidoResolvido) partido = normalizePartyAlias(partidoResolvido.toUpperCase());
-          nome = `Voto de Legenda â€” ${partido}`;
+          nome = `Voto de Legenda — ${partido}`;
         }
         return { id, nome, partido, status: meta[2] || '', votos: totalVotesByCand[id] || 0, numero: id, isLegenda };
       })
@@ -280,8 +280,8 @@ function populateVizCandidatoDropdown(turno) {
     if (deputySearchInput) {
       deputySearchInput.value = '';
       deputySearchInput.placeholder = deputySearchCandList.length > 0
-        ? `Buscar entre ${deputySearchCandList.length} candidatos (nome ou nÂº)...`
-        : 'Nenhum candidato disponÃ­vel';
+        ? `Buscar entre ${deputySearchCandList.length} candidatos (nome ou nº)...`
+        : 'Nenhum candidato disponível';
       deputySearchInput.disabled = deputySearchCandList.length === 0;
     }
     if (deputySearchResults) {
@@ -319,11 +319,11 @@ function populateVizCandidatoDropdown(turno) {
     return;
   }
 
-  // NÃ£o Ã© deputado: esconde search box, mostra select
+  // Não é deputado: esconde search box, mostra select
   dom.selectVizCandidato.style.display = '';
   if (deputySearchBox) deputySearchBox.style.display = 'none';
 
-  // EleiÃ§Ãµes gerais/municipais: comportamento original
+  // Eleições gerais/municipais: comportamento original
   const candidatos = STATE.candidates[currentCargo]?.[turno] || [];
   candidatos.forEach(key => {
     if (STATE.filterInaptos && (STATE.inaptos[currentCargo]?.[turno] || []).includes(key)) {
@@ -375,7 +375,7 @@ function setupDeputySearch(input, resultsContainer) {
     }
   });
 
-  // NavegaÃ§Ã£o por teclado
+  // Navegação por teclado
   input.addEventListener('keydown', (e) => {
     const items = resultsContainer.querySelectorAll('.search-result-item');
     if (items.length === 0) return;
@@ -430,14 +430,14 @@ function getMunicipalityFeatureCode(props) {
 }
 
 function getMunicipalityFeatureName(props) {
-  if (!props) return 'MunicÃ­pio';
+  if (!props) return 'Município';
   return String(
     props.NM_MUN ||
     props.nm_mun ||
     props.municipio ||
     props.nm_localidade ||
     props.NOME ||
-    'MunicÃ­pio'
+    'Município'
   ).trim();
 }
 
@@ -585,8 +585,8 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
 
   const validCoalitionName = rawCoalitionName
     && !/^PARTIDO ISOLADO$/i.test(rawCoalitionName)
-    && !/^(FEDERACAO|FEDERACAO|FEDERAÃ‡ÃƒO)/i.test(norm(rawCoalitionName))
-    && !/^(COLIGACAO|COLIGACAO|COLIGAÃ‡ÃƒO)/i.test(norm(rawCoalitionName));
+    && !/^(FEDERACAO|FEDERACAO|FEDERAÇÃO)/i.test(norm(rawCoalitionName))
+    && !/^(COLIGACAO|COLIGACAO|COLIGAÇÃO)/i.test(norm(rawCoalitionName));
 
   if (hasGroupedComposition) {
     let finalName = validCoalitionName ? tryResolveGenericParty(rawCoalitionName, candidateKey.substring(0, 2)) : normalizedComposition;
