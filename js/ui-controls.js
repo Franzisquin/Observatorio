@@ -414,6 +414,7 @@ function setupControls() {
     updateConditionalUI();
     if (!dom.selectMunicipio.value) {
       STATE.currentMuniCode = null;
+      STATE.pendingMunicipalFocusBounds = null;
       const uf = dom.selectUFMunicipal?.value;
       if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
         window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
@@ -510,6 +511,7 @@ function setupControls() {
         if (dom.selectMunicipio?.value) {
           dom.selectMunicipio.value = '';
           STATE.currentMuniCode = null;
+          STATE.pendingMunicipalFocusBounds = null;
         }
         window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
       }

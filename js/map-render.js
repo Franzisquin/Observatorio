@@ -582,11 +582,43 @@ function findSelectedMunicipalityLayer(selection = getCurrentMunicipalMapSelecti
   return matchedLayer;
 }
 
+function setPendingMunicipalFocusBounds(layer) {
+  const bounds = layer?.getBounds?.();
+  if (!bounds?.isValid?.()) {
+    STATE.pendingMunicipalFocusBounds = null;
+    return false;
+  }
+
+  const southWest = bounds.getSouthWest?.();
+  const northEast = bounds.getNorthEast?.();
+  if (!southWest || !northEast) {
+    STATE.pendingMunicipalFocusBounds = null;
+    return false;
+  }
+
+  STATE.pendingMunicipalFocusBounds = {
+    south: southWest.lat,
+    west: southWest.lng,
+    north: northEast.lat,
+    east: northEast.lng
+  };
+
+  return true;
+}
+
 function focusSelectedMunicipalityOnMap(options = {}) {
   if (!map) return false;
 
-  const selectedLayer = findSelectedMunicipalityLayer();
-  const bounds = selectedLayer?.getBounds?.();
+  let bounds = findSelectedMunicipalityLayer()?.getBounds?.() || null;
+  if (!bounds?.isValid?.()) {
+    const pending = STATE.pendingMunicipalFocusBounds;
+    if (pending) {
+      bounds = L.latLngBounds(
+        [pending.south, pending.west],
+        [pending.north, pending.east]
+      );
+    }
+  }
   if (!bounds?.isValid?.()) return false;
 
   map.flyToBounds(bounds, {
@@ -1283,6 +1315,8 @@ async function showGeneralMunicipalityOverview(uf) {
             layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
           },
           click: () => {
+            setPendingMunicipalFocusBounds(layer);
+            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45 });
             const nome = getMunicipalityFeatureName(feature.properties);
             const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
             currentCidadeFilter = matchedCity;
@@ -2442,17 +2476,18 @@ function getMunicipalPolygonStyle(feature, summary) {
   if (isSelected) {
     return {
       ...baseStyle,
-      fillOpacity: 0.05,
+      fillOpacity: 0.02,
       color: 'rgba(255, 255, 255, 0.96)',
-      weight: 2.2
+      weight: 2.4
     };
   }
 
   return {
     ...baseStyle,
-    fillOpacity: 0.52,
-    color: 'rgba(255, 255, 255, 0.18)',
-    weight: 0.7
+    fillColor: '#05070b',
+    fillOpacity: 0.38,
+    color: 'rgba(255, 255, 255, 0.22)',
+    weight: 0.9
   };
 }
 
@@ -2612,6 +2647,7 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
   clearSelection(true);
 
   try {
+    STATE.pendingMunicipalFocusBounds = null;
     STATE.currentMapMode = 'municipios';
     STATE.currentMapMuniUF = uf;
 
@@ -2656,6 +2692,8 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
             layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
           },
           click: () => {
+            setPendingMunicipalFocusBounds(layer);
+            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45 });
             const nome = getMunicipalityFeatureName(feature.properties);
             const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
             if (matchedOption) {

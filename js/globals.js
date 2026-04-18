@@ -612,6 +612,7 @@ const STATE = {
   currentMapMuniUF: null,
   currentMapMuniSummary: null,
   currentMapMuniSummaryByTurn: null,
+  pendingMunicipalFocusBounds: null,
   municipiosLayer: null,
   currentMuniCode: null,
   generalOfficialTotals: {},
