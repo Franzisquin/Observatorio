@@ -417,6 +417,7 @@ function updateConditionalUI() {
 function updateElectionTypeUI() {
   const isMunicipal = STATE.currentElectionType === 'municipal';
   const hasMunicipalSelection = !!(dom.selectMunicipio?.value);
+  if (dom.electionContextBox) dom.electionContextBox.classList.toggle('section-hidden', isMunicipal);
   if (dom.ctrlCidadeFilter) dom.ctrlCidadeFilter.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxGeneral) dom.officeBoxGeneral.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxMunicipal) dom.officeBoxMunicipal.classList.toggle('section-hidden', !isMunicipal || !hasMunicipalSelection);

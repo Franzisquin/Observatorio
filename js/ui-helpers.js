@@ -255,6 +255,7 @@ async function init() {
   dom.loaderBoxGeneral = document.getElementById('loaderBoxGeneral');
   dom.loaderBoxMunicipal = document.getElementById('loaderBoxMunicipal');
 
+  dom.electionContextBox = document.getElementById('electionContextBox');
   dom.officeBoxGeneral = document.getElementById('officeBoxGeneral');
   dom.cargoChipsGeneral = document.getElementById('cargoChipsGeneral');
   dom.selectUFGeneral = document.getElementById('selectUFGeneral');
