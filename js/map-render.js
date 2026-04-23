@@ -657,6 +657,48 @@ function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
   return true;
 }
 
+function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
+  const uf = String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
+  if (!uf || uf === 'BR' || STATE.currentElectionType !== 'geral') return false;
+  if (!STATE.municipiosLayer || !map?.hasLayer?.(STATE.municipiosLayer)) return false;
+
+  STATE.currentMapMuniUF = uf;
+  const preservedCidade = currentCidadeFilter;
+  const preservedBairro = currentBairroFilter;
+  const preservedLocal = currentLocalFilter;
+  try {
+    currentCidadeFilter = 'all';
+    currentBairroFilter = 'all';
+    currentLocalFilter = '';
+    STATE.currentMapMuniSummary = buildGeneralMunicipalityOverviewSummary(currentCargo);
+  } finally {
+    currentCidadeFilter = preservedCidade;
+    currentBairroFilter = preservedBairro;
+    currentLocalFilter = preservedLocal;
+  }
+
+  STATE.municipiosLayer.eachLayer((layer) => {
+    const feature = layer?.feature;
+    if (!feature) return;
+
+    if (typeof layer.setStyle === 'function') {
+      layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
+    }
+
+    if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
+      layer.setTooltipContent(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary));
+    }
+  });
+
+  refreshMunicipalSelectionOverlay();
+
+  if (syncResults) {
+    renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, uf);
+  }
+
+  return true;
+}
+
 const PROPORTIONAL_PARTY_GROUP_CACHE = new WeakMap();
 
 function getGroupedProportionalInfoByParty(metaStore) {
@@ -806,7 +848,7 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
   };
 }
 
-function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache) {
+function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, options = {}) {
   const resolvedPrefixCache = getResolvedPrefixCacheForMetaStore(metaStore, prefixCache);
   const groups = new Map();
   let total = 0;
@@ -853,7 +895,8 @@ function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache) {
     });
 
     group.candidates.sort((a, b) => b.votos - a.votos);
-    const colorPartyKey = getProportionalListColorKey(group.name, group.composition, dominantParty);
+    const colorPartyKey = options.colorKeyLookup?.get(group.key)
+      || getProportionalListColorKey(group.name, group.composition, dominantParty);
     return {
       ...group,
       color: colorForParty(colorPartyKey),
@@ -872,7 +915,12 @@ function getWinningProportionalListData(votesMap, type = 'deputado') {
     metaStore,
     isVereadorList ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
   );
-  const aggregated = aggregateProportionalVotesByList(votesMap, metaStore, prefixCache);
+  const aggregated = aggregateProportionalVotesByList(
+    votesMap,
+    metaStore,
+    prefixCache,
+    { colorKeyLookup: getScopedProportionalColorKeyLookup(type, currentCargo) }
+  );
   const winner = aggregated.groups[0] || null;
   if (!winner) return null;
   return {
@@ -881,6 +929,134 @@ function getWinningProportionalListData(votesMap, type = 'deputado') {
     pct: aggregated.total > 0 ? (winner.votes / aggregated.total) * 100 : 0,
     marginPct: getWinningMarginPct(aggregated.groups.map((group) => group.votes), aggregated.total)
   };
+}
+
+function invalidateScopedProportionalColorLookup() {
+  STATE._scopedProportionalColorLookupCache = null;
+  STATE._scopedProportionalColorScopeVersion = (STATE._scopedProportionalColorScopeVersion || 0) + 1;
+}
+
+function getProportionalResultKeyFromProps(props, isVereador = false) {
+  if (!props) return '';
+
+  const zona = parseInt(getProp(props, 'nr_zona'), 10);
+  const local = parseInt(getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao'), 10);
+  if (Number.isNaN(zona) || Number.isNaN(local)) return '';
+
+  if (isVereador) {
+    return `${zona}_${local}`;
+  }
+
+  const municipio = parseInt(getProp(props, 'cd_localidade_tse') || getProp(props, 'CD_MUNICIPIO'), 10);
+  if (Number.isNaN(municipio)) return '';
+  return `${zona}_${municipio}_${local}`;
+}
+
+function getScopedProportionalColorCacheKey(type = 'deputado', cargoKey = currentCargo) {
+  const hasSelection = selectedLocationIDs.size > 0;
+  const scopeKey = hasSelection
+    ? `selected:${STATE._scopedProportionalColorScopeVersion || 0}:${selectedLocationIDs.size}:${STATE.isFilterAggregationActive ? 'agg' : 'manual'}`
+    : [
+      STATE.currentElectionType,
+      currentMesorregiaoFilter,
+      currentMicrorregiaoFilter,
+      currentCidadeFilter,
+      currentBairroFilter,
+      String(currentLocalFilter || '').trim(),
+      STATE.filterInaptos ? 'inaptos' : 'todos'
+    ].join('|');
+
+  return `${cargoKey}|${type}|${scopeKey}`;
+}
+
+function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = currentCargo) {
+  const cacheKey = getScopedProportionalColorCacheKey(type, cargoKey);
+  const cached = STATE._scopedProportionalColorLookupCache;
+  if (cached?.key === cacheKey && cached.lookup instanceof Map) {
+    return cached.lookup;
+  }
+
+  const isVereadorList = type === 'vereador' || String(cargoKey || '').startsWith('vereador');
+  const resultStore = isVereadorList ? STATE.vereadorResults : STATE.deputyResults;
+  const metaStore = isVereadorList ? STATE.vereadorMetadata : STATE.deputyMetadata;
+  const prefixCache = getResolvedPrefixCacheForMetaStore(
+    metaStore,
+    isVereadorList ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
+  );
+  const lookup = new Map();
+
+  if (!resultStore || !metaStore) {
+    STATE._scopedProportionalColorLookupCache = { key: cacheKey, lookup };
+    return lookup;
+  }
+
+  const sourceKeys = new Set();
+  if (selectedLocationIDs.size > 0) {
+    if (isVereadorList && typeof ensureVereadorLookupForCargo === 'function') {
+      ensureVereadorLookupForCargo(cargoKey);
+    }
+    if (!isVereadorList && typeof ensureDeputyLookupForCargo === 'function') {
+      ensureDeputyLookupForCargo(cargoKey);
+    }
+
+    const locationLookup = isVereadorList ? STATE.vereadorLookup : STATE.deputyLookup;
+    selectedLocationIDs.forEach((id) => {
+      const key = locationLookup?.get(id);
+      if (key) sourceKeys.add(key);
+    });
+  } else {
+    const geojson = currentDataCollection[cargoKey];
+    geojson?.features?.forEach((feature) => {
+      if (!filterFeature(feature)) return;
+      const key = getProportionalResultKeyFromProps(feature.properties, isVereadorList);
+      if (key) sourceKeys.add(key);
+    });
+  }
+
+  const inaptos = isVereadorList
+    ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
+    : (STATE.inaptos[cargoKey]?.['1T'] || []);
+  const groups = new Map();
+  const typeKey = isVereadorList ? 'v' : (String(cargoKey || '').includes('estadual') ? 'e' : 'f');
+
+  sourceKeys.forEach((key) => {
+    const votesMap = resultStore?.[key]?.[typeKey];
+    if (!votesMap) return;
+
+    Object.entries(votesMap).forEach(([candidateId, rawVotes]) => {
+      if (candidateId === '95' || candidateId === '96') return;
+      if (STATE.filterInaptos && inaptos.includes(candidateId)) return;
+
+      const votes = ensureNumber(rawVotes);
+      if (votes <= 0) return;
+
+      const groupInfo = resolveProportionalGroupInfo(candidateId, metaStore, prefixCache);
+      const group = groups.get(groupInfo.key) || {
+        ...groupInfo,
+        parties: new Map()
+      };
+
+      group.parties.set(groupInfo.party, (group.parties.get(groupInfo.party) || 0) + votes);
+      groups.set(groupInfo.key, group);
+    });
+  });
+
+  groups.forEach((group) => {
+    let dominantParty = group.party;
+    let dominantVotes = -1;
+    group.parties.forEach((votes, party) => {
+      if (votes > dominantVotes) {
+        dominantVotes = votes;
+        dominantParty = party;
+      }
+    });
+
+    const colorPartyKey = getProportionalListColorKey(group.name, group.composition, dominantParty);
+    lookup.set(group.key, colorPartyKey);
+  });
+
+  STATE._scopedProportionalColorLookupCache = { key: cacheKey, lookup };
+  return lookup;
 }
 
 function getWinningMarginPct(voteTotals, totalVotes) {
@@ -927,6 +1103,7 @@ function buildLocationTooltip(feature) {
   let rows = '';
 
   if (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')) {
+    const proportionalType = currentCargo.startsWith('vereador') ? 'vereador' : 'deputado';
     const proportionalData = currentCargo.startsWith('vereador')
       ? getVereadorFeatureData(props)
       : getDeputyFeatureData(props);
@@ -934,7 +1111,8 @@ function buildLocationTooltip(feature) {
       ? aggregateProportionalVotesByList(
         proportionalData.votes,
         currentCargo.startsWith('vereador') ? STATE.vereadorMetadata : STATE.deputyMetadata,
-        currentCargo.startsWith('vereador') ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
+        currentCargo.startsWith('vereador') ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache,
+        { colorKeyLookup: getScopedProportionalColorKeyLookup(proportionalType, currentCargo) }
       )
       : { groups: [], total: 0 };
 
@@ -996,6 +1174,9 @@ function buildMunicipalityTooltip(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const uf = dom.selectUFMunicipal?.value || dom.selectUFGeneral?.value || '';
   const ufLabel = UF_MAP.get(uf) || uf;
+  const scopedColorLookup = (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador'))
+    ? getScopedProportionalColorKeyLookup(currentCargo.startsWith('vereador') ? 'vereador' : 'deputado', currentCargo)
+    : null;
 
   if (!result) {
     return `<div style="min-width:180px;max-width:240px;">
@@ -1010,6 +1191,7 @@ function buildMunicipalityTooltip(feature, summary) {
     .map(([key, votes]) => {
       let candName = 'N/D';
       let candParty = '';
+      let color = '';
 
       if (key.startsWith('group:') || key.startsWith('party:')) {
         const isVereador = currentCargo.startsWith('vereador');
@@ -1020,21 +1202,32 @@ function buildMunicipalityTooltip(feature, summary) {
         if (key.startsWith('party:')) {
           candName = idOrComp;
           candParty = idOrComp;
+          color = colorForParty(
+            scopedColorLookup?.get(key)
+            || getProportionalListColorKey(candName, candParty, candParty)
+          );
         } else {
           const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
           const found = groupedInfo.get(idOrComp) || Array.from(groupedInfo.values()).find(info => info.key === key);
           candName = found ? found.name : idOrComp;
           candParty = found ? (found.composition || idOrComp) : idOrComp;
+          color = colorForParty(
+            scopedColorLookup?.get(key)
+            || getProportionalListColorKey(candName, candParty, candParty)
+          );
         }
       } else {
         const info = parseCandidateKey(key);
         candName = info.nome;
         candParty = info.partido;
+        color = getColorForCandidate(candName, candParty);
       }
 
       return {
+        key,
         name: candName,
         party: candParty,
+        color: color || getColorForCandidate(candName, candParty),
         votes: ensureNumber(votes)
       };
     })
@@ -1047,7 +1240,7 @@ function buildMunicipalityTooltip(feature, summary) {
         ? formatTooltipCaps(candidate.name)
         : formatTooltipDisplayName(candidate.name);
       rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${candidate.color};flex-shrink:0;"></span>
         <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(rowLabel)}</span>
         <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
         <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
@@ -1172,6 +1365,9 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   });
 
   const summary = {};
+  const scopedColorLookup = (cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador'))
+    ? getScopedProportionalColorKeyLookup(cargoKey.startsWith('vereador') ? 'vereador' : 'deputado', cargoKey)
+    : null;
   grouped.forEach((entry) => {
     const orderedVotes = Object.entries(entry.votes)
       .filter(([, votes]) => ensureNumber(votes) > 0)
@@ -1195,7 +1391,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       if (type === 'party') {
         winnerName = idOrComp;
         winnerParty = idOrComp;
-        winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, winnerParty);
+        winnerColorParty = scopedColorLookup?.get(winnerKey)
+          || getProportionalListColorKey(winnerName, winnerParty, winnerParty);
       } else {
         const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
         const found = groupedInfo.get(idOrComp) || Array.from(groupedInfo.values()).find(info => info.key === winnerKey);
@@ -1211,7 +1408,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
         });
         winnerName = found ? found.name : idOrComp;
         winnerParty = found ? found.composition : idOrComp;
-        winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, dominantParty);
+        winnerColorParty = scopedColorLookup?.get(winnerKey)
+          || getProportionalListColorKey(winnerName, winnerParty, dominantParty);
       }
     } else {
       const winnerInfo = parseCandidateKey(winnerKey);
@@ -1571,6 +1769,9 @@ function applyFiltersAndRedraw() {
   }).addTo(map);
 
   if (keepMunicipalOverviewVisible) {
+    if (STATE.currentElectionType === 'geral' && STATE.currentMapMuniUF) {
+      refreshGeneralMunicipalityOverviewLayer({ syncResults: STATE.currentMapMode === 'municipios' });
+    }
     refreshMunicipalSelectionOverlay();
   }
 
@@ -1643,6 +1844,10 @@ function refreshTurnDependentUI() {
       void refreshMunicipalStatewideOverviewForTurn();
       return;
     }
+  }
+
+  if (STATE.currentElectionType === 'geral' && STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
+    refreshGeneralMunicipalityOverviewLayer({ syncResults: false });
   }
 
   if (STATE.currentElectionType === 'municipal' && STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
@@ -2386,6 +2591,9 @@ function onFeatureClick(e) {
       selectedLocationIDs.add(id);
     }
   } else {
+    if (STATE.isFilterAggregationActive) {
+      selectedLocationIDs.clear();
+    }
     if (selectedLocationIDs.has(id)) selectedLocationIDs.delete(id);
     else selectedLocationIDs.add(id);
   }
@@ -2393,10 +2601,25 @@ function onFeatureClick(e) {
   if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
   isDragSelection = false; // Is manual click
   updateApplyButtonText();
+
+  const shouldRestoreFilteredAggregation =
+    (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value)
+    || currentMesorregiaoFilter !== 'all'
+    || currentMicrorregiaoFilter !== 'all'
+    || currentCidadeFilter !== 'all'
+    || currentBairroFilter !== 'all'
+    || String(currentLocalFilter || '').trim().length > 0;
+
+  if (selectedLocationIDs.size === 0 && shouldRestoreFilteredAggregation) {
+    syncResultsPanelToCurrentView();
+    return;
+  }
+
   updateSelectionUI(false);
 }
 
 function clearSelection(updateMap = true) {
+  invalidateScopedProportionalColorLookup();
   if (dom.inputBairro && STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
     dom.inputBairro.disabled = true;
     dom.inputBairro.value = 'all';
@@ -2994,6 +3217,10 @@ function selectFeaturesInBounds(bounds) {
   if (!currentLayer) return;
 
   let addedCount = 0;
+
+  if (STATE.isFilterAggregationActive) {
+    selectedLocationIDs.clear();
+  }
 
   // Recursive helper to find features in bounds
   const findInBounds = (layerNode) => {

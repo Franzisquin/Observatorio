@@ -1,4 +1,7 @@
 function updateSelectionUI(isFilterAggregation = false) {
+  if (typeof invalidateScopedProportionalColorLookup === 'function') {
+    invalidateScopedProportionalColorLookup();
+  }
   STATE.isFilterAggregationActive = isFilterAggregation;
 
   const count = selectedLocationIDs.size;
