@@ -1266,6 +1266,19 @@ async function ensureOfficialTotalsVereadores(ano) {
   }
 }
 
+async function getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, fallbackJson) {
+  const precomputed = (typeof loadPrecomputedProportionalMunicipalityTotals === 'function')
+    ? await loadPrecomputedProportionalMunicipalityTotals('vereador_ord', uf, municipio, muniCode, ano).catch(() => null)
+    : null;
+
+  const scope = precomputed?.scope || null;
+  if (!STATE.precomputedProportionalMunicipalTotals) {
+    STATE.precomputedProportionalMunicipalTotals = {};
+  }
+  STATE.precomputedProportionalMunicipalTotals['vereador_ord'] = scope;
+  return scope || buildVereadorOfficialSummary(fallbackJson);
+}
+
 function finalizeMunicipalLoadUI(municipio, isVereador) {
   currentTurno = 1;
   currentCidadeFilter = 'all';
@@ -1402,7 +1415,7 @@ async function loadMunicipal2024Vereador(uf, municipio, ano) {
   const resultKeys = new Set(Object.keys(vereadorPayload.json.RESULTS || {}));
   const baseGeo = await loadMunicipalBaseFromGpkg2024(uf, municipio, muniCode, resultKeys, 'vereador');
   applyVereadorMetricsToGeojson2024(baseGeo, vereadorPayload.json);
-  STATE.municipalOfficialTotals['vereador_ord']['1T'] = buildVereadorOfficialSummary(vereadorPayload.json);
+  STATE.municipalOfficialTotals['vereador_ord']['1T'] = await getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, vereadorPayload.json);
 
   const TYPE_KEY = 'v';
   STATE.vereadorResults = {};
@@ -1502,7 +1515,7 @@ async function loadMunicipal2020Vereador(uf, municipio, ano) {
   const resultKeys = new Set(Object.keys(vereadorPayload.json.RESULTS || {}));
   const baseGeo = await loadMunicipalBaseFromGpkg2020(uf, municipio, muniCode, resultKeys, 'vereador');
   applyVereadorMetricsToGeojson2024(baseGeo, vereadorPayload.json);
-  STATE.municipalOfficialTotals['vereador_ord']['1T'] = buildVereadorOfficialSummary(vereadorPayload.json);
+  STATE.municipalOfficialTotals['vereador_ord']['1T'] = await getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, vereadorPayload.json);
 
   const TYPE_KEY = 'v';
   STATE.vereadorResults = {};
@@ -1602,7 +1615,7 @@ async function loadMunicipal2016Vereador(uf, municipio, ano) {
   const resultKeys = new Set(Object.keys(vereadorPayload.json.RESULTS || {}));
   const baseGeo = await loadMunicipalBaseFromGpkg2016(uf, municipio, muniCode, resultKeys, 'vereador');
   applyVereadorMetricsToGeojson2024(baseGeo, vereadorPayload.json);
-  STATE.municipalOfficialTotals['vereador_ord']['1T'] = buildVereadorOfficialSummary(vereadorPayload.json);
+  STATE.municipalOfficialTotals['vereador_ord']['1T'] = await getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, vereadorPayload.json);
 
   const TYPE_KEY = 'v';
   STATE.vereadorResults = {};
@@ -1702,7 +1715,7 @@ async function loadMunicipal2012Vereador(uf, municipio, ano) {
   const resultKeys = new Set(Object.keys(vereadorPayload.json.RESULTS || {}));
   const baseGeo = await loadMunicipalBaseFromGpkg2012(uf, municipio, muniCode, resultKeys, 'vereador');
   applyVereadorMetricsToGeojson2024(baseGeo, vereadorPayload.json);
-  STATE.municipalOfficialTotals['vereador_ord']['1T'] = buildVereadorOfficialSummary(vereadorPayload.json);
+  STATE.municipalOfficialTotals['vereador_ord']['1T'] = await getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, vereadorPayload.json);
 
   const TYPE_KEY = 'v';
   STATE.vereadorResults = {};
@@ -1802,7 +1815,7 @@ async function loadMunicipal2008Vereador(uf, municipio, ano) {
   const resultKeys = new Set(Object.keys(vereadorPayload.json.RESULTS || {}));
   const baseGeo = await loadMunicipalBaseFromGpkg2008(uf, municipio, muniCode, resultKeys, 'vereador');
   applyVereadorMetricsToGeojson2024(baseGeo, vereadorPayload.json);
-  STATE.municipalOfficialTotals['vereador_ord']['1T'] = buildVereadorOfficialSummary(vereadorPayload.json);
+  STATE.municipalOfficialTotals['vereador_ord']['1T'] = await getVereadorOfficialSummaryForMunicipality(uf, municipio, ano, muniCode, vereadorPayload.json);
 
   const TYPE_KEY = 'v';
   STATE.vereadorResults = {};

@@ -1174,7 +1174,7 @@ function buildMunicipalityTooltip(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const uf = dom.selectUFMunicipal?.value || dom.selectUFGeneral?.value || '';
   const ufLabel = UF_MAP.get(uf) || uf;
-  const scopedColorLookup = (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador'))
+  const scopedColorLookup = (!result?.groupColorParties && (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')))
     ? getScopedProportionalColorKeyLookup(currentCargo.startsWith('vereador') ? 'vereador' : 'deputado', currentCargo)
     : null;
 
@@ -1203,7 +1203,8 @@ function buildMunicipalityTooltip(feature, summary) {
           candName = idOrComp;
           candParty = idOrComp;
           color = colorForParty(
-            scopedColorLookup?.get(key)
+            result.groupColorParties?.[key]
+            || scopedColorLookup?.get(key)
             || getProportionalListColorKey(candName, candParty, candParty)
           );
         } else {
@@ -1212,7 +1213,8 @@ function buildMunicipalityTooltip(feature, summary) {
           candName = found ? found.name : idOrComp;
           candParty = found ? (found.composition || idOrComp) : idOrComp;
           color = colorForParty(
-            scopedColorLookup?.get(key)
+            result.groupColorParties?.[key]
+            || scopedColorLookup?.get(key)
             || getProportionalListColorKey(candName, candParty, candParty)
           );
         }
@@ -1281,6 +1283,13 @@ function getActiveTurnoKeyForCurrentCargo(cargoKey = currentCargo) {
 }
 
 function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
+  const precomputedSummary = typeof getPrecomputedMunicipalOverviewSummary === 'function'
+    ? getPrecomputedMunicipalOverviewSummary(cargoKey)
+    : null;
+  if (precomputedSummary) {
+    return precomputedSummary;
+  }
+
   if (cargoKey.startsWith('deputado') && typeof syncDeputyDataForCargo === 'function') {
     syncDeputyDataForCargo(cargoKey);
   }

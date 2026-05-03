@@ -468,6 +468,8 @@ async function onClickLoadData_Deputies_2006(uf, year) {
         }
       }
 
+      const cargoKey = isEstadual ? 'deputado_estadual' : 'deputado_federal';
+      const precomputedTotalsPromise = loadPrecomputedProportionalStateTotals(cargoKey, uf, year).catch(() => null);
       const zipPath = `resultados_geo/Legislativas ${year}/deputados_${typeLabel}_${year}_${uf}.zip`;
       const jsonName = `deputados_${typeLabel}_${year}_${uf}.json`;
       const { data: fullJson } = await fetchJsonFromZipEntry(zipPath, jsonName);
@@ -497,6 +499,12 @@ async function onClickLoadData_Deputies_2006(uf, year) {
         ensureDeputyTypeStores();
         STATE.deputyAdjustmentsByType[typeKey] = { ...fullJson.METADATA.coalition_adjustments };
         STATE.deputyAdjustments = STATE.deputyAdjustmentsByType[typeKey];
+      }
+
+      const precomputedTotals = await precomputedTotalsPromise;
+      if (precomputedTotals) {
+        if (!STATE.precomputedProportionalStateTotals) STATE.precomputedProportionalStateTotals = {};
+        STATE.precomputedProportionalStateTotals[cargoKey] = precomputedTotals;
       }
 
       loadedDeputyState.types.add(typeKey);

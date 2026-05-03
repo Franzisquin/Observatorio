@@ -1541,6 +1541,20 @@ function aggregateProportionalGroupsForSelection(cargo) {
     });
   };
 
+  const precomputedStateScope = (!isVereador && typeof getPrecomputedProportionalStateScope === 'function')
+    ? getPrecomputedProportionalStateScope(cargo)
+    : null;
+  if (precomputedStateScope?.votesById) {
+    addVotesMap(precomputedStateScope.votesById);
+    return {
+      groups: Array.from(groups.values()),
+      totalVotes,
+      brancos: ensureNumber(precomputedStateScope.brancos),
+      nulos: ensureNumber(precomputedStateScope.nulos),
+      comparecimento: ensureNumber(precomputedStateScope.comparecimento) || (totalVotes + brancos + nulos)
+    };
+  }
+
   if (isVereador && shouldUseMunicipalOfficialTotals()) {
     const officialSummary = STATE.municipalOfficialTotals?.[cargo]?.['1T'];
     if (officialSummary?.votesById) {

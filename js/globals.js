@@ -618,6 +618,8 @@ const STATE = {
   generalOfficialTotals: {},
   generalOfficialTotalsByCity: {},
   municipalOfficialTotals: {},
+  precomputedProportionalStateTotals: {},
+  precomputedProportionalMunicipalTotals: {},
   censusFilters: {
     rendaMin: null,
     rendaMax: null,
@@ -812,6 +814,8 @@ function clearDeputyData() {
   STATE.deputyLookup = null;
   STATE.deputyLookupCargo = null;
   STATE._partyPrefixCache = null; // Invalidate party prefix cache
+  STATE.precomputedProportionalStateTotals = {};
+  STATE.precomputedProportionalMunicipalTotals = {};
   loadedDeputyState = { uf: null, types: new Set(), year: null };
 
   console.log('✓ Dados de deputados completamente limpos');
@@ -849,6 +853,7 @@ function clearVereadorData() {
   STATE.vereadorAdjustments = {};
   STATE.vereadorLookup = null;
   STATE._vereadorPartyPrefixCache = null;
+  STATE.precomputedProportionalMunicipalTotals = {};
   loadedVereadorState = { uf: null, muniCode: null, year: null };
   console.log('✓ Dados de vereadores completamente limpos');
 }

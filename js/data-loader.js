@@ -200,6 +200,152 @@ function normalizeComp(str) {
     .join('/');
 }
 
+const PRECOMPUTED_PROPORTIONAL_STATE_TOTALS_CACHE = new Map();
+const PRECOMPUTED_PROPORTIONAL_MUNICIPAL_TOTALS_CACHE = new Map();
+
+function hasActivePrecomputedScopeBlockingFilters() {
+  return (
+    STATE.censusFilters.rendaMin !== null ||
+    STATE.censusFilters.rendaMax !== null ||
+    STATE.censusFilters.racaVal !== null ||
+    STATE.censusFilters.idadeVal !== null ||
+    STATE.censusFilters.generoVal !== null ||
+    STATE.censusFilters.escolaridadeVal !== null ||
+    STATE.censusFilters.estadoCivilVal !== null ||
+    STATE.censusFilters.saneamentoVal !== null
+  );
+}
+
+function getPrecomputedProportionalKindForCargo(cargo = currentCargo, year = STATE.currentElectionYear) {
+  if (String(cargo || '').startsWith('vereador')) {
+    return {
+      folder: `Municipais_Legislativas ${year}`,
+      stateFile: (targetYear, uf) => `precomputed_totals_vereadores_${targetYear}_${uf}.json`,
+      municipalZip: (targetYear, uf) => `precomputed_totals_vereadores_${targetYear}_${uf}_municipios.zip`
+    };
+  }
+
+  if (String(cargo || '').startsWith('deputado')) {
+    const office = String(cargo || '').includes('estadual') ? 'estadual' : 'federal';
+    return {
+      folder: `Legislativas ${year}`,
+      stateFile: (targetYear, uf) => `precomputed_totals_deputados_${office}_${targetYear}_${uf}.json`,
+      municipalZip: (targetYear, uf) => `precomputed_totals_deputados_${office}_${targetYear}_${uf}_municipios.zip`
+    };
+  }
+
+  return null;
+}
+
+async function loadPrecomputedProportionalStateTotals(cargo, uf, year = STATE.currentElectionYear) {
+  const targetYear = String(year || STATE.currentElectionYear);
+  const ufNorm = String(uf || '').toUpperCase();
+  const config = getPrecomputedProportionalKindForCargo(cargo, targetYear);
+  if (!config || !ufNorm) return null;
+
+  const cacheKey = `${cargo}|${targetYear}|${ufNorm}|state`;
+  if (PRECOMPUTED_PROPORTIONAL_STATE_TOTALS_CACHE.has(cacheKey)) {
+    return PRECOMPUTED_PROPORTIONAL_STATE_TOTALS_CACHE.get(cacheKey);
+  }
+
+  const promise = (async () => {
+    const response = await fetch(`${DATA_BASE_URL}${config.folder}/${config.stateFile(targetYear, ufNorm)}`).catch(() => null);
+    if (!response || !response.ok) return null;
+    return response.json();
+  })();
+
+  PRECOMPUTED_PROPORTIONAL_STATE_TOTALS_CACHE.set(cacheKey, promise);
+  return promise;
+}
+
+async function loadPrecomputedProportionalMunicipalityTotals(cargo, uf, municipio, muniCode = '', year = STATE.currentElectionYear) {
+  const targetYear = String(year || STATE.currentElectionYear);
+  const ufNorm = String(uf || '').toUpperCase();
+  const slug = normalizeMunicipioSlug(municipio);
+  const code = String(muniCode || '').trim();
+  const config = getPrecomputedProportionalKindForCargo(cargo, targetYear);
+  if (!config || !ufNorm || (!slug && !code)) return null;
+
+  const cacheKey = `${cargo}|${targetYear}|${ufNorm}|${code || slug}|municipio`;
+  if (PRECOMPUTED_PROPORTIONAL_MUNICIPAL_TOTALS_CACHE.has(cacheKey)) {
+    return PRECOMPUTED_PROPORTIONAL_MUNICIPAL_TOTALS_CACHE.get(cacheKey);
+  }
+
+  const promise = fetchJsonFromZipEntry(
+    `${DATA_BASE_URL}${config.folder}/${config.municipalZip(targetYear, ufNorm)}`,
+    null,
+    (entryName) => {
+      if (!entryName.toLowerCase().endsWith('.json')) return false;
+      const upperName = String(entryName || '').toUpperCase();
+      if (code && upperName.startsWith(`${code}_`)) return true;
+      return !!slug && upperName.includes(`_${slug}.JSON`);
+    }
+  ).then(({ data }) => data || null).catch(() => null);
+
+  PRECOMPUTED_PROPORTIONAL_MUNICIPAL_TOTALS_CACHE.set(cacheKey, promise);
+  return promise;
+}
+
+function shouldUsePrecomputedProportionalStateScope(cargo = currentCargo) {
+  return String(cargo || '').startsWith('deputado')
+    && STATE.currentElectionType === 'geral'
+    && STATE.isFilterAggregationActive
+    && !hasRegionalScopeFilters()
+    && currentCidadeFilter === 'all'
+    && currentBairroFilter === 'all'
+    && !String(currentLocalFilter || '').trim()
+    && !hasActivePrecomputedScopeBlockingFilters();
+}
+
+function getPrecomputedProportionalStateScope(cargo = currentCargo) {
+  if (!shouldUsePrecomputedProportionalStateScope(cargo)) return null;
+  return STATE.precomputedProportionalStateTotals?.[cargo]?.state || null;
+}
+
+function getPrecomputedMunicipalOverviewSummary(cargo = currentCargo) {
+  if (!String(cargo || '').startsWith('deputado')) return null;
+  if (STATE.currentElectionType !== 'geral') return null;
+  if (currentCidadeFilter !== 'all') return null;
+  if (currentBairroFilter !== 'all') return null;
+  if (String(currentLocalFilter || '').trim()) return null;
+
+  const payload = STATE.precomputedProportionalStateTotals?.[cargo];
+  const municipalitiesByCode = payload?.municipalitiesByCode || null;
+  const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+  if (!municipalitiesByCode || !uf || uf === 'BR') return null;
+
+  const mesoEntry = getSelectedRegionalEntry('meso', uf);
+  const microEntry = getSelectedRegionalEntry('micro', uf);
+  const summary = {};
+
+  Object.entries(municipalitiesByCode).forEach(([muniCode, rawEntry]) => {
+    const entry = rawEntry || {};
+    const entrySlug = normalizeMunicipioSlug(entry.slug || entry.nome || '');
+
+    if (mesoEntry) {
+      const matchMeso = (muniCode && mesoEntry.municipioCodes.has(String(muniCode))) || (entrySlug && mesoEntry.municipioSlugs.has(entrySlug));
+      if (!matchMeso) return;
+    }
+
+    if (microEntry) {
+      const matchMicro = (muniCode && microEntry.municipioCodes.has(String(muniCode))) || (entrySlug && microEntry.municipioSlugs.has(entrySlug));
+      if (!matchMicro) return;
+    }
+
+    const summaryEntry = {
+      ...entry,
+      muniCode: String(entry.muniCode || muniCode || '').trim(),
+      rawTotals: entry.votes || {},
+      isDetailed: true
+    };
+
+    if (summaryEntry.muniCode) summary[summaryEntry.muniCode] = summaryEntry;
+    if (entrySlug) summary[entrySlug] = summaryEntry;
+  });
+
+  return Object.keys(summary).length ? summary : null;
+}
+
 async function onClickLoadData_Deputies_legado(uf, year) {
   // Determine Type based on current selection
   const isEstadual = currentCargo === 'deputado_estadual';
