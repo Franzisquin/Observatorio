@@ -619,7 +619,10 @@ function setPendingMunicipalFocusBounds(layer) {
 function focusSelectedMunicipalityOnMap(options = {}) {
   if (!map) return false;
 
-  let bounds = findSelectedMunicipalityLayer()?.getBounds?.() || null;
+  let bounds = null;
+  if (options.preferPending !== true) {
+    bounds = findSelectedMunicipalityLayer()?.getBounds?.() || null;
+  }
   if (!bounds?.isValid?.()) {
     const pending = STATE.pendingMunicipalFocusBounds;
     if (pending) {
@@ -641,6 +644,45 @@ function focusSelectedMunicipalityOnMap(options = {}) {
   return true;
 }
 
+function syncMunicipalityLayerTooltip(layer, feature, summary = STATE.currentMapMuniSummary) {
+  if (!layer || !feature) return;
+
+  const tooltip = typeof layer.getTooltip === 'function' ? layer.getTooltip() : null;
+  if (isSelectedMunicipalFeature(feature?.properties)) {
+    if (typeof layer.closeTooltip === 'function') layer.closeTooltip();
+    if (tooltip && typeof layer.unbindTooltip === 'function') layer.unbindTooltip();
+    return;
+  }
+
+  const tooltipContent = buildMunicipalityTooltip(feature, summary);
+  if (tooltip && typeof layer.setTooltipContent === 'function') {
+    layer.setTooltipContent(tooltipContent);
+    return;
+  }
+
+  if (typeof layer.bindTooltip === 'function') {
+    layer.bindTooltip(tooltipContent, {
+      className: 'sim-tooltip',
+      sticky: true
+    });
+  }
+}
+
+function syncMunicipalityLayerInteractivity(layer, feature) {
+  if (!layer || !feature) return;
+
+  const isSelected = isSelectedMunicipalFeature(feature?.properties);
+  const shouldDisableInteraction = isSelected && STATE.currentMapMode === 'locais';
+
+  if (layer._path?.style) {
+    layer._path.style.pointerEvents = shouldDisableInteraction ? 'none' : 'auto';
+  }
+
+  if (layer._container?.style) {
+    layer._container.style.pointerEvents = shouldDisableInteraction ? 'none' : '';
+  }
+}
+
 function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
   if (!STATE.municipiosLayer?.eachLayer) return false;
 
@@ -648,6 +690,8 @@ function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
     const feature = layer?.feature;
     if (!feature || typeof layer.setStyle !== 'function') return;
     layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
+    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
+    syncMunicipalityLayerInteractivity(layer, feature);
   });
 
   if (focus) {
@@ -685,9 +729,7 @@ function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
       layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
     }
 
-    if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
-      layer.setTooltipContent(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary));
-    }
+    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
   });
 
   refreshMunicipalSelectionOverlay();
@@ -850,11 +892,14 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
 
 function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, options = {}) {
   const resolvedPrefixCache = getResolvedPrefixCacheForMetaStore(metaStore, prefixCache);
+  const inaptosList = Array.isArray(options.inaptosList) ? options.inaptosList : [];
+  const shouldFilterInaptos = options.filterInaptos === true;
   const groups = new Map();
   let total = 0;
 
   Object.entries(votesMap || {}).forEach(([candidateId, rawVotes]) => {
     if (candidateId === '95' || candidateId === '96') return;
+    if (shouldFilterInaptos && inaptosList.includes(candidateId)) return;
     const votes = ensureNumber(rawVotes);
     if (votes <= 0) return;
 
@@ -915,11 +960,18 @@ function getWinningProportionalListData(votesMap, type = 'deputado') {
     metaStore,
     isVereadorList ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
   );
+  const inaptosList = isVereadorList
+    ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
+    : (STATE.inaptos[currentCargo]?.['1T'] || []);
   const aggregated = aggregateProportionalVotesByList(
     votesMap,
     metaStore,
     prefixCache,
-    { colorKeyLookup: getScopedProportionalColorKeyLookup(type, currentCargo) }
+    {
+      colorKeyLookup: getScopedProportionalColorKeyLookup(type, currentCargo),
+      filterInaptos: STATE.filterInaptos,
+      inaptosList
+    }
   );
   const winner = aggregated.groups[0] || null;
   if (!winner) return null;
@@ -1112,7 +1164,13 @@ function buildLocationTooltip(feature) {
         proportionalData.votes,
         currentCargo.startsWith('vereador') ? STATE.vereadorMetadata : STATE.deputyMetadata,
         currentCargo.startsWith('vereador') ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache,
-        { colorKeyLookup: getScopedProportionalColorKeyLookup(proportionalType, currentCargo) }
+        {
+          colorKeyLookup: getScopedProportionalColorKeyLookup(proportionalType, currentCargo),
+          filterInaptos: STATE.filterInaptos,
+          inaptosList: currentCargo.startsWith('vereador')
+            ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
+            : (STATE.inaptos[currentCargo]?.['1T'] || [])
+        }
       )
       : { groups: [], total: 0 };
 
@@ -1172,7 +1230,9 @@ function buildLocationTooltip(feature) {
 function buildMunicipalityTooltip(feature, summary) {
   const nome = formatTooltipDisplayName(getMunicipalityFeatureName(feature?.properties));
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
-  const uf = dom.selectUFMunicipal?.value || dom.selectUFGeneral?.value || '';
+  const uf = STATE.currentElectionType === 'municipal'
+    ? String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase()
+    : String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
   const ufLabel = UF_MAP.get(uf) || uf;
   const scopedColorLookup = (!result?.groupColorParties && (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')))
     ? getScopedProportionalColorKeyLookup(currentCargo.startsWith('vereador') ? 'vereador' : 'deputado', currentCargo)
@@ -1512,10 +1572,7 @@ async function showGeneralMunicipalityOverview(uf) {
     STATE.municipiosLayer = L.geoJSON(geojson, {
       style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
       onEachFeature: (feature, layer) => {
-        layer.bindTooltip(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary), {
-          className: 'sim-tooltip',
-          sticky: true
-        });
+        syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
 
         layer.on({
           mouseover: () => {
@@ -1532,8 +1589,7 @@ async function showGeneralMunicipalityOverview(uf) {
             layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
           },
           click: () => {
-            setPendingMunicipalFocusBounds(layer);
-            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45 });
+            if (isSelectedMunicipalFeature(feature?.properties) && STATE.currentMapMode === 'locais') return;
             const nome = getMunicipalityFeatureName(feature.properties);
             const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
             currentCidadeFilter = matchedCity;
@@ -1545,6 +1601,8 @@ async function showGeneralMunicipalityOverview(uf) {
             if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
             if (bairroCombobox) bairroCombobox.setValue('');
             if (dom.searchLocal) dom.searchLocal.value = '';
+            setPendingMunicipalFocusBounds(layer);
+            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
             populateBairroDropdown();
             updateApplyButtonText();
             applyFiltersAndRedraw();
@@ -2097,14 +2155,7 @@ function filterFeature(feature) {
 
       if (den === 0) return false;
 
-      if (filterMode.includes('Analfabeto')) num = ana;
-      else if (filterMode.includes('Lê')) num = le;
-      else if (filterMode === 'Fund. Incomp.') num = fi;
-      else if (filterMode === 'Fund. Completo') num = fc;
-      else if (filterMode === 'Médio Incomp.') num = mi;
-      else if (filterMode === 'Médio Completo') num = mc;
-      else if (filterMode === 'Superior Incompleto') num = si;
-      else if (filterMode === 'Superior Completo') num = sc;
+      num = getEscolaridadeGroupedValue(filterMode, { ana, le, fi, fc, mi, mc, si, sc });
 
       return (num / den * 100) >= filterVal;
     }
@@ -2235,8 +2286,9 @@ function getVereadorFeatureData(props) {
   const total = props['_VTOTAL_'] !== undefined ? parseInt(props['_VTOTAL_']) : undefined;
   const winner = props['_VWINNER_'] !== undefined ? props['_VWINNER_'] : undefined;
   const winnerVotes = props['_VWVOTES_'] !== undefined ? parseInt(props['_VWVOTES_']) : -1;
+  const shouldRecalculateWithInaptos = STATE.filterInaptos === true;
 
-  if (total === undefined) {
+  if (total === undefined || shouldRecalculateWithInaptos) {
     // Fallback: calcula na hora se precompute ainda nao rodou
     const TYPE_KEY = 'v';
     const z = getProp(props, 'nr_zona');
@@ -2629,6 +2681,8 @@ function onFeatureClick(e) {
 
 function clearSelection(updateMap = true) {
   invalidateScopedProportionalColorLookup();
+  selectedLocationIDs.clear();
+  STATE.isFilterAggregationActive = false;
   if (dom.inputBairro && STATE.currentElectionType === 'geral' && currentCidadeFilter === 'all') {
     dom.inputBairro.disabled = true;
     dom.inputBairro.value = 'all';
@@ -2641,6 +2695,9 @@ function clearSelection(updateMap = true) {
   if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
   // Reset Unified View
   if (dom.unifiedResultsContainer) dom.unifiedResultsContainer.classList.remove('hidden');
+  if (STATE.municipiosLayer?.eachLayer) {
+    refreshMunicipalSelectionOverlay();
+  }
   updateNeighborhoodProfileUI();
 }
 
@@ -2877,12 +2934,16 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
   `;
 }
 
-async function refreshMunicipalStatewideOverviewForTurn() {
+async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
+  const forceReload = options.forceReload === true;
+  const shouldSyncResults = options.syncResults === true
+    || (!dom.selectMunicipio?.value && STATE.currentMapMode === 'municipios');
   const uf = String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase();
   if (!uf || STATE.currentElectionType !== 'municipal' || !STATE.municipiosLayer || !map?.hasLayer?.(STATE.municipiosLayer)) return false;
 
-  const summaryByTurn = STATE.currentMapMuniSummaryByTurn
-    || (typeof window.loadMunicipalOverviewSummary === 'function'
+  const summaryByTurn = (!forceReload && STATE.currentMapMuniSummaryByTurn)
+    ? STATE.currentMapMuniSummaryByTurn
+    : (typeof window.loadMunicipalOverviewSummary === 'function'
       ? await window.loadMunicipalOverviewSummary(uf, STATE.currentElectionYear, currentSubType || 'ord')
       : null);
 
@@ -2899,14 +2960,14 @@ async function refreshMunicipalStatewideOverviewForTurn() {
       layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
     }
 
-    if (typeof layer.setTooltipContent === 'function') {
-      layer.setTooltipContent(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary));
-    }
+    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
   });
 
   refreshMunicipalSelectionOverlay();
 
-  renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
+  if (shouldSyncResults) {
+    renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
+  }
   return true;
 }
 
@@ -2942,10 +3003,7 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     STATE.municipiosLayer = L.geoJSON(geojson, {
       style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
       onEachFeature: (feature, layer) => {
-        layer.bindTooltip(buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary), {
-          className: 'sim-tooltip',
-          sticky: true
-        });
+        syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
 
         layer.on({
           mouseover: () => {
@@ -2962,8 +3020,7 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
             layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
           },
           click: () => {
-            setPendingMunicipalFocusBounds(layer);
-            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45 });
+            if (isSelectedMunicipalFeature(feature?.properties) && STATE.currentMapMode === 'locais') return;
             const nome = getMunicipalityFeatureName(feature.properties);
             const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
             if (matchedOption) {
@@ -2971,6 +3028,8 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
             } else if (dom.selectMunicipio) {
               dom.selectMunicipio.value = nome;
             }
+            setPendingMunicipalFocusBounds(layer);
+            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
             dom.selectMunicipio?.dispatchEvent(new Event('change'));
           }
         });
@@ -3000,6 +3059,7 @@ if (typeof window !== 'undefined') {
   window.showMunicipalStatewideOverview = showMunicipalStatewideOverview;
   window.focusSelectedMunicipalityOnMap = focusSelectedMunicipalityOnMap;
   window.refreshMunicipalSelectionOverlay = refreshMunicipalSelectionOverlay;
+  window.refreshMunicipalStatewideOverviewForTurn = refreshMunicipalStatewideOverviewForTurn;
   window.resolveProportionalGroupInfo = resolveProportionalGroupInfo;
   window.getCachedGroupedProportionalInfo = getCachedGroupedProportionalInfo;
 }
@@ -3331,9 +3391,7 @@ function refreshMapStylesAndTooltips() {
       }
 
       // Atualiza o conteúdo do tooltip (pois cores em tooltips são strings estáticas no binding)
-      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
-        layer.setTooltipContent(buildMunicipalityTooltip(feature, summary));
-      }
+      syncMunicipalityLayerTooltip(layer, feature, summary);
     });
   }
 

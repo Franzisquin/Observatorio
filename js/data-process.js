@@ -439,6 +439,7 @@ function populateBairroDropdown() {
   const bairroGroups = {};
   geojson.features.forEach(f => {
     const props = f.properties;
+    if (!matchesLocationFilters(props, { ignoreBairro: true, ignoreLocal: true })) return;
     if (matchesRegionalScope(props)) {
        const bairro = (getProp(props, 'ds_bairro') || 'Bairro não inf.').trim();
        if (bairro && bairro.toUpperCase() !== 'N/D') {
@@ -450,6 +451,9 @@ function populateBairroDropdown() {
   });
 
   const bairros = Array.from(uniqueBairros).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  if (currentBairroFilter !== 'all' && !bairros.includes(currentBairroFilter)) {
+    currentBairroFilter = 'all';
+  }
   
   select.innerHTML = '<option value="all">Todos os bairros</option>';
   bairros.forEach(b => {
@@ -460,6 +464,7 @@ function populateBairroDropdown() {
   });
 
   select.disabled = (bairros.length === 0);
+  if (select.disabled) currentBairroFilter = 'all';
   select.value = currentBairroFilter || 'all';
 }
 

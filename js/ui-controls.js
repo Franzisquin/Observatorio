@@ -382,6 +382,16 @@ function setupControls() {
   // SELEÇÃO MUNICIPAL
   dom.selectUFMunicipal.addEventListener('change', () => {
     currentTurno = 1;
+    currentBairroFilter = 'all';
+    currentLocalFilter = '';
+    STATE.currentMuniCode = null;
+    STATE.pendingMunicipalFocusBounds = null;
+    if (dom.inputBairro) {
+      dom.inputBairro.disabled = true;
+      dom.inputBairro.value = 'all';
+    }
+    if (dom.searchLocal) dom.searchLocal.value = '';
+    clearSelection(false);
     const uf = dom.selectUFMunicipal.value;
     const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
 
@@ -409,6 +419,14 @@ function setupControls() {
   });
   dom.selectMunicipio.addEventListener('change', () => {
     currentTurno = 1;
+    currentBairroFilter = 'all';
+    currentLocalFilter = '';
+    if (dom.inputBairro) {
+      dom.inputBairro.disabled = true;
+      dom.inputBairro.value = 'all';
+    }
+    if (dom.searchLocal) dom.searchLocal.value = '';
+    clearSelection(false);
     updateLoadButtonState();
     updateElectionTypeUI();
     updateConditionalUI();
@@ -432,6 +450,7 @@ function setupControls() {
   dom.selectYearMunicipal?.addEventListener('change', () => {
     currentTurno = 1;
     STATE.currentElectionYear = dom.selectYearMunicipal.value;
+    clearSelection(false);
     updateLoadButtonState();
     clearPendingFilterChanges();
     const uf = dom.selectUFMunicipal?.value;

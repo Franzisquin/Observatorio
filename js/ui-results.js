@@ -226,12 +226,16 @@ function updateNeighborhoodProfileUI() {
       'Solteiro': abs.Solteiro, 'Casado': abs.Casado, 'Divorciado': abs.Divorciado,
       'Separado': abs.Separado, 'Viúvo': abs.Viuvo
     }, true);
-    render('profileEscolaridadeChart', {
-      'Analfabeto': abs.Analfabeto, 'Lê e Escreve': abs.LeEscreve,
-      'Fund. Incomp.': abs.FundIncomp, 'Fund. Comp.': abs.FundComp,
-      'Médio Incomp.': abs.MedIncomp, 'Médio Comp.': abs.MedComp,
-      'Sup. Incomp.': abs.SupIncomp, 'Sup. Comp.': abs.SupComp
-    }, true);
+    render('profileEscolaridadeChart', getEscolaridadeGroupedTotals({
+      ana: abs.Analfabeto,
+      le: abs.LeEscreve,
+      fi: abs.FundIncomp,
+      fc: abs.FundComp,
+      mi: abs.MedIncomp,
+      mc: abs.MedComp,
+      si: abs.SupIncomp,
+      sc: abs.SupComp
+    }), true);
     render('profileIdadeChart', ageBuckets, true);
   }
 
@@ -417,7 +421,8 @@ function updateConditionalUI() {
 function updateElectionTypeUI() {
   const isMunicipal = STATE.currentElectionType === 'municipal';
   const hasMunicipalSelection = !!(dom.selectMunicipio?.value);
-  if (dom.electionContextBox) dom.electionContextBox.classList.toggle('section-hidden', isMunicipal);
+  const showElectionContext = !isMunicipal || hasMunicipalSelection;
+  if (dom.electionContextBox) dom.electionContextBox.classList.toggle('section-hidden', !showElectionContext);
   if (dom.ctrlCidadeFilter) dom.ctrlCidadeFilter.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxGeneral) dom.officeBoxGeneral.classList.toggle('section-hidden', isMunicipal);
   if (dom.officeBoxMunicipal) dom.officeBoxMunicipal.classList.toggle('section-hidden', !isMunicipal || !hasMunicipalSelection);

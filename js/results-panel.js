@@ -1304,14 +1304,7 @@ function updateAvailabilityBars(geojson) {
       den = Object.values(acc).reduce((a, b) => a + b, 0);
       if (den < 10) return null; // Filtro de ruÃ­do
 
-      if (mode.includes('Analfabeto')) num = acc.ana;
-      else if (mode.includes('LÃª')) num = acc.le;
-      else if (mode.includes('Fund. Incomp')) num = acc.fi;
-      else if (mode.includes('Fund. Completo')) num = acc.fc;
-      else if (mode.includes('MÃ©dio Incomp')) num = acc.mi;
-      else if (mode.includes('MÃ©dio Completo')) num = acc.mc;
-      else if (mode.includes('Superior Incompleto')) num = acc.si;
-      else if (mode.includes('Superior Completo')) num = acc.sc;
+      num = getEscolaridadeGroupedValue(mode, acc);
     }
 
     if (den === 0) return 0;

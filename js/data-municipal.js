@@ -1334,9 +1334,12 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
 
   updateConditionalUI();
   applyFiltersAndRedraw();
+  if (preserveMunicipalOverview && typeof window.refreshMunicipalStatewideOverviewForTurn === 'function') {
+    void window.refreshMunicipalStatewideOverviewForTurn({ forceReload: true, syncResults: false });
+  }
   try {
     const focusedSelection = typeof window.focusSelectedMunicipalityOnMap === 'function'
-      ? window.focusSelectedMunicipalityOnMap({ animate: true, duration: 0.6 })
+      ? window.focusSelectedMunicipalityOnMap({ animate: true, duration: 0.6, preferPending: true })
       : false;
 
     if (!focusedSelection) {

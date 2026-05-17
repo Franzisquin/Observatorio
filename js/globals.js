@@ -638,7 +638,7 @@ const STATE = {
 
     // Escolaridade (Novo)
     escolaridadeVal: null,
-    escolaridadeMode: 'Superior Completo',
+    escolaridadeMode: 'Superior',
 
     // Estado Civil (Novo)
     estadoCivilVal: null,
@@ -788,6 +788,60 @@ function matchesLocationFilters(props, options = {}) {
     }
   }
   return true;
+}
+
+function getEscolaridadeGroupedTotals(acc = {}) {
+  const ana = ensureNumber(acc.ana);
+  const le = ensureNumber(acc.le);
+  const fi = ensureNumber(acc.fi);
+  const fc = ensureNumber(acc.fc);
+  const mi = ensureNumber(acc.mi);
+  const mc = ensureNumber(acc.mc);
+  const si = ensureNumber(acc.si);
+  const sc = ensureNumber(acc.sc);
+
+  return {
+    'Sem escolaridade': ana + le,
+    'Fundamental': fi + fc + mi,
+    'Médio': mc + si,
+    'Superior': sc
+  };
+}
+
+function getEscolaridadeGroupedValue(mode, acc = {}) {
+  const grouped = getEscolaridadeGroupedTotals(acc);
+  const normalizedMode = String(mode || '').trim();
+
+  if (
+    normalizedMode === 'Sem escolaridade'
+    || normalizedMode.includes('Analfabeto')
+    || normalizedMode.includes('Lê')
+    || normalizedMode.includes('Fund. Incomp')
+  ) {
+    return grouped['Sem escolaridade'];
+  }
+
+  if (
+    normalizedMode === 'Fundamental'
+    || normalizedMode.includes('Fund. Completo')
+    || normalizedMode.includes('Médio Incomp')
+  ) {
+    return grouped['Fundamental'];
+  }
+
+  if (
+    normalizedMode === 'Médio'
+    || normalizedMode.includes('Médio Completo')
+    || normalizedMode.includes('Superior Incompleto')
+  ) {
+    return grouped['Médio'];
+  }
+
+  if (normalizedMode === 'Superior' || normalizedMode.includes('Superior Completo')) {
+    return grouped['Superior'];
+  }
+
+  return grouped['Superior'];
 }
 
 function getRegionalFilterSummaryLabel() {
