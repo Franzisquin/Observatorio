@@ -583,6 +583,15 @@ function openCandidateColorPopover(triggerEl, nome, partido, currentColor) {
   const popover = ensureCandidateColorPopover();
   activeCandidateColorTarget = { nome, partido };
 
+  const kickerEl = popover.querySelector('.candidate-color-kicker');
+  if (kickerEl) {
+    if (typeof currentCargo === 'string' && currentCargo.startsWith('senador')) {
+      kickerEl.textContent = 'Cor do Candidato';
+    } else {
+      kickerEl.textContent = 'Cor do Partido';
+    }
+  }
+
   popover.querySelector('#candidateColorPopoverName').textContent = nome;
   popover.querySelector('#candidateColorPopoverParty').textContent = partido || 'Sem partido';
   setCandidateColorPopoverValue(currentColor);
@@ -608,17 +617,41 @@ function applyCandidateColorPopover() {
   const popover = ensureCandidateColorPopover();
   const hexInput = popover.querySelector('#candidateColorHexInput');
   const color = normalizeCandidateHexColor(hexInput.value);
-  if (!color || !activeCandidateColorTarget?.partido) {
+  if (!color) {
     showToast('Digite uma cor hexadecimal válida.', 'warn', 2200);
     return;
   }
-  setCandidateColor(activeCandidateColorTarget.partido, color);
+
+  if (typeof currentCargo === 'string' && currentCargo.startsWith('senador')) {
+    if (!activeCandidateColorTarget?.nome) {
+      showToast('Digite uma cor hexadecimal válida.', 'warn', 2200);
+      return;
+    }
+    CUSTOM_CANDIDATE_COLORS.set(activeCandidateColorTarget.nome, color);
+    updateSelectionUI(STATE.isFilterAggregationActive);
+    if (window.refreshMapStylesAndTooltips) {
+      window.refreshMapStylesAndTooltips();
+    } else if (currentLayer && currentLayer.setStyle) {
+      currentLayer.setStyle(getFeatureStyle);
+    }
+  } else {
+    if (!activeCandidateColorTarget?.partido) {
+      showToast('Digite uma cor hexadecimal válida.', 'warn', 2200);
+      return;
+    }
+    setCandidateColor(activeCandidateColorTarget.partido, color);
+  }
   closeCandidateColorPopover();
 }
 
 function resetCandidateColorPopover() {
-  if (!activeCandidateColorTarget?.partido) return;
-  CUSTOM_PARTY_COLORS.delete(getNormalizedPartyColorKey(activeCandidateColorTarget.partido));
+  if (typeof currentCargo === 'string' && currentCargo.startsWith('senador')) {
+    if (!activeCandidateColorTarget?.nome) return;
+    CUSTOM_CANDIDATE_COLORS.delete(activeCandidateColorTarget.nome);
+  } else {
+    if (!activeCandidateColorTarget?.partido) return;
+    CUSTOM_PARTY_COLORS.delete(getNormalizedPartyColorKey(activeCandidateColorTarget.partido));
+  }
   updateSelectionUI(STATE.isFilterAggregationActive);
   if (window.refreshMapStylesAndTooltips) {
     window.refreshMapStylesAndTooltips();
@@ -1621,7 +1654,13 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
       }));
 
     const electedCount = candidates.filter((candidate) => candidate.statusInfo.elected).length;
-    const colorPartyKey = getProportionalListColorKey(group.name, group.composition, dominantParty);
+    const isVereadorList = typeof currentCargo === 'string' && currentCargo.startsWith('vereador');
+    const proportionalType = isVereadorList ? 'vereador' : 'deputado';
+    const colorKeyLookup = typeof getScopedProportionalColorKeyLookup === 'function'
+      ? getScopedProportionalColorKeyLookup(proportionalType, typeof currentCargo === 'string' ? currentCargo : undefined)
+      : null;
+    const colorPartyKey = colorKeyLookup?.get(group.key)
+      || getProportionalListColorKey(group.name, group.composition, dominantParty);
     return {
       ...group,
       color: colorForParty(colorPartyKey),

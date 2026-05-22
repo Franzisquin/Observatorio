@@ -1234,7 +1234,9 @@ function buildMunicipalityTooltip(feature, summary) {
     ? String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase()
     : String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
   const ufLabel = UF_MAP.get(uf) || uf;
-  const scopedColorLookup = (!result?.groupColorParties && (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')))
+
+  const isProportional = currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador');
+  const scopedColorLookup = isProportional
     ? getScopedProportionalColorKeyLookup(currentCargo.startsWith('vereador') ? 'vereador' : 'deputado', currentCargo)
     : null;
 
@@ -1263,9 +1265,9 @@ function buildMunicipalityTooltip(feature, summary) {
           candName = idOrComp;
           candParty = idOrComp;
           color = colorForParty(
-            result.groupColorParties?.[key]
-            || scopedColorLookup?.get(key)
-            || getProportionalListColorKey(candName, candParty, candParty)
+            scopedColorLookup?.get(key)
+            || result.groupColorParties?.[key]
+            || getProportionalListColorKey(candName, candParty, candParty.split('/')[0].trim())
           );
         } else {
           const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
@@ -1273,9 +1275,9 @@ function buildMunicipalityTooltip(feature, summary) {
           candName = found ? found.name : idOrComp;
           candParty = found ? (found.composition || idOrComp) : idOrComp;
           color = colorForParty(
-            result.groupColorParties?.[key]
-            || scopedColorLookup?.get(key)
-            || getProportionalListColorKey(candName, candParty, candParty)
+            scopedColorLookup?.get(key)
+            || result.groupColorParties?.[key]
+            || getProportionalListColorKey(candName, candParty, candParty.split('/')[0].trim())
           );
         }
       } else {
@@ -2758,7 +2760,23 @@ function getMunicipalPolygonStyle(feature, summary) {
     return emptyStyle;
   }
 
-  const normalizedParty = normalizePartyAlias(String(result.winnerColorParty || result.winnerParty || '').toUpperCase());
+  let winnerColorParty = result.winnerColorParty;
+  const cargoKey = currentCargo;
+  const isProportional = typeof cargoKey === 'string' && (cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador'));
+  if (isProportional && result.winnerCode) {
+    const type = cargoKey.startsWith('vereador') ? 'vereador' : 'deputado';
+    const scopedColorLookup = typeof getScopedProportionalColorKeyLookup === 'function'
+      ? getScopedProportionalColorKeyLookup(type, cargoKey)
+      : null;
+    if (scopedColorLookup) {
+      const colorPartyKey = scopedColorLookup.get(result.winnerCode);
+      if (colorPartyKey) {
+        winnerColorParty = colorPartyKey;
+      }
+    }
+  }
+
+  const normalizedParty = normalizePartyAlias(String(winnerColorParty || result.winnerParty || '').toUpperCase());
   const baseColor = colorForParty(normalizedParty) || getColorForCandidate(result.winnerName, result.winnerParty);
   const baseStyle = {
     fillColor: getMarginAdjustedColor(baseColor, result.margin),
