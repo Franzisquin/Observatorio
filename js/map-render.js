@@ -1005,20 +1005,7 @@ function getProportionalResultKeyFromProps(props, isVereador = false) {
 }
 
 function getScopedProportionalColorCacheKey(type = 'deputado', cargoKey = currentCargo) {
-  const hasSelection = selectedLocationIDs.size > 0;
-  const scopeKey = hasSelection
-    ? `selected:${STATE._scopedProportionalColorScopeVersion || 0}:${selectedLocationIDs.size}:${STATE.isFilterAggregationActive ? 'agg' : 'manual'}`
-    : [
-      STATE.currentElectionType,
-      currentMesorregiaoFilter,
-      currentMicrorregiaoFilter,
-      currentCidadeFilter,
-      currentBairroFilter,
-      String(currentLocalFilter || '').trim(),
-      STATE.filterInaptos ? 'inaptos' : 'todos'
-    ].join('|');
-
-  return `${cargoKey}|${type}|${scopeKey}`;
+  return `${cargoKey}|${type}|${STATE.filterInaptos ? 'inaptos' : 'todos'}`;
 }
 
 function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = currentCargo) {
@@ -1042,37 +1029,15 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
     return lookup;
   }
 
-  const sourceKeys = new Set();
-  if (selectedLocationIDs.size > 0) {
-    if (isVereadorList && typeof ensureVereadorLookupForCargo === 'function') {
-      ensureVereadorLookupForCargo(cargoKey);
-    }
-    if (!isVereadorList && typeof ensureDeputyLookupForCargo === 'function') {
-      ensureDeputyLookupForCargo(cargoKey);
-    }
-
-    const locationLookup = isVereadorList ? STATE.vereadorLookup : STATE.deputyLookup;
-    selectedLocationIDs.forEach((id) => {
-      const key = locationLookup?.get(id);
-      if (key) sourceKeys.add(key);
-    });
-  } else {
-    const geojson = currentDataCollection[cargoKey];
-    geojson?.features?.forEach((feature) => {
-      if (!filterFeature(feature)) return;
-      const key = getProportionalResultKeyFromProps(feature.properties, isVereadorList);
-      if (key) sourceKeys.add(key);
-    });
-  }
-
   const inaptos = isVereadorList
     ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
     : (STATE.inaptos[cargoKey]?.['1T'] || []);
   const groups = new Map();
   const typeKey = isVereadorList ? 'v' : (String(cargoKey || '').includes('estadual') ? 'e' : 'f');
 
-  sourceKeys.forEach((key) => {
-    const votesMap = resultStore?.[key]?.[typeKey];
+  // Always compute coalition colors over all loaded results in the entire election (state-wide or city-wide)
+  Object.keys(resultStore).forEach((key) => {
+    const votesMap = resultStore[key]?.[typeKey];
     if (!votesMap) return;
 
     Object.entries(votesMap).forEach(([candidateId, rawVotes]) => {

@@ -871,6 +871,11 @@ function clearDeputyData() {
   STATE.precomputedProportionalStateTotals = {};
   STATE.precomputedProportionalMunicipalTotals = {};
   loadedDeputyState = { uf: null, types: new Set(), year: null };
+  if (typeof invalidateScopedProportionalColorLookup === 'function') {
+    invalidateScopedProportionalColorLookup();
+  } else {
+    STATE._scopedProportionalColorLookupCache = null;
+  }
 
   console.log('✓ Dados de deputados completamente limpos');
 }
@@ -909,5 +914,10 @@ function clearVereadorData() {
   STATE._vereadorPartyPrefixCache = null;
   STATE.precomputedProportionalMunicipalTotals = {};
   loadedVereadorState = { uf: null, muniCode: null, year: null };
+  if (typeof invalidateScopedProportionalColorLookup === 'function') {
+    invalidateScopedProportionalColorLookup();
+  } else {
+    STATE._scopedProportionalColorLookupCache = null;
+  }
   console.log('✓ Dados de vereadores completamente limpos');
 }
