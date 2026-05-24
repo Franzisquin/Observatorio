@@ -170,8 +170,187 @@
         window.addEventListener('scroll', () => {
             navbar.classList.toggle('scrolled', window.scrollY > 40);
         });
-    </script>
 
+        // Load and render interactive background Brazil vector map
+        const container = document.getElementById('brazil-map-container');
+        fetch('resultados_geo/estados_brasil.geojson')
+            .then(response => response.json())
+            .then(geojson => {
+                const width = 1200;
+                const height = 1100;
+
+                // Douglas-Peucker Simplification Algorithm
+                function simplifyDouglasPeucker(points, sqTolerance) {
+                    const len = points.length;
+                    if (len <= 2) return points;
+
+                    let maxSqDist = 0;
+                    let index = 0;
+                    const end = len - 1;
+
+                    for (let i = 1; i < end; i++) {
+                        const sqDist = getSqSegDist(points[i], points[0], points[end]);
+                        if (sqDist > maxSqDist) {
+                            index = i;
+                            maxSqDist = sqDist;
+                        }
+                    }
+
+                    if (maxSqDist > sqTolerance) {
+                        const results1 = simplifyDouglasPeucker(points.slice(0, index + 1), sqTolerance);
+                        const results2 = simplifyDouglasPeucker(points.slice(index), sqTolerance);
+                        return results1.slice(0, results1.length - 1).concat(results2);
+                    }
+                    return [points[0], points[end]];
+                }
+
+                function getSqSegDist(p, p1, p2) {
+                    let x = p1[0], y = p1[1],
+                        dx = p2[0] - x, dy = p2[1] - y;
+
+                    if (dx !== 0 || dy !== 0) {
+                        let t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
+                        if (t > 1) {
+                            x = p2[0];
+                            y = p2[1];
+                        } else if (t > 0) {
+                            x += dx * t;
+                            y += dy * t;
+                        }
+                    }
+
+                    dx = p[0] - x;
+                    dy = p[1] - y;
+                    return dx * dx + dy * dy;
+                }
+
+                // Compute bounding box area for a feature (used for adaptive tolerance)
+                function featureBBoxArea(feature) {
+                    let fMinLon = 180, fMaxLon = -180, fMinLat = 90, fMaxLat = -90;
+                    const scanRing = ring => {
+                        ring.forEach(([lon, lat]) => {
+                            if (lon < fMinLon) fMinLon = lon;
+                            if (lon > fMaxLon) fMaxLon = lon;
+                            if (lat < fMinLat) fMinLat = lat;
+                            if (lat > fMaxLat) fMaxLat = lat;
+                        });
+                    };
+                    const g = feature.geometry;
+                    if (g.type === 'Polygon') g.coordinates.forEach(scanRing);
+                    else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(scanRing));
+                    return (fMaxLon - fMinLon) * (fMaxLat - fMinLat);
+                }
+
+                // Find global bounds from geojson coordinates
+                let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
+
+                geojson.features.forEach(f => {
+                    const processRing = ring => {
+                        ring.forEach(([lon, lat]) => {
+                            if (lon < minLon) minLon = lon;
+                            if (lon > maxLon) maxLon = lon;
+                            if (lat < minLat) minLat = lat;
+                            if (lat > maxLat) maxLat = lat;
+                        });
+                    };
+
+                    const geom = f.geometry;
+                    if (geom.type === 'Polygon') {
+                        geom.coordinates.forEach(processRing);
+                    } else if (geom.type === 'MultiPolygon') {
+                        geom.coordinates.forEach(polygon => polygon.forEach(processRing));
+                    }
+                });
+
+                const centerLon = (minLon + maxLon) / 2;
+                const centerLat = (minLat + maxLat) / 2;
+
+                const lonDiff = maxLon - minLon;
+                const latDiff = maxLat - minLat;
+                const scale = Math.min(width / lonDiff, height / latDiff) * 1.05;
+
+                const project = (lon, lat) => {
+                    const x = (lon - centerLon) * scale + width / 2;
+                    const y = -(lat - centerLat) * scale + height / 2;
+                    return [x, y];
+                };
+
+                // Compute the largest state bbox area for normalizing tolerance
+                const globalBBoxArea = lonDiff * latDiff;
+
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+                geojson.features.forEach((feature, index) => {
+                    const geom = feature.geometry;
+                    const coords = geom.coordinates;
+
+                    // Adaptive tolerance: larger states get more aggressive simplification,
+                    // smaller states (Acre, Sergipe, Alagoas, DF) get gentler simplification
+                    const bboxArea = featureBBoxArea(feature);
+                    const areaRatio = bboxArea / globalBBoxArea; // 0..1
+                    // Scale tolerance: small states (ratio < 0.02) → 0.003, large states → up to 0.015
+                    const sqTolerance = 0.003 + Math.min(areaRatio * 2, 1) * 0.012;
+
+                    const processPolygon = (rings) => {
+                        let pathStr = "";
+                        rings.forEach((ring) => {
+                            if (ring.length === 0) return;
+                            
+                            const simplified = simplifyDouglasPeucker(ring, sqTolerance);
+                            
+                            const [firstLon, firstLat] = simplified[0];
+                            const [firstX, firstY] = project(firstLon, firstLat);
+                            pathStr += ` M ${firstX.toFixed(1)} ${firstY.toFixed(1)}`;
+                            for (let i = 1; i < simplified.length; i++) {
+                                const [lon, lat] = simplified[i];
+                                const [x, y] = project(lon, lat);
+                                pathStr += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+                            }
+                            pathStr += " Z";
+                        });
+                        return pathStr;
+                    };
+
+                    let d = "";
+                    if (geom.type === 'Polygon') {
+                        d = processPolygon(coords);
+                    } else if (geom.type === 'MultiPolygon') {
+                        coords.forEach(poly => {
+                            d += processPolygon(poly);
+                        });
+                    }
+
+                    if (!d) return;
+
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+                    // Green flow worm
+                    const flowGreen = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    flowGreen.setAttribute('d', d);
+                    flowGreen.setAttribute('class', 'state-flow-green');
+                    const delayVal = index * 0.45;
+                    flowGreen.style.animationDelay = `-${delayVal.toFixed(2)}s`;
+                    g.appendChild(flowGreen);
+
+                    // Yellow flow worm (chasing green with 6s offset)
+                    const flowYellow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    flowYellow.setAttribute('d', d);
+                    flowYellow.setAttribute('class', 'state-flow-yellow');
+                    flowYellow.style.animationDelay = `-${(delayVal + 6).toFixed(2)}s`;
+                    g.appendChild(flowYellow);
+
+                    svg.appendChild(g);
+                });
+
+                container.innerHTML = '';
+                container.appendChild(svg);
+            })
+            .catch(err => {
+                console.error('Erro ao carregar o mapa do Brasil:', err);
+            });
+    </script>
 </body>
 
 </html>
