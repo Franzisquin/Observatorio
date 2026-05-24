@@ -2492,11 +2492,37 @@ input:disabled {
   text-align: center;
 }
 
-/* Align titles and subtitles to the right inside side-right sidebar */
+/* Center panel header titles (Dados and Resultados) */
+.panel .head {
+  display: flex !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
 .side-right #resultsTitle,
 .side-right #resultsSubtitle,
 .side-right .profile-section h4 {
   text-align: right;
+  width: 100%;
+}
+
+/* Align the parent flex container of the results title/subtitle to the right */
+.side-right #resultsBox > div:first-child {
+  display: flex !important;
+  justify-content: flex-end !important;
+  text-align: right !important;
+  width: 100%;
+}
+
+/* Ensure the text container inside that flex container is aligned right */
+.side-right #resultsBox > div:first-child > div {
+  text-align: right !important;
+}
+
+/* Right-align the turn tabs */
+.side-right #turnTabs {
+  display: flex !important;
+  justify-content: flex-end !important;
   width: 100%;
 }
 
@@ -2514,4 +2540,12 @@ input:disabled {
 
 .side-right .profile-header .info-button {
   position: static !important;
+}
+
+/* Match metric values style with candidate votes */
+.side-right .metric-item strong {
+  font-size: 0.8rem !important;
+  font-weight: 400 !important;
+  font-variant-numeric: tabular-nums !important;
+  color: var(--text) !important;
 }

@@ -791,12 +791,8 @@ function renderResultsPanel(props, cargo) {
     turnoKey,
     officialSummary ? officialSummary.comparecimento : null
   );
-  const participacaoHtml = turnoutStats.ratio !== null
-    ? `<div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>Participação${isEstadoCompleto ? ' *' : ''}</span>
-        <strong>${fmtPct(turnoutStats.ratio)}</strong>
-      </div>`
-    : '';
+  const invalidos = brancos + nulos;
+  const invalidosPct = comparecimento > 0 ? (invalidos / comparecimento) : 0;
 
   const avisoHtml = isEstadoCompleto ? `
     <div class="metric-item" style="grid-column:1/-1; border-left:3px solid #f59e0b; background:rgba(245,158,11,0.07); padding:6px 10px; border-radius:4px; margin-bottom:2px;">
@@ -809,22 +805,17 @@ function renderResultsPanel(props, cargo) {
     <div class="metrics-grid">
       ${avisoHtml}
       <div class="metric-item"${isEstadoCompleto ? ' style="border-left:3px solid var(--accent);"' : ''}>
-        <span>Votos Válidos (Nominais)</span>
+        <span>Votos válidos</span>
         <strong>${fmtInt(totalBase)}</strong>
       </div>
       <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
         <span>Comparecimento${isEstadoCompleto ? ' *' : ''}</span>
-        <strong>${fmtInt(comparecimento)}</strong>
+        <strong>${fmtInt(comparecimento)}${turnoutStats.ratio !== null ? ` (${fmtPct(turnoutStats.ratio)})` : ''}</strong>
       </div>
       <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>Brancos${isEstadoCompleto ? ' *' : ''}</span>
-        <strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong>
+        <span>Votos inválidos${isEstadoCompleto ? ' *' : ''}</span>
+        <strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong>
       </div>
-      <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>Nulos${isEstadoCompleto ? ' *' : ''}</span>
-        <strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong>
-      </div>
-      ${participacaoHtml}
       ${votosInaptos > 0 ? `<div class="metric-item"><span>Inaptos (na soma)</span><strong style="color:var(--err)">${fmtInt(votosInaptos)}</strong></div>` : ''}
     </div>
   `;
@@ -1156,26 +1147,24 @@ function renderDeputyResults(cargo) {
       </span>
     </div>` : '';
 
+  const invalidos = brancos + nulos;
+  const invalidosPct = comparecimento > 0 ? (invalidos / comparecimento) : 0;
+
   dom.resultsMetrics.innerHTML = `
       <div class="metrics-grid">
         ${avisoDeputyHtml}
         <div class="metric-item"${usarResultadosCompletos ? ' style="border-left:3px solid var(--accent);"' : ''}>
-          <span>Votos Válidos (Soma)</span>
+          <span>Votos válidos</span>
           <strong>${fmtInt(totalValidos)}</strong>
         </div>
         <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
           <span>Comparecimento${isParcialDeputy ? ' *' : ''}</span>
-          <strong>${fmtInt(comparecimento)}</strong>
+          <strong>${fmtInt(comparecimento)}${turnoutStats.ratio !== null ? ` (${fmtPct(turnoutStats.ratio)})` : ''}</strong>
         </div>
         <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
-          <span>Brancos${isParcialDeputy ? ' *' : ''}</span>
-          <strong>${fmtInt(brancos)}</strong>
+          <span>Votos inválidos${isParcialDeputy ? ' *' : ''}</span>
+          <strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong>
         </div>
-        <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
-          <span>Nulos${isParcialDeputy ? ' *' : ''}</span>
-          <strong>${fmtInt(nulos)}</strong>
-        </div>
-        ${participacaoHtml}
       </div>
     `;
 }
@@ -1755,13 +1744,16 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   const comparecimento = metrics.comparecimento ?? (groupsPayload.comparecimento || totalValidos);
   const brancos = metrics.brancos ?? groupsPayload.brancos ?? 0;
   const nulos = metrics.nulos ?? groupsPayload.nulos ?? 0;
+  const invalidos = brancos + nulos;
+  const invalidosPct = comparecimento > 0 ? (invalidos / comparecimento) : 0;
+  const ratioHtml = (metrics.ratio !== null && metrics.ratio !== undefined) ? ` (${fmtPct(metrics.ratio)})` : '';
+
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       ${extraMetrics}
       <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(totalValidos)}</strong></div>
-      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
-      <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)}</strong></div>
-      <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)}</strong></div>
+      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}${ratioHtml}</strong></div>
+      <div class="metric-item"><span>Votos inválidos</span><strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong></div>
     </div>
   `;
 }
@@ -2348,13 +2340,14 @@ function renderVereadorResults(cargo) {
   wrapper.append(carousel, prevBtn, nextBtn);
   dom.resultsContent.append(wrapper, paginator);
 
+  const invalidos = brancos + nulos;
+  const invalidosPct = comparecimento > 0 ? (invalidos / comparecimento) : 0;
+
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
-      <div class="metric-item"><span>Votos Válidos (Nominais)</span><strong>${fmtInt(totalVotes)}</strong></div>
-      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}</strong></div>
-      <div class="metric-item"><span>Brancos</span><strong>${fmtInt(brancos)} (${fmtPct(comparecimento > 0 ? brancos / comparecimento : 0)})</strong></div>
-      <div class="metric-item"><span>Nulos</span><strong>${fmtInt(nulos)} (${fmtPct(comparecimento > 0 ? nulos / comparecimento : 0)})</strong></div>
-      ${participacaoHtml}
+      <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(totalVotes)}</strong></div>
+      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)}${turnoutStats.ratio !== null ? ` (${fmtPct(turnoutStats.ratio)})` : ''}</strong></div>
+      <div class="metric-item"><span>Votos inválidos</span><strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong></div>
     </div>`;
 }
 
@@ -3198,12 +3191,14 @@ function renderDeputyPartyResults(cargo) {
     `
     : '';
 
+  const turnoutStats = getTurnoutStatsForSelection(null, cargo, '1T', payload.comparecimento);
   dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
   renderProportionalExpandableList(payload, {
     extraMetrics,
     comparecimento: payload.comparecimento,
     brancos: payload.brancos,
-    nulos: payload.nulos
+    nulos: payload.nulos,
+    ratio: turnoutStats.ratio
   });
 }
 
@@ -3223,12 +3218,14 @@ function renderVereadorPartyResults(cargo) {
     `
     : '';
 
+  const turnoutStats = getTurnoutStatsForSelection(null, cargo, '1T', payload.comparecimento);
   dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
   renderProportionalExpandableList(payload, {
     extraMetrics,
     comparecimento: payload.comparecimento,
     brancos: payload.brancos,
-    nulos: payload.nulos
+    nulos: payload.nulos,
+    ratio: turnoutStats.ratio
   });
 }
 
