@@ -794,14 +794,28 @@ function updateClearSelectionButtonVisibility() {
   if (!btn) return;
 
   let showButton = false;
-  if (typeof STATE !== 'undefined' && STATE.currentElectionType === 'geral') {
-    const citySelected = (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all');
-    const hasSelection = (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
-    showButton = citySelected || hasSelection;
-  } else if (typeof STATE !== 'undefined' && STATE.currentElectionType === 'municipal') {
-    const citySelected = !!(typeof dom !== 'undefined' && dom.selectMunicipio?.value);
-    const hasSelection = (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
-    showButton = citySelected || hasSelection;
+  if (typeof STATE !== 'undefined') {
+    if (STATE.currentElectionType === 'geral') {
+      const hasRegionalFilter = 
+        (typeof currentMesorregiaoFilter !== 'undefined' && currentMesorregiaoFilter !== 'all') ||
+        (typeof currentMicrorregiaoFilter !== 'undefined' && currentMicrorregiaoFilter !== 'all') ||
+        (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all') ||
+        (typeof currentBairroFilter !== 'undefined' && currentBairroFilter !== 'all') ||
+        (typeof currentLocalFilter !== 'undefined' && currentLocalFilter !== '');
+      
+      const hasManualSelection = 
+        !STATE.isFilterAggregationActive && 
+        (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
+        
+      showButton = hasRegionalFilter || hasManualSelection;
+    } else if (STATE.currentElectionType === 'municipal') {
+      const muniSelected = !!(typeof dom !== 'undefined' && dom.selectMunicipio?.value);
+      const hasManualSelection = 
+        !STATE.isFilterAggregationActive && 
+        (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
+        
+      showButton = muniSelected || hasManualSelection;
+    }
   }
 
   if (showButton) {

@@ -2038,7 +2038,6 @@ input:disabled {
   padding: 4px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
 }
 
@@ -2079,7 +2078,6 @@ input:disabled {
 .toggle-btn.active {
   color: #fff;
   background: var(--accent);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .toggle-btn.active svg {
@@ -2336,7 +2334,6 @@ input:disabled {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
   transition: background 0.15s, color 0.15s, transform 0.1s;
   user-select: none;
 }
@@ -2354,7 +2351,6 @@ input:disabled {
   background: #ffffff;
   border: 1px solid #d1d5db;
   color: #4b5563;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
 }
 
 [data-theme="light"] .btn-clear-selection:hover {
