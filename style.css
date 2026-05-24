@@ -2498,12 +2498,16 @@ input:disabled {
   justify-content: center !important;
   text-align: center !important;
 }
+.side-right #resultsTitle {
+  display: block !important;
+  text-align: right !important;
+  width: 100% !important;
+}
 
-.side-right #resultsTitle,
 .side-right #resultsSubtitle,
 .side-right .profile-section h4 {
-  text-align: right;
-  width: 100%;
+  text-align: right !important;
+  width: 100% !important;
 }
 
 /* Align the parent flex container of the results title/subtitle to the right */
@@ -2511,12 +2515,13 @@ input:disabled {
   display: flex !important;
   justify-content: flex-end !important;
   text-align: right !important;
-  width: 100%;
+  width: 100% !important;
 }
 
 /* Ensure the text container inside that flex container is aligned right */
 .side-right #resultsBox > div:first-child > div {
   text-align: right !important;
+  width: 100% !important;
 }
 
 /* Right-align the turn tabs */
