@@ -1220,21 +1220,19 @@ body {
   }
 }
 
-/* NEIGHBORHOOD PROFILE STYLES */
 .profile-header {
-  background: var(--input-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 0;
-  padding: 12px;
+  background: transparent;
+  border: none;
+  padding: 0;
   margin-bottom: 12px;
-  text-align: center;
+  text-align: left;
 }
 
 .profile-renda {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: var(--ok);
-  margin-top: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 0;
 }
 
 .profile-section {
@@ -2356,4 +2354,164 @@ input:disabled {
 [data-theme="light"] .btn-clear-selection:hover {
   background: #f3f4f6;
   color: #111827;
+}
+
+/* RESULTS PANEL REWORK OVERRIDES */
+
+/* Remove inner borders / background from panel sections */
+.side-right .section {
+  border: none;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* Sticky layout for Cargo selector */
+#electionContextBox {
+  position: sticky;
+  top: -6px; /* sticks right at the top edge of the scrollable area, covering the 6px top padding */
+  z-index: 10;
+  background: var(--card) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 10px 8px 10px 8px !important;
+  margin: -6px -8px 12px -8px !important;
+}
+
+/* Remove borders and background from metric items */
+.side-right .metric-item {
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+  box-shadow: none;
+}
+
+/* Subtle line separator for metrics footer */
+.side-right .footer {
+  border-top: 1px solid rgba(125, 125, 125, 0.12);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+/* Flat, borderless selector chips with a bottom bar on selection (premium tab style) */
+.side-right .chip-button {
+  border: none !important;
+  background: transparent !important;
+  border-bottom: 3px solid transparent !important;
+  color: var(--muted) !important;
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 6px 4px !important;
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: all .15s;
+}
+
+.side-right .chip-button:hover {
+  color: var(--text) !important;
+  border-bottom-color: rgba(122, 122, 122, 0.3) !important;
+}
+
+.side-right .chip-button.active {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 3px solid var(--accent) !important; /* barra cinza sob o nome */
+  font-weight: 600 !important;
+}
+
+/* Make cargo selector chips occupy width naturally */
+#cargoChipsGeneral {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  gap: 6px;
+}
+
+#cargoChipsGeneral .chip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Line 1: first 3 chips (Presidente, Governador, Senador) */
+#cargoChipsGeneral .chip-button:nth-child(1),
+#cargoChipsGeneral .chip-button:nth-child(2),
+#cargoChipsGeneral .chip-button:nth-child(3) {
+  flex: 1 1 calc(33.333% - 6px);
+}
+
+/* Line 2: last 2 chips (Dep. Federal, Dep. Estadual) */
+#cargoChipsGeneral .chip-button:nth-child(4),
+#cargoChipsGeneral .chip-button:nth-child(5) {
+  flex: 1 1 calc(50% - 6px);
+}
+
+/* Municipal Cargo chips (Prefeito, Vereador) */
+#officeChipsMunicipal {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+}
+
+#officeChipsMunicipal .chip-button {
+  flex: 1 1 calc(50% - 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Turno chips (1º Turno, 2º Turno) */
+#turnoChips {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+}
+
+#turnoChips .chip-button {
+  flex: 1 1 calc(50% - 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Dynamic Municipal selectors */
+#cargoChipsMunicipal {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+}
+
+#cargoChipsMunicipal .chip-button {
+  flex: 1 1 calc(50% - 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Align titles and subtitles to the right inside side-right sidebar */
+.side-right #resultsTitle,
+.side-right #resultsSubtitle,
+.side-right .profile-section h4 {
+  text-align: right;
+  width: 100%;
+}
+
+.side-right .profile-header {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 8px !important;
+  text-align: right !important;
+}
+
+.side-right .profile-header h3 {
+  margin: 0 !important;
+}
+
+.side-right .profile-header .info-button {
+  position: static !important;
 }

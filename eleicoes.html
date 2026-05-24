@@ -45,7 +45,9 @@
         </svg>
         Guia
       </button>
-      <button id="themeToggle" class="toolbar-link" title="Mudar tema">☀️</button>
+      <button id="themeToggle" class="toolbar-link" title="Mudar tema">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+      </button>
     </div>
   </div>
 
@@ -365,7 +367,6 @@
         <div class="section" id="electionContextBox">
           <div class="results-context">
             <div class="results-context-block" id="officeBoxGeneral">
-              <label>Cargo</label>
               <div class="chip-group" id="cargoChipsGeneral">
                 <button class="chip-button active" data-value="presidente">Presidente</button>
                 <button class="chip-button" data-value="governador">Governador</button>
@@ -376,7 +377,6 @@
             </div>
 
             <div class="results-context-block section-hidden" id="officeBoxMunicipal">
-              <label>Cargo</label>
               <div class="chip-group" id="officeChipsMunicipal">
                 <button class="chip-button active" data-value="prefeito">Prefeito</button>
                 <button class="chip-button" data-value="vereador">Vereador</button>
@@ -432,17 +432,17 @@
             <!-- NEIGHBORHOOD PROFILE -->
             <div id="neighborhoodProfile"
               style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
-              <div class="profile-header" style="position: relative; margin-bottom: 12px; text-align: center;">
-                <span style="display:inline-block; font-size:0.85rem; color:var(--muted); letter-spacing: 0.5px;">PERFIL DA VIZINHANÇA</span>
-                <button id="btnInfoCensus" class="info-button" style="position:absolute; right:0; top:-4px; background:transparent; border:1px solid var(--accent); color:var(--accent); border-radius:2px; padding:0 8px; cursor:pointer;" title="Informações sobre os dados">i</button>
+              <div class="profile-header" style="position: relative; margin-bottom: 12px; text-align: left;">
+                <h3 style="margin: 0; font-size: 1rem; line-height: 1.3; font-weight: 700; color: var(--text);">Perfil Demográfico</h3>
+                <button id="btnInfoCensus" class="info-button" style="position:absolute; right:0; top:0px; background:transparent; border:1px solid var(--accent); color:var(--accent); border-radius:2px; padding:0 8px; cursor:pointer;" title="Informações sobre os dados">i</button>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
-                <span style="font-size:0.9rem; color:var(--muted);">Renda Média</span>
-                <div id="profileRendaVal" class="profile-renda" style="font-size: 1rem; margin-top:0;">R$ --</div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                <span style="font-size:0.85rem; color:var(--muted);">Renda Média</span>
+                <div id="profileRendaVal" class="profile-renda">R$ --</div>
               </div>
 
               <div class="profile-section">
-                <h4>Demografia (Raça/Cor)</h4>
+                <h4>Cor/Raça</h4>
                 <div id="profileRacaChart"></div>
               </div>
 
