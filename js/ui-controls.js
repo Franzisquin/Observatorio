@@ -706,7 +706,7 @@ function setupControls() {
       performanceModeStats = calculateCandidateStats(candidatoKey) || {
         candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
       };
-      console.log('📊 Modo Desempenho - Stats:', performanceModeStats);
+      console.log('[Desempenho] Stats:', performanceModeStats);
 
       // Atualizar UI de estatísticas
       updatePerformanceStatsUI();

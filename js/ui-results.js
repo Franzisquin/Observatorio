@@ -317,7 +317,7 @@ function updateVizModeUI() {
       performanceModeStats = calculateCandidateStats(candidatoKey) || {
         candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
       };
-      console.log('📊 Modo Desempenho ativado - Stats:', performanceModeStats);
+      console.log('[Desempenho] Modo ativado - Stats:', performanceModeStats);
       updatePerformanceStatsUI();
     } else {
       performanceModeStats = { candidato: null, minPct: 0, maxPct: 0, avgPct: 0, totalLocais: 0 };

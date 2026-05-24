@@ -620,7 +620,7 @@ function updatePerformanceStatsUI() {
 
       slider.addEventListener('change', (e) => {
         performanceFilterMinPct = parseFloat(e.target.value);
-        console.log('📊 Filtro Desempenho:', performanceFilterMinPct.toFixed(1) + '%');
+        console.log('[Desempenho] Filtro:', performanceFilterMinPct.toFixed(1) + '%');
         applyFiltersAndRedraw();
       });
     }

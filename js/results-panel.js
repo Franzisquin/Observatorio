@@ -797,7 +797,7 @@ function renderResultsPanel(props, cargo) {
   const avisoHtml = isEstadoCompleto ? `
     <div class="metric-item" style="grid-column:1/-1; border-left:3px solid #f59e0b; background:rgba(245,158,11,0.07); padding:6px 10px; border-radius:4px; margin-bottom:2px;">
       <span style="font-size:0.72rem; color:#f59e0b; line-height:1.4;">
-        &#9888;&#65039; <strong>Aten&ccedil;&atilde;o:</strong> Os votos por candidato refletem o total real (${fmtInt(totalBase)} nominais). Comparecimento, brancos e nulos s&atilde;o parciais &mdash; nem todos os locais est&atilde;o mapeados.
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px; display: inline-block;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>Aten&ccedil;&atilde;o:</strong> Os votos por candidato refletem o total real (${fmtInt(totalBase)} nominais). Comparecimento, brancos e nulos s&atilde;o parciais &mdash; nem todos os locais est&atilde;o mapeados.
       </span>
     </div>` : '';
 
@@ -1143,7 +1143,7 @@ function renderDeputyResults(cargo) {
   const avisoDeputyHtml = isParcialDeputy ? `
     <div class="metric-item" style="grid-column:1/-1; border-left:3px solid #f59e0b; background:rgba(245,158,11,0.07); padding:6px 10px; border-radius:4px; margin-bottom:2px;">
       <span style="font-size:0.72rem; color:#f59e0b; line-height:1.4;">
-        &#9888;&#65039; <strong>Aten&ccedil;&atilde;o:</strong> Totais parciais &mdash; nem todos os locais est&atilde;o mapeados.
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px; display: inline-block;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> <strong>Aten&ccedil;&atilde;o:</strong> Totais parciais &mdash; nem todos os locais est&atilde;o mapeados.
       </span>
     </div>` : '';
 
