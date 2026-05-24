@@ -24,9 +24,8 @@
 <body data-theme="dark">
   <!-- TOP TOOLBAR -->
   <div class="app-toolbar">
-    <div class="toolbar-left">
+    <div class="toolbar-center">
       <a href="index.html" class="toolbar-logo">Observatório</a>
-      <span class="toolbar-sep">|</span>
       <span class="toolbar-page">Visualizador Eleitoral</span>
     </div>
     <div class="toolbar-right">
@@ -338,6 +337,7 @@
     <!-- CENTER: Map -->
     <div class="panel side side-res">
       <div id="map"></div>
+      <button id="btnClearSelection" class="btn-clear-selection hidden" title="Voltar para visualização geral">✕</button>
       
       <!-- MAP OVERLAY CONTROLS -->
       <div class="map-overlay-controls">
@@ -413,11 +413,6 @@
               <small id="resultsSubtitle"
                 style="color:var(--muted); font-size:0.8rem; display:block; margin-top:2px;"></small>
             </div>
-            <button id="btnClearSelection" class="button ghost"
-              style="padding: 6px; width: 28px; height: 28px; display:flex; align-items:center; justify-content:center; border-radius:50%;"
-              title="Limpar seleção">
-              ✕
-            </button>
           </div>
 
           <div id="turnTabs" class="tabs"></div>

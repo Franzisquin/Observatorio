@@ -104,6 +104,11 @@ function updateSelectionUI(isFilterAggregation = false) {
   if (typeof window.updateISEPanel === 'function') {
     window.updateISEPanel(currentLayer, currentCargo, currentTurno);
   }
+
+  // Update Voltar/Clear Selection button visibility
+  if (typeof window.updateClearSelectionButtonVisibility === 'function') {
+    window.updateClearSelectionButtonVisibility();
+  }
 }
 
 

@@ -4,8 +4,9 @@
   --muted: #a3a3a3;
   --text: #f5f5f5;
   --text-sec: #cccccc;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
+  --accent: #7a7a7a;
+  --accent-hover: #919191;
+  --accent-rgb: 122, 122, 122;
   --accent-2: #f59e0b;
   --ok: #22c55e;
   --warn: #eab308;
@@ -30,8 +31,9 @@
   --muted: #6b7280;
   --text: #111827;
   --text-sec: #374151;
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
+  --accent: #707070;
+  --accent-hover: #5a5a5a;
+  --accent-rgb: 112, 112, 112;
   --accent-2: #d97706;
   --ok: #16a34a;
   --warn: #ca8a04;
@@ -72,12 +74,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 34px;
+  height: 68px;
   padding: 0 12px;
   background: #0a0a0a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   z-index: 100;
   flex-shrink: 0;
+  position: relative;
 }
 
 [data-theme="light"] .app-toolbar {
@@ -91,10 +94,22 @@ body {
   gap: 10px;
 }
 
+.toolbar-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  pointer-events: auto;
+}
+
 .toolbar-logo {
   font-family: 'Abril Fatface', serif;
   font-weight: 400;
-  font-size: 0.95rem;
+  font-size: 1.2rem;
   color: #ffffff;
   text-decoration: none;
   letter-spacing: 0.3px;
@@ -115,14 +130,16 @@ body {
 }
 
 .toolbar-page {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.2px;
+  font-family: 'Abril Fatface', serif;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.5px;
+  margin-top: 2px;
 }
 
 [data-theme="light"] .toolbar-page {
-  color: #6b7280;
+  color: #555555;
 }
 
 .toolbar-right {
@@ -166,7 +183,7 @@ body {
   display: grid;
   grid-template-columns: 375px 1fr 375px;
   gap: 0;
-  height: calc(100vh - 34px);
+  height: calc(100vh - 68px);
   padding: 0;
   min-width: 0;
   min-height: 0;
@@ -1593,7 +1610,7 @@ input:disabled {
 
 .combobox-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
 }
 
 .combobox-input:disabled {
@@ -1706,15 +1723,15 @@ input:disabled {
 
 @keyframes blink-pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0.4);
   }
 
   70% {
-    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0 6px rgba(var(--accent-rgb), 0);
   }
 
   100% {
-    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    box-shadow: 0 0 0 0 rgba(var(--accent-rgb), 0);
   }
 }
 
@@ -1889,7 +1906,7 @@ input:disabled {
 .selection-box {
   position: absolute;
   border: 1px solid var(--accent);
-  background-color: rgba(59, 130, 246, 0.2);
+  background-color: rgba(var(--accent-rgb), 0.2);
   z-index: 2000;
   pointer-events: none;
   display: none;
@@ -2295,4 +2312,52 @@ input:disabled {
   font-size: 0.85rem;
   font-weight: 600;
   border-radius: 6px;
+}
+
+/* Helper hidden class */
+.hidden {
+  display: none !important;
+}
+
+/* Premium Map Box Clear Selection Button (✕) style */
+.btn-clear-selection {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  width: 32px;
+  height: 32px;
+  background: #2b2b2b; /* Dark gray */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: #a3a3a3; /* Light gray X */
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  user-select: none;
+}
+
+.btn-clear-selection:hover {
+  background: #3a3a3a;
+  color: #f5f5f5;
+}
+
+.btn-clear-selection:active {
+  transform: scale(0.92);
+}
+
+[data-theme="light"] .btn-clear-selection {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .btn-clear-selection:hover {
+  background: #f3f4f6;
+  color: #111827;
 }

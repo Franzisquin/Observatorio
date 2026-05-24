@@ -788,3 +788,29 @@ if (typeof window !== 'undefined') {
   window.isMunicipalityVisibleInCurrentContext = isMunicipalityVisibleInCurrentContext;
   window.getMarginAdjustedColor = getMarginAdjustedColor;
 }
+
+function updateClearSelectionButtonVisibility() {
+  const btn = document.getElementById('btnClearSelection') || (typeof dom !== 'undefined' ? dom.btnClearSelection : null);
+  if (!btn) return;
+
+  let showButton = false;
+  if (typeof STATE !== 'undefined' && STATE.currentElectionType === 'geral') {
+    const citySelected = (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all');
+    const hasSelection = (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
+    showButton = citySelected || hasSelection;
+  } else if (typeof STATE !== 'undefined' && STATE.currentElectionType === 'municipal') {
+    const citySelected = !!(typeof dom !== 'undefined' && dom.selectMunicipio?.value);
+    const hasSelection = (typeof selectedLocationIDs !== 'undefined' && selectedLocationIDs.size > 0);
+    showButton = citySelected || hasSelection;
+  }
+
+  if (showButton) {
+    btn.classList.remove('hidden');
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.updateClearSelectionButtonVisibility = updateClearSelectionButtonVisibility;
+}

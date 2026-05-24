@@ -1829,6 +1829,11 @@ function applyFiltersAndRedraw() {
   if (STATE.isLoadingDataset) {
     clearPendingFilterChanges();
   }
+
+  // Update Voltar/Clear Selection button visibility
+  if (typeof window.updateClearSelectionButtonVisibility === 'function') {
+    window.updateClearSelectionButtonVisibility();
+  }
 }
 
 
@@ -2666,6 +2671,11 @@ function clearSelection(updateMap = true) {
     refreshMunicipalSelectionOverlay();
   }
   updateNeighborhoodProfileUI();
+
+  // Update Voltar/Clear Selection button visibility
+  if (typeof window.updateClearSelectionButtonVisibility === 'function') {
+    window.updateClearSelectionButtonVisibility();
+  }
 }
 
 async function fetchMunicipalPolygonGeoJSON(uf) {
@@ -2742,7 +2752,7 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   const normalizedParty = normalizePartyAlias(String(winnerColorParty || result.winnerParty || '').toUpperCase());
-  const baseColor = colorForParty(normalizedParty) || getColorForCandidate(result.winnerName, result.winnerParty);
+  const baseColor = getColorForCandidate(result.winnerName, normalizedParty);
   const baseStyle = {
     fillColor: getMarginAdjustedColor(baseColor, result.margin),
     fillOpacity: 0.78,
@@ -2837,7 +2847,7 @@ function resolveMunicipalOverviewWinnerPresentation(result) {
 
   const displayKey = partyKey || normalizePartyAlias(String(candidateName || '').toUpperCase());
   const displayLabel = partyKey || candidateName || displayKey || 'N/D';
-  const color = colorForParty(colorKey || partyKey || displayKey) || getColorForCandidate(candidateName, partyKey || colorKey);
+  const color = getColorForCandidate(candidateName, colorKey || partyKey || displayKey);
 
   return {
     key: displayKey,
