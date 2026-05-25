@@ -156,6 +156,7 @@
               </div>
             </div>
           </div>
+          <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;" />
           <!-- FILTROS CENSITÁRIOS -->
           <div class="filter-group" id="demographicFilters">
             <h4 style="margin: 0 0 12px 0; font-size:0.9rem;">Filtros Demográficos (Censo)</h4>
@@ -173,13 +174,6 @@
             <!-- RENDA TAB -->
             <div class="tab-content" id="tab-renda">
               <label class="slider-label">Renda Média (R$)</label>
-
-              <div class="exact-input-row">
-                <input id="inputRendaMin" type="number" class="exact-input" min="0" max="10000" step="1"
-                  placeholder="Mínimo (R$)">
-                <input id="inputRendaMax" type="number" class="exact-input" min="0" max="10000" step="1"
-                  placeholder="Máximo (R$)">
-              </div>
 
               <div class="dual-slider-container" id="sliderRendaContainer">
                 <div class="dual-track"></div>
@@ -278,11 +272,6 @@
 
           </div>
 
-          <div class="toolbar">
-            <button id="btnToggleInaptos" class="button toggle" title="Mostrar/Ocular Inaptos" disabled>
-              Filtrar Inaptos
-            </button>
-          </div>
         </div>
 
         <div class="section section-hidden" id="vizBox">
@@ -307,26 +296,12 @@
             </div>
           </div>
 
-          <div class="row" style="grid-template-columns: 1fr 1fr;">
-            <div class="ctrl section-hidden" id="vizColorStyleCtrl">
-              <label for="selectVizColorStyle">Estilo de Cor</label>
-              <select id="selectVizColorStyle" class="select" disabled>
-                <option value="gradient" selected>Gradiente</option>
-                <option value="static">Cor Estática</option>
-              </select>
-            </div>
-
-            <div class="ctrl">
-              <label for="selectVizSize">Tamanho dos Pontos</label>
-              <select id="selectVizSize" class="select" disabled>
-                <option value="comparecimento" selected>Por Comparecimento</option>
-                <option value="fixo">Fixo</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="toolbar">
-            <button id="btnApplyFilters" class="button primary" disabled>Carregue os dados</button>
+          <div class="ctrl section-hidden" id="vizColorStyleCtrl">
+            <label for="selectVizColorStyle">Estilo de Cor</label>
+            <select id="selectVizColorStyle" class="select" disabled>
+              <option value="gradient" selected>Gradiente</option>
+              <option value="static">Cor Estática</option>
+            </select>
           </div>
         </div>
 
@@ -356,8 +331,6 @@
 
     <!-- RIGHT PANEL: Results -->
     <div class="panel side side-right">
-      <div class="body">
-
         <div class="section" id="electionContextBox">
           <div class="results-context">
             <div class="results-context-block" id="officeBoxGeneral">
@@ -383,15 +356,10 @@
               </div>
             </div>
 
-            <div class="results-context-block section-hidden" id="turnoContainer">
-              <label>Turno</label>
-              <div class="chip-group" id="turnoChips">
-                <button class="chip-button active" data-value="1">1º Turno</button>
-                <button class="chip-button" data-value="2">2º Turno</button>
-              </div>
             </div>
           </div>
-        </div>
+
+        <div class="body">
 
         <div class="section section-hidden" id="summaryBoxContainer">
           <h3 style="margin:0; font-size: 1rem; line-height: 1.3;">Comparativo</h3>
@@ -407,7 +375,12 @@
             </div>
           </div>
 
-          <div id="turnTabs" class="tabs"></div>
+          <div class="results-controls-row">
+            <button id="btnToggleInaptos" class="btn-toggle-inaptos" title="Filtrar candidatos inaptos" disabled>
+              Filtrar Inaptos
+            </button>
+            <div id="turnTabs" class="tabs"></div>
+          </div>
 
           <!-- UNIFIED VIEW CONTAINER -->
           <div id="unifiedResultsContainer" class="animation-fade">
@@ -429,13 +402,16 @@
             <!-- NEIGHBORHOOD PROFILE -->
             <div id="neighborhoodProfile"
               style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
-              <div class="profile-header" style="position: relative; margin-bottom: 12px; text-align: left;">
+              <div class="profile-header" style="position: relative; margin-bottom: 12px; text-align: center;">
                 <h3 style="margin: 0; font-size: 1rem; line-height: 1.3; font-weight: 700; color: var(--text);">Perfil Demográfico</h3>
                 <button id="btnInfoCensus" class="info-button" style="position:absolute; right:0; top:0px; background:transparent; border:1px solid var(--accent); color:var(--accent); border-radius:2px; padding:0 8px; cursor:pointer;" title="Informações sobre os dados">i</button>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
-                <span style="font-size:0.85rem; color:var(--muted);">Renda Média</span>
-                <div id="profileRendaVal" class="profile-renda">R$ --</div>
+              <div class="profile-section" id="profileRendaSection">
+                <h4>Renda Média</h4>
+                <div class="bar-chart-row">
+                  <div class="bar-chart-label" style="color: var(--muted); font-weight: normal;">R$</div>
+                  <div id="profileRendaVal" class="profile-renda" style="font-weight: 700; font-size: 0.95rem; color: var(--text);">--</div>
+                </div>
               </div>
 
               <div class="profile-section">

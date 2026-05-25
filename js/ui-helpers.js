@@ -288,7 +288,7 @@ async function init() {
   
 
   dom.searchLocal = document.getElementById('searchLocal');
-  dom.btnApplyFilters = document.getElementById('btnApplyFilters');
+  dom.btnApplyFilters = document.getElementById('btnApplyFilters') || document.createElement('button');
   dom.btnToggleInaptos = document.getElementById('btnToggleInaptos');
 
   dom.vizBox = document.getElementById('vizBox');
@@ -394,10 +394,9 @@ function setupSliders() {
     const thumbMax = document.getElementById('rendaThumbMax');
     const dispMin = document.getElementById('dispRendaMin');
     const dispMax = document.getElementById('dispRendaMax');
-    const inputRendaMin = document.getElementById('inputRendaMin');
-    const inputRendaMax = document.getElementById('inputRendaMax');
 
     const MAX_VAL = 10000;
+    const STEP = 50;
     let valMin = 0;
     let valMax = MAX_VAL;
 
@@ -412,8 +411,6 @@ function setupSliders() {
       }
       if (dispMin) dispMin.textContent = valMin.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
       if (dispMax) dispMax.textContent = valMax >= MAX_VAL ? MAX_VAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + "+" : valMax.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-      if (inputRendaMin) inputRendaMin.value = String(valMin);
-      if (inputRendaMax) inputRendaMax.value = valMax >= MAX_VAL ? '' : String(valMax);
     };
 
     const updateRendaState = () => {
@@ -425,9 +422,10 @@ function setupSliders() {
     const debouncedRenda = debounce(updateRendaState, 150);
 
     const setRendaValues = (nextMin, nextMax, redraw = true) => {
-      valMin = Math.max(0, Math.min(MAX_VAL, parseInt(nextMin) || 0));
-      valMax = Math.max(0, Math.min(MAX_VAL, parseInt(nextMax) || MAX_VAL));
-      if (valMax < valMin) [valMin, valMax] = [valMax, valMin];
+      valMin = Math.round(Math.max(0, Math.min(MAX_VAL, parseInt(nextMin) || 0)) / STEP) * STEP;
+      valMax = Math.round(Math.max(0, Math.min(MAX_VAL, parseInt(nextMax) || MAX_VAL)) / STEP) * STEP;
+      if (valMax < valMin + STEP) valMax = Math.min(MAX_VAL, valMin + STEP);
+      if (valMin > valMax - STEP) valMin = Math.max(0, valMax - STEP);
       updateDualVisuals();
       if (redraw) debouncedRenda();
     };

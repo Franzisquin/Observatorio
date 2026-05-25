@@ -266,8 +266,10 @@ body {
   flex-direction: column;
   gap: 6px;
   padding: 6px 8px;
-  overflow: auto;
+  overflow-y: auto;
   scrollbar-width: thin;
+  flex: 1;
+  min-height: 0;
 }
 
 .row {
@@ -1260,7 +1262,7 @@ body {
 }
 
 .bar-chart-label {
-  width: 110px;
+  width: 130px;
   text-align: right;
   flex-shrink: 0;
   white-space: nowrap;
@@ -2366,15 +2368,13 @@ input:disabled {
   box-shadow: none;
 }
 
-/* Sticky layout for Cargo selector */
+/* Fixed layout for Cargo selector */
 #electionContextBox {
-  position: sticky;
-  top: -6px; /* sticks right at the top edge of the scrollable area, covering the 6px top padding */
+  flex-shrink: 0;
   z-index: 10;
   background: var(--card) !important;
   border-bottom: 1px solid var(--border-color) !important;
-  padding: 10px 8px 10px 8px !important;
-  margin: -6px -8px 12px -8px !important;
+  padding: 10px 8px !important;
 }
 
 /* Remove borders and background from metric items */
@@ -2405,6 +2405,12 @@ input:disabled {
   text-transform: uppercase;
   letter-spacing: 0.5px;
   transition: all .15s;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 32px !important;
+  line-height: 1.4 !important;
+  flex-shrink: 0 !important;
 }
 
 .side-right .chip-button:hover {
@@ -2500,43 +2506,49 @@ input:disabled {
 }
 .side-right #resultsTitle {
   display: block !important;
-  text-align: right !important;
+  text-align: left !important;
   width: 100% !important;
 }
 
-.side-right #resultsSubtitle,
+.side-right #resultsSubtitle {
+  text-align: left !important;
+  width: 100% !important;
+}
+
 .side-right .profile-section h4 {
-  text-align: right !important;
-  width: 100% !important;
+  text-align: left !important;
+  margin-left: 138px !important;
+  width: calc(100% - 138px) !important;
+  box-sizing: border-box !important;
 }
 
-/* Align the parent flex container of the results title/subtitle to the right */
+/* Align the parent flex container of the results title/subtitle to the left */
 .side-right #resultsBox > div:first-child {
   display: flex !important;
-  justify-content: flex-end !important;
-  text-align: right !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
   width: 100% !important;
 }
 
-/* Ensure the text container inside that flex container is aligned right */
+/* Ensure the text container inside that flex container is aligned left */
 .side-right #resultsBox > div:first-child > div {
-  text-align: right !important;
+  text-align: left !important;
   width: 100% !important;
 }
 
-/* Right-align the turn tabs */
+/* Align the turn tabs to the left next to other controls */
 .side-right #turnTabs {
   display: flex !important;
-  justify-content: flex-end !important;
-  width: 100%;
+  justify-content: flex-start !important;
+  width: auto !important;
 }
 
 .side-right .profile-header {
   display: flex !important;
-  justify-content: flex-end !important;
+  justify-content: center !important;
   align-items: center !important;
   gap: 8px !important;
-  text-align: right !important;
+  text-align: center !important;
 }
 
 .side-right .profile-header h3 {
@@ -2553,4 +2565,106 @@ input:disabled {
   font-weight: 400 !important;
   font-variant-numeric: tabular-nums !important;
   color: var(--text) !important;
+}
+
+/* =========================================
+   LEFT PANEL REWORK — borderless sections
+   ========================================= */
+.side-left .section {
+  border: none;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
+/* Subtle separator between left panel sections */
+.side-left .section + .section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+/* Sticky "Carregar Dados" header in left panel */
+.side-left #loaderBox {
+  position: sticky;
+  top: -6px;
+  z-index: 10;
+  background: var(--card) !important;
+  padding: 6px 0 8px 0 !important;
+  margin: -6px -8px 0 -8px !important;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+/* =========================================
+   TURNO BUTTONS — compact & discrete
+   ========================================= */
+#turnTabs {
+  gap: 4px !important;
+  width: auto !important;
+  display: flex !important;
+  margin-bottom: 0 !important;
+}
+
+#turnTabs .tab {
+  padding: 3px 8px !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border-radius: 0;
+  height: auto;
+  line-height: 1.2;
+  margin-bottom: 0 !important;
+}
+
+#turnTabs .tab.active {
+  background: var(--accent) !important;
+  color: #fff !important;
+  border-color: var(--accent) !important;
+  font-weight: 600 !important;
+}
+
+/* =========================================
+   TURNO + INAPTOS ROW
+   ========================================= */
+.results-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+/* Inaptos toggle button — discrete style */
+.btn-toggle-inaptos {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--muted);
+  font-family: var(--font-main);
+  font-size: 0.62rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.btn-toggle-inaptos:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.btn-toggle-inaptos:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.btn-toggle-inaptos.active {
+  background: var(--err);
+  color: #fff;
+  border-color: var(--err);
+  font-weight: 600;
 }

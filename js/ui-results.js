@@ -1,37 +1,10 @@
 
 
 
-// Função auxiliar para Tooltip Minimalista
-function showHoverTooltip(e, text) {
-  let tooltip = document.getElementById('hoverInfoTooltip');
-  if (!tooltip) {
-    tooltip = document.createElement('div');
-    tooltip.id = 'hoverInfoTooltip';
-    tooltip.className = 'hover-info-tooltip';
-    document.body.appendChild(tooltip);
-  }
-  tooltip.textContent = text;
-  tooltip.classList.add('visible');
-  moveHoverTooltip(e);
-}
-
-function moveHoverTooltip(e) {
-  const tooltip = document.getElementById('hoverInfoTooltip');
-  if (tooltip && tooltip.classList.contains('visible')) {
-    tooltip.style.left = (e.clientX + 12) + 'px';
-    tooltip.style.top = (e.clientY + 12) + 'px';
-  }
-}
-
-function hideHoverTooltip() {
-  const tooltip = document.getElementById('hoverInfoTooltip');
-  if (tooltip) tooltip.classList.remove('visible');
-}
-
 
 function updateNeighborhoodProfileUI() {
   if (selectedLocationIDs.size === 0) {
-    if (dom.profileRendaVal) dom.profileRendaVal.textContent = 'R$ --';
+    if (dom.profileRendaVal) dom.profileRendaVal.textContent = '--';
     if (dom.profileRacaChart) dom.profileRacaChart.innerHTML = '';
     if (dom.profileGeneroChart) dom.profileGeneroChart.innerHTML = '';
     if (dom.profileIdadeChart) dom.profileIdadeChart.innerHTML = '';
@@ -160,7 +133,7 @@ function updateNeighborhoodProfileUI() {
   });
 
   if (count === 0) {
-    if (dom.profileRendaVal) dom.profileRendaVal.textContent = 'R$ --';
+    if (dom.profileRendaVal) dom.profileRendaVal.textContent = '--';
     if (dom.profileRacaChart) dom.profileRacaChart.innerHTML = '';
     if (dom.profileGeneroChart) dom.profileGeneroChart.innerHTML = '';
     if (dom.profileIdadeChart) dom.profileIdadeChart.innerHTML = '';
@@ -172,7 +145,7 @@ function updateNeighborhoodProfileUI() {
 
   // Render Renda
   const rendaFinal = countRenda > 0 ? sumRenda / countRenda : 0;
-  if (dom.profileRendaVal) dom.profileRendaVal.textContent = rendaFinal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (dom.profileRendaVal) dom.profileRendaVal.textContent = countRenda > 0 ? rendaFinal.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '--';
 
   // Hide Alfabetização
   const alfa = document.getElementById('profileAlfabetizacaoSection');
@@ -203,7 +176,7 @@ function updateNeighborhoodProfileUI() {
       }
 
       html += `
-        <div class="bar-chart-row" onmousemove="showHoverTooltip(event, '${k}: ${display}')" onmouseleave="hideHoverTooltip()">
+        <div class="bar-chart-row">
            <div class="bar-chart-label" title="${k}">${k}</div>
            <div class="bar-track">
               <div class="bar-fill" style="width: ${Math.min(100, pct)}%; background: var(--accent);"></div>
@@ -311,15 +284,16 @@ function updateVizModeUI() {
     dom.vizCandidatoBox.classList.remove('section-hidden');
     dom.selectVizCandidato.disabled = false;
 
-    // Auto-calcular estatísticas para o primeiro candidato selecionado
+    // Don't auto-select a candidate — wait for user to choose
+    // If there's already a selected value (from a previous interaction), keep it
     const candidatoKey = dom.selectVizCandidato.value;
-    if (candidatoKey) {
+    if (candidatoKey && candidatoKey !== '__placeholder__') {
       performanceModeStats = calculateCandidateStats(candidatoKey) || {
         candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
       };
-      console.log('[Desempenho] Modo ativado - Stats:', performanceModeStats);
       updatePerformanceStatsUI();
     } else {
+      // No candidate selected yet — show empty state
       performanceModeStats = { candidato: null, minPct: 0, maxPct: 0, avgPct: 0, totalLocais: 0 };
       updatePerformanceStatsUI();
     }

@@ -681,7 +681,10 @@ function setupControls() {
       updateVizModeUI();
       populateCidadeDropdown();
       if (currentCidadeFilter !== 'all' || STATE.currentElectionType === 'municipal') populateBairroDropdown();
-      applyFiltersAndRedraw();
+      // Only redraw if not switching to desempenho without a candidate
+      if (!currentVizMode.startsWith('desempenho') || (dom.selectVizCandidato.value && dom.selectVizCandidato.value !== '__placeholder__')) {
+        applyFiltersAndRedraw();
+      }
     });
   }
   if (dom.selectVizColorStyle) {
@@ -692,8 +695,8 @@ function setupControls() {
     });
   }
   dom.selectVizSize?.addEventListener('change', (e) => {
-    currentVizSize = e.target.value || 'fixo';
-    applyFiltersAndRedraw();
+    currentVizSize = 'comparecimento';
+    if (e.target) e.target.value = 'comparecimento';
   });
   if (dom.selectVizCandidato) {
     dom.selectVizCandidato.addEventListener('change', () => {
@@ -1096,6 +1099,7 @@ function setupSliders() {
   const dispMax = document.getElementById('dispRendaMax');
 
   const MAX_VAL = 10000; // R$ 10k
+  const STEP = 50; // Snap to R$50
   let valMin = 0;
   let valMax = MAX_VAL;
 
@@ -1136,13 +1140,13 @@ function setupSliders() {
       function onMove(moveE) {
         let x = moveE.clientX - containerRect.left;
         let pct = Math.max(0, Math.min(100, (x / containerRect.width) * 100));
-        let val = Math.round((pct / 100) * MAX_VAL);
+        let val = Math.round((pct / 100) * MAX_VAL / STEP) * STEP;
 
         if (isMin) {
-          val = Math.min(val, valMax - 100);
+          val = Math.min(val, valMax - STEP);
           valMin = val;
         } else {
-          val = Math.max(val, valMin + 100);
+          val = Math.max(val, valMin + STEP);
           valMax = val;
         }
 

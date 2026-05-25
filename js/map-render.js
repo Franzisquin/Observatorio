@@ -422,6 +422,13 @@ function populateVizCandidatoDropdown(turno) {
   dom.selectVizCandidato.style.display = '';
   if (deputySearchBox) deputySearchBox.style.display = 'none';
 
+  // Add placeholder option
+  const placeholderOpt = document.createElement('option');
+  placeholderOpt.value = '__placeholder__';
+  placeholderOpt.textContent = 'Selecione um candidato...';
+  placeholderOpt.disabled = true;
+  dom.selectVizCandidato.appendChild(placeholderOpt);
+
   // Eleições gerais/municipais: comportamento original
   const candidatos = STATE.candidates[currentCargo]?.[turno] || [];
   candidatos.forEach(key => {
@@ -435,9 +442,11 @@ function populateVizCandidatoDropdown(turno) {
     dom.selectVizCandidato.appendChild(opt);
   });
 
-  if (dom.selectVizCandidato.options.length > 0) {
-    const hasPrevious = Array.from(dom.selectVizCandidato.options).some(opt => opt.value === previousValue);
-    dom.selectVizCandidato.value = hasPrevious ? previousValue : dom.selectVizCandidato.options[0].value;
+  // Only pre-select if there was a previous valid selection; otherwise show placeholder
+  if (dom.selectVizCandidato.options.length > 1) {
+    const hasPrevious = previousValue && previousValue !== '__placeholder__' &&
+      Array.from(dom.selectVizCandidato.options).some(opt => opt.value === previousValue);
+    dom.selectVizCandidato.value = hasPrevious ? previousValue : '__placeholder__';
   }
 }
 
