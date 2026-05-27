@@ -4,6 +4,16 @@
 
 const DATA_BASE_URL = 'resultados_geo/';
 
+function escapeHtml(text) {
+  if (typeof text !== 'string') return text;
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 // CORES / PARTIDOS (subset do app.js principal)
 const PARTY_COLORS = new Map(Object.entries({
   'AVANTE': '#2eacb2', 'CIDADANIA': '#ec008c', 'DC': '#c89721', 'DEM': '#6dbf36',
@@ -2279,35 +2289,76 @@ async function simRenderMapaMunicipios(uf) {
       const res = SIM.resultadosPorMuni[uf]?.[codM];
       const venc = simGetVencedorMuni(uf, codM);
 
-      let rows = '';
+      let rowsHtml = '';
       let validTotal = 0;
       if (res) {
          const keysObj = SIM.candidatos.map(c => 'cand_' + c.id).concat(['outros']);
          validTotal = keysObj.reduce((s, k) => s + (res[k]?.votos || 0), 0);
          const sortedKeys = [...keysObj].sort((a, b) => (res[b]?.votos || 0) - (res[a]?.votos || 0));
+         let idx = 0;
          sortedKeys.forEach(k => {
             const v = res[k]?.votos || 0;
             if (v <= 0) return;
             const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
-            const cor = simGetCorKey(k);
+            const cor = simGetCorKey(k) || '#cccccc';
             const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
-            rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-              <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
-              <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span>
-              <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-              <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(v)})</span>
-            </div>`;
+            
+            const isWinner = idx === 0;
+            idx++;
+
+            if (isWinner) {
+               rowsHtml += `
+                 <tr>
+                   <td style="padding: 0;">
+                     <div class="district-nyt-winner-cell" style="background-color: ${cor};">
+                       <span>${escapeHtml(label)}</span>
+                       <span style="font-size: 10px; margin-left: 6px;">✔</span>
+                     </div>
+                   </td>
+                   <td style="color: #333;">${fmtInt(v)}</td>
+                   <td style="font-weight: bold; color: #111;">${pct.toFixed(1)}%</td>
+                 </tr>
+               `;
+            } else {
+               rowsHtml += `
+                 <tr>
+                   <td style="padding: 0;">
+                     <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
+                       <span style="margin-left: 6px;">${escapeHtml(label)}</span>
+                     </div>
+                   </td>
+                   <td style="color: #555;">${fmtInt(v)}</td>
+                   <td style="font-weight: bold; color: #333;">${pct.toFixed(1)}%</td>
+                 </tr>
+               `;
+            }
          });
       }
 
-      const tt = `<div style="min-width:180px;max-width:240px;">
-        <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${nome}</div>
-        <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${UF_MAP.get(uf) || uf}</div>
-        <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(validTotal)}</div>
-        <hr style="margin:4px 0;border-color:#444;">
-        ${rows}
-      </div>`;
-      layer.bindTooltip(tt, { className: 'sim-tooltip', sticky: true });
+      if (rowsHtml === '') {
+         rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos neste local.</td></tr>`;
+      }
+
+      const tt = `
+        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+          <div class="district-nyt-title">${escapeHtml(nome)}</div>
+          <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(UF_MAP.get(uf) || uf)}</div>
+          <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
+          <table class="district-nyt-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Candidato</th>
+                <th>Votos</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+      layer.bindTooltip(tt, { className: 'district-nyt-tooltip', sticky: true });
       layer.on('click', () => {
           SIM.selectedMuni = codM;
           simRenderMapaMunicipios(uf);
@@ -2677,30 +2728,71 @@ function simRenderMapaLocais(uf, codM = null) {
 
       const sortedKeys = [...keys].sort((a, b) => (p._sim.votosCand[b] || 0) - (p._sim.votosCand[a] || 0));
 
-      let rows = '';
+      let rowsHtml = '';
+      let idx = 0;
       sortedKeys.forEach(k => {
         const v = p._sim.votosCand[k] || 0;
         if (v <= 0) return;
         const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
-        const cor = simGetCorKey(k);
+        const cor = simGetCorKey(k) || '#cccccc';
         const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
-        rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${cor};flex-shrink:0;"></span>
-          <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</span>
-          <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-          <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(v)})</span>
-        </div>`;
+        
+        const isWinner = idx === 0;
+        idx++;
+
+        if (isWinner) {
+          rowsHtml += `
+            <tr>
+              <td style="padding: 0;">
+                <div class="district-nyt-winner-cell" style="background-color: ${cor};">
+                  <span>${escapeHtml(label)}</span>
+                  <span style="font-size: 10px; margin-left: 6px;">✔</span>
+                </div>
+              </td>
+              <td style="color: #333;">${fmtInt(v)}</td>
+              <td style="font-weight: bold; color: #111;">${pct.toFixed(1)}%</td>
+            </tr>
+          `;
+        } else {
+          rowsHtml += `
+            <tr>
+              <td style="padding: 0;">
+                <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
+                  <span style="margin-left: 6px;">${escapeHtml(label)}</span>
+                </div>
+              </td>
+              <td style="color: #555;">${fmtInt(v)}</td>
+              <td style="font-weight: bold; color: #333;">${pct.toFixed(1)}%</td>
+            </tr>
+          `;
+        }
       });
 
-      const tt = `<div style="min-width:180px;max-width:240px;">
-        <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${p.nm_locvot || 'Local'}</div>
-        <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${p.nm_localidade || ''}</div>
-        <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(validTotal)}</div>
-        <hr style="margin:4px 0;border-color:#444;">
-        ${rows}
-      </div>`;
+      if (rowsHtml === '') {
+        rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos neste local.</td></tr>`;
+      }
 
-      layer.bindTooltip(tt, { className: 'sim-tooltip', sticky: false });
+      const tt = `
+        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+          <div class="district-nyt-title">${escapeHtml(p.nm_locvot || 'Local')}</div>
+          <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(p.nm_localidade || '')}</div>
+          <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
+          <table class="district-nyt-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Candidato</th>
+                <th>Votos</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      layer.bindTooltip(tt, { className: 'district-nyt-tooltip', sticky: false });
     }
   }).addTo(simMap);
 

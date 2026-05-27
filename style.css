@@ -17,9 +17,10 @@
   --input-bg: #111111;
   --border-color: #2a2a2a;
   --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --font-main: 'Inter', system-ui, sans-serif;
+  --radius-md: 2px;
+  --radius-lg: 4px;
+  --font-main: 'Libre Franklin', 'nyt-franklin', arial, sans-serif;
+  --font-title: 'nyt-cheltenham', 'Georgia', serif;
   --map-tiles-url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
   --map-tiles-filter: none;
   color-scheme: dark;
@@ -43,6 +44,8 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   --input-bg: #ffffff;
   --border-color: #e5e7eb;
+  --font-main: 'Libre Franklin', 'nyt-franklin', arial, sans-serif;
+  --font-title: 'nyt-cheltenham', 'Georgia', serif;
   --map-tiles-url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
   --map-tiles-filter: brightness(1.02) contrast(0.98);
   color-scheme: light;
@@ -62,7 +65,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: var(--font-main);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -107,12 +110,12 @@ body {
 }
 
 .toolbar-logo {
-  font-family: 'Abril Fatface', serif;
-  font-weight: 400;
-  font-size: 1.2rem;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 1.35rem;
   color: #ffffff;
   text-decoration: none;
-  letter-spacing: 0.3px;
+  letter-spacing: -0.3px;
 }
 
 [data-theme="light"] .toolbar-logo {
@@ -130,11 +133,11 @@ body {
 }
 
 .toolbar-page {
-  font-family: 'Abril Fatface', serif;
-  font-size: 0.72rem;
-  font-weight: 400;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.6);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
   margin-top: 2px;
 }
 
@@ -977,29 +980,199 @@ body {
 
 
 .leaflet-tooltip {
-  background-color: #111 !important;
-  border: 1px solid #444 !important;
-  color: #fff !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(22, 24, 34, 0.9) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color) !important;
   border-radius: 4px !important;
-  padding: 10px 12px !important;
-  font-size: 0.85rem !important;
-  font-family: 'Inter', sans-serif;
+  color: var(--text) !important;
+  padding: 8px 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  font-family: var(--font-main) !important;
   white-space: normal !important;
   word-wrap: break-word !important;
   overflow-wrap: break-word !important;
   max-width: 250px !important;
 }
 
-.leaflet-tooltip.sim-tooltip {
-  font-size: 0.8rem !important;
-  line-height: 1.35 !important;
+[data-theme="light"] .leaflet-tooltip {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
 }
 
-.leaflet-tooltip-left::before { border-left-color: #444 !important; }
-.leaflet-tooltip-right::before { border-right-color: #444 !important; }
-.leaflet-tooltip-top::before { border-top-color: #444 !important; }
-.leaflet-tooltip-bottom::before { border-bottom-color: #444 !important; }
+.leaflet-tooltip-left::before { border-left-color: var(--border-color) !important; }
+.leaflet-tooltip-right::before { border-right-color: var(--border-color) !important; }
+.leaflet-tooltip-top::before { border-top-color: var(--border-color) !important; }
+.leaflet-tooltip-bottom::before { border-bottom-color: var(--border-color) !important; }
+
+[data-theme="light"] .leaflet-tooltip-left::before { border-left-color: #d1d5db !important; }
+[data-theme="light"] .leaflet-tooltip-right::before { border-right-color: #d1d5db !important; }
+[data-theme="light"] .leaflet-tooltip-top::before { border-top-color: #d1d5db !important; }
+[data-theme="light"] .leaflet-tooltip-bottom::before { border-bottom-color: #d1d5db !important; }
+
+/* Tooltip on Leaflet Map */
+.sim-tooltip {
+  background-color: rgba(22, 24, 34, 0.9) !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color) !important;
+  border-radius: 4px !important;
+  color: var(--text) !important;
+  padding: 8px 12px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  font-family: var(--font-main) !important;
+}
+
+.sim-tooltip::before {
+  border-right-color: var(--border-color) !important;
+}
+
+/* NYT-style Tooltip CSS overrides */
+.nyt-tooltip-container {
+  font-family: var(--font-main);
+  color: var(--text);
+  min-width: 220px;
+}
+
+.nyt-tooltip-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  color: #ffffff;
+}
+
+[data-theme="light"] .nyt-tooltip-title {
+  color: #111827;
+}
+
+.nyt-tooltip-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+
+.nyt-tooltip-table th {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: var(--text-sec);
+  letter-spacing: 0.5px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+}
+
+.nyt-tooltip-table td {
+  font-size: 0.75rem;
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+  vertical-align: middle;
+}
+
+.nyt-tooltip-table tr:last-child td {
+  border-bottom: none;
+}
+
+.nyt-party-bar {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.nyt-party-name-container {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.nyt-tooltip-footer {
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 8px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+  text-align: right;
+}
+
+.district-nyt-tooltip {
+  background: #ffffff !important;
+  color: #333333 !important;
+  border: 1px solid #cccccc !important;
+  border-radius: 2px !important;
+  padding: 8px 10px !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+  font-family: var(--font-main) !important;
+  min-width: 250px;
+}
+.district-nyt-tooltip .leaflet-tooltip-tip {
+  border-top-color: #ffffff !important;
+}
+.district-nyt-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+.district-nyt-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.district-nyt-table th {
+  font-size: 12px;
+  font-weight: normal;
+  color: #777777;
+  border-bottom: 1px solid #eeeeee;
+  padding: 4px 8px;
+  padding-top: 0;
+  text-align: right;
+}
+.district-nyt-table th:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.district-nyt-table th:last-child {
+  padding-right: 0;
+}
+.district-nyt-table td {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #eeeeee;
+  text-align: right;
+  vertical-align: middle;
+}
+.results-body .district-nyt-table td,
+.results-body .district-nyt-table th {
+  border-bottom: 1px solid var(--border-color);
+}
+.district-nyt-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+}
+.district-nyt-table td:last-child {
+  padding-right: 0;
+}
+.district-nyt-table tr:last-child td {
+  border-bottom: none;
+}
+.district-nyt-winner-cell {
+  color: #ffffff;
+  font-weight: bold;
+  padding: 4px 6px !important;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.district-nyt-loser-cell {
+  padding: 4px 6px !important;
+  display: flex;
+  align-items: center;
+  border-left: 3px solid;
+}
 
 .loader-overlay {
   position: absolute;

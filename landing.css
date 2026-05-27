@@ -18,7 +18,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Libre Franklin', 'nyt-franklin', arial, sans-serif;
   background: #ffffff;
   color: #111827;
   min-height: 100vh;
@@ -68,9 +68,9 @@ body {
 }
 
 .nav-logo {
-  font-family: 'Abril Fatface', serif;
-  font-weight: 400;
-  font-size: 1.5rem;
+  font-family: 'nyt-cheltenham', 'Georgia', serif;
+  font-weight: 700;
+  font-size: 1.6rem;
   color: #ffffff;
   text-decoration: none;
   letter-spacing: 0.5px;
@@ -151,9 +151,9 @@ body {
 }
 
 .hero-title {
-  font-family: 'Abril Fatface', serif;
-  font-weight: 400;
-  font-size: 5rem;
+  font-family: 'nyt-cheltenham', 'Georgia', serif;
+  font-weight: 700;
+  font-size: 5.5rem;
   color: #ffffff;
   letter-spacing: -1px;
   line-height: 1;
@@ -240,9 +240,9 @@ body {
 }
 
 .section-title {
-  font-family: 'Abril Fatface', serif;
-  font-weight: 400;
-  font-size: 2.8rem;
+  font-family: 'nyt-cheltenham', 'Georgia', serif;
+  font-weight: 700;
+  font-size: 3rem;
   color: #111827;
   letter-spacing: -0.5px;
   text-align: center;
@@ -387,9 +387,9 @@ a.feature-card:hover {
 }
 
 .footer-logo {
-  font-family: 'Abril Fatface', serif;
-  font-weight: 400;
-  font-size: 1.4rem;
+  font-family: 'nyt-cheltenham', 'Georgia', serif;
+  font-weight: 700;
+  font-size: 1.55rem;
   color: #111827;
   letter-spacing: 0;
   display: block;

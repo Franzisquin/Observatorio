@@ -671,7 +671,7 @@ function syncMunicipalityLayerTooltip(layer, feature, summary = STATE.currentMap
 
   if (typeof layer.bindTooltip === 'function') {
     layer.bindTooltip(tooltipContent, {
-      className: 'sim-tooltip',
+      className: 'district-nyt-tooltip',
       sticky: true
     });
   }
@@ -1124,11 +1124,14 @@ function buildLocationTooltip(feature) {
   const nomeLocal = formatTooltipCaps(getProp(props, 'nm_locvot') || 'Local');
   const nomeCidade = formatTooltipDisplayName(getProp(props, 'nm_localidade') || 'Cidade');
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+  const turnoLabel = (turnoKey === '2T') ? '2º Turno' : '1º Turno';
+  const isProportional = currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador');
+  const headerName = isProportional ? 'Partido' : 'Candidato';
 
   let totalValidos = 0;
-  let rows = '';
+  let rowsData = [];
 
-  if (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador')) {
+  if (isProportional) {
     const proportionalType = currentCargo.startsWith('vereador') ? 'vereador' : 'deputado';
     const proportionalData = currentCargo.startsWith('vereador')
       ? getVereadorFeatureData(props)
@@ -1151,12 +1154,12 @@ function buildLocationTooltip(feature) {
     totalValidos = grouped.total || 0;
     grouped.groups.slice(0, 4).forEach((group) => {
       const pct = totalValidos > 0 ? (group.votes / totalValidos) * 100 : 0;
-      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${group.color};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(formatTooltipCaps(group.name))}</span>
-        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(group.votes)})</span>
-      </div>`;
+      rowsData.push({
+        name: formatTooltipCaps(group.name),
+        color: group.color,
+        votes: group.votes,
+        pct: pct
+      });
     });
   } else {
     const { totalValidos: votosValidos } = getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos);
@@ -1179,26 +1182,75 @@ function buildLocationTooltip(feature) {
 
     candidateRows.forEach((candidate) => {
       const pct = totalValidos > 0 ? (candidate.votes / totalValidos) * 100 : 0;
-      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${getColorForCandidate(candidate.name, candidate.party)};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(formatTooltipDisplayName(candidate.name))}</span>
-        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
-      </div>`;
+      rowsData.push({
+        name: formatTooltipDisplayName(candidate.name),
+        color: getColorForCandidate(candidate.name, candidate.party),
+        votes: candidate.votes,
+        pct: pct
+      });
     });
   }
 
-  if (!rows) {
-    rows = '<div style="font-size:0.7rem;color:#aaa;">Sem votos válidos neste local.</div>';
+  let rowsHtml = '';
+  rowsData.forEach((row, idx) => {
+    const isWinner = idx === 0;
+    const cleanName = escapeHtml(row.name);
+    const color = row.color || '#cccccc';
+    const votesStr = fmtInt(row.votes);
+    const pctStr = row.pct.toFixed(1);
+
+    if (isWinner) {
+      rowsHtml += `
+        <tr>
+          <td style="padding: 0;">
+            <div class="district-nyt-winner-cell" style="background-color: ${color};">
+              <span>${cleanName}</span>
+              <span style="font-size: 10px; margin-left: 6px;">✔</span>
+            </div>
+          </td>
+          <td style="color: #333;">${votesStr}</td>
+          <td style="font-weight: bold; color: #111;">${pctStr}%</td>
+        </tr>
+      `;
+    } else {
+      rowsHtml += `
+        <tr>
+          <td style="padding: 0;">
+            <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+              <span style="margin-left: 6px;">${cleanName}</span>
+            </div>
+          </td>
+          <td style="color: #555;">${votesStr}</td>
+          <td style="font-weight: bold; color: #333;">${pctStr}%</td>
+        </tr>
+      `;
+    }
+  });
+
+  if (rowsHtml === '') {
+    rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos neste local.</td></tr>`;
   }
 
-  return `<div style="min-width:190px;max-width:250px;">
-    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nomeLocal)}</div>
-    <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(nomeCidade)}</div>
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(totalValidos)}</div>
-    <hr style="margin:4px 0;border-color:#444;">
-    ${rows}
-  </div>`;
+  return `
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+      <div class="district-nyt-title">${escapeHtml(nomeLocal)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(nomeCidade)}</div>
+      <div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabel)}</div>
+      <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(totalValidos)}</div>
+      <table class="district-nyt-table">
+        <thead>
+          <tr>
+            <th style="text-align: left;">${headerName}</th>
+            <th>Votos</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function buildMunicipalityTooltip(feature, summary) {
@@ -1213,16 +1265,19 @@ function buildMunicipalityTooltip(feature, summary) {
   const scopedColorLookup = isProportional
     ? getScopedProportionalColorKeyLookup(currentCargo.startsWith('vereador') ? 'vereador' : 'deputado', currentCargo)
     : null;
+  const headerName = isProportional ? 'Partido' : 'Candidato';
 
   if (!result) {
-    return `<div style="min-width:180px;max-width:240px;">
-      <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
-      <div style="font-size:0.72rem;color:#aaa;margin-bottom:6px;">${escapeHtml(ufLabel)}</div>
-      <div style="font-size:0.7rem;color:#aaa;">Sem resultados resumidos disponíveis.</div>
-    </div>`;
+    return `
+      <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+        <div class="district-nyt-title">${escapeHtml(nome)}</div>
+        <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
+        <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Sem resultados resumidos disponíveis.</div>
+      </div>
+    `;
   }
 
-  let rows = '';
+  let rowsData = [];
   Object.entries(result.votes || {})
     .map(([key, votes]) => {
       let candName = 'N/D';
@@ -1277,25 +1332,77 @@ function buildMunicipalityTooltip(feature, summary) {
       const rowLabel = (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador'))
         ? formatTooltipCaps(candidate.name)
         : formatTooltipDisplayName(candidate.name);
-      rows += `<div style="display:flex;align-items:center;gap:5px;margin:2px 0;">
-        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${candidate.color};flex-shrink:0;"></span>
-        <span style="flex:1;font-size:0.75rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(rowLabel)}</span>
-        <span style="font-size:0.75rem;font-weight:600;white-space:nowrap;">${pct.toFixed(1)}%</span>
-        <span style="font-size:0.7rem;color:#aaa;white-space:nowrap;">(${fmtInt(candidate.votes)})</span>
-      </div>`;
+      rowsData.push({
+        name: rowLabel,
+        color: candidate.color,
+        votes: candidate.votes,
+        pct: pct
+      });
     });
 
-  const showTurn = STATE.dataHas2T?.[currentCargo] || (currentTurno === 2);
-  const turnoHtml = showTurn ? `<div style="font-size:0.7rem;color:#aaa;margin-bottom:2px;">${escapeHtml(result.turnoLabel || 'Resultado final')}</div>` : '';
+  let rowsHtml = '';
+  rowsData.forEach((row, idx) => {
+    const isWinner = idx === 0;
+    const cleanName = escapeHtml(row.name);
+    const color = row.color || '#cccccc';
+    const votesStr = fmtInt(row.votes);
+    const pctStr = row.pct.toFixed(1);
 
-  return `<div style="min-width:190px;max-width:260px;">
-    <div style="font-weight:600;font-size:0.82rem;margin-bottom:2px;">${escapeHtml(nome)}</div>
-    <div style="font-size:0.72rem;color:#aaa;margin-bottom:4px;">${escapeHtml(ufLabel)}</div>
-    ${turnoHtml}
-    <div style="font-size:0.7rem;color:#aaa;margin-bottom:4px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
-    <hr style="margin:4px 0;border-color:#444;">
-    ${rows || '<div style="font-size:0.7rem;color:#aaa;">Sem detalhamento disponível.</div>'}
-  </div>`;
+    if (isWinner) {
+      rowsHtml += `
+        <tr>
+          <td style="padding: 0;">
+            <div class="district-nyt-winner-cell" style="background-color: ${color};">
+              <span>${cleanName}</span>
+              <span style="font-size: 10px; margin-left: 6px;">✔</span>
+            </div>
+          </td>
+          <td style="color: #333;">${votesStr}</td>
+          <td style="font-weight: bold; color: #111;">${pctStr}%</td>
+        </tr>
+      `;
+    } else {
+      rowsHtml += `
+        <tr>
+          <td style="padding: 0;">
+            <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+              <span style="margin-left: 6px;">${cleanName}</span>
+            </div>
+          </td>
+          <td style="color: #555;">${votesStr}</td>
+          <td style="font-weight: bold; color: #333;">${pctStr}%</td>
+        </tr>
+      `;
+    }
+  });
+
+  if (rowsHtml === '') {
+    rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem detalhamento disponível.</td></tr>`;
+  }
+
+  const showTurn = STATE.dataHas2T?.[currentCargo] || (currentTurno === 2);
+  const turnoLabelText = showTurn ? (result.turnoLabel || 'Resultado final') : '';
+
+  return `
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+      <div class="district-nyt-title">${escapeHtml(nome)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
+      ${turnoLabelText ? `<div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabelText)}</div>` : ''}
+      <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
+      <table class="district-nyt-table">
+        <thead>
+          <tr>
+            <th style="text-align: left;">${headerName}</th>
+            <th>Votos</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function getMunicipalSummaryEntryForFeature(props, summary) {
@@ -2614,7 +2721,7 @@ function getVencedor(props, cargo, turno, filtrarInaptos) {
 // ====== MAP INTERACTION ======
 
 function onEachFeature(feature, layer) {
-  layer.bindTooltip(buildLocationTooltip(feature), { className: 'sim-tooltip', sticky: false });
+  layer.bindTooltip(buildLocationTooltip(feature), { className: 'district-nyt-tooltip', sticky: false });
   layer.on('click', onFeatureClick);
 }
 
