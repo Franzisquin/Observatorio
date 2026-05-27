@@ -1166,6 +1166,7 @@ function setupSliders() {
 
   initDrag(thumbMin, true);
   initDrag(thumbMax, false);
+  updateDualVisuals();
 
   // 2. SIMPLE SLIDERS (DYNAMIC)
   // Helper para configurar o par Slider + Select

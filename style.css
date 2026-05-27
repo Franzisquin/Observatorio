@@ -1435,7 +1435,7 @@ input:disabled {
 .dual-slider-container {
   position: relative;
   height: 20px;
-  margin: 10px 0 20px 0;
+  margin: 10px 9px 20px 9px;
   user-select: none;
   touch-action: none;
 }
@@ -1454,6 +1454,8 @@ input:disabled {
 .dual-range {
   position: absolute;
   top: 50%;
+  left: 0;
+  width: 100%;
   height: 4px;
   background: var(--accent);
   border-radius: 0;
@@ -1466,20 +1468,31 @@ input:disabled {
   top: 50%;
   width: 18px;
   height: 18px;
-  background: var(--card);
-  border: 2px solid var(--accent);
-  /* Accent border */
-  border-radius: 0;
+  background: var(--accent);
+  border: 2px solid var(--card);
+  border-radius: 4px;
   transform: translate(-50%, -50%);
   cursor: grab;
   z-index: 2;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  transition: box-shadow 0.1s, transform 0.1s, border-color 0.2s;
+  transition: box-shadow 0.1s, transform 0.1s, background-color 0.2s;
+}
+
+.dual-thumb:hover {
+  background: var(--accent-hover);
 }
 
 .dual-thumb:active {
-  transform: translate(-50%, -50%) scale(1.2);
+  transform: translate(-50%, -50%) scale(1.15);
   cursor: grabbing;
+}
+
+.dual-thumb.left {
+  left: 0%;
+}
+
+.dual-thumb.right {
+  left: 100%;
 }
 
 .dual-values {
@@ -1559,13 +1572,21 @@ input:disabled {
   appearance: none;
   width: 18px;
   height: 18px;
-  border-radius: 0;
-  background: var(--card);
-  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  border: 2px solid var(--card);
   cursor: pointer;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  transition: transform 0.1s;
+  transition: transform 0.15s, background-color 0.2s;
   margin-top: -7px;
+}
+
+.simple-slider:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+
+.simple-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 
 /* Fix para Firefox */
@@ -1578,15 +1599,16 @@ input:disabled {
 .simple-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border-radius: 0;
-  background: var(--card);
-  border: 2px solid var(--accent);
+  border-radius: 4px;
+  background: var(--accent);
+  border: 2px solid var(--card);
   cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.2s;
 }
 
-.simple-slider:active::-webkit-slider-thumb {
-  transform: scale(1.2);
+.simple-slider:hover::-moz-range-thumb {
+  background: var(--accent-hover);
 }
 
 /* COMBOBOX STYLES */
