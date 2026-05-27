@@ -2303,35 +2303,17 @@ async function simRenderMapaMunicipios(uf) {
             const cor = simGetCorKey(k) || '#cccccc';
             const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
             
-            const isWinner = idx === 0;
-            idx++;
-
-            if (isWinner) {
-               rowsHtml += `
-                 <tr>
-                   <td style="padding: 0;">
-                     <div class="district-nyt-winner-cell" style="background-color: ${cor};">
-                       <span>${escapeHtml(label)}</span>
-                       <span style="font-size: 10px; margin-left: 6px;">✔</span>
-                     </div>
-                   </td>
-                   <td style="color: #333;">${fmtInt(v)}</td>
-                   <td style="font-weight: bold; color: #111;">${pct.toFixed(1)}%</td>
-                 </tr>
-               `;
-            } else {
-               rowsHtml += `
-                 <tr>
-                   <td style="padding: 0;">
-                     <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
-                       <span style="margin-left: 6px;">${escapeHtml(label)}</span>
-                     </div>
-                   </td>
-                   <td style="color: #555;">${fmtInt(v)}</td>
-                   <td style="font-weight: bold; color: #333;">${pct.toFixed(1)}%</td>
-                 </tr>
-               `;
-            }
+            rowsHtml += `
+              <tr>
+                <td style="padding: 0;">
+                  <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
+                    <span style="margin-left: 6px;">${escapeHtml(label)}</span>
+                  </div>
+                </td>
+                <td class="votes-cell">${fmtInt(v)}</td>
+                <td class="pct-cell">${pct.toFixed(1)}%</td>
+              </tr>
+            `;
          });
       }
 
@@ -2737,35 +2719,17 @@ function simRenderMapaLocais(uf, codM = null) {
         const cor = simGetCorKey(k) || '#cccccc';
         const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
         
-        const isWinner = idx === 0;
-        idx++;
-
-        if (isWinner) {
-          rowsHtml += `
-            <tr>
-              <td style="padding: 0;">
-                <div class="district-nyt-winner-cell" style="background-color: ${cor};">
-                  <span>${escapeHtml(label)}</span>
-                  <span style="font-size: 10px; margin-left: 6px;">✔</span>
-                </div>
-              </td>
-              <td style="color: #333;">${fmtInt(v)}</td>
-              <td style="font-weight: bold; color: #111;">${pct.toFixed(1)}%</td>
-            </tr>
-          `;
-        } else {
-          rowsHtml += `
-            <tr>
-              <td style="padding: 0;">
-                <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
-                  <span style="margin-left: 6px;">${escapeHtml(label)}</span>
-                </div>
-              </td>
-              <td style="color: #555;">${fmtInt(v)}</td>
-              <td style="font-weight: bold; color: #333;">${pct.toFixed(1)}%</td>
-            </tr>
-          `;
-        }
+        rowsHtml += `
+          <tr>
+            <td style="padding: 0;">
+              <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
+                <span style="margin-left: 6px;">${escapeHtml(label)}</span>
+              </div>
+            </td>
+            <td class="votes-cell">${fmtInt(v)}</td>
+            <td class="pct-cell">${pct.toFixed(1)}%</td>
+          </tr>
+        `;
       });
 
       if (rowsHtml === '') {
@@ -2773,7 +2737,7 @@ function simRenderMapaLocais(uf, codM = null) {
       }
 
       const tt = `
-        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(p.nm_locvot || 'Local')}</div>
           <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(p.nm_localidade || '')}</div>
           <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>

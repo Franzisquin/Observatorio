@@ -1192,39 +1192,23 @@ function buildLocationTooltip(feature) {
   }
 
   let rowsHtml = '';
-  rowsData.forEach((row, idx) => {
-    const isWinner = idx === 0;
+  rowsData.forEach((row) => {
     const cleanName = escapeHtml(row.name);
     const color = row.color || '#cccccc';
     const votesStr = fmtInt(row.votes);
     const pctStr = row.pct.toFixed(1);
 
-    if (isWinner) {
-      rowsHtml += `
-        <tr>
-          <td style="padding: 0;">
-            <div class="district-nyt-winner-cell" style="background-color: ${color};">
-              <span>${cleanName}</span>
-              <span style="font-size: 10px; margin-left: 6px;">✔</span>
-            </div>
-          </td>
-          <td style="color: #333;">${votesStr}</td>
-          <td style="font-weight: bold; color: #111;">${pctStr}%</td>
-        </tr>
-      `;
-    } else {
-      rowsHtml += `
-        <tr>
-          <td style="padding: 0;">
-            <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
-              <span style="margin-left: 6px;">${cleanName}</span>
-            </div>
-          </td>
-          <td style="color: #555;">${votesStr}</td>
-          <td style="font-weight: bold; color: #333;">${pctStr}%</td>
-        </tr>
-      `;
-    }
+    rowsHtml += `
+      <tr>
+        <td style="padding: 0;">
+          <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+            <span style="margin-left: 6px;">${cleanName}</span>
+          </div>
+        </td>
+        <td class="votes-cell">${votesStr}</td>
+        <td class="pct-cell">${pctStr}%</td>
+      </tr>
+    `;
   });
 
   if (rowsHtml === '') {
@@ -1232,7 +1216,7 @@ function buildLocationTooltip(feature) {
   }
 
   return `
-    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
       <div class="district-nyt-title">${escapeHtml(nomeLocal)}</div>
       <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(nomeCidade)}</div>
       <div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabel)}</div>
@@ -1269,7 +1253,7 @@ function buildMunicipalityTooltip(feature, summary) {
 
   if (!result) {
     return `
-      <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+      <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
         <div class="district-nyt-title">${escapeHtml(nome)}</div>
         <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
         <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Sem resultados resumidos disponíveis.</div>
@@ -1341,39 +1325,23 @@ function buildMunicipalityTooltip(feature, summary) {
     });
 
   let rowsHtml = '';
-  rowsData.forEach((row, idx) => {
-    const isWinner = idx === 0;
+  rowsData.forEach((row) => {
     const cleanName = escapeHtml(row.name);
     const color = row.color || '#cccccc';
     const votesStr = fmtInt(row.votes);
     const pctStr = row.pct.toFixed(1);
 
-    if (isWinner) {
-      rowsHtml += `
-        <tr>
-          <td style="padding: 0;">
-            <div class="district-nyt-winner-cell" style="background-color: ${color};">
-              <span>${cleanName}</span>
-              <span style="font-size: 10px; margin-left: 6px;">✔</span>
-            </div>
-          </td>
-          <td style="color: #333;">${votesStr}</td>
-          <td style="font-weight: bold; color: #111;">${pctStr}%</td>
-        </tr>
-      `;
-    } else {
-      rowsHtml += `
-        <tr>
-          <td style="padding: 0;">
-            <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
-              <span style="margin-left: 6px;">${cleanName}</span>
-            </div>
-          </td>
-          <td style="color: #555;">${votesStr}</td>
-          <td style="font-weight: bold; color: #333;">${pctStr}%</td>
-        </tr>
-      `;
-    }
+    rowsHtml += `
+      <tr>
+        <td style="padding: 0;">
+          <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+            <span style="margin-left: 6px;">${cleanName}</span>
+          </div>
+        </td>
+        <td class="votes-cell">${votesStr}</td>
+        <td class="pct-cell">${pctStr}%</td>
+      </tr>
+    `;
   });
 
   if (rowsHtml === '') {
@@ -1384,7 +1352,7 @@ function buildMunicipalityTooltip(feature, summary) {
   const turnoLabelText = showTurn ? (result.turnoLabel || 'Resultado final') : '';
 
   return `
-    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
       <div class="district-nyt-title">${escapeHtml(nome)}</div>
       <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
       ${turnoLabelText ? `<div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabelText)}</div>` : ''}

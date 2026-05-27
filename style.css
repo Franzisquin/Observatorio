@@ -829,68 +829,101 @@ body {
   background: rgba(0, 0, 0, 0.02);
 }
 
-.prop-cand {
+.cand-row {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 0;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 8px 14px;
   font-size: 0.78rem;
-  border-bottom: 1px solid rgba(125, 125, 125, 0.08);
-  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.05);
+  gap: 4px;
+  background: var(--input-bg);
 }
 
-.prop-cand:last-child {
+.cand-row:last-child {
   border-bottom: none;
 }
 
-.prop-cand-name {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.cand-name-row {
+  display: flex;
+  align-items: center;
   min-width: 0;
 }
 
-.prop-cand-votes {
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.prop-cand-pct {
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
+.cand-sim-name {
   font-weight: 600;
-  width: 50px;
-  text-align: right;
-  font-size: 0.75rem;
-}
-
-.prop-cand .status-badge {
-  margin-top: 0;
-  margin-left: auto;
-}
-
-/* Status styles */
-.prop-cand-elected {
   color: var(--text);
-  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
-.prop-cand-elected .prop-cand-pct {
+.cand-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cand-sim-detail {
+  font-size: 0.68rem;
+  color: var(--text-sec);
+}
+
+.cand-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.cand-sim-votes {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.status-badge-sim {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.status-badge-sim.eleito {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--ok);
+}
+
+.status-badge-sim.suplente,
+.status-badge-sim.nao-eleito {
+  background-color: rgba(107, 114, 128, 0.15);
+  color: var(--text-sec);
+}
+
+.status-badge-sim.inapto {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--err);
+}
+
+/* Status styles for rows */
+.prop-cand-elected {
   color: var(--text);
 }
 
 .prop-cand-not-elected {
-  opacity: 0.45;
+  opacity: 0.65;
 }
 
 .prop-cand-inapto {
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
-.prop-cand-inapto .prop-cand-name {
+.prop-cand-inapto .cand-sim-name {
   text-decoration: line-through;
 }
 
@@ -1107,7 +1140,9 @@ body {
   padding: 8px 10px !important;
   box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
   font-family: var(--font-main) !important;
-  min-width: 250px;
+  min-width: 280px;
+  white-space: normal !important;
+  box-sizing: border-box !important;
 }
 .district-nyt-tooltip .leaflet-tooltip-tip {
   border-top-color: #ffffff !important;
@@ -1172,6 +1207,54 @@ body {
   display: flex;
   align-items: center;
   border-left: 3px solid;
+}
+
+/* Tooltip Table Cells Styles */
+.district-nyt-table td.votes-cell {
+  color: #555555;
+}
+.district-nyt-table td.votes-cell.winner {
+  color: #333333;
+}
+.district-nyt-table td.pct-cell {
+  font-weight: bold;
+  color: #333333;
+}
+.district-nyt-table td.pct-cell.winner {
+  color: #111111;
+}
+
+/* Dark Theme Overrides for Tooltips */
+[data-theme="dark"] .district-nyt-tooltip {
+  background: #151515 !important;
+  color: #f5f5f5 !important;
+  border-color: #2a2a2a !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="dark"] .district-nyt-tooltip .leaflet-tooltip-tip {
+  border-top-color: #151515 !important;
+}
+[data-theme="dark"] .district-nyt-title {
+  color: #ffffff;
+}
+[data-theme="dark"] .district-nyt-table th {
+  color: #aaaaaa;
+  border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .district-nyt-table td {
+  border-bottom-color: #2a2a2a;
+}
+[data-theme="dark"] .district-nyt-table td.votes-cell {
+  color: #aaaaaa;
+}
+[data-theme="dark"] .district-nyt-table td.votes-cell.winner {
+  color: #dddddd;
+}
+[data-theme="dark"] .district-nyt-table td.pct-cell {
+  color: #cccccc;
+}
+[data-theme="dark"] .district-nyt-table td.pct-cell.winner {
+  color: #ffffff;
 }
 
 .loader-overlay {

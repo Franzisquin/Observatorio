@@ -1718,12 +1718,24 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
 
     group.candidates.forEach((candidate) => {
       const row = document.createElement('div');
-      row.className = `prop-cand ${candidate.statusInfo.rowClass}`;
+      row.className = `cand-row ${candidate.statusInfo.rowClass}`;
+      
+      const partyColor = colorForParty(candidate.partido) || group.color || '#777';
+      row.style.borderLeft = `3px solid ${partyColor}`;
+
+      const pctStr = fmtPct(totalValidos > 0 ? candidate.votos / totalValidos : 0);
+
       row.innerHTML = `
-        <span class="prop-cand-name" title="${escapeHtml(candidate.nome)}">${escapeHtml(candidate.nome)}</span>
-        <span class="prop-cand-votes">${fmtInt(candidate.votos)}</span>
-        <span class="prop-cand-pct">${fmtPct(totalValidos > 0 ? candidate.votos / totalValidos : 0)}</span>
-        <span class="status-badge ${candidate.statusInfo.badgeClass}">${candidate.statusInfo.label}</span>
+        <div class="cand-name-row">
+          <span class="cand-sim-name">${escapeHtml(candidate.nome)}</span>
+        </div>
+        <div class="cand-meta-row">
+          <span class="cand-sim-detail">${escapeHtml(candidate.partido)}</span>
+          <div class="cand-meta-right">
+            <span class="cand-sim-votes">${fmtInt(candidate.votos)} (${pctStr})</span>
+            <span class="status-badge-sim ${candidate.statusInfo.badgeClass}">${candidate.statusInfo.label}</span>
+          </div>
+        </div>
       `;
       list.appendChild(row);
     });
