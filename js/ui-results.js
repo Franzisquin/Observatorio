@@ -328,10 +328,24 @@ function syncVizColorStyleControl() {
   dom.selectVizColorStyle.disabled = true;
   const colorStyleCtrl = document.getElementById('vizColorStyleCtrl');
   if (colorStyleCtrl) colorStyleCtrl.classList.add('section-hidden');
+
+  // Gradient mode toggle (Margem vs % do Vencedor)
+  const gradientModeCtrl = document.getElementById('vizGradientModeCtrl');
+  if (gradientModeCtrl) {
+    const showGradientMode = currentVizMode.startsWith('vencedor');
+    gradientModeCtrl.classList.toggle('section-hidden', !showGradientMode);
+  }
 }
 
 function applyDefaultVizColorStyleForCurrentCargo() {
   currentVizColorStyle = getDefaultVizColorStyleForOffice(currentOffice);
+  currentGradientMode = 'margin';
+  // Sync chip UI
+  if (dom.vizGradientModeChips) {
+    dom.vizGradientModeChips.querySelectorAll('.chip-button').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === 'margin');
+    });
+  }
   syncVizColorStyleControl();
 }
 

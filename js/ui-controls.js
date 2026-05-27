@@ -694,6 +694,17 @@ function setupControls() {
       applyFiltersAndRedraw();
     });
   }
+  // Gradient mode chips: Margem vs % do Vencedor
+  if (dom.vizGradientModeChips) {
+    dom.vizGradientModeChips.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip-button');
+      if (!btn || btn.classList.contains('active')) return;
+      dom.vizGradientModeChips.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentGradientMode = btn.dataset.value || 'margin';
+      applyFiltersAndRedraw();
+    });
+  }
   dom.selectVizSize?.addEventListener('change', (e) => {
     currentVizSize = 'comparecimento';
     if (e.target) e.target.value = 'comparecimento';

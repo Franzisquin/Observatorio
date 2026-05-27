@@ -779,14 +779,51 @@ function isMunicipalityVisibleInCurrentContext(codM) {
   return Object.values(summary).some((entry) => String(entry?.muniCode || '').trim() === code);
 }
 
-function getMarginAdjustedColor(baseColorHex, marginPct) {
+function getMarginAdjustedColor(baseColorHex, marginPct, winnerPct) {
+  if (typeof currentGradientMode !== 'undefined' && currentGradientMode === 'winnerPct') {
+    const safePct = Number.isFinite(winnerPct) ? winnerPct : 50;
+    return getWinnerPctGradientColor(baseColorHex, safePct);
+  }
   const safeMargin = Math.max(0, Math.min(100, ensureNumber(marginPct)));
   return getUniversalGradientColor(baseColorHex, safeMargin);
+}
+
+// Gradiente baseado na porcentagem absoluta do vencedor (lógica do Simulador Parlamentar)
+// Faixas: >=70% cor pura, 60-70% pastel médio-escuro, 50-60% pastel intermediário, <50% pastel claro
+function getWinnerPctGradientColor(baseColorHex, winnerPct) {
+  const hsl = hexToHSL(baseColorHex);
+  const pct = Number.isFinite(winnerPct) ? winnerPct : 50;
+
+  if (pct >= 70) {
+    return baseColorHex;
+  } else if (pct >= 60) {
+    const targetS = Math.max(50, hsl.s * 0.9);
+    const targetL = 68;
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 50) {
+    const targetS = Math.max(45, hsl.s * 0.825);
+    const targetL = 76;
+    return hslToHex(hsl.h, targetS, targetL);
+  } else {
+    const targetS = Math.max(40, hsl.s * 0.75);
+    const targetL = 84;
+    return hslToHex(hsl.h, targetS, targetL);
+  }
+}
+
+// Wrapper: escolhe entre gradiente por margem ou por porcentagem do vencedor
+function getGradientColorForMode(baseColorHex, marginPct, winnerPct) {
+  if (typeof currentGradientMode !== 'undefined' && currentGradientMode === 'winnerPct') {
+    return getWinnerPctGradientColor(baseColorHex, winnerPct);
+  }
+  return getUniversalGradientColor(baseColorHex, marginPct);
 }
 
 if (typeof window !== 'undefined') {
   window.isMunicipalityVisibleInCurrentContext = isMunicipalityVisibleInCurrentContext;
   window.getMarginAdjustedColor = getMarginAdjustedColor;
+  window.getWinnerPctGradientColor = getWinnerPctGradientColor;
+  window.getGradientColorForMode = getGradientColorForMode;
 }
 
 function updateClearSelectionButtonVisibility() {

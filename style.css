@@ -829,60 +829,134 @@ body {
   background: rgba(0, 0, 0, 0.02);
 }
 
-.cand-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 8px 14px;
+.cand-table {
+  width: 100%;
+  border-collapse: collapse;
   font-size: 0.78rem;
-  border-bottom: 1px solid rgba(125, 125, 125, 0.05);
-  gap: 4px;
-  background: var(--input-bg);
+  font-family: var(--font-main);
+  margin-top: 4px;
 }
 
-.cand-row:last-child {
+.cand-table th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: capitalize;
+  padding: 8px 8px;
+  border-bottom: 1px solid var(--border-color);
+  background: transparent;
+}
+
+.cand-table td {
+  padding: 8px 8px;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+  vertical-align: middle;
+  background: transparent;
+}
+
+.cand-table tr:last-child td {
   border-bottom: none;
 }
 
-.cand-name-row {
-  display: flex;
-  align-items: center;
-  min-width: 0;
+.cand-table th.align-left,
+.cand-table td.align-left {
+  text-align: left;
 }
 
-.cand-sim-name {
+.cand-table th.align-right,
+.cand-table td.align-right {
+  text-align: right;
+}
+
+.cand-table th.align-center,
+.cand-table td.align-center {
+  text-align: center;
+}
+
+.cand-table td.color-bar-td {
+  padding: 0;
+  width: 6px;
+  position: relative;
+}
+
+.cand-table .cand-color-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px !important;
+  border: none;
+  padding: 0;
+  margin: 0;
+  display: block;
+  transform: none !important;
+}
+
+.cand-table button.cand-color-bar {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.cand-table button.cand-color-bar:hover {
+  opacity: 0.7;
+  transform: none !important;
+}
+
+.cand-table .cand-name-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cand-table .cand-name-text {
   font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
 }
 
-.cand-meta-row {
+.cand-table .cand-check-circle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.cand-sim-detail {
-  font-size: 0.68rem;
-  color: var(--text-sec);
-}
-
-.cand-meta-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: bold;
   flex-shrink: 0;
 }
 
-.cand-sim-votes {
-  font-weight: 600;
+.cand-table .cand-votes-text {
+  color: var(--text-sec);
+}
+
+.cand-table .pct-bar-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.cand-table .pct-text {
+  font-weight: 700;
   color: var(--text);
-  font-size: 0.78rem;
+  min-width: 45px;
   text-align: right;
+}
+
+.cand-table .cand-mini-bar-wrap {
+  width: 80px;
+  height: 4px;
+  background: rgba(125, 125, 125, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.cand-table .cand-mini-bar {
+  height: 100%;
+  border-radius: 2px;
 }
 
 .status-badge-sim {

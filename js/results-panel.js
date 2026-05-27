@@ -751,36 +751,87 @@ function renderResultsPanel(props, cargo) {
   results.sort((a, b) => b.votos - a.votos);
 
   dom.resultsContent.innerHTML = '';
-  const grid = document.createElement('div');
-  grid.className = 'grid';
+
+  let tableHtml = `
+    <table class="cand-table">
+      <thead>
+        <tr>
+          <th class="color-bar-td"></th>
+          <th class="align-left">Candidato</th>
+          <th class="align-center">Votos</th>
+          <th class="align-center">Pct.</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
 
   results.forEach(r => {
     if (r.votos === 0 && results.length > 2) return;
 
-    const div = document.createElement('div');
-    div.className = 'cand';
-    div.dataset.status = r.status;
-
+    const cleanStatus = r.status ? r.status.toUpperCase() : '';
     const sw = getColorForCandidate(r.nome, r.partido);
-    const safeNome = escapeHtml(r.nome);
-    const safePartido = escapeHtml(r.partido);
-    div.innerHTML = `
-      <div class="cand-indicator-wrapper">
-        ${renderCandidateColorControl(r.nome, r.partido, sw, true)}
-      </div>
-      <div class="cand-name-wrapper cand-name-wrapper-stack">
-        <div class="cand-name" title="${safeNome}">${toTitleCase(r.nome)}</div>
-        <div class="cand-party" title="${safePartido}">${safePartido}</div>
-      </div>
-      <div class="cand-bar-wrapper cand-bar-wrapper-major">
-        <div class="cand-bar-fill" style="background:${sw}; width:${Math.max(0, Math.min(100, r.pct * 100))}%;"></div>
-        <div class="cand-votos">${fmtInt(r.votos)}</div>
-        <div class="cand-pct">${fmtPct(r.pct)}</div>
+    const isSpecial = cleanStatus === 'ELEITO' || cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO';
+    const isInapto = cleanStatus === 'INAPTO';
+
+    const checkCircleHtml = isSpecial
+      ? `<span class="cand-check-circle" style="background-color: ${sw};">✔</span>`
+      : '';
+
+    let badgeHtml = '';
+    if (cleanStatus === 'ELEITO') {
+      badgeHtml = `<span class="status-badge-sim eleito" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Eleito</span>`;
+    } else if (cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO') {
+      badgeHtml = `<span class="status-badge-sim segundo-turno" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">2º Turno</span>`;
+    } else if (isInapto) {
+      badgeHtml = `<span class="status-badge-sim inapto" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Inapto</span>`;
+    }
+
+    const nameHtml = `
+      <div class="cand-name-container">
+        ${checkCircleHtml}
+        <span class="cand-name-text">${toTitleCase(r.nome)}</span>
+        ${badgeHtml}
       </div>
     `;
-    grid.appendChild(div);
+
+    const safeNome = escapeAttribute(r.nome || '');
+    const safePartido = escapeAttribute(r.partido || '');
+
+    tableHtml += `
+      <tr class="${cleanStatus ? 'prop-cand-' + cleanStatus.toLowerCase().replace(/º/g, '').replace(/°/g, '').replace(/\s+/g, '-') : ''}" data-status="${r.status}">
+        <td class="color-bar-td">
+          <button type="button" class="swatch-button cand-color-bar"
+               style="background-color: ${sw};"
+               data-candidate-name="${safeNome}"
+               data-candidate-party="${safePartido}"
+               data-current-color="${sw}"
+               title="Personalizar cor do candidato"></button>
+        </td>
+        <td class="align-left">
+          ${nameHtml}
+          <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(r.partido)}</div>
+        </td>
+        <td class="align-center cand-votes-text">
+          ${fmtInt(r.votos)}
+        </td>
+        <td class="align-center">
+          <div class="pct-bar-container">
+            <span class="pct-text">${fmtPct(r.pct)}</span>
+            <div class="cand-mini-bar-wrap">
+              <div class="cand-mini-bar" style="width: ${r.pct * 100}%; background-color: ${sw};"></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
   });
-  dom.resultsContent.appendChild(grid);
+
+  tableHtml += `
+      </tbody>
+    </table>
+  `;
+
+  dom.resultsContent.innerHTML = tableHtml;
 
   const brancos = officialSummary
     ? ensureNumber(officialSummary.brancos)
@@ -1716,29 +1767,65 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     list.className = 'party-candidates';
     list.style.display = 'none';
 
+    let candidatesHtml = `
+      <table class="cand-table">
+        <tbody>
+    `;
+
     group.candidates.forEach((candidate) => {
-      const row = document.createElement('div');
-      row.className = `cand-row ${candidate.statusInfo.rowClass}`;
-      
       const partyColor = colorForParty(candidate.partido) || group.color || '#777';
-      row.style.borderLeft = `3px solid ${partyColor}`;
-
       const pctStr = fmtPct(totalValidos > 0 ? candidate.votos / totalValidos : 0);
+      const isElected = candidate.statusInfo.elected;
+      const isInapto = candidate.statusInfo.badgeClass === 'inapto';
 
-      row.innerHTML = `
-        <div class="cand-name-row">
-          <span class="cand-sim-name">${escapeHtml(candidate.nome)}</span>
-        </div>
-        <div class="cand-meta-row">
-          <span class="cand-sim-detail">${escapeHtml(candidate.partido)}</span>
-          <div class="cand-meta-right">
-            <span class="cand-sim-votes">${fmtInt(candidate.votos)} (${pctStr})</span>
-            <span class="status-badge-sim ${candidate.statusInfo.badgeClass}">${candidate.statusInfo.label}</span>
-          </div>
+      const checkCircleHtml = isElected
+        ? `<span class="cand-check-circle" style="background-color: ${partyColor};">✔</span>`
+        : '';
+
+      let badgeHtml = '';
+      if (isElected) {
+        badgeHtml = `<span class="status-badge-sim eleito" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">${candidate.statusInfo.label}</span>`;
+      } else if (isInapto) {
+        badgeHtml = `<span class="status-badge-sim inapto" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Inapto</span>`;
+      }
+
+      const nameHtml = `
+        <div class="cand-name-container">
+          ${checkCircleHtml}
+          <span class="cand-name-text">${escapeHtml(toTitleCase(candidate.nome))}</span>
+          ${badgeHtml}
         </div>
       `;
-      list.appendChild(row);
+
+      candidatesHtml += `
+        <tr class="${candidate.statusInfo.rowClass}">
+          <td class="color-bar-td">
+            <div class="cand-color-bar" style="background-color: ${partyColor};"></div>
+          </td>
+          <td class="align-left">
+            ${nameHtml}
+            <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(candidate.partido)}</div>
+          </td>
+          <td class="align-center cand-votes-text">
+            ${fmtInt(candidate.votos)}
+          </td>
+          <td class="align-center">
+            <div class="pct-bar-container">
+              <span class="pct-text">${pctStr}</span>
+              <div class="cand-mini-bar-wrap">
+                <div class="cand-mini-bar" style="width: ${(totalValidos > 0 ? (candidate.votos / totalValidos) * 100 : 0)}%; background-color: ${partyColor};"></div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      `;
     });
+
+    candidatesHtml += `
+        </tbody>
+      </table>
+    `;
+    list.innerHTML = candidatesHtml;
 
     header.addEventListener('click', () => {
       const isOpen = list.style.display !== 'none';

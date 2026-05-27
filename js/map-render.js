@@ -1549,6 +1549,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       winnerColorParty: winnerColorParty || winnerParty,
       totalValid: entry.totalValid,
       margin: entry.totalValid > 0 ? ((winnerVotes - secondVotes) / entry.totalValid) * 100 : 0,
+      winnerPct: entry.totalValid > 0 ? (winnerVotes / entry.totalValid) * 100 : 0,
       turno: turnoKey,
       turnoLabel,
       votes: entry.votes,
@@ -2485,7 +2486,7 @@ function getFeatureStyle(feature) {
       }
     }
     if (currentVizColorStyle === 'gradient' && currentVizMode.startsWith('vencedor'))
-      fillColor = getUniversalGradientColor(fillColor, marginPct);
+      fillColor = getGradientColorForMode(fillColor, marginPct, pctVal);
 
     const localId = resolveFeatureSelectionId(props);
     if (selectedLocationIDs.has(localId) && !STATE.isFilterAggregationActive)
@@ -2555,7 +2556,7 @@ function getFeatureStyle(feature) {
       const marginPct = winningList
         ? winningList.marginPct
         : getWinningMarginPct([winnerVotes], total);
-      fillColor = getUniversalGradientColor(fillColor, marginPct);
+      fillColor = getGradientColorForMode(fillColor, marginPct, pctVal);
     }
 
     const localId = resolveFeatureSelectionId(props);
@@ -2601,7 +2602,7 @@ function getFeatureStyle(feature) {
     const marginPct = currentVizMode.startsWith('vencedor')
       ? getMajoritarianMarginPct(props, turnoKey, totalValidos)
       : pctVal;
-    fillColor = getUniversalGradientColor(fillColor, marginPct);
+    fillColor = getGradientColorForMode(fillColor, marginPct, pctVal);
     fillOpacity = DEFAULT_POINT_FILL_OPACITY;
   } else {
     fillOpacity = DEFAULT_POINT_FILL_OPACITY;
@@ -2838,7 +2839,7 @@ function getMunicipalPolygonStyle(feature, summary) {
   const normalizedParty = normalizePartyAlias(String(winnerColorParty || result.winnerParty || '').toUpperCase());
   const baseColor = getColorForCandidate(result.winnerName, normalizedParty);
   const baseStyle = {
-    fillColor: getMarginAdjustedColor(baseColor, result.margin),
+    fillColor: getMarginAdjustedColor(baseColor, result.margin, result.winnerPct),
     fillOpacity: 0.78,
     color: 'rgba(255, 255, 255, 0.28)',
     weight: 0.8,

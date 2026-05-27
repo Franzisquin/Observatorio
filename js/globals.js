@@ -535,6 +535,7 @@ function getDeputyIdByName(nome) {
 
 let currentVizSize = 'comparecimento';
 let currentVizColorStyle = 'gradient'; // 'static' or 'gradient'
+let currentGradientMode = 'margin'; // 'margin' (margem entre 1º e 2º) or 'winnerPct' (% absoluta do vencedor)
 
 // Estatísticas do candidato para modo Desempenho (calculadas ao mudar candidato)
 let performanceModeStats = {

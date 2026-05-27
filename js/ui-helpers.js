@@ -297,6 +297,7 @@ async function init() {
   dom.selectVizSize = document.getElementById('selectVizSize');
   dom.selectVizColorStyle = document.getElementById('selectVizColorStyle');
   dom.vizModeChips = document.getElementById('vizModeChips');
+  dom.vizGradientModeChips = document.getElementById('vizGradientModeChips');
 
   dom.resultsBox = document.getElementById('resultsBox');
   dom.resultsTitle = document.getElementById('resultsTitle');
