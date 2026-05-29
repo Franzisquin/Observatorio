@@ -3020,3 +3020,32 @@ input:disabled {
   border-color: var(--err);
   font-weight: 600;
 }
+
+/* Interactive hover for party group headers in proportional election table */
+.cand-table tr.party-row-header {
+  transition: background 0.15s ease;
+}
+.cand-table tr.party-row-header:hover {
+  background: rgba(125, 125, 125, 0.08);
+}
+
+/* Adjustments for proportional election table to prevent horizontal overflow */
+.prop-table th,
+.prop-table td {
+  padding: 8px 4px !important;
+}
+.prop-table .pct-bar-container {
+  gap: 6px;
+}
+.prop-table .cand-mini-bar-wrap {
+  width: 40px;
+}
+.prop-table td:nth-child(4) .pct-text {
+  min-width: 14px;
+}
+.prop-table .cand-votes-text {
+  white-space: nowrap;
+}
+.prop-table .party-candidates {
+  padding: 4px 4px 6px 18px;
+}

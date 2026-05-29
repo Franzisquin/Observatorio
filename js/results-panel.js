@@ -778,11 +778,7 @@ function renderResultsPanel(props, cargo) {
       : '';
 
     let badgeHtml = '';
-    if (cleanStatus === 'ELEITO') {
-      badgeHtml = `<span class="status-badge-sim eleito" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Eleito</span>`;
-    } else if (cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO') {
-      badgeHtml = `<span class="status-badge-sim segundo-turno" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">2º Turno</span>`;
-    } else if (isInapto) {
+    if (isInapto) {
       badgeHtml = `<span class="status-badge-sim inapto" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Inapto</span>`;
     }
 
@@ -1718,6 +1714,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   }).sort((a, b) => b.votes - a.votes);
 
   const totalValidos = groupsPayload.totalVotes || 0;
+  const totalElected = groups.reduce((sum, g) => sum + (g.electedCount || 0), 0);
   dom.resultsContent.innerHTML = '';
 
   if (!groups.length) {
@@ -1725,47 +1722,60 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     return;
   }
 
-  const container = document.createElement('div');
-  container.className = 'prop-results-container';
+  const container = document.createElement('table');
+  container.className = 'cand-table prop-table';
+  container.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width: 16px; padding: 0;"></th>
+        <th class="color-bar-td"></th>
+        <th class="align-left">Partido / Coligação</th>
+        <th class="align-center">Cadeiras</th>
+        <th class="align-center">Votos</th>
+        <th class="align-center">Pct.</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = container.querySelector('tbody');
 
   groups.forEach((group) => {
     const pct = totalValidos > 0 ? (group.votes / totalValidos) : 0;
-    const item = document.createElement('div');
-    item.className = 'party-group';
-
     const normalizedComposition = String(group.composition || '').replace(/\s+/g, '').toUpperCase();
     const normalizedName = String(group.name || '').replace(/\s+/g, '').toUpperCase();
     const compositionHtml = group.isGroup && normalizedComposition && normalizedComposition !== normalizedName
-      ? `<div class="party-result-subtitle">${escapeHtml(group.composition)}</div>`
-      : '';
-    const electedBadge = group.electedCount > 0
-      ? `<span class="party-mandate-badge">${group.electedCount} eleito${group.electedCount > 1 ? 's' : ''}</span>`
+      ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(group.composition)}</div>`
       : '';
 
-    const header = document.createElement('div');
-    header.className = 'party-header';
-    header.innerHTML = `
-      <div class="party-header-left">
-        <span class="party-header-arrow">&#9654;</span>
-        <div class="cand-indicator" style="background:${group.color}"></div>
-        <div class="party-header-info">
-          <span class="party-header-name" title="${escapeHtml(group.name)}">${escapeHtml(group.name)}</span>
-          ${compositionHtml}
-          ${electedBadge}
-        </div>
-      </div>
-      <div class="party-header-right">
-        <div class="cand-bar-wrapper cand-bar-wrapper-major">
-          <div class="cand-bar-fill" style="background:${group.color}; width:${pct * 100}%;"></div>
-          <div class="cand-votos">${fmtInt(group.votes)}</div>
-          <div class="cand-pct">${fmtPct(pct)}</div>
-        </div>
-      </div>
+    const electedCellHtml = group.electedCount > 0
+      ? `<span style="font-weight: 700; color: var(--text); font-size: 0.85rem;">${group.electedCount}</span>`
+      : `<span style="color: var(--muted); font-size: 0.85rem; opacity: 0.5;">0</span>`;
+
+    const rowHeader = document.createElement('tr');
+    rowHeader.className = 'party-row-header';
+    rowHeader.style.cursor = 'pointer';
+    rowHeader.innerHTML = `
+      <td class="align-center" style="font-size: 0.55rem; color: var(--muted); padding: 8px 0; user-select: none; width: 16px;">&#9654;</td>
+      <td class="color-bar-td">
+        <div class="cand-color-bar" style="background-color: ${group.color};"></div>
+      </td>
+      <td class="align-left">
+        <span style="font-weight: 600; color: var(--text); font-size: 0.85rem;">${escapeHtml(group.name)}</span>
+        ${compositionHtml}
+      </td>
+      <td class="align-center" style="vertical-align: middle;">
+        ${electedCellHtml}
+      </td>
+      <td class="align-center cand-votes-text" style="font-variant-numeric: tabular-nums; vertical-align: middle;">
+        ${fmtInt(group.votes)}
+      </td>
+      <td class="align-center" style="vertical-align: middle; font-weight: 600; font-size: 0.85rem; font-variant-numeric: tabular-nums;">
+        ${fmtPct(pct)}
+      </td>
     `;
 
     const list = document.createElement('div');
     list.className = 'party-candidates';
-    list.style.display = 'none';
 
     let candidatesHtml = `
       <table class="cand-table">
@@ -1783,9 +1793,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         : '';
 
       let badgeHtml = '';
-      if (isElected) {
-        badgeHtml = `<span class="status-badge-sim eleito" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">${candidate.statusInfo.label}</span>`;
-      } else if (isInapto) {
+      if (isInapto) {
         badgeHtml = `<span class="status-badge-sim inapto" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Inapto</span>`;
       }
 
@@ -1809,13 +1817,8 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
           <td class="align-center cand-votes-text">
             ${fmtInt(candidate.votos)}
           </td>
-          <td class="align-center">
-            <div class="pct-bar-container">
-              <span class="pct-text">${pctStr}</span>
-              <div class="cand-mini-bar-wrap">
-                <div class="cand-mini-bar" style="width: ${(totalValidos > 0 ? (candidate.votos / totalValidos) * 100 : 0)}%; background-color: ${partyColor};"></div>
-              </div>
-            </div>
+          <td class="align-center" style="font-weight: 600; font-variant-numeric: tabular-nums;">
+            ${pctStr}
           </td>
         </tr>
       `;
@@ -1827,15 +1830,26 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     `;
     list.innerHTML = candidatesHtml;
 
-    header.addEventListener('click', () => {
-      const isOpen = list.style.display !== 'none';
-      list.style.display = isOpen ? 'none' : 'block';
-      item.classList.toggle('party-group-open', !isOpen);
+    const rowCandidates = document.createElement('tr');
+    rowCandidates.style.display = 'none';
+    const candidatesTd = document.createElement('td');
+    candidatesTd.colSpan = 6;
+    candidatesTd.style.padding = '0';
+    const isLightTheme = document.body.getAttribute('data-theme') === 'light';
+    candidatesTd.style.background = isLightTheme ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.02)';
+    candidatesTd.appendChild(list);
+    rowCandidates.appendChild(candidatesTd);
+
+    rowHeader.addEventListener('click', () => {
+      const isOpen = rowCandidates.style.display !== 'none';
+      rowCandidates.style.display = isOpen ? 'none' : 'table-row';
+      const arrowCell = rowHeader.cells[0];
+      arrowCell.innerHTML = isOpen ? '&#9654;' : '&#9660;';
+      arrowCell.style.color = isOpen ? 'var(--muted)' : 'var(--accent)';
     });
 
-    item.appendChild(header);
-    item.appendChild(list);
-    container.appendChild(item);
+    tbody.appendChild(rowHeader);
+    tbody.appendChild(rowCandidates);
   });
 
   dom.resultsContent.appendChild(container);

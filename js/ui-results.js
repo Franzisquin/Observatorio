@@ -321,11 +321,11 @@ function isGradientVizBlockedForCurrentCargo() {
 }
 
 function syncVizColorStyleControl() {
-  if (!dom.selectVizColorStyle) return;
-
-  currentVizColorStyle = 'gradient';
-  dom.selectVizColorStyle.value = 'gradient';
-  dom.selectVizColorStyle.disabled = true;
+  if (dom.selectVizColorStyle) {
+    currentVizColorStyle = 'gradient';
+    dom.selectVizColorStyle.value = 'gradient';
+    dom.selectVizColorStyle.disabled = true;
+  }
   const colorStyleCtrl = document.getElementById('vizColorStyleCtrl');
   if (colorStyleCtrl) colorStyleCtrl.classList.add('section-hidden');
 

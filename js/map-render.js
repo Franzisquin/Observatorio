@@ -1,3 +1,9 @@
+// Local helper to delegate to window.toTitleCase to prevent global scope resolution issues
+function safeToTitleCase(str) {
+  const fn = window.toTitleCase;
+  return fn ? fn(str) : (str || '');
+}
+
 // Cache para resolver coligações/federações em loops de renderização (Performance)
 const _proportionalGroupCache = new WeakMap();
 
@@ -201,7 +207,7 @@ function clearVizCandidateSelectionState() {
 function formatVizCandidateLabel(candidateData) {
   if (!candidateData) return '';
   if (candidateData.isLegenda) return `Voto de Legenda — ${candidateData.partido}`;
-  return `${toTitleCase(candidateData.nome)} (${candidateData.partido}) • Nº ${candidateData.numero}`;
+  return `${safeToTitleCase(candidateData.nome)} (${candidateData.partido}) • Nº ${candidateData.numero}`;
 }
 
 function getResolvedVisualizationCandidateId(candidatoKey, cargo = currentCargo) {
@@ -1112,7 +1118,7 @@ function getMajoritarianMarginPct(props, turnoKey, totalValidos) {
 function formatTooltipDisplayName(value) {
   const text = String(value || '').trim();
   if (!text) return '';
-  return typeof toTitleCase === 'function' ? toTitleCase(text) : text;
+  return safeToTitleCase(text);
 }
 
 function formatTooltipCaps(value) {
@@ -1732,7 +1738,7 @@ function renderDeputySearchResults(results, container, query) {
     const partyColor = colorForParty(c.partido);
 
     // Highlight match
-    let displayName = toTitleCase(c.nome);
+    let displayName = safeToTitleCase(c.nome);
     let displayNumber = c.numero;
 
     if (query) {
@@ -1746,9 +1752,9 @@ function renderDeputySearchResults(results, container, query) {
         const idx = nameNorm.indexOf(normalizedQuery);
         if (idx !== -1) {
           const original = c.nome;
-          displayName = toTitleCase(original.substring(0, idx))
-            + '<strong>' + toTitleCase(original.substring(idx, idx + query.length)) + '</strong>'
-            + toTitleCase(original.substring(idx + query.length));
+          displayName = safeToTitleCase(original.substring(0, idx))
+            + '<strong>' + safeToTitleCase(original.substring(idx, idx + query.length)) + '</strong>'
+            + safeToTitleCase(original.substring(idx + query.length));
         }
       }
     }
@@ -1787,7 +1793,7 @@ function renderDeputySearchResults(results, container, query) {
       if (input) {
         const label = candData.isLegenda
           ? `Voto de Legenda — ${candData.partido}`
-          : `${toTitleCase(candData.nome)} (${candData.partido}) • Nº ${candData.numero}`;
+          : `${safeToTitleCase(candData.nome)} (${candData.partido}) • Nº ${candData.numero}`;
         input.value = label;
       }
 
@@ -2801,9 +2807,9 @@ function getMunicipalPolygonStyle(feature, summary) {
     const emptyStyle = {
       fillColor: DEFAULT_SWATCH,
       fillOpacity: 0.25,
-      color: 'rgba(255, 255, 255, 0.28)',
-      weight: 0.8,
-      opacity: 1
+      color: '#ffffff',
+      weight: 0.6,
+      opacity: 0.8
     };
 
     if (!selectedMunicipality) return emptyStyle;
@@ -2813,7 +2819,8 @@ function getMunicipalPolygonStyle(feature, summary) {
         ...emptyStyle,
         fillOpacity: 0.06,
         color: 'rgba(255, 255, 255, 0.92)',
-        weight: 2.2
+        weight: 2.2,
+        opacity: 1
       };
     }
 
@@ -2841,9 +2848,9 @@ function getMunicipalPolygonStyle(feature, summary) {
   const baseStyle = {
     fillColor: getMarginAdjustedColor(baseColor, result.margin, result.winnerPct),
     fillOpacity: 0.78,
-    color: 'rgba(255, 255, 255, 0.28)',
-    weight: 0.8,
-    opacity: 1
+    color: '#ffffff',
+    weight: 0.6,
+    opacity: 0.8
   };
 
   if (!selectedMunicipality) {
@@ -2855,7 +2862,8 @@ function getMunicipalPolygonStyle(feature, summary) {
       ...baseStyle,
       fillOpacity: 0.02,
       color: 'rgba(255, 255, 255, 0.96)',
-      weight: 2.4
+      weight: 2.4,
+      opacity: 1
     };
   }
 
