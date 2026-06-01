@@ -7,6 +7,30 @@ function safeToTitleCase(str) {
 // Cache para resolver coligações/federações em loops de renderização (Performance)
 const _proportionalGroupCache = new WeakMap();
 
+// Memoização por candidato do resultado de resolveProportionalGroupInfo.
+// A resolução é determinística para um dado (metaStore, candidateId) — o
+// prefixCache e o metaStore permanecem estáveis durante a sessão e o metaStore
+// é substituído por um objeto novo ao trocar federal/estadual ou recarregar
+// (mesma premissa de _proportionalGroupCache). Sem cache, esta função (com
+// regex/normalização/localeCompare) era reexecutada milhões de vezes por redraw.
+const _proportionalGroupInfoCache = new WeakMap(); // metaStore -> Map(candidateId -> info)
+
+// Converte a lista de inaptos (array estável até o reload) em Set para lookup
+// O(1). Antes era feito `(...).includes(cand)` por candidato dentro dos loops,
+// custo O(inaptos) por candidato. O cache é por referência do array, então não
+// realoca a cada redraw.
+const _inaptosSetCache = new WeakMap();
+const _EMPTY_SET = new Set();
+function inaptosArrayToSet(arr) {
+  if (!Array.isArray(arr) || arr.length === 0) return _EMPTY_SET;
+  let s = _inaptosSetCache.get(arr);
+  if (!s) {
+    s = new Set(arr);
+    _inaptosSetCache.set(arr, s);
+  }
+  return s;
+}
+
 function getResolvedPrefixCacheForMetaStore(metaStore, prefixCache = null) {
   if (prefixCache && Object.keys(prefixCache).length > 0) return prefixCache;
 
@@ -781,6 +805,22 @@ function ensurePartyPrefixCache(isVereador = false) {
 
 function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
   const candidateKey = String(candidateId || '').trim();
+  if (!metaStore) {
+    return _computeProportionalGroupInfo(candidateKey, metaStore, prefixCache);
+  }
+  let perStore = _proportionalGroupInfoCache.get(metaStore);
+  if (!perStore) {
+    perStore = new Map();
+    _proportionalGroupInfoCache.set(metaStore, perStore);
+  }
+  const cached = perStore.get(candidateKey);
+  if (cached !== undefined) return cached;
+  const info = _computeProportionalGroupInfo(candidateKey, metaStore, prefixCache);
+  perStore.set(candidateKey, info);
+  return info;
+}
+
+function _computeProportionalGroupInfo(candidateKey, metaStore, prefixCache) {
   const meta = metaStore?.[candidateKey] || null;
   const resolvedPrefixCache = getResolvedPrefixCacheForMetaStore(metaStore, prefixCache);
 
@@ -851,14 +891,14 @@ function resolveProportionalGroupInfo(candidateId, metaStore, prefixCache) {
 
 function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, options = {}) {
   const resolvedPrefixCache = getResolvedPrefixCacheForMetaStore(metaStore, prefixCache);
-  const inaptosList = Array.isArray(options.inaptosList) ? options.inaptosList : [];
   const shouldFilterInaptos = options.filterInaptos === true;
+  const inaptosSet = shouldFilterInaptos ? inaptosArrayToSet(options.inaptosList) : null;
   const groups = new Map();
   let total = 0;
 
   Object.entries(votesMap || {}).forEach(([candidateId, rawVotes]) => {
     if (candidateId === '95' || candidateId === '96') return;
-    if (shouldFilterInaptos && inaptosList.includes(candidateId)) return;
+    if (inaptosSet && inaptosSet.has(candidateId)) return;
     const votes = ensureNumber(rawVotes);
     if (votes <= 0) return;
 
@@ -991,6 +1031,7 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
   const inaptos = isVereadorList
     ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
     : (STATE.inaptos[cargoKey]?.['1T'] || []);
+  const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(inaptos) : null;
   const groups = new Map();
   const typeKey = isVereadorList ? 'v' : (String(cargoKey || '').includes('estadual') ? 'e' : 'f');
 
@@ -1001,7 +1042,7 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
 
     Object.entries(votesMap).forEach(([candidateId, rawVotes]) => {
       if (candidateId === '95' || candidateId === '96') return;
-      if (STATE.filterInaptos && inaptos.includes(candidateId)) return;
+      if (inaptosSet && inaptosSet.has(candidateId)) return;
 
       const votes = ensureNumber(rawVotes);
       if (votes <= 0) return;
@@ -2204,8 +2245,10 @@ function getDeputyFeatureData(props) {
   let maxPartyV = -1;
   let winningParty = null;
 
+  const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(STATE.inaptos[currentCargo]?.['1T']) : null;
+
   for (const [cand, v] of Object.entries(votes)) {
-    if (STATE.filterInaptos && (STATE.inaptos[currentCargo]?.['1T'] || []).includes(cand)) {
+    if (inaptosSet && inaptosSet.has(cand)) {
       continue; // Filter out inactive candidates
     }
 
@@ -2280,9 +2323,10 @@ function getVereadorFeatureData(props) {
     const partyVotes = {};
     let maxPartyV = -1;
     let winningParty = null;
+    const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(STATE.inaptos['vereador_ord']?.['1T']) : null;
     for (const [cid, v] of Object.entries(votes)) {
       if (cid === '95' || cid === '96') continue;
-      if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cid)) continue;
+      if (inaptosSet && inaptosSet.has(cid)) continue;
       const vi = parseInt(v) || 0;
       tot += vi;
       if (cid.length > 2 && vi > winV) { winV = vi; win = cid; }
@@ -2323,10 +2367,11 @@ function getVereadorFeatureData(props) {
   if (votes) {
     const partyVotes = {};
     let maxPartyV = -1;
+    const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(STATE.inaptos['vereador_ord']?.['1T']) : null;
 
     for (const [cid, v] of Object.entries(votes)) {
       if (cid === '95' || cid === '96') continue;
-      if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cid)) continue;
+      if (inaptosSet && inaptosSet.has(cid)) continue;
 
       const meta = STATE.vereadorMetadata[cid];
       if (!meta) continue;

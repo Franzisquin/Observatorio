@@ -1562,6 +1562,7 @@ function aggregateProportionalGroupsForSelection(cargo) {
   const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
 
   const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[cargo]?.['1T'] || []);
+  const inaptosSet = STATE.filterInaptos ? new Set(inaptos) : null;
   const groups = new Map();
   let totalVotes = 0;
   let brancos = 0;
@@ -1578,7 +1579,7 @@ function aggregateProportionalGroupsForSelection(cargo) {
         nulos += votes;
         return;
       }
-      if (STATE.filterInaptos && inaptos.includes(candidateId)) return;
+      if (inaptosSet && inaptosSet.has(candidateId)) return;
 
       totalVotes += votes;
       const groupInfo = resolveProportionalGroupInfo(candidateId, metaStore, prefixCache);
