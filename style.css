@@ -1210,6 +1210,16 @@ body {
   text-align: right;
 }
 
+/* Tooltip puramente informativa: não deve capturar o ponteiro. No CSS padrão
+   do MapLibre o container .maplibregl-popup já é pointer-events:none, mas o
+   .maplibregl-popup-content é pointer-events:auto — se ele ficar sob o cursor,
+   dispara ciclos mouseleave/mousemove e a tooltip (e o cursor) ficam piscando. */
+.district-nyt-tooltip,
+.district-nyt-tooltip .maplibregl-popup-content,
+.sim-tooltip,
+.sim-tooltip .maplibregl-popup-content {
+  pointer-events: none !important;
+}
 .district-nyt-tooltip .maplibregl-popup-content {
   background: #ffffff !important;
   color: #333333 !important;

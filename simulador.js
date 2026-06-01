@@ -2339,8 +2339,7 @@ async function simRenderMapaMunicipios(uf) {
       return `
         <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(nome)}</div>
-          <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(UF_MAP.get(uf) || uf)}</div>
-          <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
+          <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">${escapeHtml(UF_MAP.get(uf) || uf)}</div>
           <table class="district-nyt-table">
             <thead>
               <tr>
@@ -2353,6 +2352,7 @@ async function simRenderMapaMunicipios(uf) {
               ${rowsHtml}
             </tbody>
           </table>
+          <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
         </div>
       `;
     },
@@ -2747,8 +2747,7 @@ function simRenderMapaLocais(uf, codM = null) {
       return `
         <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(p.nm_locvot || 'Local')}</div>
-          <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(p.nm_localidade || '')}</div>
-          <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
+          <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">${escapeHtml(p.nm_localidade || '')}</div>
           <table class="district-nyt-table">
             <thead>
               <tr>
@@ -2761,6 +2760,7 @@ function simRenderMapaLocais(uf, codM = null) {
               ${rowsHtml}
             </tbody>
           </table>
+          <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
         </div>
       `;
     }

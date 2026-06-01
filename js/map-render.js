@@ -1168,9 +1168,9 @@ function buildLocationTooltip(feature) {
   return `
     <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
       <div class="district-nyt-title">${escapeHtml(nomeLocal)}</div>
-      <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(nomeCidade)}</div>
-      <div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabel)}</div>
-      <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(totalValidos)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">
+        ${escapeHtml(nomeCidade)}${turnoLabel ? ` - ${escapeHtml(turnoLabel)}` : ''}
+      </div>
       <table class="district-nyt-table">
         <thead>
           <tr>
@@ -1183,6 +1183,7 @@ function buildLocationTooltip(feature) {
           ${rowsHtml}
         </tbody>
       </table>
+      <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(totalValidos)}</div>
     </div>
   `;
 }
@@ -1304,9 +1305,9 @@ function buildMunicipalityTooltip(feature, summary) {
   return `
     <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
       <div class="district-nyt-title">${escapeHtml(nome)}</div>
-      <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
-      ${turnoLabelText ? `<div style="font-size: 11px; color: #777777; margin-bottom: 2px;">${escapeHtml(turnoLabelText)}</div>` : ''}
-      <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">
+        ${escapeHtml(ufLabel)}${turnoLabelText ? ` - ${escapeHtml(turnoLabelText)}` : ''}
+      </div>
       <table class="district-nyt-table">
         <thead>
           <tr>
@@ -1319,6 +1320,7 @@ function buildMunicipalityTooltip(feature, summary) {
           ${rowsHtml}
         </tbody>
       </table>
+      <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(result.totalValid)}</div>
     </div>
   `;
 }

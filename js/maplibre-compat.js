@@ -177,13 +177,19 @@
   function fitMapToBounds(map, bounds, opts) {
     if (!map || !bounds || !bounds.isValid || !bounds.isValid()) return false;
     const o = opts || {};
-    map.fitBounds(bounds, {
+    const fitOpts = {
       padding: normalizePadding(o.padding != null ? o.padding : 20),
-      maxZoom: o.maxZoom,
       duration: o.animate === false ? 0 : (o.duration != null ? o.duration * 1000 : 600),
       animate: o.animate !== false,
       essential: true
-    });
+    };
+    // IMPORTANTE: o MapLibre faz Object.assign sobre seus defaults
+    // ({ maxZoom: transform.maxZoom, ... }, options). Passar maxZoom: undefined
+    // sobrescreve o default e leva a Math.min(zoom, undefined) === NaN, gerando
+    // "Invalid LngLat object: (NaN, NaN)" no cameraForBounds. Só incluímos a
+    // chave quando há um valor real.
+    if (o.maxZoom != null) fitOpts.maxZoom = o.maxZoom;
+    map.fitBounds(bounds, fitOpts);
     return true;
   }
 
@@ -253,6 +259,8 @@
       this.__added = false;
       this._handlers = [];
       this._popup = null;
+      this._popupOpen = false;
+      this._popupHtml = null;
       this._hoveredId = null;
     }
 
@@ -284,11 +292,14 @@
     addTo(map) {
       this.map = map || this.map;
       const m = this.map;
+      // __added precisa estar marcado ANTES de _doAdd, pois quando o style já
+      // está carregado doAdd() roda de forma síncrona e _doAdd() aborta caso
+      // __added ainda seja false (guarda contra remoção antes do load).
+      this.__added = true;
+      m.__geoLayers && m.__geoLayers.add(this);
       const doAdd = () => this._doAdd();
       if (m.isStyleLoaded && m.isStyleLoaded()) doAdd();
       else m.once('load', doAdd);
-      this.__added = true;
-      m.__geoLayers && m.__geoLayers.add(this);
       return this;
     }
 
@@ -355,6 +366,12 @@
       return this._popup;
     }
 
+    _closePopup() {
+      if (this._popup && this._popupOpen) this._popup.remove();
+      this._popupOpen = false;
+      this._popupHtml = null;
+    }
+
     // Resolve a feature ORIGINAL (geometria/props completas) a partir do __id,
     // pois o MapLibre entrega cópias possivelmente recortadas por tile.
     _resolveOriginal(feat) {
@@ -384,8 +401,24 @@
 
         if (this.tooltipFn) {
           const html = this.tooltipFn(feat);
-          if (html) this._ensurePopup().setLngLat(e.lngLat).setHTML(html).addTo(m);
-          else if (this._popup) this._popup.remove();
+          if (html) {
+            // Atualiza só a posição a cada movimento; o HTML (DOM) é
+            // reconstruído apenas quando o conteúdo muda e o popup é inserido
+            // uma única vez. Reconstruir/re-inserir a cada mousemove fazia a
+            // tooltip piscar mesmo sobre o mesmo objeto.
+            const popup = this._ensurePopup();
+            popup.setLngLat(e.lngLat);
+            if (html !== this._popupHtml) {
+              popup.setHTML(html);
+              this._popupHtml = html;
+            }
+            if (!this._popupOpen) {
+              popup.addTo(m);
+              this._popupOpen = true;
+            }
+          } else {
+            this._closePopup();
+          }
         }
       };
 
@@ -395,7 +428,7 @@
           m.setFeatureState({ source: this.sourceId, id: this._hoveredId }, { hover: false });
           this._hoveredId = null;
         }
-        if (this._popup) this._popup.remove();
+        this._closePopup();
       };
 
       m.on('mousemove', lid, onMove);
@@ -468,7 +501,11 @@
           if (!self.tooltipFn) return;
           const c = featureCenter(feature);
           const html = self.tooltipFn(feature);
-          if (c && html) self._ensurePopup().setLngLat(c).setHTML(html).addTo(self.map);
+          if (c && html) {
+            self._ensurePopup().setLngLat(c).setHTML(html).addTo(self.map);
+            self._popupOpen = true;
+            self._popupHtml = html;
+          }
         },
         on() { /* eventos são tratados no nível da layer */ }
       };
@@ -481,6 +518,8 @@
       this._handlers.forEach(([t, l, h]) => m.off(t, l, h));
       this._handlers = [];
       if (this._popup) { this._popup.remove(); this._popup = null; }
+      this._popupOpen = false;
+      this._popupHtml = null;
       this.layerIds.forEach((id) => { if (m.getLayer(id)) m.removeLayer(id); });
       if (m.getSource(this.sourceId)) m.removeSource(this.sourceId);
       this.layerIds = [];
