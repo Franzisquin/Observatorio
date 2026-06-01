@@ -672,101 +672,10 @@ function isBoxSelectionEnabledForCurrentMap() {
   return true; // Usually enabled for polling stations too
 }
 
-function setupBoxSelection() {
-  const mapContainer = map.getContainer();
-  selectionBoxElement = document.createElement('div');
-  selectionBoxElement.classList.add('selection-box');
-  mapContainer.appendChild(selectionBoxElement);
-
-  mapContainer.addEventListener('mousedown', (e) => {
-    if (!e.shiftKey || e.button !== 0 || !isBoxSelectionEnabledForCurrentMap()) return;
-    isSelectorsActive = true;
-    map.dragging.disable();
-    if (map.boxZoom) map.boxZoom.disable();
-    const rect = mapContainer.getBoundingClientRect();
-    startSelectionPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    updateSelectionBox(startSelectionPoint.x, startSelectionPoint.y, 0, 0);
-    selectionBoxElement.style.display = 'block';
-    e.preventDefault();
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isSelectorsActive) return;
-    const rect = mapContainer.getBoundingClientRect();
-    const currentX = e.clientX - rect.left;
-    const currentY = e.clientY - rect.top;
-    const x = Math.min(startSelectionPoint.x, currentX);
-    const y = Math.min(startSelectionPoint.y, currentY);
-    const width = Math.abs(currentX - startSelectionPoint.x);
-    const height = Math.abs(currentY - startSelectionPoint.y);
-    updateSelectionBox(x, y, width, height);
-  });
-
-  window.addEventListener('mouseup', (e) => {
-    if (!isSelectorsActive) return;
-    isSelectorsActive = false;
-    selectionBoxElement.style.display = 'none';
-    map.dragging.enable();
-    if (map.boxZoom) map.boxZoom.enable();
-
-    const rect = mapContainer.getBoundingClientRect();
-    const endX = e.clientX - rect.left;
-    const endY = e.clientY - rect.top;
-    const dist = Math.sqrt(Math.pow(endX - startSelectionPoint.x, 2) + Math.pow(endY - startSelectionPoint.y, 2));
-    if (dist < 5) return;
-
-    const p1 = L.point(Math.min(startSelectionPoint.x, endX), Math.min(startSelectionPoint.y, endY));
-    const p2 = L.point(Math.max(startSelectionPoint.x, endX), Math.max(startSelectionPoint.y, endY));
-    const bounds = L.latLngBounds(map.containerPointToLatLng(p1), map.containerPointToLatLng(p2));
-
-    if (STATE.currentMapMode === 'municipios') {
-      selectMunicipalitiesInBounds(bounds);
-    } else {
-      selectFeaturesInBounds(bounds);
-    }
-  });
-}
-
-function updateSelectionBox(x, y, w, h) {
-  selectionBoxElement.style.left = x + 'px';
-  selectionBoxElement.style.top = y + 'px';
-  selectionBoxElement.style.width = w + 'px';
-  selectionBoxElement.style.height = h + 'px';
-}
-
-function selectFeaturesInBounds(bounds) {
-  if (!currentLayer) return;
-  let addedCount = 0;
-  currentLayer.eachLayer(layer => {
-    if (layer.getLatLng && bounds.contains(layer.getLatLng()) && typeof filterFeature === 'function' && filterFeature(layer.feature)) {
-      const id = resolveFeatureSelectionId(layer.feature.properties);
-      if (id) {
-        selectedLocationIDs.add(id);
-        addedCount++;
-      }
-    }
-  });
-  if (addedCount > 0) {
-    updateSelectionUI(false);
-    if (currentLayer.resetStyle) currentLayer.resetStyle();
-  }
-}
-
-function selectMunicipalitiesInBounds(bounds) {
-  if (!STATE.municipiosLayer) return;
-  let firstSelected = null;
-  STATE.municipiosLayer.eachLayer(layer => {
-    if (bounds.intersects(layer.getBounds())) {
-      const props = layer.feature.properties;
-      const codM = getMunicipalityFeatureCode(props);
-      if (codM && isMunicipalityVisibleInCurrentContext(codM)) {
-        if (!firstSelected) firstSelected = layer;
-        // Single selection for drill-down
-      }
-    }
-  });
-  if (firstSelected) firstSelected.fire('click');
-}
+// NOTA: A lógica de box-selection (setupBoxSelection/updateSelectionBox/
+// selectFeaturesInPixelBox) vive em map-render.js, já migrada para MapLibre
+// (queryRenderedFeatures). As versões antigas baseadas em Leaflet que existiam
+// aqui foram removidas.
 
 function isMunicipalityVisibleInCurrentContext(codM) {
   const code = String(codM || '').trim();

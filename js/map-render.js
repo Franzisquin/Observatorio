@@ -593,33 +593,24 @@ function isSelectedMunicipalFeature(props, selection = getCurrentMunicipalMapSel
   return false;
 }
 
-function findSelectedMunicipalityLayer(selection = getCurrentMunicipalMapSelection()) {
-  if (!selection || !STATE.municipiosLayer?.eachLayer) return null;
+function findSelectedMunicipalityFeature(selection = getCurrentMunicipalMapSelection()) {
+  const features = STATE.municipiosLayer?.fc?.features;
+  if (!selection || !Array.isArray(features)) return null;
 
-  let matchedLayer = null;
-  STATE.municipiosLayer.eachLayer((layer) => {
-    if (matchedLayer || !layer?.feature?.properties) return;
-    if (isSelectedMunicipalFeature(layer.feature.properties, selection)) {
-      matchedLayer = layer;
-    }
-  });
-
-  return matchedLayer;
+  return features.find((feature) =>
+    feature?.properties && isSelectedMunicipalFeature(feature.properties, selection)
+  ) || null;
 }
 
-function setPendingMunicipalFocusBounds(layer) {
-  const bounds = layer?.getBounds?.();
+function setPendingMunicipalFocusBounds(feature) {
+  const bounds = feature ? MLCompat.featureBounds(feature) : null;
   if (!bounds?.isValid?.()) {
     STATE.pendingMunicipalFocusBounds = null;
     return false;
   }
 
-  const southWest = bounds.getSouthWest?.();
-  const northEast = bounds.getNorthEast?.();
-  if (!southWest || !northEast) {
-    STATE.pendingMunicipalFocusBounds = null;
-    return false;
-  }
+  const southWest = bounds.getSouthWest();
+  const northEast = bounds.getNorthEast();
 
   STATE.pendingMunicipalFocusBounds = {
     south: southWest.lat,
@@ -636,78 +627,41 @@ function focusSelectedMunicipalityOnMap(options = {}) {
 
   let bounds = null;
   if (options.preferPending !== true) {
-    bounds = findSelectedMunicipalityLayer()?.getBounds?.() || null;
+    const feature = findSelectedMunicipalityFeature();
+    bounds = feature ? MLCompat.featureBounds(feature) : null;
   }
   if (!bounds?.isValid?.()) {
     const pending = STATE.pendingMunicipalFocusBounds;
     if (pending) {
-      bounds = L.latLngBounds(
-        [pending.south, pending.west],
-        [pending.north, pending.east]
-      );
+      bounds = MLCompat.featureCollectionBounds([{
+        type: 'Feature',
+        geometry: {
+          type: 'MultiPoint',
+          coordinates: [[pending.west, pending.south], [pending.east, pending.north]]
+        }
+      }]);
     }
   }
   if (!bounds?.isValid?.()) return false;
 
-  map.flyToBounds(bounds, {
+  return MLCompat.fitMapToBounds(map, bounds, {
     animate: options.animate ?? true,
     duration: options.duration ?? 0.6,
     padding: options.padding || [36, 36],
     maxZoom: options.maxZoom || 14
   });
-
-  return true;
 }
 
-function syncMunicipalityLayerTooltip(layer, feature, summary = STATE.currentMapMuniSummary) {
-  if (!layer || !feature) return;
-
-  const tooltip = typeof layer.getTooltip === 'function' ? layer.getTooltip() : null;
-  if (isSelectedMunicipalFeature(feature?.properties)) {
-    if (typeof layer.closeTooltip === 'function') layer.closeTooltip();
-    if (tooltip && typeof layer.unbindTooltip === 'function') layer.unbindTooltip();
-    return;
-  }
-
-  const tooltipContent = buildMunicipalityTooltip(feature, summary);
-  if (tooltip && typeof layer.setTooltipContent === 'function') {
-    layer.setTooltipContent(tooltipContent);
-    return;
-  }
-
-  if (typeof layer.bindTooltip === 'function') {
-    layer.bindTooltip(tooltipContent, {
-      className: 'district-nyt-tooltip',
-      sticky: true
-    });
-  }
-}
-
-function syncMunicipalityLayerInteractivity(layer, feature) {
-  if (!layer || !feature) return;
-
-  const isSelected = isSelectedMunicipalFeature(feature?.properties);
-  const shouldDisableInteraction = isSelected && STATE.currentMapMode === 'locais';
-
-  if (layer._path?.style) {
-    layer._path.style.pointerEvents = shouldDisableInteraction ? 'none' : 'auto';
-  }
-
-  if (layer._container?.style) {
-    layer._container.style.pointerEvents = shouldDisableInteraction ? 'none' : '';
-  }
-}
+// A tooltip e a interatividade do município selecionado passam a ser tratadas
+// dinamicamente pela GeoLayer (tooltipFn retorna null para o selecionado e o
+// onClick ignora cliques no selecionado quando em modo 'locais').
 
 function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
-  if (!STATE.municipiosLayer?.eachLayer) return false;
+  if (!STATE.municipiosLayer?.refresh) return false;
 
-  STATE.municipiosLayer.eachLayer((layer) => {
-    const feature = layer?.feature;
-    if (!feature || typeof layer.setStyle !== 'function') return;
-    layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
-    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
-    syncMunicipalityLayerInteractivity(layer, feature);
-  });
+  // getMunicipalPolygonStyle já reflete a seleção atual, então um refresh
+  // (recomputa props + setData) atualiza o destaque do município selecionado.
+  STATE.municipiosLayer.refresh();
 
   if (focus) {
     focusSelectedMunicipalityOnMap();
@@ -736,17 +690,7 @@ function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
     currentLocalFilter = preservedLocal;
   }
 
-  STATE.municipiosLayer.eachLayer((layer) => {
-    const feature = layer?.feature;
-    if (!feature) return;
-
-    if (typeof layer.setStyle === 'function') {
-      layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
-    }
-
-    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
-  });
-
+  STATE.municipiosLayer.refresh();
   refreshMunicipalSelectionOverlay();
 
   if (syncResults) {
@@ -1607,6 +1551,26 @@ function shouldRenderGeneralMunicipalityOverview() {
   return true;
 }
 
+// Cria a camada (MapLibre fill+line) de municípios. onSelectFeature recebe a
+// feature ORIGINAL clicada (com geometria/props completas).
+function createMunicipiosGeoLayer(geojson, onSelectFeature) {
+  const layer = new MLCompat.GeoLayer(map, {
+    id: 'muni',
+    type: 'polygon',
+    hover: true,
+    styleFn: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+    tooltipFn: (feature) => (isSelectedMunicipalFeature(feature?.properties)
+      ? null
+      : buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary)),
+    onClick: (feature) => {
+      if (isSelectedMunicipalFeature(feature?.properties) && STATE.currentMapMode === 'locais') return;
+      onSelectFeature(feature);
+    }
+  });
+  layer.setFeatures(geojson.features || []);
+  return layer;
+}
+
 async function showGeneralMunicipalityOverview(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
@@ -1627,52 +1591,28 @@ async function showGeneralMunicipalityOverview(uf) {
       map.removeLayer(STATE.municipiosLayer);
     }
 
-    STATE.municipiosLayer = L.geoJSON(geojson, {
-      style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
-      onEachFeature: (feature, layer) => {
-        syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
+    STATE.municipiosLayer = createMunicipiosGeoLayer(geojson, (feature) => {
+      const nome = getMunicipalityFeatureName(feature.properties);
+      const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
+      currentCidadeFilter = matchedCity;
+      currentBairroFilter = 'all';
+      currentLocalFilter = '';
+      selectedLocationIDs.clear();
+      STATE.isFilterAggregationActive = false;
+      STATE.currentMapMode = 'locais';
+      if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
+      if (bairroCombobox) bairroCombobox.setValue('');
+      if (dom.searchLocal) dom.searchLocal.value = '';
+      setPendingMunicipalFocusBounds(feature);
+      focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
+      populateBairroDropdown();
+      updateApplyButtonText();
+      applyFiltersAndRedraw();
+    });
+    STATE.municipiosLayer.addTo(map);
 
-        layer.on({
-          mouseover: () => {
-            const baseStyle = getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary);
-            layer.setStyle({
-              ...baseStyle,
-              color: 'rgba(255, 255, 255, 0.96)',
-              weight: isSelectedMunicipalFeature(feature?.properties)
-                ? Math.max(baseStyle.weight || 0, 2.4)
-                : 1.4
-            });
-          },
-          mouseout: () => {
-            layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
-          },
-          click: () => {
-            if (isSelectedMunicipalFeature(feature?.properties) && STATE.currentMapMode === 'locais') return;
-            const nome = getMunicipalityFeatureName(feature.properties);
-            const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
-            currentCidadeFilter = matchedCity;
-            currentBairroFilter = 'all';
-            currentLocalFilter = '';
-            selectedLocationIDs.clear();
-            STATE.isFilterAggregationActive = false;
-            STATE.currentMapMode = 'locais';
-            if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
-            if (bairroCombobox) bairroCombobox.setValue('');
-            if (dom.searchLocal) dom.searchLocal.value = '';
-            setPendingMunicipalFocusBounds(layer);
-            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
-            populateBairroDropdown();
-            updateApplyButtonText();
-            applyFiltersAndRedraw();
-          }
-        });
-      }
-    }).addTo(map);
-
-    const bounds = STATE.municipiosLayer.getBounds?.();
-    if (bounds?.isValid?.()) {
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
+    const bounds = STATE.municipiosLayer.getBounds();
+    MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
 
     if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
     if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
@@ -1847,12 +1787,6 @@ function applyFiltersAndRedraw() {
     return;
   }
 
-  // O renderer canvas do Leaflet pode ter sido desalojado durante trocas
-  // rápidas de eleição/cargo. Se ele ficou órfão, recriamos antes de renderizar.
-  if (!mapCanvasRenderer || mapCanvasRenderer._map !== map) {
-    mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
-  }
-
   // Recalcular estatísticas do candidato se estiver no modo Desempenho
   if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
     const candidatoKey = dom.selectVizCandidato.value;
@@ -1885,13 +1819,19 @@ function applyFiltersAndRedraw() {
   if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.remove('active');
   if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.add('active');
 
-  currentLayer = L.geoJSON(geojson, {
-    renderer: mapCanvasRenderer,
-    pointToLayer: createPointLayer,
-    style: getFeatureStyle,
-    onEachFeature: onEachFeature,
-    filter: filterFeature
-  }).addTo(map);
+  const visibleFeatures = (geojson.features || []).filter(filterFeature);
+
+  currentLayer = new MLCompat.GeoLayer(map, {
+    id: 'locais',
+    type: 'point',
+    styleFn: getFeatureStyle,
+    radiusFn: getPointRadiusForFeature,
+    tooltipFn: buildLocationTooltip,
+    onClick: onFeatureClick,
+    sticky: false
+  });
+  currentLayer.setFeatures(visibleFeatures);
+  currentLayer.addTo(map);
 
   if (keepMunicipalOverviewVisible) {
     if (STATE.currentElectionType === 'geral' && STATE.currentMapMuniUF) {
@@ -1900,15 +1840,8 @@ function applyFiltersAndRedraw() {
     refreshMunicipalSelectionOverlay();
   }
 
-  CURRENT_VISIBLE_FEATURES_CACHE = [];
-  CURRENT_VISIBLE_PROPS_CACHE = [];
-  currentLayer.eachLayer((layer) => {
-    const feature = layer?.feature;
-    const props = feature?.properties;
-    if (!feature || !props) return;
-    CURRENT_VISIBLE_FEATURES_CACHE.push(feature);
-    CURRENT_VISIBLE_PROPS_CACHE.push(props);
-  });
+  CURRENT_VISIBLE_FEATURES_CACHE = visibleFeatures;
+  CURRENT_VISIBLE_PROPS_CACHE = visibleFeatures.map((feature) => feature.properties);
 
   // Call ISE Panel update
   if (typeof window.updateISEPanel === 'function') {
@@ -1930,10 +1863,6 @@ function applyFiltersAndRedraw() {
 
 
 // --- HELPER FUNCTIONS (Extraídas para reaproveitar nos dois modos) ---
-
-function createPointLayer(feature, latlng) {
-  return L.circleMarker(latlng, { radius: getPointRadiusForFeature(feature) });
-}
 
 const DEFAULT_POINT_FILL_OPACITY = 0.8;
 
@@ -2005,25 +1934,9 @@ function refreshTurnDependentUI() {
     updatePerformanceStatsUI();
   }
 
-  if (currentLayer?.eachLayer) {
-    currentLayer.eachLayer((layer) => {
-      const feature = layer?.feature;
-      if (!feature) return;
-
-      if (typeof layer.setStyle === 'function') {
-        layer.setStyle(getFeatureStyle(feature));
-      }
-
-      if (typeof layer.setRadius === 'function') {
-        layer.setRadius(getPointRadiusForFeature(feature));
-      }
-
-      // Refresh tooltips to match new currentTurno
-      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
-        layer.setTooltipContent(buildLocationTooltip(feature));
-      }
-    });
-  }
+  // Recolore/redimensiona os pontos para o novo turno (recalcula props e setData).
+  // Os tooltips são reconstruídos dinamicamente ao passar o mouse.
+  if (currentLayer?.refresh) currentLayer.refresh();
 
   if (typeof window.updateISEPanel === 'function') {
     window.updateISEPanel(currentLayer, currentCargo, currentTurno);
@@ -2695,17 +2608,11 @@ function getVencedor(props, cargo, turno, filtrarInaptos) {
 
 // ====== MAP INTERACTION ======
 
-function onEachFeature(feature, layer) {
-  layer.bindTooltip(buildLocationTooltip(feature), { className: 'district-nyt-tooltip', sticky: false });
-  layer.on('click', onFeatureClick);
-}
-
-function onFeatureClick(e) {
-  const layer = e.target;
-  const props = layer.feature.properties;
+function onFeatureClick(feature, e) {
+  const props = feature.properties;
   const id = resolveFeatureSelectionId(props);
 
-  const isShiftClick = e.originalEvent.shiftKey;
+  const isShiftClick = !!(e && e.originalEvent && e.originalEvent.shiftKey);
 
   if (!isShiftClick) {
     if (selectedLocationIDs.size === 1 && selectedLocationIDs.has(id)) {
@@ -3038,16 +2945,7 @@ async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
   STATE.currentMapMuniSummaryByTurn = summaryByTurn;
   STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(summaryByTurn);
 
-  STATE.municipiosLayer?.eachLayer?.((layer) => {
-    const feature = layer?.feature;
-    if (!feature) return;
-
-    if (typeof layer.setStyle === 'function') {
-      layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
-    }
-
-    syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
-  });
+  if (STATE.municipiosLayer?.refresh) STATE.municipiosLayer.refresh();
 
   refreshMunicipalSelectionOverlay();
 
@@ -3086,46 +2984,22 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
       map.removeLayer(STATE.municipiosLayer);
     }
 
-    STATE.municipiosLayer = L.geoJSON(geojson, {
-      style: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
-      onEachFeature: (feature, layer) => {
-        syncMunicipalityLayerTooltip(layer, feature, STATE.currentMapMuniSummary);
-
-        layer.on({
-          mouseover: () => {
-            const baseStyle = getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary);
-            layer.setStyle({
-              ...baseStyle,
-              color: 'rgba(255, 255, 255, 0.96)',
-              weight: isSelectedMunicipalFeature(feature?.properties)
-                ? Math.max(baseStyle.weight || 0, 2.4)
-                : 1.4
-            });
-          },
-          mouseout: () => {
-            layer.setStyle(getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary));
-          },
-          click: () => {
-            if (isSelectedMunicipalFeature(feature?.properties) && STATE.currentMapMode === 'locais') return;
-            const nome = getMunicipalityFeatureName(feature.properties);
-            const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
-            if (matchedOption) {
-              dom.selectMunicipio.value = matchedOption.value;
-            } else if (dom.selectMunicipio) {
-              dom.selectMunicipio.value = nome;
-            }
-            setPendingMunicipalFocusBounds(layer);
-            focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
-            dom.selectMunicipio?.dispatchEvent(new Event('change'));
-          }
-        });
+    STATE.municipiosLayer = createMunicipiosGeoLayer(geojson, (feature) => {
+      const nome = getMunicipalityFeatureName(feature.properties);
+      const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
+      if (matchedOption) {
+        dom.selectMunicipio.value = matchedOption.value;
+      } else if (dom.selectMunicipio) {
+        dom.selectMunicipio.value = nome;
       }
-    }).addTo(map);
+      setPendingMunicipalFocusBounds(feature);
+      focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
+      dom.selectMunicipio?.dispatchEvent(new Event('change'));
+    });
+    STATE.municipiosLayer.addTo(map);
 
-    const bounds = STATE.municipiosLayer.getBounds?.();
-    if (bounds?.isValid?.()) {
-      map.fitBounds(bounds, { padding: [20, 20] });
-    }
+    const bounds = STATE.municipiosLayer.getBounds();
+    MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
 
     if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
     if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
@@ -3153,59 +3027,40 @@ if (typeof window !== 'undefined') {
 function focusSelectionOnMap(options = {}) {
   if (!map || !currentLayer || !selectedLocationIDs.size) return false;
 
-  const selectedLayers = [];
-  currentLayer.eachLayer?.((layer) => {
-    const props = layer?.feature?.properties;
-    if (!props) return;
-    const id = resolveFeatureSelectionId(props);
-    if (selectedLocationIDs.has(id)) selectedLayers.push(layer);
-  });
+  const allFeatures = CURRENT_VISIBLE_FEATURES_CACHE || [];
+  const selectedFeatures = allFeatures.filter((feature) =>
+    selectedLocationIDs.has(resolveFeatureSelectionId(feature?.properties))
+  );
 
-  if (!selectedLayers.length) return false;
+  if (!selectedFeatures.length) return false;
 
-  const singleLayer = selectedLayers.length === 1 ? selectedLayers[0] : null;
-  if (singleLayer && typeof singleLayer.getLatLng === 'function') {
-    const latlng = singleLayer.getLatLng();
-    if (!latlng) return false;
+  if (selectedFeatures.length === 1) {
+    const center = MLCompat.featureCenter(selectedFeatures[0]);
+    if (!center) return false;
     const targetZoom = Math.max(map.getZoom() || 0, options.singleZoom || 16);
-    map.flyTo(latlng, targetZoom, { animate: true, duration: 0.6 });
-    if (typeof singleLayer.openTooltip === 'function') singleLayer.openTooltip();
+    map.flyTo({ center, zoom: targetZoom, duration: 600, essential: true });
     return true;
   }
 
-  const bounds = L.latLngBounds([]);
-  selectedLayers.forEach((layer) => {
-    if (typeof layer.getBounds === 'function') {
-      bounds.extend(layer.getBounds());
-    } else if (typeof layer.getLatLng === 'function') {
-      bounds.extend(layer.getLatLng());
-    }
-  });
-
-  if (!bounds.isValid()) return false;
-
-  map.flyToBounds(bounds, {
+  const bounds = MLCompat.featureCollectionBounds(selectedFeatures);
+  return MLCompat.fitMapToBounds(map, bounds, {
     animate: true,
     duration: 0.6,
     padding: options.padding || [32, 32],
     maxZoom: options.maxZoom || 16
   });
-  return true;
 }
 
 function focusCurrentLayerOnMap(options = {}) {
   if (!map || !currentLayer) return false;
 
-  const bounds = currentLayer.getBounds?.();
-  if (!bounds?.isValid?.()) return false;
-
-  map.flyToBounds(bounds, {
+  const bounds = currentLayer.getBounds();
+  return MLCompat.fitMapToBounds(map, bounds, {
     animate: true,
     duration: 0.6,
     padding: options.padding || [32, 32],
     maxZoom: options.maxZoom || 16
   });
-  return true;
 }
 
 function syncResultsPanelToCurrentView() {
@@ -3251,6 +3106,9 @@ function getAllFeaturesForAggregation() {
 function setupBoxSelection() {
   const mapContainer = map.getContainer();
 
+  // Desativa o box-zoom nativo (shift+arrasto) para não conflitar com a seleção
+  if (map.boxZoom) map.boxZoom.disable();
+
   // Create Visual Box Element
   selectionBoxElement = document.createElement('div');
   selectionBoxElement.classList.add('selection-box');
@@ -3272,8 +3130,7 @@ function handleMouseDown(e) {
   isSelectorsActive = true;
 
   // Disable Map Dragging while selecting to avoid conflicts
-  map.dragging.disable();
-  if (map.boxZoom) map.boxZoom.disable();
+  if (map.dragPan) map.dragPan.disable();
 
   // Get start point relative to container
   const mapContainer = map.getContainer();
@@ -3317,8 +3174,7 @@ function handleMouseUp(e) {
   selectionBoxElement.style.display = 'none';
 
   // Re-enable Map Dragging
-  map.dragging.enable();
-  if (map.boxZoom) map.boxZoom.enable();
+  if (map.dragPan) map.dragPan.enable();
 
   // Perform Final Selection Logic
   const mapContainer = map.getContainer();
@@ -3326,39 +3182,18 @@ function handleMouseUp(e) {
   const endX = e.clientX - rect.left;
   const endY = e.clientY - rect.top;
 
-  // If drag was very small, treat as click and let standard Shift+Click handler work? 
-  // Standard Shift+Click is handled by Leaflet layer click.
-  // We should only process BLOCK selection if distance > threshold.
+  // Se o arrasto foi muito pequeno, trata como clique simples (o handler de
+  // clique da layer cuida do shift+clique). Não processamos seleção por bloco.
   const dist = Math.sqrt(Math.pow(endX - startSelectionPoint.x, 2) + Math.pow(endY - startSelectionPoint.y, 2));
-
-  if (dist < 5) {
-    // It was just a click. Leaflet's 'click' event on the layer will handle it.
-    // We do nothing here to avoid double-processing or clearing.
-    // But wait: mousedown preventDefault() might have blocked it?
-    // No, we only prevented default text selection. Leaflet events usually fire.
-    return;
-  }
-
-  // Convert pixel Bounds to LatLng Bounds
-  const b = selectionBoxElement.getBoundingClientRect();
-  // Relative to viewport, but we need points relative to map container for containerPointToLatLng.
-  // Actually, easier: use the start/end points we tracked relative to container.
+  if (dist < 5) return;
 
   const minX = Math.min(startSelectionPoint.x, endX);
   const maxX = Math.max(startSelectionPoint.x, endX);
   const minY = Math.min(startSelectionPoint.y, endY);
   const maxY = Math.max(startSelectionPoint.y, endY);
 
-  const p1 = L.point(minX, minY);
-  const p2 = L.point(maxX, maxY);
-
-  const bounds = L.latLngBounds(
-    map.containerPointToLatLng(p1),
-    map.containerPointToLatLng(p2)
-  );
-
-  // Identify features inside bounds
-  selectFeaturesInBounds(bounds);
+  // Identifica features renderizadas dentro do retângulo (coordenadas de tela).
+  selectFeaturesInPixelBox([[minX, minY], [maxX, maxY]]);
 }
 
 function updateSelectionBox(x, y, w, h) {
@@ -3368,44 +3203,30 @@ function updateSelectionBox(x, y, w, h) {
   selectionBoxElement.style.height = h + 'px';
 }
 
-function selectFeaturesInBounds(bounds) {
-  if (!currentLayer) return;
+function selectFeaturesInPixelBox(pixelBox) {
+  if (!currentLayer || !map) return;
+
+  const layerId = 'locais-circle';
+  if (!map.getLayer(layerId)) return;
 
   let addedCount = 0;
-
   if (STATE.isFilterAggregationActive) {
     selectedLocationIDs.clear();
   }
 
-  // Recursive helper to find features in bounds
-  const findInBounds = (layerNode) => {
-    if (!layerNode) return;
-
-    // If it's a marker/point with position
-    if (layerNode.getLatLng) {
-      if (bounds.contains(layerNode.getLatLng())) {
-        const props = layerNode.feature && layerNode.feature.properties;
-        if (props) {
-          const id = resolveFeatureSelectionId(props);
-          if (id) {
-            selectedLocationIDs.add(id);
-            addedCount++;
-          }
-        }
-      }
+  const found = map.queryRenderedFeatures(pixelBox, { layers: [layerId] });
+  found.forEach((feat) => {
+    const id = resolveFeatureSelectionId(feat.properties);
+    if (id && !selectedLocationIDs.has(id)) {
+      selectedLocationIDs.add(id);
+      addedCount++;
     }
-    // If it's a group (LayerGroup or GeoJSON)
-    else if (layerNode.eachLayer) {
-      layerNode.eachLayer(child => findInBounds(child));
-    }
-  };
-
-  findInBounds(currentLayer);
+  });
 
   if (addedCount > 0) {
     isDragSelection = true;
     updateSelectionUI(false); // Treat as manual selection
-    // Force style update for newly selected items
+    // Atualiza o destaque dos itens recém-selecionados
     if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
   }
 }
@@ -3465,40 +3286,16 @@ function getActiveCensusFilterLabel() {
 function refreshMapStylesAndTooltips() {
   const summary = STATE.currentMapMuniSummary;
 
-  // 1. Atualiza camada de municípios (overview)
+  // Recolore as camadas recomputando as props (cor/opacidade) e re-enviando os
+  // dados; os tooltips são reconstruídos dinamicamente ao passar o mouse.
+  // 1. Camada de municípios (overview)
   if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
-    STATE.municipiosLayer.eachLayer((layer) => {
-      const feature = layer?.feature;
-      if (!feature) return;
-
-      // Atualiza o estilo (fillColor)
-      if (typeof layer.setStyle === 'function') {
-        layer.setStyle(getMunicipalPolygonStyle(feature, summary));
-      }
-
-      // Atualiza o conteúdo do tooltip (pois cores em tooltips são strings estáticas no binding)
-      syncMunicipalityLayerTooltip(layer, feature, summary);
-    });
+    STATE.municipiosLayer.refresh();
   }
 
-  // 2. Atualiza camada de pontos (locais de votação)
+  // 2. Camada de pontos (locais de votação)
   if (currentLayer && map.hasLayer(currentLayer)) {
-    currentLayer.eachLayer((layer) => {
-      const feature = layer?.feature;
-      if (!feature) return;
-
-      // Pontos (circleMarkers)
-      if (typeof layer.setStyle === 'function') {
-        layer.setStyle(getFeatureStyle(feature));
-      }
-
-      // Tooltips dos pontos
-      if (typeof layer.getTooltip === 'function' && layer.getTooltip()) {
-        if (typeof buildLocationTooltip === 'function') {
-           layer.setTooltipContent(buildLocationTooltip(feature));
-        }
-      }
-    });
+    currentLayer.refresh();
   }
 
   // Sincroniza painéis secundários que dependem da visão atual

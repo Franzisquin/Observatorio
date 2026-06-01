@@ -222,9 +222,9 @@ function flushSimMapRefresh(options = {}) {
   simMapLastContainerSize = { width, height };
 
   try {
-    simMap.invalidateSize({ pan: false, debounceMoveend: true });
+    simMap.resize();
   } catch (e) {
-    console.warn('Sim map invalidateSize failed:', e);
+    console.warn('Sim map resize failed:', e);
     return false;
   }
 
@@ -412,21 +412,29 @@ async function initSimulador() {
       const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>`;
       themeBtn.innerHTML = isDark ? sunSvg : moonSvg;
 
-      if (simTileLayer) simTileLayer.setUrl(isDark ? MAP_TILES.light : MAP_TILES.dark);
+      MLCompat.setBasemapTheme(simMap, document.body.dataset.theme === 'light' ? 'light' : 'dark');
+      MLCompat.refreshThemeColors();
       if (SIM.estadosLayer) simRenderMapaEstados();
       scheduleSimMapRefresh();
     });
   }
 
   // Map
-  simMap = L.map('map', { zoomControl: false, minZoom: 3, preferCanvas: true }).setView([-14, -52], 4);
-  simTileLayer = L.tileLayer(MAP_TILES.dark, {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 18
-  }).addTo(simMap);
-  L.control.zoom({ position: 'bottomright' }).addTo(simMap);
+  simMap = new maplibregl.Map({
+    container: 'map',
+    style: MLCompat.buildBasemapStyle(document.body.dataset.theme === 'light' ? 'light' : 'dark'),
+    center: [-52, -14],
+    zoom: 4,
+    minZoom: 3,
+    dragRotate: false,
+    pitchWithRotate: false
+  });
+  MLCompat.augmentMap(simMap);
+  MLCompat.refreshThemeColors();
+  if (simMap.touchZoomRotate) simMap.touchZoomRotate.disableRotation();
+  simMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
   setupSimMapRefreshObservers();
-  simMap.whenReady(() => scheduleSimMapRefresh({ force: true }));
+  simMap.on('load', () => scheduleSimMapRefresh({ force: true }));
   scheduleSimMapRefresh({ force: true });
 
   // Load data
@@ -1822,9 +1830,11 @@ function simRenderMapaEstados() {
   if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
   if (!SIM.estadosGeoJSON) return;
 
-  SIM.estadosLayer = L.geoJSON(SIM.estadosGeoJSON, {
-    renderer: L.canvas(),
-    style: f => {
+  SIM.estadosLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-estados',
+    type: 'polygon',
+    tooltipClass: 'sim-tooltip',
+    styleFn: (f) => {
       const sigla = f.properties.SIGLA_UF;
       const cor = simGetCorKey(simGetVencedorUF(sigla)?.key);
       const res = SIM.resultadosPorUF[sigla];
@@ -1851,7 +1861,7 @@ function simRenderMapaEstados() {
         opacity: isFaded ? 0.3 : (isSelected ? 1 : 0.7)
       };
     },
-    onEachFeature: (f, layer) => {
+    tooltipFn: (f) => {
       const sigla = f.properties.SIGLA_UF;
       const nome = f.properties.NM_UF;
       const res = SIM.resultadosPorUF[sigla];
@@ -1867,12 +1877,15 @@ function simRenderMapaEstados() {
         if (c) tt += `<br>${c.nome}: ${pctObj.toFixed(1)}%`;
         else if (venc.key === 'outros') tt += `<br>Outros: ${pctObj.toFixed(1)}%`;
       }
-      layer.bindTooltip(tt, { sticky: true });
-      layer.on('click', () => simOnClickEstado(sigla));
-    }
-  }).addTo(simMap);
+      return tt;
+    },
+    onClick: (f) => simOnClickEstado(f.properties.SIGLA_UF)
+  });
+  SIM.estadosLayer.setFeatures(SIM.estadosGeoJSON.features || []);
+  SIM.estadosLayer.addTo(simMap);
 
-  if (SIM.estadosLayer.getBounds().isValid()) simMap.fitBounds(SIM.estadosLayer.getBounds());
+  const estadosBounds = SIM.estadosLayer.getBounds();
+  if (estadosBounds.isValid()) MLCompat.fitMapToBounds(simMap, estadosBounds, { animate: false });
   scheduleSimMapRefresh();
 }
 
@@ -2255,9 +2268,11 @@ async function simRenderMapaMunicipios(uf) {
   }
   if (!geo) return;
 
-  SIM.municipiosLayer = L.geoJSON(geo, {
-    renderer: L.canvas(),
-    style: f => {
+  SIM.municipiosLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-municipios',
+    type: 'polygon',
+    tooltipClass: 'district-nyt-tooltip',
+    styleFn: (f) => {
       const codM = f.properties.CD_MUN;
       const res = SIM.resultadosPorMuni[uf]?.[codM];
       const venc = simGetVencedorMuni(uf, codM);
@@ -2283,11 +2298,12 @@ async function simRenderMapaMunicipios(uf) {
         opacity: isSelected ? 0 : (isFaded ? 0.3 : 0.8)
       };
     },
-    onEachFeature: (f, layer) => {
+    tooltipFn: (f) => {
       const nome = f.properties.NM_MUN;
       const codM = f.properties.CD_MUN;
+      // No município selecionado deixamos passar para os marcadores de local
+      if (SIM.selectedMuni === codM) return null;
       const res = SIM.resultadosPorMuni[uf]?.[codM];
-      const venc = simGetVencedorMuni(uf, codM);
 
       let rowsHtml = '';
       let validTotal = 0;
@@ -2295,14 +2311,13 @@ async function simRenderMapaMunicipios(uf) {
          const keysObj = SIM.candidatos.map(c => 'cand_' + c.id).concat(['outros']);
          validTotal = keysObj.reduce((s, k) => s + (res[k]?.votos || 0), 0);
          const sortedKeys = [...keysObj].sort((a, b) => (res[b]?.votos || 0) - (res[a]?.votos || 0));
-         let idx = 0;
          sortedKeys.forEach(k => {
             const v = res[k]?.votos || 0;
             if (v <= 0) return;
             const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
             const cor = simGetCorKey(k) || '#cccccc';
             const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
-            
+
             rowsHtml += `
               <tr>
                 <td style="padding: 0;">
@@ -2321,7 +2336,7 @@ async function simRenderMapaMunicipios(uf) {
          rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos neste local.</td></tr>`;
       }
 
-      const tt = `
+      return `
         <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(nome)}</div>
           <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(UF_MAP.get(uf) || uf)}</div>
@@ -2340,26 +2355,24 @@ async function simRenderMapaMunicipios(uf) {
           </table>
         </div>
       `;
-      layer.bindTooltip(tt, { className: 'district-nyt-tooltip', sticky: true });
-      layer.on('click', () => {
-          SIM.selectedMuni = codM;
-          simRenderMapaMunicipios(uf);
-          simRenderMapaLocais(uf, codM);
-          simRenderMuniResultado(uf, codM);
-          simRenderAjusteTab(uf, codM);
-          simAtualizarBtnVoltar();
-      });
+    },
+    onClick: (f) => {
+      const codM = f.properties.CD_MUN;
+      // Município já selecionado: ignora para permitir clicar nos locais
+      if (SIM.selectedMuni === codM) return;
+      SIM.selectedMuni = codM;
+      simRenderMapaMunicipios(uf);
+      simRenderMapaLocais(uf, codM);
+      simRenderMuniResultado(uf, codM);
+      simRenderAjusteTab(uf, codM);
+      simAtualizarBtnVoltar();
     }
-  }).addTo(simMap);
-
-  // Disable pointer events on selected municipality so you can click through to local markers
-  SIM.municipiosLayer.eachLayer(layer => {
-    const isSelected = SIM.selectedMuni === String(layer.feature.properties.CD_MUN);
-    const path = layer.getElement?.();
-    if (path) path.style.pointerEvents = isSelected ? 'none' : 'auto';
   });
+  SIM.municipiosLayer.setFeatures(geo.features || []);
+  SIM.municipiosLayer.addTo(simMap);
 
-  if (SIM.municipiosLayer.getBounds().isValid()) simMap.fitBounds(SIM.municipiosLayer.getBounds());
+  const muniBounds = SIM.municipiosLayer.getBounds();
+  if (muniBounds.isValid()) MLCompat.fitMapToBounds(simMap, muniBounds, { animate: false });
   scheduleSimMapRefresh();
 }
 
@@ -2663,8 +2676,12 @@ function simRenderMapaLocais(uf, codM = null) {
   });
   if (globalMaxMargin === 0) globalMaxMargin = 50;
 
-  SIM.locaisLayer = L.geoJSON(geo, {
-    pointToLayer: (f, latlng) => {
+  SIM.locaisLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-locais',
+    type: 'point',
+    tooltipClass: 'district-nyt-tooltip',
+    sticky: false,
+    styleFn: (f) => {
       const p = f.properties;
       let maxVotos = -1, vencKey = null;
       if (p._sim && p._sim.votosCand) {
@@ -2683,42 +2700,33 @@ function simRenderMapaLocais(uf, codM = null) {
           marginPct = ((sortedVotes[0] || 0) - (sortedVotes[1] || 0)) / validTotal * 100;
         }
       }
-      const cor = getUniversalGradientColor(baseCor, marginPct);
-
+      return { fillColor: getUniversalGradientColor(baseCor, marginPct), fillOpacity: 0.8 };
+    },
+    radiusFn: (f) => {
+      const p = f.properties;
       // Radius based on log scale of valid voters (same logic as visualizer)
       const aptos = p._sim ? p._sim.totalAptos : 0;
       const logComp = Math.log10(Math.max(1, aptos));
       let pctLog = (logComp - 2) / (4 - 2);
       pctLog = Math.max(0, Math.min(1, pctLog));
-      const radius = 2 + (7 * pctLog);
-
-      return L.circleMarker(latlng, {
-        radius: radius,
-        fillColor: cor,
-        color: 'transparent',
-        weight: 0,
-        fillOpacity: 0.8,
-        opacity: 0
-      });
+      return 2 + (7 * pctLog);
     },
-    onEachFeature: (f, layer) => {
+    tooltipFn: (f) => {
       const p = f.properties;
-      if (!p._sim) return;
+      if (!p._sim) return null;
 
       // Calculate valid votes (excluding nuloBranco and abstencao)
       const validTotal = keys.reduce((s, k) => s + (p._sim.votosCand[k] || 0), 0);
-
       const sortedKeys = [...keys].sort((a, b) => (p._sim.votosCand[b] || 0) - (p._sim.votosCand[a] || 0));
 
       let rowsHtml = '';
-      let idx = 0;
       sortedKeys.forEach(k => {
         const v = p._sim.votosCand[k] || 0;
         if (v <= 0) return;
         const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
         const cor = simGetCorKey(k) || '#cccccc';
         const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
-        
+
         rowsHtml += `
           <tr>
             <td style="padding: 0;">
@@ -2736,7 +2744,7 @@ function simRenderMapaLocais(uf, codM = null) {
         rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos neste local.</td></tr>`;
       }
 
-      const tt = `
+      return `
         <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(p.nm_locvot || 'Local')}</div>
           <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(p.nm_localidade || '')}</div>
@@ -2755,13 +2763,14 @@ function simRenderMapaLocais(uf, codM = null) {
           </table>
         </div>
       `;
-
-      layer.bindTooltip(tt, { className: 'district-nyt-tooltip', sticky: false });
     }
-  }).addTo(simMap);
+  });
+  SIM.locaisLayer.setFeatures(geo.features || []);
+  SIM.locaisLayer.addTo(simMap);
 
-  if (SIM.locaisLayer.getBounds().isValid()) {
-    simMap.fitBounds(SIM.locaisLayer.getBounds(), { padding: [20, 20] });
+  const locaisBounds = SIM.locaisLayer.getBounds();
+  if (locaisBounds.isValid()) {
+    MLCompat.fitMapToBounds(simMap, locaisBounds, { padding: [20, 20], animate: false });
   }
   scheduleSimMapRefresh();
 }

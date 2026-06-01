@@ -578,15 +578,15 @@ function applyMapViewportAfterDataLoad(bounds, fitBoundsOptions = { animate: fal
   pendingMapViewportRestore = null;
 
   if (pending?.center && Number.isFinite(pending.zoom)) {
-    const nextCenter = L.latLng(pending.center.lat, pending.center.lng);
+    const nextCenter = [pending.center.lng, pending.center.lat];
     if (!bounds || !bounds.isValid || !bounds.isValid() || bounds.contains(nextCenter)) {
-      map.setView(nextCenter, pending.zoom, { animate: false });
+      map.jumpTo({ center: nextCenter, zoom: pending.zoom });
       return;
     }
   }
 
   if (bounds?.isValid?.()) {
-    map.fitBounds(bounds, fitBoundsOptions);
+    MLCompat.fitMapToBounds(map, bounds, fitBoundsOptions);
   }
 }
 

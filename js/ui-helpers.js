@@ -226,7 +226,6 @@ async function loadMunicipalIndex() {
 
 async function init() {
   document.body.dataset.theme = 'dark';
-  mapCanvasRenderer = L.canvas({ padding: 0.5, tolerance: 10 });
 
   await loadMunicipalIndex();
 
@@ -245,11 +244,10 @@ async function init() {
     
     dom.themeToggle.innerHTML = isDark ? sunSvg : moonSvg; // Swap icon SVG
 
-    // Update Tile Layer
-    if (STATE.mapTileLayer) {
-      STATE.mapTileLayer.setUrl(isDark ? MAP_TILES.light : MAP_TILES.dark);
-      // Note: isDark was the OLD state, so if it WAS dark, we are now Light -> MAP_TILES.light
-    }
+    // Update Basemap tiles (mesmos tiles raster CARTO, dark/light)
+    const newTheme = document.body.dataset.theme === 'light' ? 'light' : 'dark';
+    MLCompat.setBasemapTheme(map, newTheme);
+    MLCompat.refreshThemeColors();
     applyFiltersAndRedraw();
   });
 
@@ -330,14 +328,19 @@ async function init() {
   // Census Filters DOM - CLEANUP: Removing references to old ID elements that were replaced by Tabs/Sliders
   // dom.filterRendaMin, etc. are now handled dynamically or inside setupSliders
 
-  map = L.map('map', { zoomControl: false, minZoom: 4 }).setView([-15, -55], 4);
-
-  STATE.mapTileLayer = L.tileLayer(MAP_TILES.dark, {
-    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
-    subdomains: 'abcd', maxZoom: 20
-  }).addTo(map);
-
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
+  map = new maplibregl.Map({
+    container: 'map',
+    style: MLCompat.buildBasemapStyle(document.body.dataset.theme === 'light' ? 'light' : 'dark'),
+    center: [-55, -15],
+    zoom: 4,
+    minZoom: 4,
+    dragRotate: false,
+    pitchWithRotate: false
+  });
+  MLCompat.augmentMap(map);
+  MLCompat.refreshThemeColors();
+  if (map.touchZoomRotate) map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
 
   try {
     setupControls();
