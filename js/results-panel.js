@@ -1670,6 +1670,7 @@ function aggregateProportionalGroupsForSelection(cargo) {
 }
 
 function renderProportionalExpandableList(groupsPayload, metrics = {}) {
+  ensureCustomCandTooltip();
   const groups = (groupsPayload.groups || []).map((group) => {
     let dominantParty = group.party;
     let dominantVotes = -1;
@@ -1707,12 +1708,95 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
 
   const totalValidos = groupsPayload.totalVotes || 0;
   const totalElected = groups.reduce((sum, g) => sum + (g.electedCount || 0), 0);
+  
+  // Otimização: calcula QE e outras métricas proporcionais de antemão
+  const isEstadual = typeof currentCargo === 'string' && currentCargo.includes('estadual');
+  const isVereador = typeof currentCargo === 'string' && currentCargo.startsWith('vereador');
+  const proportionalTypeKey = isVereador ? 'v' : (isEstadual ? 'e' : 'f');
+  
+  const uf_prop = loadedVereadorState.uf || (dom.selectUFGeneral ? dom.selectUFGeneral.value : '');
+  const year_prop = STATE.currentElectionYear;
+  
+  let statsOfficial_prop = null;
+  if (isVereador) {
+    const totalsKey = `vereadores_${year_prop}`;
+    const rawTotals = STATE.officialTotals?.[totalsKey];
+    const muniSanitized = String(currentCidadeFilter || '').trim().toUpperCase();
+    statsOfficial_prop = rawTotals?.[uf_prop]?.[muniSanitized]?.stats || rawTotals?.[uf_prop]?.stats || null;
+  } else {
+    const officialData = STATE.officialTotals?.[year_prop]?.[uf_prop]?.[proportionalTypeKey] || null;
+    statsOfficial_prop = officialData?.stats || null;
+  }
+  
+  const QE_prop = statsOfficial_prop?.vr_qe || 0;
+  let estimatedQE_prop = QE_prop;
+  if (!estimatedQE_prop) {
+    let vagas = statsOfficial_prop?.qt_vagas;
+    if (!vagas && typeof currentCargo === 'string') {
+      const ufNorm = String(uf_prop || '').toUpperCase().trim();
+      const seatsMap = {
+        'AC': 8, 'AL': 9, 'AM': 8, 'AP': 8, 'BA': 39, 'CE': 22, 'DF': 8,
+        'ES': 10, 'GO': 17, 'MA': 18, 'MG': 53, 'MS': 8, 'MT': 8, 'PA': 17,
+        'PB': 12, 'PE': 25, 'PI': 10, 'PR': 30, 'RJ': 46, 'RN': 8, 'RO': 8,
+        'RR': 8, 'RS': 31, 'SC': 16, 'SE': 8, 'SP': 70, 'TO': 8
+      };
+      const fedSeats = seatsMap[ufNorm] || 8;
+      if (currentCargo === 'deputado_federal') {
+        vagas = fedSeats;
+      } else if (currentCargo === 'deputado_estadual' || currentCargo === 'deputado_distrital') {
+        vagas = fedSeats <= 12 ? fedSeats * 3 : 36 + (fedSeats - 12);
+      }
+    }
+    if (vagas > 0 && totalValidos > 0) {
+      estimatedQE_prop = Math.round(totalValidos / vagas);
+    }
+  }
+  
+  const qeValue = estimatedQE_prop || 0;
+  const qe10 = qeValue ? Math.round(qeValue * 0.1) : 0;
+  const qe20 = qeValue ? Math.round(qeValue * 0.2) : 0;
+  const qe80 = qeValue ? Math.round(qeValue * 0.8) : 0;
+
   dom.resultsContent.innerHTML = '';
 
   if (!groups.length) {
     dom.resultsContent.innerHTML = '<p style="color:var(--muted)">Sem votos válidos para esta seleção.</p>';
     return;
   }
+
+  // --- TOP METRICS BAR & GUIDE TIP BOX ---
+  let vagasDisplay = statsOfficial_prop?.qt_vagas;
+  if (!vagasDisplay && typeof currentCargo === 'string') {
+    const ufNorm = String(uf_prop || '').toUpperCase().trim();
+    const seatsMap = {
+      'AC': 8, 'AL': 9, 'AM': 8, 'AP': 8, 'BA': 39, 'CE': 22, 'DF': 8,
+      'ES': 10, 'GO': 17, 'MA': 18, 'MG': 53, 'MS': 8, 'MT': 8, 'PA': 17,
+      'PB': 12, 'PE': 25, 'PI': 10, 'PR': 30, 'RJ': 46, 'RN': 8, 'RO': 8,
+      'RR': 8, 'RS': 31, 'SC': 16, 'SE': 8, 'SP': 70, 'TO': 8
+    };
+    const fedSeats = seatsMap[ufNorm] || 8;
+    if (currentCargo === 'deputado_federal') {
+      vagasDisplay = fedSeats;
+    } else if (currentCargo === 'deputado_estadual' || currentCargo === 'deputado_distrital') {
+      vagasDisplay = fedSeats <= 12 ? fedSeats * 3 : 36 + (fedSeats - 12);
+    }
+  }
+
+  let qeDisplay = statsOfficial_prop?.vr_qe || qeValue;
+
+  if (vagasDisplay > 0 || qeDisplay > 0) {
+    let topMetrics = document.createElement('div');
+    topMetrics.className = 'proportional-top-bar';
+    topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
+    
+    let vagasHtml = vagasDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${vagasDisplay}</strong></div>` : '';
+    let qeHtml = qeDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(qeDisplay)}</strong></div>` : '';
+    
+    topMetrics.innerHTML = vagasHtml + qeHtml;
+    dom.resultsContent.appendChild(topMetrics);
+  }
+
+
 
   const container = document.createElement('table');
   container.className = 'cand-table prop-table';
@@ -1733,6 +1817,57 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
 
   groups.forEach((group) => {
     const pct = totalValidos > 0 ? (group.votes / totalValidos) : 0;
+    
+    // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL DO GRUPO (STATEWIDE/MUNICIPALITY-WIDE) ---
+    let partyStatewideVotes = group.votes;
+    if (typeof currentCargo === 'string' && currentCargo.startsWith('deputado')) {
+      const yearKey = STATE.currentElectionYear;
+      const ufKey = uf_prop;
+      const typeKey = currentCargo === 'deputado_federal' ? 'f' : 'e';
+      const officialCoalitions = STATE.officialTotals?.[yearKey]?.[ufKey]?.[typeKey]?.coalitions;
+      if (officialCoalitions) {
+        const matchedCoalition = officialCoalitions.find(c => 
+          String(c.id).toUpperCase() === String(group.name).toUpperCase() || 
+          String(c.raw_comp).toUpperCase() === String(group.composition || '').toUpperCase()
+        );
+        if (matchedCoalition) {
+          partyStatewideVotes = ensureNumber(matchedCoalition.votes);
+        }
+      }
+    } else if (typeof currentCargo === 'string' && currentCargo.startsWith('vereador')) {
+      const muniScope = STATE.municipalOfficialTotals?.[currentCargo]?.['1T'];
+      if (muniScope?.votesById) {
+        let sum = 0;
+        const metaStore = STATE.vereadorMetadata || {};
+        const prefixCache = STATE._vereadorPartyPrefixCache || {};
+        Object.entries(muniScope.votesById).forEach(([candId, rawV]) => {
+          if (candId === '95' || candId === '96') return;
+          const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+          if (groupInfo.key === group.key) {
+            sum += ensureNumber(rawV);
+          }
+        });
+        if (sum > 0) {
+          partyStatewideVotes = sum;
+        }
+      }
+    }
+
+    // Calcula desempenho do partido para mostrar na sidebar com base nos votos estaduais/municipais
+    const groupQP = qeValue > 0 ? Math.floor(partyStatewideVotes / qeValue) : 0;
+    const partyReached80 = qeValue > 0 ? partyStatewideVotes >= qe80 : false;
+    
+    let propStatusHtml = '';
+    if (qeValue > 0) {
+      if (groupQP > 0) {
+        propStatusHtml = `<span style="font-size: 0.65rem; color: var(--accent, #ffbd21); font-weight: 600; display: block; margin-top: 2px;">QP: ${groupQP} direta(s)</span>`;
+      } else if (partyReached80) {
+        propStatusHtml = `<span style="font-size: 0.65rem; color: #5fa72f; font-weight: 500; display: block; margin-top: 2px;">Apto p/ Sobra (≥80%)</span>`;
+      } else {
+        propStatusHtml = `<span style="font-size: 0.65rem; color: var(--muted); opacity: 0.7; display: block; margin-top: 2px;">Inapto p/ Sobra (&lt;80%)</span>`;
+      }
+    }
+
     const normalizedComposition = String(group.composition || '').replace(/\s+/g, '').toUpperCase();
     const normalizedName = String(group.name || '').replace(/\s+/g, '').toUpperCase();
     const compositionHtml = group.isGroup && normalizedComposition && normalizedComposition !== normalizedName
@@ -1754,6 +1889,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
       <td class="align-left">
         <span style="font-weight: 600; color: var(--text); font-size: 0.85rem;">${escapeHtml(group.name)}</span>
         ${compositionHtml}
+        ${propStatusHtml}
       </td>
       <td class="align-center" style="vertical-align: middle;">
         ${electedCellHtml}
@@ -1789,6 +1925,96 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         badgeHtml = `<span class="status-badge-sim inapto" style="margin-left: 6px; font-size: 0.6rem; padding: 1px 4px; border-radius: 2px;">Inapto</span>`;
       }
 
+      // --- CÁLCULO DAS REGRAS NOMINAIS DO CANDIDATO PARA EXIBIÇÃO NO ACCORDION ---
+      const st = String(candidate.status || '').toUpperCase();
+      let candLabel = '';
+      let badgeClass = '';
+      
+      if (group.electedCount === 0) {
+        candLabel = 'NÃO ELEITO';
+        badgeClass = 'nao-eleito';
+      } else {
+        if (st.includes('NÃO ELEITO') || st.includes('NAO ELEITO')) {
+          candLabel = 'NÃO ELEITO';
+          badgeClass = 'nao-eleito';
+        }
+        else if (st.includes('QP')) {
+          candLabel = 'ELEITO POR QP';
+          badgeClass = 'eleito';
+        }
+        else if (st.includes('MÉDIA') || st.includes('MEDIA') || st.includes('MÃ‰DIA')) {
+          candLabel = 'ELEITO POR MÉDIA';
+          badgeClass = 'eleito';
+        }
+        else if (st.includes('ELEITO')) {
+          candLabel = 'ELEITO';
+          badgeClass = 'eleito';
+        }
+        else if (st.includes('SUPLENTE')) {
+          candLabel = 'SUPLENTE';
+          badgeClass = 'suplente';
+        }
+        else {
+          candLabel = 'NÃO ELEITO';
+          badgeClass = 'nao-eleito';
+        }
+      }
+
+      // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL SE ESTIVER NO FILTRO ---
+      let candStatewideVotes = candidate.votos;
+      
+      if (typeof currentCargo === 'string' && currentCargo.startsWith('deputado')) {
+        const stateScope = STATE.precomputedProportionalStateTotals?.[currentCargo]?.state;
+        if (stateScope?.votesById && stateScope.votesById[candidate.id] !== undefined) {
+          candStatewideVotes = ensureNumber(stateScope.votesById[candidate.id]);
+        }
+      } else if (typeof currentCargo === 'string' && currentCargo.startsWith('vereador')) {
+        const muniScope = STATE.municipalOfficialTotals?.[currentCargo]?.['1T'];
+        if (muniScope?.votesById && muniScope.votesById[candidate.id] !== undefined) {
+          candStatewideVotes = ensureNumber(muniScope.votesById[candidate.id]);
+        }
+      }
+
+      let ruleExplanation = '';
+      if (qeValue > 0) {
+        const reached10 = candStatewideVotes >= qe10;
+        const reached20 = candStatewideVotes >= qe20;
+        const partyReached80 = qeValue > 0 ? partyStatewideVotes >= qe80 : false;
+        
+        const votesSuffix = typeof currentCargo === 'string' && currentCargo.startsWith('vereador') ? 'votos' : 'votos estaduais';
+        
+        if (candLabel.includes('QP')) {
+          ruleExplanation = `Eleito(a) por QP: O partido conquistou vaga direta e o candidato superou a barreira individual de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
+        } else if (candLabel.includes('MÉDIA') || candLabel.includes('MEDIA') || candLabel.includes('MÃ‰DIA')) {
+          ruleExplanation = `Eleito(a) por Média: A sigla atingiu mais de 80% do QE e o candidato superou 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
+        } else if (candLabel.includes('ELEITO')) {
+          ruleExplanation = `Eleito(a) pelas regras proporcionais da legislação eleitoral (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+        } else if (candLabel.includes('SUPLENTE')) {
+          if (reached20) {
+            ruleExplanation = `Suplente Apto para Sobra: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 20% do QE, que é ${fmtInt(qe20)}), estando apto para assumir sobras.`;
+          } else if (reached10) {
+            ruleExplanation = `Suplente Apto apenas para QP: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou 10% do QE, que é ${fmtInt(qe10)}), porém é inapto para disputar sobras por não atingir 20% do QE (${fmtInt(qe20)}).`;
+          } else {
+            ruleExplanation = `Suplente Inapto: Ficou abaixo dos mínimos individuais (10% do QE para vaga direta: ${fmtInt(qe10)} ${votesSuffix}; 20% para sobras: ${fmtInt(qe20)}).`;
+          }
+        } else {
+          if (!partyReached80) {
+            ruleExplanation = `Não eleito(a): Partido não atingiu os 80% do QE necessários para disputar as sobras (obteve ${fmtInt(partyStatewideVotes)} de ${fmtInt(qe80)} ${votesSuffix}).`;
+          } else if (!reached20) {
+            ruleExplanation = `Não eleito(a): Não atingiu a cláusula de barreira de 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} de ${fmtInt(qe20)} ${votesSuffix}).`;
+          } else {
+            ruleExplanation = `Não eleito(a): Atingiu todos os mínimos legais, mas a sigla não conquistou mais vagas na partilha de médias.`;
+          }
+        }
+      } else {
+        ruleExplanation = `Status oficial: ${candLabel}.`;
+      }
+
+      if (candStatewideVotes !== candidate.votos) {
+        const areaLabel = typeof currentCargo === 'string' && currentCargo.startsWith('vereador') ? 'município' : 'estado';
+        ruleExplanation += ` (Nota: Votos exibidos no hover referem-se à soma total no ${areaLabel}: ${fmtInt(candStatewideVotes)} votos).`;
+      }
+
       const nameHtml = `
         <div class="cand-name-container">
           ${checkCircleHtml}
@@ -1797,19 +2023,23 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         </div>
       `;
 
+      const statusBadgeHtml = `<span class="status-badge ${badgeClass}" style="font-size:0.6rem; padding:1px 3px; display:inline-block; margin-top:2px;">${candLabel}</span>`;
+
       candidatesHtml += `
-        <tr class="${candidate.statusInfo.rowClass}">
+        <tr class="${candidate.statusInfo.rowClass} cand-row-hoverable" data-explanation="${escapeHtml(ruleExplanation)}" style="cursor: help;">
           <td class="color-bar-td">
             <div class="cand-color-bar" style="background-color: ${partyColor};"></div>
           </td>
-          <td class="align-left">
+          <td class="align-left" style="padding-top: 6px; padding-bottom: 6px;">
             ${nameHtml}
-            <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(candidate.partido)}</div>
+            <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">
+              ${escapeHtml(candidate.partido)}
+            </div>
           </td>
-          <td class="align-center cand-votes-text">
+          <td class="align-center cand-votes-text" style="vertical-align: middle;">
             ${fmtInt(candidate.votos)}
           </td>
-          <td class="align-center" style="font-weight: 600; font-variant-numeric: tabular-nums;">
+          <td class="align-center" style="font-weight: 600; font-variant-numeric: tabular-nums; vertical-align: middle;">
             ${pctStr}
           </td>
         </tr>
@@ -1897,6 +2127,18 @@ function renderDeputyPartyResults(cargo) {
 
   dom.resultsContent.innerHTML = '';
   dom.resultsContent.appendChild(toggleContainer);
+
+  if (statsOfficial) {
+    let topMetrics = document.createElement('div');
+    topMetrics.className = 'proportional-top-bar';
+    topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
+    
+    let vagasHtml = statsOfficial.qt_vagas ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${statsOfficial.qt_vagas}</strong></div>` : '';
+    let qeHtml = statsOfficial.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(statsOfficial.vr_qe)}</strong></div>` : '';
+    
+    topMetrics.innerHTML = vagasHtml + qeHtml;
+    dom.resultsContent.appendChild(topMetrics);
+  }
 
   toggleContainer.addEventListener('click', (e) => {
     const btn = e.target.closest('.nav-tab-btn');
@@ -2193,6 +2435,19 @@ function renderDeputyPartyResults(cargo) {
         ? `<div class="party-result-subtitle">${r.composition}</div>`
         : '';
 
+      let propStatusHtml = '';
+      if (statsOfficial && statsOfficial.vr_qe) {
+        const QE = statsOfficial.vr_qe;
+        const QP = Math.floor(r.votes / QE);
+        if (QP > 0) {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: var(--accent, #ffbd21); font-weight: 600; margin-top: 2px;">QP: ${QP} direta(s)</div>`;
+        } else if (r.votes >= QE * 0.8) {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: #5fa72f; font-weight: 500; margin-top: 2px;">Apto p/ Sobra (≥80%)</div>`;
+        } else {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.8; margin-top: 2px;">Inapto p/ Sobra (&lt;80%)</div>`;
+        }
+      }
+
       div.innerHTML = `
         <div class="cand-header party-result-header">
             <div class="cand-info party-result-info">
@@ -2201,12 +2456,15 @@ function renderDeputyPartyResults(cargo) {
             </div>
              ${electedHtml}
         </div>
-        <div class="cand-stats party-result-stats">
-          <div class="party-result-votes">
-            <span class="bigPct">${fmtPct(r.pct)}</span>
-            <span class="smallVotos">${fmtInt(r.votes)}</span>
+        <div class="cand-stats party-result-stats" style="margin-top: 4px;">
+          <div class="party-result-votes" style="display:flex; flex-direction:column; gap:2px; align-items:flex-start;">
+            <div>
+              <span class="bigPct">${fmtPct(r.pct)}</span>
+              <span class="smallVotos">${fmtInt(r.votes)}</span>
+            </div>
+            ${propStatusHtml}
           </div>
-          <div class="party-result-action">Ver lista -&gt;</div>
+          <div class="party-result-action" style="align-self: flex-end;">Ver lista -&gt;</div>
         </div>
       `;
       pageDiv.appendChild(div);
@@ -2270,6 +2528,13 @@ function renderDeputyPartyResults(cargo) {
         ${extraMetrics}
         <div class="metric-item"><span>Votos Válidos (Total)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
         ${deputyPartyTurnoutHtml}
+      </div>
+      <div class="proportional-info-card" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:6px; font-size:0.75rem; color:var(--muted); line-height:1.45;">
+        <div style="font-weight:600; display:flex; align-items:center; gap:6px; color:var(--text); margin-bottom:4px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Regras do Sistema Proporcional
+        </div>
+        Vagas diretas são distribuídas via <strong>Quociente Partidário (QP)</strong> (exige candidato com ≥10% do QE). Sobras são distribuídas pelas médias entre partidos com ≥80% do QE e candidatos com ≥20% do QE (<strong>Regra 80/20</strong>). Clique em um partido/federação para ver a lista detalhada e a regra aplicada a cada candidato.
       </div>
     `;
 }
@@ -2494,8 +2759,28 @@ function renderVereadorPartyResults(cargo) {
     <button class="nav-tab-btn ${STATE.vereadorPartyViewMode === 'coalition' ? 'active' : ''}" data-mode="coalition" style="line-height:1.2">${officialBtnLabel}</button>
   `;
 
+  // Compute statsOfficial early
+  const uf_ver = loadedVereadorState.uf || (dom.selectUFGeneral ? dom.selectUFGeneral.value : null);
+  const year_ver = STATE.currentElectionYear;
+  const totalsKey_ver = `vereadores_${year_ver}`;
+  const rawTotals_ver = STATE.officialTotals?.[totalsKey_ver];
+  const muniSanitized_ver = String(currentCidadeFilter || '').trim().toUpperCase();
+  const statsOfficial_ver = rawTotals_ver?.[uf_ver]?.[muniSanitized_ver]?.stats || rawTotals_ver?.[uf_ver]?.stats || null;
+
   dom.resultsContent.innerHTML = '';
   dom.resultsContent.appendChild(subToggle);
+
+  if (statsOfficial_ver) {
+    let topMetrics = document.createElement('div');
+    topMetrics.className = 'proportional-top-bar';
+    topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
+    
+    let vagasHtml = statsOfficial_ver.qt_vagas ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${statsOfficial_ver.qt_vagas}</strong></div>` : '';
+    let qeHtml = statsOfficial_ver.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(statsOfficial_ver.vr_qe)}</strong></div>` : '';
+    
+    topMetrics.innerHTML = vagasHtml + qeHtml;
+    dom.resultsContent.appendChild(topMetrics);
+  }
 
   subToggle.addEventListener('click', (e) => {
     const btn = e.target.closest('.nav-tab-btn');
@@ -2750,6 +3035,19 @@ function renderVereadorPartyResults(cargo) {
         ? `<div class="party-result-subtitle">${r.composition}</div>`
         : '';
 
+      let propStatusHtml = '';
+      if (statsOfficial && statsOfficial.vr_qe) {
+        const QE = statsOfficial.vr_qe;
+        const QP = Math.floor(r.votes / QE);
+        if (QP > 0) {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: var(--accent, #ffbd21); font-weight: 600; margin-top: 2px;">QP: ${QP} direta(s)</div>`;
+        } else if (r.votes >= QE * 0.8) {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: #5fa72f; font-weight: 500; margin-top: 2px;">Apto p/ Sobra (≥80%)</div>`;
+        } else {
+          propStatusHtml = `<div style="font-size: 0.7rem; color: var(--muted); opacity: 0.8; margin-top: 2px;">Inapto p/ Sobra (&lt;80%)</div>`;
+        }
+      }
+
       div.innerHTML = `
         <div class="cand-header party-result-header">
           <div class="cand-info party-result-info">
@@ -2758,12 +3056,15 @@ function renderVereadorPartyResults(cargo) {
           </div>
           ${electedHtml}
         </div>
-        <div class="cand-stats party-result-stats">
-          <div class="party-result-votes">
-            <span class="bigPct">${fmtPct(r.pct)}</span>
-            <span class="smallVotos">${fmtInt(r.votes)}</span>
+        <div class="cand-stats party-result-stats" style="margin-top: 4px;">
+          <div class="party-result-votes" style="display:flex; flex-direction:column; gap:2px; align-items:flex-start;">
+            <div>
+              <span class="bigPct">${fmtPct(r.pct)}</span>
+              <span class="smallVotos">${fmtInt(r.votes)}</span>
+            </div>
+            ${propStatusHtml}
           </div>
-          <div class="party-result-action">Ver lista -&gt;</div>
+          <div class="party-result-action" style="align-self: flex-end;">Ver lista -&gt;</div>
         </div>
       `;
       pageDiv.appendChild(div);
@@ -2821,6 +3122,13 @@ function renderVereadorPartyResults(cargo) {
       ${extraMetrics}
       <div class="metric-item"><span>Votos Válidos (Nominais)</span><strong>${fmtInt(totalValidosDisplay)}</strong></div>
       ${vereadorPartyTurnoutHtml}
+    </div>
+    <div class="proportional-info-card" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:6px; font-size:0.75rem; color:var(--muted); line-height:1.45;">
+      <div style="font-weight:600; display:flex; align-items:center; gap:6px; color:var(--text); margin-bottom:4px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Regras do Sistema Proporcional
+      </div>
+      Vagas diretas são distribuídas via <strong>Quociente Partidário (QP)</strong> (exige candidato com ≥10% do QE). Sobras são distribuídas pelas médias entre partidos com ≥80% do QE e candidatos com ≥20% do QE (<strong>Regra 80/20</strong>). Clique em um partido/coligação para ver a lista detalhada e a regra aplicada a cada candidato.
     </div>`;
 }
 
@@ -2888,67 +3196,19 @@ function openVereadorCoalitionModal(composition, titleName, color, cargo, electe
   const totalLegendVotes = legendVotes.reduce((sum, l) => sum + l.votos, 0);
   const forceNotElected = (electedCount === 0);
 
-  let modalOverlay = document.getElementById('coalition-modal-overlay');
-  if (!modalOverlay) {
-    modalOverlay = document.createElement('div');
-    modalOverlay.id = 'coalition-modal-overlay';
-    modalOverlay.className = 'info-overlay';
-    modalOverlay.style.zIndex = '10000';
-    document.body.appendChild(modalOverlay);
-  }
-
-  let listHtml = candidateList.map((c, idx) => {
-    const st = c.status.toUpperCase();
-    let label = '', badgeClass = '';
-    if (forceNotElected) { label = 'NÃƒO ELEITO'; badgeClass = 'nao-eleito'; }
-    else if (st.includes('NÃƒO ELEITO') || st.includes('NAO ELEITO')) { label = 'NÃƒO ELEITO'; badgeClass = 'nao-eleito'; }
-    else if (st.includes('QP')) { label = 'ELEITO POR QP'; badgeClass = 'eleito'; }
-    else if (st.includes('MÃ‰DIA') || st.includes('MEDIA')) { label = 'ELEITO POR MÃ‰DIA'; badgeClass = 'eleito'; }
-    else if (st.includes('ELEITO')) { label = 'ELEITO'; badgeClass = 'eleito'; }
-    else if (st.includes('SUPLENTE')) { label = 'SUPLENTE'; badgeClass = 'suplente'; }
-    else { label = 'NÃƒO ELEITO'; badgeClass = 'nao-eleito'; }
-
-    const statusBadge = `<span class="status-badge ${badgeClass}" style="font-size:0.65rem; padding:2px 5px;">${label}</span>`;
-    const partyColor = colorForParty(c.partido);
-    return `
-      <div style="display:flex; align-items:center; padding:6px 0 6px 8px; border-bottom:1px solid var(--border); font-size:0.85rem; border-left: 3px solid ${partyColor}; box-sizing:border-box; min-width:0;">
-        <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}Â°</span>
-        <div style="flex:1; margin-right:8px; overflow:hidden;">
-          <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.nome}</div>
-          <div style="font-size:0.7rem; color:var(--muted); margin-top:1px;">${c.partido}</div>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-          <div style="font-weight:700;">${fmtInt(c.votos)}</div>
-          ${statusBadge}
-        </div>
-      </div>`;
-  }).join('');
-
-  if (candidateList.length === 0 && totalLegendVotes === 0) listHtml = '<div style="padding:20px; text-align:center; color:var(--muted); font-size:0.85rem;">Nenhum voto registrado.</div>';
-
-  let legendHtml = '';
-  if (!isGroup && totalLegendVotes > 0) {
-    legendHtml = `
-      <div style="margin-top:10px; padding:8px 10px; background:var(--surface-2, #f5f5f5); border-radius:6px; border-left:3px solid ${color};">
-        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px;">Votos de Legenda</div>
-        <div style="font-size:1.1rem; font-weight:700;">${fmtInt(totalLegendVotes)}</div>
-      </div>`;
-  }
-
-  modalOverlay.innerHTML = `
-    <div class="info-modal wide-modal" style="max-width:450px; max-height:85vh; display:flex; flex-direction:column; padding:20px; overflow:hidden;">
-      <button class="info-close" onclick="document.getElementById('coalition-modal-overlay').classList.remove('visible')">âœ•</button>
-      <div style="border-bottom: 2px solid ${color}; padding-bottom:10px; margin-bottom:10px;">
-        <h3 style="margin:0; font-size:1rem; text-transform:uppercase; letter-spacing:0.5px;">${titleName}</h3>
-      </div>
-      <div style="flex:1; overflow-y:auto; padding-right:8px; padding-bottom:8px; scrollbar-gutter:stable;">
-        ${listHtml}
-        ${legendHtml}
-      </div>
-    </div>`;
-
-  modalOverlay.classList.add('visible');
-  modalOverlay.onclick = (e) => { if (e.target === modalOverlay) modalOverlay.classList.remove('visible'); };
+  renderProportionalModalUI(
+    composition,
+    titleName,
+    color,
+    cargo,
+    electedCount,
+    isGroup,
+    targetParties,
+    legendVotes,
+    candidateList,
+    totalLegendVotes,
+    forceNotElected
+  );
 }
 
 function precomputeVereadorWinners() {
@@ -2979,6 +3239,301 @@ function precomputeVereadorWinners() {
   });
 }
 
+
+function renderProportionalModalUI(composition, titleName, color, cargo, electedCount, isGroup, targetParties, legendVotes, candidateList, totalLegendVotes, forceNotElected) {
+  ensureCustomCandTooltip();
+  const isEstadual = (cargo === 'deputado_estadual');
+  const isVereador = String(cargo || '').startsWith('vereador');
+  const typeKey = isVereador ? 'v' : (isEstadual ? 'e' : 'f');
+  
+  const uf = loadedVereadorState.uf || (dom.selectUFGeneral ? dom.selectUFGeneral.value : '');
+  const year = STATE.currentElectionYear;
+  
+  let statsOfficial = null;
+  let totalValidosDisplay = 0;
+  
+  if (isVereador) {
+    const totalsKey = `vereadores_${year}`;
+    const rawTotals = STATE.officialTotals?.[totalsKey];
+    const muniSanitized = String(currentCidadeFilter || '').trim().toUpperCase();
+    statsOfficial = rawTotals?.[uf]?.[muniSanitized]?.stats || rawTotals?.[uf]?.stats || null;
+  } else {
+    const officialData = STATE.officialTotals?.[year]?.[uf]?.[typeKey] || null;
+    statsOfficial = officialData?.stats || null;
+  }
+  
+  totalValidosDisplay = statsOfficial?.qt_votos_validos || 0;
+  if (!totalValidosDisplay) {
+    let totalVotesMap = 0;
+    const resultsStore = isVereador ? STATE.vereadorResults : STATE.deputyResults;
+    if (resultsStore) {
+      for (const [, res] of Object.entries(resultsStore)) {
+        if (res && res[typeKey]) {
+          for (const cand in res[typeKey]) {
+            if (cand !== '95' && cand !== '96') {
+              totalVotesMap += parseInt(res[typeKey][cand]) || 0;
+            }
+          }
+        }
+      }
+    }
+    totalValidosDisplay = totalVotesMap;
+  }  const totalCandVotes = candidateList.reduce((sum, c) => sum + c.votos, 0);
+  const totalPartyVotes = totalCandVotes + totalLegendVotes;
+
+  // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL DO GRUPO (STATEWIDE/MUNICIPALITY-WIDE) ---
+  let totalPartyStatewideVotes = totalPartyVotes;
+  if (!isVereador && typeof cargo === 'string' && cargo.startsWith('deputado')) {
+    const yearKey = STATE.currentElectionYear;
+    const ufKey = uf;
+    const typeKey = cargo === 'deputado_federal' ? 'f' : 'e';
+    const officialCoalitions = STATE.officialTotals?.[yearKey]?.[ufKey]?.[typeKey]?.coalitions;
+    if (officialCoalitions) {
+      const matchedCoalition = officialCoalitions.find(col => 
+        String(col.id).toUpperCase() === String(titleName).toUpperCase() || 
+        String(col.raw_comp).toUpperCase() === String(composition || '').toUpperCase()
+      );
+      if (matchedCoalition) {
+        totalPartyStatewideVotes = ensureNumber(matchedCoalition.votes);
+      }
+    }
+  } else if (isVereador) {
+    const muniScope = STATE.municipalOfficialTotals?.[cargo]?.['1T'];
+    if (muniScope?.votesById) {
+      let sum = 0;
+      const metaStore = STATE.vereadorMetadata || {};
+      const prefixCache = STATE._vereadorPartyPrefixCache || {};
+      Object.entries(muniScope.votesById).forEach(([candId, rawV]) => {
+        if (candId === '95' || candId === '96') return;
+        const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+        if (targetParties.includes(normalizePartyAlias(groupInfo.party))) {
+          sum += ensureNumber(rawV);
+        }
+      });
+      if (sum > 0) {
+        totalPartyStatewideVotes = sum;
+      }
+    }
+  }
+
+  const QP = qeValue > 0 ? Math.floor(totalPartyStatewideVotes / qeValue) : 0;
+  
+  let qeExplanationHtml = '';
+  if (qeValue > 0) {
+    const reached80 = totalPartyStatewideVotes >= qe80;
+    const qeProgress = ((totalPartyStatewideVotes / qeValue) * 100).toFixed(1);
+    
+    qeExplanationHtml = `
+      <div style="margin-top:6px; display:flex; flex-direction:column; gap:4px; font-size:0.75rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="color:var(--muted);">Percentual do QE atingido pela sigla:</span>
+          <strong style="color:var(--text);">${qeProgress}%</strong>
+        </div>
+        <div style="background:rgba(255,255,255,0.1); height:6px; border-radius:3px; overflow:hidden; margin:2px 0;">
+          <div style="background:${totalPartyStatewideVotes >= qeValue ? 'var(--accent, #ffbd21)' : 'var(--muted, #888)'}; width:${Math.min(100, (totalPartyStatewideVotes / qeValue) * 100)}%; height:100%; border-radius:3px;"></div>
+        </div>
+        <div style="margin-top:4px; color:var(--text);">
+          <strong>Quociente Partidário (QP):</strong> ${QP > 0 ? `A sigla conquistou <strong>${QP}</strong> vaga(s) direta(s) (votos ≥ QE)` : `A sigla obteve <strong>0</strong> vagas diretas (não atingiu os ${fmtInt(qeValue)} votos do QE)`}.
+        </div>
+        <div style="margin-top:2px; color:var(--text);">
+          <strong>Disputa de Sobras (Média):</strong> ${reached80 ? `🟢 <strong>APTA</strong> (atingiu ${fmtInt(totalPartyStatewideVotes)} de ${fmtInt(qe80)} votos exigidos, ou seja, ≥ 80% do QE).` : `🔴 <strong>INAPTA</strong> (não atingiu 80% do QE: obteve ${fmtInt(totalPartyStatewideVotes)} de ${fmtInt(qe80)} necessários para as médias).`}
+        </div>
+      </div>
+    `;
+  } else {
+    qeExplanationHtml = `
+      <div style="color:var(--muted); font-size:0.75rem;">
+        Quociente Eleitoral indisponível para cálculo nesta seleção local.
+      </div>
+    `;
+  }
+  
+  let listHtml = candidateList.map((c, idx) => {
+    let statusBadge = '';
+    const st = c.status.toUpperCase();
+    let label = '';
+    let badgeClass = '';
+    
+    if (forceNotElected) {
+      label = 'NÃO ELEITO';
+      badgeClass = 'nao-eleito';
+    } else {
+      if (st.includes('NÃO ELEITO') || st.includes('NAO ELEITO')) {
+        label = 'NÃO ELEITO';
+        badgeClass = 'nao-eleito';
+      }
+      else if (st.includes('QP')) {
+        label = 'ELEITO POR QP';
+        badgeClass = 'eleito';
+      }
+      else if (st.includes('MÉDIA') || st.includes('MEDIA') || st.includes('MÃ‰DIA')) {
+        label = 'ELEITO POR MÉDIA';
+        badgeClass = 'eleito';
+      }
+      else if (st.includes('ELEITO')) {
+        label = 'ELEITO';
+        badgeClass = 'eleito';
+      }
+      else if (st.includes('SUPLENTE')) {
+        label = 'SUPLENTE';
+        badgeClass = 'suplente';
+      }
+      else {
+        label = 'NÃO ELEITO';
+        badgeClass = 'nao-eleito';
+      }
+    }
+    
+    statusBadge = `<span class="status-badge ${badgeClass}" style="font-size:0.65rem; padding:2px 5px;">${label}</span>`;
+    const partyColor = colorForParty(c.partido);
+    
+    // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL INDIVIDUAL NO FILTRO ---
+    let candStatewideVotes = c.votos;
+    if (!isVereador && typeof cargo === 'string' && cargo.startsWith('deputado')) {
+      const stateScope = STATE.precomputedProportionalStateTotals?.[cargo]?.state;
+      if (stateScope?.votesById && stateScope.votesById[c.id] !== undefined) {
+        candStatewideVotes = ensureNumber(stateScope.votesById[c.id]);
+      }
+    } else if (isVereador) {
+      const muniScope = STATE.municipalOfficialTotals?.[cargo]?.['1T'];
+      if (muniScope?.votesById && muniScope.votesById[c.id] !== undefined) {
+        candStatewideVotes = ensureNumber(muniScope.votesById[c.id]);
+      }
+    }
+
+    let ruleExplanation = '';
+    if (qeValue > 0) {
+      const reached10 = candStatewideVotes >= qe10;
+      const reached20 = candStatewideVotes >= qe20;
+      const partyReached80 = totalPartyStatewideVotes >= qe80;
+      
+      const votesSuffix = isVereador ? 'votos' : 'votos estaduais';
+      
+      if (label.includes('QP')) {
+        ruleExplanation = `Eleito(a) diretamente (Vaga por QP): O partido conquistou vaga direta e o candidato superou a cláusula de barreira individual de 10% do Quociente Eleitoral (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
+      } else if (label.includes('MÉDIA') || label.includes('MEDIA') || label.includes('MÃ‰DIA')) {
+        ruleExplanation = `Eleito(a) por Média (Sobras - Regra 80/20): O partido atingiu mais de 80% do QE (${fmtInt(totalPartyStatewideVotes)} ${votesSuffix}) e o candidato superou os 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
+      } else if (label.includes('ELEITO')) {
+        ruleExplanation = `Eleito(a): Candidato obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} and foi eleito pelas regras proporcionais da legislação eleitoral.`;
+      } else if (label.includes('SUPLENTE')) {
+        if (reached20) {
+          ruleExplanation = `Suplente Apto(a) para Sobras: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 20% do QE, que é ${fmtInt(qe20)}), estando plenamente apto a assumir vaga direta ou sobra, mas ficou na suplência pela ordem de votação interna.`;
+        } else if (reached10) {
+          ruleExplanation = `Suplente Apto(a) apenas para QP: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 10% do QE, que é ${fmtInt(qe10)}), porém é inapto para disputar vagas de sobra por não alcançar os 20% do QE (${fmtInt(qe20)}).`;
+        } else {
+          ruleExplanation = `Suplente Inapto(a) para assumir vaga imediata: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}, ficando abaixo dos mínimos individuais previstos em lei (10% do QE para vaga direta, ou seja, ${fmtInt(qe10)} ${votesSuffix}, e 20% para sobras, ou seja, ${fmtInt(qe20)}).`;
+        }
+      } else {
+        if (!partyReached80) {
+          ruleExplanation = `Não eleito(a): O partido não alcançou os 80% do Quociente Eleitoral necessários para disputar as vagas remanescentes (obteve ${fmtInt(totalPartyStatewideVotes)} de ${fmtInt(qe80)} ${votesSuffix} exigidos).`;
+        } else if (!reached20) {
+          ruleExplanation = `Não eleito(a): Não atingiu a barreira de 20% do Quociente Eleitoral individual exigida para disputar as sobras (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} de ${fmtInt(qe20)} mínimos).`;
+        } else {
+          ruleExplanation = `Não eleito(a): Atingiu os requisitos mínimos do partido (≥80% QE) e individuais (≥20% QE com ${fmtInt(candStatewideVotes)} ${votesSuffix}), mas a sigla não obteve vagas adicionais suficientes na distribuição de médias.`;
+        }
+      }
+    } else {
+      ruleExplanation = `Votos obtidos: ${fmtInt(candStatewideVotes)}. Status oficial: ${label}.`;
+    }
+
+    if (candStatewideVotes !== c.votos) {
+      const scopeName = isVereador ? 'município' : 'estado';
+      ruleExplanation += ` (Nota: Votos exibidos no hover referem-se à soma total no ${scopeName}: ${fmtInt(candStatewideVotes)} votos).`;
+    }
+
+    const cleanExplanation = ruleExplanation.replace(/<[^>]*>/g, '');
+    
+    return `
+      <div class="cand-details-card" title="${escapeHtml(cleanExplanation)}" style="border-bottom:1px solid var(--border); border-left:3px solid ${partyColor}; display:flex; align-items:center; padding:8px 8px; font-size:0.85rem; cursor:help; min-width:0; background:transparent;">
+        <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}°</span>
+        <div style="flex:1; margin-right:8px; overflow:hidden; display:flex; flex-direction:column;">
+          <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text);">${c.nome}</span>
+          <span style="font-size:0.7rem; color:var(--muted); margin-top:1px;">${c.partido}</span>
+        </div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0;">
+          <span style="font-weight:700; color:var(--text);">${fmtInt(c.votos)}</span>
+          ${statusBadge}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  if (candidateList.length === 0 && totalLegendVotes === 0) {
+    listHtml = '<div style="padding:20px; text-align:center; color:var(--muted); font-size:0.85rem;">Nenhum voto registrado nesta seleção.</div>';
+  }
+  
+  let legendHtml = '';
+  if (!isGroup && totalLegendVotes > 0) {
+    legendHtml = `
+      <div style="margin-top:10px; padding:8px 10px; background:var(--surface-2, rgba(255,255,255,0.02)); border-radius:6px; border-left:3px solid ${color}; border:1px solid var(--border);">
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px;">Votos de Legenda</div>
+        <div style="font-size:1.1rem; font-weight:700; color:var(--text);">${fmtInt(totalLegendVotes)}</div>
+      </div>
+    `;
+  }
+  
+  const headerStyle = `border-bottom: 2px solid ${color}; padding-bottom:10px; margin-bottom:10px;`;
+  
+  let modalOverlay = document.getElementById('coalition-modal-overlay');
+  if (!modalOverlay) {
+    modalOverlay = document.createElement('div');
+    modalOverlay.id = 'coalition-modal-overlay';
+    modalOverlay.className = 'info-overlay';
+    modalOverlay.style.zIndex = '10000';
+    document.body.appendChild(modalOverlay);
+  }
+  
+  modalOverlay.innerHTML = `
+    <style>
+      #coalition-modal-overlay details summary::-webkit-details-marker {
+        display: none !important;
+      }
+      #coalition-modal-overlay details summary {
+        list-style: none !important;
+      }
+      #coalition-modal-overlay details[open] summary {
+        background: rgba(255,255,255,0.03) !important;
+      }
+    </style>
+    <div class="info-modal wide-modal" style="max-width:450px; max-height:85vh; display:flex; flex-direction:column; padding:20px; overflow:hidden; background:var(--surface, #1e1e1e); border:1px solid var(--border); border-radius:12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+      <button class="info-close" style="color:var(--text); background:transparent; border:none; font-size:1.2rem; cursor:pointer;" onclick="document.getElementById('coalition-modal-overlay').classList.remove('visible')">✕</button>
+      <div style="${headerStyle}">
+        <h3 style="margin:0; font-size:1rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--text);">${titleName}</h3>
+      </div>
+      
+      <div class="proportional-rules-summary" style="margin-bottom:15px; padding:12px; background:var(--surface-2, rgba(255,255,255,0.02)); border-radius:8px; border:1px solid var(--border); font-size:0.8rem; flex-shrink:0;">
+        <div style="font-weight:700; font-size:0.85rem; margin-bottom:8px; display:flex; align-items:center; gap:6px; color:var(--accent);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Desempenho da Sigla e Regras Proporcionais
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+          <div>
+            <span style="color:var(--muted);">Votos Totais da Sigla:</span><br>
+            <strong style="color:var(--text);">${fmtInt(totalPartyVotes)}</strong> <span style="font-size:0.7rem; color:var(--muted);">(${fmtPct(totalPartyVotes / totalValidosDisplay)})</span>
+          </div>
+          <div>
+            <span style="color:var(--muted);">Quociente Eleitoral (QE):</span><br>
+            <strong style="color:var(--text);">${qeValue > 0 ? fmtInt(qeValue) : 'N/A'}</strong>
+          </div>
+        </div>
+        <div style="border-top:1px solid var(--border); padding-top:8px; font-size:0.75rem; display:flex; flex-direction:column; gap:4px;">
+          ${qeExplanationHtml}
+        </div>
+      </div>
+      
+      <div style="font-size:0.75rem; color:var(--muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; flex-shrink:0;">Candidatos (passe o cursor para ver a regra individual)</div>
+      <div style="flex:1; overflow-y:auto; padding-right:4px; padding-bottom:8px; scrollbar-gutter:stable;">
+        ${listHtml}
+      </div>
+      ${legendHtml}
+    </div>
+  `;
+  
+  setTimeout(() => modalOverlay.classList.add('visible'), 10);
+  modalOverlay.onclick = (e) => {
+    if (e.target === modalOverlay) modalOverlay.classList.remove('visible');
+  };
+}
 
 // =========================================================
 // 2. MODAL OTIMIZADO COM CORREÃ‡ÃƒO DE STATUS (RESOLVIDO)
@@ -3088,108 +3643,21 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
   });
 
   const totalLegendVotes = legendVotes.reduce((sum, l) => sum + l.votos, 0);
-
-  // 3. CONSTRUÇÃO DO HTML (COM A CORREÇÃO DE LÓGICA DO STATUS)
-  let modalOverlay = document.getElementById('coalition-modal-overlay');
-  if (!modalOverlay) {
-    modalOverlay = document.createElement('div');
-    modalOverlay.id = 'coalition-modal-overlay';
-    modalOverlay.className = 'info-overlay';
-    modalOverlay.style.zIndex = '10000';
-    document.body.appendChild(modalOverlay);
-  }
-
-  // Regra Global: Se a coligação não fez eleitos (card zerado), todo mundo vira NÃO ELEITO
   const forceNotElected = (electedCount === 0);
 
-  let listHtml = candidateList.map((c, idx) => {
-    let statusBadge = '';
-    const st = c.status.toUpperCase();
-
-    let label = '';
-    let badgeClass = '';
-
-    if (forceNotElected) {
-      label = 'NÃO ELEITO';
-      badgeClass = 'nao-eleito';
-    } else {
-      // === LÓGICA DE STATUS CORRIGIDA E DETALHADA ===
-      // Verifica o NEGATIVO primeiro para evitar que "NÃO ELEITO" case com "ELEITO"
-
-      if (st.includes('NÃO ELEITO') || st.includes('NÃO ELEITO')) {
-        label = 'NÃO ELEITO';
-        badgeClass = 'nao-eleito';
-      }
-      else if (st.includes('QP')) {
-        label = 'ELEITO POR QP';
-        badgeClass = 'eleito';
-      }
-      else if (st.includes('MÉDIA') || st.includes('MEDIA')) {
-        label = 'ELEITO POR MÉDIA';
-        badgeClass = 'eleito';
-      }
-      else if (st.includes('ELEITO')) {
-        // Caso genérico se não tiver QP/Média explicito
-        label = 'ELEITO';
-        badgeClass = 'eleito';
-      }
-      else if (st.includes('SUPLENTE')) {
-        label = 'SUPLENTE';
-        badgeClass = 'suplente';
-      }
-      else {
-        // Default fallback
-        label = 'NÃƒO ELEITO';
-        badgeClass = 'nao-eleito';
-      }
-    }
-
-    statusBadge = `<span class="status-badge ${badgeClass}" style="font-size:0.65rem; padding:2px 5px;">${label}</span>`;
-    const partyColor = colorForParty(c.partido);
-
-    return `
-            <div style="display:flex; align-items:center; padding:6px 0 6px 8px; border-bottom:1px solid var(--border); font-size:0.85rem; border-left: 3px solid ${partyColor}; box-sizing:border-box; min-width:0;">
-                <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}°</span>
-                <div style="flex:1; margin-right:8px; overflow:hidden;">
-                    <div style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.nome}</div>
-                    <div style="font-size:0.7rem; color:var(--muted); margin-top:1px;">${c.partido}</div>
-                </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
-                    <div style="font-weight:700;">${fmtInt(c.votos)}</div>
-                    ${statusBadge}
-                </div>
-            </div>
-        `;
-  }).join('');
-
-  if (candidateList.length === 0 && totalLegendVotes === 0) listHtml = '<div style="padding:20px; text-align:center; color:var(--muted); font-size:0.85rem;">Nenhum voto registrado.</div>';
-
-  // Legend votes section
-  let legendHtml = '';
-  if (!isGroup && totalLegendVotes > 0) {
-    legendHtml = `
-      <div style="margin-top:10px; padding:8px 10px; background:var(--surface-2, #f5f5f5); border-radius:6px; border-left:3px solid ${color};">
-        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin-bottom:4px;">Votos de Legenda</div>
-        <div style="font-size:1.1rem; font-weight:700;">${fmtInt(totalLegendVotes)}</div>
-      </div>
-    `;
-  }
-  const headerStyle = `border-bottom: 2px solid ${color}; padding-bottom:10px; margin-bottom:10px;`;
-
-  modalOverlay.innerHTML = `
-        <div class="info-modal wide-modal" style="max-width:450px; max-height:85vh; display:flex; flex-direction:column; padding:20px; overflow:hidden;">
-            <button class="info-close" onclick="document.getElementById('coalition-modal-overlay').classList.remove('visible')">✕</button>
-            <div style="${headerStyle}">
-                <h3 style="margin:0; font-size:1rem; text-transform:uppercase; letter-spacing:0.5px;">${titleName}</h3>
-            </div>
-            <div style="flex:1; overflow-y:auto; padding-right:8px; padding-bottom:8px; scrollbar-gutter:stable;">
-                ${listHtml}
-            </div>
-            ${legendHtml}
-        </div>
-    `;
-
-  setTimeout(() => modalOverlay.classList.add('visible'), 10);
+  renderProportionalModalUI(
+    composition,
+    titleName,
+    color,
+    cargo,
+    electedCount,
+    isGroup,
+    targetParties,
+    legendVotes,
+    candidateList,
+    totalLegendVotes,
+    forceNotElected
+  );
 }
 
 // --- OTIMIZAÃ‡ÃƒO: CACHE DE VENCEDORES ---
@@ -3335,6 +3803,168 @@ function renderVereadorPartyResults(cargo) {
   });
 }
 
+// --- SISTEMA DE TOOLTIP CUSTOMIZADO E INTEGRADO ---
+function ensureCustomCandTooltip() {
+  let tooltip = document.getElementById('cand-custom-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'cand-custom-tooltip';
+    tooltip.style.cssText = `
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      z-index: 100000;
+      background: rgba(24, 24, 27, 0.95);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 12px;
+      max-width: 320px;
+      color: #f4f4f5;
+      font-family: 'Libre Franklin', system-ui, -apple-system, sans-serif;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+      transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1), transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+      opacity: 0;
+      transform: scale(0.96);
+    `;
+    document.body.appendChild(tooltip);
+    
+    // Add global event delegation listeners
+    document.addEventListener('mouseover', (e) => {
+      const el = e.target.closest('.cand-row-hoverable');
+      if (!el) return;
+      
+      const exp = el.getAttribute('data-explanation');
+      if (!exp) return;
+      
+      tooltip.innerHTML = formatTooltipText(exp);
+      tooltip.style.display = 'block';
+      
+      // Force reflow
+      tooltip.offsetHeight;
+      tooltip.style.opacity = '1';
+      tooltip.style.transform = 'scale(1)';
+      
+      positionTooltip(e, tooltip);
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      const el = e.target.closest('.cand-row-hoverable');
+      if (!el) {
+        if (tooltip.style.opacity === '1') {
+          tooltip.style.opacity = '0';
+          tooltip.style.transform = 'scale(0.96)';
+          setTimeout(() => {
+            if (tooltip.style.opacity === '0') tooltip.style.display = 'none';
+          }, 120);
+        }
+        return;
+      }
+      positionTooltip(e, tooltip);
+    });
+    
+    document.addEventListener('mouseout', (e) => {
+      const el = e.target.closest('.cand-row-hoverable');
+      if (!el) return;
+      
+      const related = e.relatedTarget;
+      if (related && related.closest('.cand-row-hoverable') === el) return;
+      
+      tooltip.style.opacity = '0';
+      tooltip.style.transform = 'scale(0.96)';
+      setTimeout(() => {
+        if (tooltip.style.opacity === '0') tooltip.style.display = 'none';
+      }, 120);
+    });
+  }
+}
+
+function formatTooltipText(exp) {
+  const colonIdx = exp.indexOf(':');
+  if (colonIdx === -1) {
+    return `<div style="font-weight: 500; color: #fff;">${exp}</div>`;
+  }
+  
+  const title = exp.substring(0, colonIdx).trim();
+  const desc = exp.substring(colonIdx + 1).trim();
+  
+  let badgeColor = '#9ca3af';
+  let icon = 'ℹ️';
+  
+  const upperTitle = title.toUpperCase();
+  if (upperTitle.includes('QP') || upperTitle.includes('DIRETAMENTE')) {
+    badgeColor = 'var(--accent, #ffbd21)';
+    icon = '⭐';
+  } else if (upperTitle.includes('MÉDIA') || upperTitle.includes('MEDIA') || upperTitle.includes('SOBRAS')) {
+    badgeColor = '#10b981';
+    icon = '🟢';
+  } else if (upperTitle.includes('SUPLENTE APTO')) {
+    badgeColor = '#3b82f6';
+    icon = '🔵';
+  } else if (upperTitle.includes('SUPLENTE INAPTO') || upperTitle.includes('INAPTO')) {
+    badgeColor = '#ef4444';
+    icon = '🔴';
+  } else if (upperTitle.includes('NÃO ELEITO')) {
+    badgeColor = '#a1a1aa';
+    icon = '⚪';
+  }
+  
+  let mainDesc = desc;
+  let noteHtml = '';
+  const noteIdx = desc.indexOf('(Nota:');
+  if (noteIdx !== -1) {
+    mainDesc = desc.substring(0, noteIdx).trim();
+    const noteText = desc.substring(noteIdx).replace(/[()]/g, '').trim();
+    noteHtml = `
+      <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255, 255, 255, 0.08); font-size: 0.65rem; color: #a1a1aa; font-style: italic;">
+        💡 ${noteText}
+      </div>
+    `;
+  }
+  
+  return `
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="font-size: 0.8rem;">${icon}</span>
+        <span style="font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: ${badgeColor}; letter-spacing: 0.5px;">
+          ${title}
+        </span>
+      </div>
+      <div style="font-size: 0.72rem; color: #e4e4e7; font-weight: 400; line-height: 1.4;">
+        ${mainDesc}
+      </div>
+      ${noteHtml}
+    </div>
+  `;
+}
+
+function positionTooltip(e, tooltip) {
+  const gap = 14;
+  let x = e.clientX + gap;
+  let y = e.clientY + gap;
+  
+  const tooltipWidth = tooltip.offsetWidth;
+  const tooltipHeight = tooltip.offsetHeight;
+  const winWidth = window.innerWidth;
+  const winHeight = window.innerHeight;
+  
+  if (x + tooltipWidth > winWidth - 10) {
+    x = e.clientX - tooltipWidth - gap;
+  }
+  if (y + tooltipHeight > winHeight - 10) {
+    y = e.clientY - tooltipHeight - gap;
+  }
+  
+  x = Math.max(10, x);
+  y = Math.max(10, y);
+  
+  tooltip.style.left = `${x}px`;
+  tooltip.style.top = `${y}px`;
+}
+
 window.STATE = STATE;
 window.getProp = getProp;
 window.parseCandidateKey = parseCandidateKey;
@@ -3342,7 +3972,6 @@ window.selectedLocationIDs = selectedLocationIDs;
 window.getColorForCandidate = typeof getColorForCandidate === 'function' ? getColorForCandidate : null;
 window.PARTY_COLORS = PARTY_COLORS;
 window.PARTY_COLOR_OVERRIDES = PARTY_COLOR_OVERRIDES;
-// Expor currentTurno como getter para sempre pegar o valor atualizado
 Object.defineProperty(window, 'currentTurno', { get() { return currentTurno; }, configurable: true });
 Object.defineProperty(window, 'currentCargo', { get() { return currentCargo; }, configurable: true });
 window.updateSelectionUI = updateSelectionUI;
