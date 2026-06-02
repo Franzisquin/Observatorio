@@ -366,6 +366,9 @@ async function init() {
   // Initialize Custom Select Dropdowns
   initCustomDropdowns();
 
+  // Initialize Mobile Tabbed Navigation & Routing
+  setupMobileNavigation();
+
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
 function setupTabs() {
@@ -924,3 +927,89 @@ function closeAllDropdowns() {
 document.addEventListener('click', () => {
   closeAllDropdowns();
 });
+
+// ====== MOBILE NAVIGATION & ROUTING ======
+function setupMobileNavigation() {
+  const mobileButtons = document.querySelectorAll('.mobile-nav-btn');
+  const panelLeft = document.querySelector('.panel.side-left');
+  const panelRes = document.querySelector('.panel.side-res');
+  const panelRight = document.querySelector('.panel.side-right');
+
+  if (!panelLeft || !panelRes || !panelRight) return;
+
+  const panels = {
+    mapa: panelRes,
+    filtros: panelLeft,
+    resultados: panelRight
+  };
+
+  mobileButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.dataset.tab;
+      if (!panels[targetTab]) return;
+
+      // 1. Update Active Nav Button
+      mobileButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      // If opening results, clear notification badge
+      if (targetTab === 'resultados') {
+        btn.classList.remove('has-update');
+      }
+
+      // 2. Toggle Panel Display Classes
+      Object.entries(panels).forEach(([tabKey, panelEl]) => {
+        if (tabKey === targetTab) {
+          panelEl.classList.add('mobile-active');
+        } else {
+          panelEl.classList.remove('mobile-active');
+        }
+      });
+
+      // Toggle split layout class on app container for results
+      const appContainer = document.querySelector('.app');
+      if (appContainer) {
+        if (targetTab === 'resultados') {
+          appContainer.classList.add('split-active');
+        } else {
+          appContainer.classList.remove('split-active');
+        }
+      }
+
+      // 3. GIS Engineering: Resize MapLibre Map
+      if ((targetTab === 'mapa' || targetTab === 'resultados') && window.map) {
+        // Run on next animation frame so CSS layout settles first
+        requestAnimationFrame(() => {
+          window.map.resize();
+        });
+      }
+    });
+  });
+
+  // Watch for the "Carregar Dados" button trigger or filter changes
+  // If user clicks apply/load, automatically route them to the Map tab so they see results load
+  const loadBtn = document.getElementById('btnLoadData');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', () => {
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        const mapBtn = document.querySelector('.mobile-nav-btn[data-tab="mapa"]');
+        if (mapBtn) mapBtn.click(); // programmatically switch to map tab
+      }
+    });
+  }
+}
+
+// Function to trigger reactive update badge on mobile Resultados tab
+function triggerMobileResultsNotification() {
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) return;
+
+  const btnResultados = document.getElementById('btnMobileNavResultados');
+  const rightPanel = document.querySelector('.panel.side-right');
+  const resultsPanelActive = rightPanel ? rightPanel.classList.contains('mobile-active') : false;
+  
+  if (btnResultados && !resultsPanelActive) {
+    btnResultados.classList.add('has-update');
+  }
+}

@@ -217,6 +217,11 @@ function updateNeighborhoodProfileUI() {
     'Fossa Séptica': pctSum.FossaSeptica,
     'Inadequado': pctSum.Inadequado
   }, false);
+
+  // Trigger mobile results reactive notification badge
+  if (typeof triggerMobileResultsNotification === 'function') {
+    triggerMobileResultsNotification();
+  }
 }
 
 function processAgeLegacy(p, buckets) {
