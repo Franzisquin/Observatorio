@@ -65,8 +65,7 @@
             </select>
           </div>
 
-          <div id="loaderBoxGeneral" class="section-hidden"
-            style="padding: 0 0 0 10px; border-left: 2px solid var(--border-color); margin-left:2px;">
+          <div id="loaderBoxGeneral" class="section-hidden">
             <div class="ctrl" style="margin-bottom: 6px;">
               <label for="selectUFGeneral">Estado (UF)</label>
               <select id="selectUFGeneral" class="select">
@@ -85,8 +84,7 @@
             </div>
           </div>
 
-          <div id="loaderBoxMunicipal" class="section-hidden"
-            style="padding: 0 0 0 10px; border-left: 2px solid var(--border-color); margin-left:2px;">
+          <div id="loaderBoxMunicipal" class="section-hidden">
             <div class="ctrl" style="margin-bottom: 6px;">
               <label for="selectUFMunicipal">Estado (UF)</label>
               <select id="selectUFMunicipal" class="select">
@@ -127,19 +125,19 @@
           <h3>Filtros da Visualização</h3>
 
           
+          <div class="ctrl">
+            <label for="filterRGINT">Região Intermediária</label>
+            <select id="filterRGINT" class="select" disabled>
+              <option value="" selected>Todas as regiões intermediárias</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label for="filterRGI">Região Imediata</label>
+            <select id="filterRGI" class="select" disabled>
+              <option value="" selected>Todas as regiões imediatas</option>
+            </select>
+          </div>
           <div class="row">
-            <div class="ctrl">
-              <label for="filterRGINT">Região Intermediária</label>
-              <select id="filterRGINT" class="select" disabled>
-                <option value="" selected>Todas as regiões intermediárias</option>
-              </select>
-            </div>
-            <div class="ctrl">
-              <label for="filterRGI">Região Imediata</label>
-              <select id="filterRGI" class="select" disabled>
-                <option value="" selected>Todas as regiões imediatas</option>
-              </select>
-            </div>
             <div class="ctrl">
               <label for="inputBairro">Bairro</label>
               <select id="inputBairro" class="select" disabled>
@@ -147,7 +145,7 @@
               </select>
             </div>
             <div class="ctrl">
-              <label for="searchLocal">Buscar por Local de Votação</label>
+              <label for="searchLocal">Buscar por Local</label>
               <div class="searchwrap">
                 <input id="searchLocal" class="select" placeholder="Digite o nome do local..." disabled />
               </div>

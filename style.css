@@ -3301,3 +3301,204 @@ input:disabled {
   padding: 4px 8px;
   font-size: 0.75rem;
 }
+
+/* ==========================================================================
+   LEFT SIDEBAR (SIDE-LEFT) MODERNIZATION OVERRIDES (Mimicking Simulator style)
+   ========================================================================= */
+
+/* 1. Spacious body container */
+.side-left .body {
+  padding: 16px;
+  gap: 16px;
+}
+
+/* 2. Roomy, elevated config sections */
+.side-left .section {
+  background-color: rgba(125, 125, 125, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 16px;
+  gap: 12px;
+  transition: all 0.2s ease-in-out;
+  box-shadow: none;
+}
+
+.side-left .section:hover {
+  border-color: rgba(125, 125, 125, 0.12);
+  background-color: rgba(125, 125, 125, 0.04);
+}
+
+.side-left .section h3 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.1px;
+  margin-bottom: 2px;
+}
+
+/* 3. Refined Selects, Inputs and Search boxes */
+.side-left .select,
+.side-left .search-input,
+.side-left .searchwrap input {
+  padding: 7px 12px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  border-color: var(--border-color);
+  background-color: var(--input-bg);
+  color: var(--text);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.side-left .select:hover,
+.side-left .search-input:hover,
+.side-left .searchwrap input:hover {
+  border-color: var(--muted);
+}
+
+.side-left .select:focus,
+.side-left .search-input:focus,
+.side-left .searchwrap input:focus {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15); /* Orange glow matching accent-2 */
+  outline: none;
+}
+
+/* 4. Styled demographic categories dropdown (Censo) and tab headers */
+.side-left .ctrl label {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--text-sec);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+/* 5. Custom Segmented Controls for Mode Selection (Vencedor/Desempenho & Margem/WinnerPct) */
+.side-left #vizBox .chip-group {
+  display: flex;
+  width: 100%;
+  background: rgba(125, 125, 125, 0.05);
+  padding: 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  gap: 4px;
+}
+
+.side-left #vizBox .chip-button {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem; /* Larger font size */
+  font-weight: 600;
+  padding: 8px 16px; /* Larger padding */
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.side-left #vizBox .chip-button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.side-left #vizBox .chip-button.active {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+}
+
+/* 6. Rounded Slider thumbs (smooth modern look) */
+.side-left .simple-slider {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.side-left .simple-slider::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  border: 2px solid var(--card);
+}
+
+.side-left .simple-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  border: 2px solid var(--card);
+}
+
+/* Renda (Dual Slider) Thumbs - Round and shadowless */
+.side-left .dual-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50% !important;
+  background: var(--accent-2);
+  border: 2px solid var(--card);
+  box-shadow: none !important;
+}
+
+.side-left .dual-thumb:hover {
+  background: var(--accent-hover);
+  box-shadow: none !important;
+}
+
+.side-left .dual-thumb:active {
+  transform: translate(-50%, -50%) scale(1.15);
+  box-shadow: none !important;
+}
+
+.side-left .dual-range {
+  background: var(--accent-2);
+}
+
+/* Ensure aligned loader containers behave as flexboxes when shown */
+#loaderBoxGeneral:not(.section-hidden),
+#loaderBoxMunicipal:not(.section-hidden) {
+  display: flex !important;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Custom Select Search styles */
+.custom-select-search-container {
+  padding: 6px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 10;
+}
+
+.custom-select-search {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border-color);
+  background-color: var(--input-bg);
+  color: var(--text);
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-select-search:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.custom-select-option.highlighted {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+[data-theme="light"] .custom-select-option.highlighted {
+  background: rgba(0, 0, 0, 0.04);
+}

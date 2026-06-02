@@ -585,6 +585,7 @@ function enhanceSelectElement(select) {
 
   // Hide the native select visually but keep it in the DOM and focusable
   select.classList.add('hidden-select');
+  select.tabIndex = -1; // Prevent double tabbing
 
   // 2. Create Custom Trigger
   const trigger = document.createElement('button');
@@ -615,6 +616,88 @@ function enhanceSelectElement(select) {
     dropdown.innerHTML = '';
     const options = Array.from(select.options);
     
+    // safeNorm helper for accent-insensitive matching
+    const safeNorm = (typeof norm === 'function') ? norm : (s => (s || "").normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/'/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase());
+
+    // Create search input if there are more than 5 options
+    let searchInput = null;
+    if (options.length > 5) {
+      const searchContainer = document.createElement('div');
+      searchContainer.className = 'custom-select-search-container';
+      
+      searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.className = 'custom-select-search';
+      searchInput.placeholder = 'Buscar...';
+      searchInput.autocomplete = 'off';
+      
+      searchContainer.addEventListener('click', (e) => e.stopPropagation());
+      
+      searchInput.addEventListener('input', () => {
+        const query = safeNorm(searchInput.value);
+        const optionDivs = dropdown.querySelectorAll('.custom-select-option');
+        
+        let firstMatch = null;
+        optionDivs.forEach(div => {
+          const text = safeNorm(div.textContent);
+          if (text.includes(query)) {
+            div.style.display = '';
+            if (!firstMatch && !div.classList.contains('disabled')) {
+              firstMatch = div;
+            }
+          } else {
+            div.style.display = 'none';
+          }
+        });
+        
+        // Highlight the first visible matching option (or remove highlights if query is empty)
+        optionDivs.forEach(div => div.classList.remove('highlighted'));
+        if (query && firstMatch) {
+          firstMatch.classList.add('highlighted');
+          firstMatch.scrollIntoView({ block: 'nearest' });
+        }
+      });
+
+      searchInput.addEventListener('keydown', (e) => {
+        const optionDivs = Array.from(dropdown.querySelectorAll('.custom-select-option')).filter(div => div.style.display !== 'none' && !div.classList.contains('disabled'));
+        const currentHighlightIdx = optionDivs.findIndex(div => div.classList.contains('highlighted'));
+        
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const highlighted = dropdown.querySelector('.custom-select-option.highlighted');
+          if (highlighted) {
+            highlighted.click();
+          } else if (optionDivs.length > 0) {
+            optionDivs[0].click();
+          }
+        } else if (e.key === 'Escape') {
+          closeAllDropdowns();
+          trigger.focus();
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (optionDivs.length > 0) {
+            let nextIdx = currentHighlightIdx + 1;
+            if (nextIdx >= optionDivs.length) nextIdx = 0;
+            optionDivs.forEach(div => div.classList.remove('highlighted'));
+            optionDivs[nextIdx].classList.add('highlighted');
+            optionDivs[nextIdx].scrollIntoView({ block: 'nearest' });
+          }
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (optionDivs.length > 0) {
+            let prevIdx = currentHighlightIdx - 1;
+            if (prevIdx < 0) prevIdx = optionDivs.length - 1;
+            optionDivs.forEach(div => div.classList.remove('highlighted'));
+            optionDivs[prevIdx].classList.add('highlighted');
+            optionDivs[prevIdx].scrollIntoView({ block: 'nearest' });
+          }
+        }
+      });
+      
+      searchContainer.appendChild(searchInput);
+      dropdown.appendChild(searchContainer);
+    }
+
     options.forEach((opt, idx) => {
       const customOpt = document.createElement('div');
       customOpt.className = 'custom-select-option';
@@ -658,6 +741,7 @@ function enhanceSelectElement(select) {
       dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
         const isSelected = parseInt(opt.dataset.index) === select.selectedIndex;
         opt.classList.toggle('selected', isSelected);
+        if (isSelected) opt.classList.remove('highlighted');
       });
     } else {
       triggerText.textContent = select.placeholder || 'Selecione...';
@@ -726,6 +810,107 @@ function enhanceSelectElement(select) {
     if (!isOpen) {
       trigger.classList.add('active');
       dropdown.classList.add('open');
+
+      // Auto-focus and reset search input if it exists
+      const searchInput = dropdown.querySelector('.custom-select-search');
+      if (searchInput) {
+        searchInput.value = '';
+        const optionDivs = dropdown.querySelectorAll('.custom-select-option');
+        optionDivs.forEach(div => {
+          div.style.display = '';
+          div.classList.remove('highlighted');
+        });
+        setTimeout(() => {
+          searchInput.focus();
+        }, 50);
+      }
+    }
+  });
+
+  // Handle keydown on the trigger button
+  trigger.addEventListener('keydown', (e) => {
+    if (select.disabled) return;
+
+    const safeNorm = (typeof norm === 'function') ? norm : (s => (s || "").normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/'/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase());
+    const isOpen = dropdown.classList.contains('open');
+
+    // Navigation keys
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (!isOpen) {
+        // Open the dropdown
+        trigger.click();
+      } else {
+        const sInput = dropdown.querySelector('.custom-select-search');
+        if (sInput) {
+          sInput.focus();
+        } else {
+          // If no search input, navigate options directly
+          const optionDivs = Array.from(dropdown.querySelectorAll('.custom-select-option')).filter(div => !div.classList.contains('disabled'));
+          const currentHighlightIdx = optionDivs.findIndex(div => div.classList.contains('highlighted') || div.classList.contains('selected'));
+          
+          if (e.key === 'ArrowDown') {
+            let nextIdx = currentHighlightIdx + 1;
+            if (nextIdx >= optionDivs.length) nextIdx = 0;
+            optionDivs.forEach(div => div.classList.remove('highlighted'));
+            optionDivs[nextIdx].classList.add('highlighted');
+            optionDivs[nextIdx].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'ArrowUp') {
+            let prevIdx = currentHighlightIdx - 1;
+            if (prevIdx < 0) prevIdx = optionDivs.length - 1;
+            optionDivs.forEach(div => div.classList.remove('highlighted'));
+            optionDivs[prevIdx].classList.add('highlighted');
+            optionDivs[prevIdx].scrollIntoView({ block: 'nearest' });
+          } else if (e.key === 'Enter' || e.key === ' ') {
+            const highlighted = dropdown.querySelector('.custom-select-option.highlighted');
+            if (highlighted) {
+              highlighted.click();
+            }
+          }
+        }
+      }
+    } else if (e.key === 'Escape') {
+      if (isOpen) {
+        closeAllDropdowns();
+        trigger.focus();
+      }
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Typing standard characters opens dropdown and focuses search input, passing the character
+      const sInput = dropdown.querySelector('.custom-select-search');
+      if (sInput) {
+        e.preventDefault();
+        if (!isOpen) {
+          trigger.classList.add('active');
+          dropdown.classList.add('open');
+        }
+        sInput.value = e.key;
+        sInput.dispatchEvent(new Event('input'));
+        setTimeout(() => {
+          sInput.focus();
+        }, 50);
+      } else {
+        // Simple typeahead for small lists
+        const char = safeNorm(e.key);
+        const optionDivs = Array.from(dropdown.querySelectorAll('.custom-select-option')).filter(div => !div.classList.contains('disabled'));
+        const match = optionDivs.find(div => safeNorm(div.textContent).startsWith(char));
+        if (match) {
+          e.preventDefault();
+          if (!isOpen) {
+            match.click();
+          } else {
+            optionDivs.forEach(div => div.classList.remove('highlighted'));
+            match.classList.add('highlighted');
+            match.scrollIntoView({ block: 'nearest' });
+          }
+        }
+      }
+    }
+  });
+
+  // Auto-close on Focusout
+  wrapper.addEventListener('focusout', (e) => {
+    if (e.relatedTarget && !wrapper.contains(e.relatedTarget)) {
+      closeAllDropdowns();
     }
   });
 }
