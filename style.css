@@ -1129,7 +1129,7 @@ body {
   border-radius: 4px !important;
   color: var(--text) !important;
   padding: 8px 12px !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: none !important;
   font-family: var(--font-main) !important;
 }
 
@@ -1226,7 +1226,7 @@ body {
   border: 1px solid #cccccc !important;
   border-radius: 2px !important;
   padding: 8px 10px !important;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15) !important;
+  box-shadow: none !important;
   font-family: var(--font-main) !important;
   min-width: 280px;
   white-space: normal !important;
@@ -1314,7 +1314,7 @@ body {
   background: #151515 !important;
   color: #f5f5f5 !important;
   border-color: #2a2a2a !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: none !important;
 }
 [data-theme="dark"] .district-nyt-title {
   color: #ffffff;

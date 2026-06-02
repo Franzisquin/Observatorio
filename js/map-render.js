@@ -15,6 +15,15 @@ const _proportionalGroupCache = new WeakMap();
 // regex/normalização/localeCompare) era reexecutada milhões de vezes por redraw.
 const _proportionalGroupInfoCache = new WeakMap(); // metaStore -> Map(candidateId -> info)
 
+// Cache de 2º nível do lookup de cores escopado, chaveado pela REFERÊNCIA do
+// resultStore (STATE.deputyResults/vereadorResults). O lookup é determinístico
+// sobre os dados carregados + (cargo|tipo|inaptos) e NÃO depende da seleção,
+// porém updateSelectionUI/clearSelection invalidam o cache de 1º nível a cada
+// seleção — o que forçava um rescan estadual completo (SP inteiro) por operação.
+// O resultStore só é substituído por um objeto novo no reload, então este cache
+// sobrevive às invalidações de seleção e recomputa apenas quando os dados mudam.
+const _scopedColorLookupByStore = new WeakMap(); // resultStore -> Map(cacheKey -> lookup)
+
 // Converte a lista de inaptos (array estável até o reload) em Set para lookup
 // O(1). Antes era feito `(...).includes(cand)` por candidato dentro dos loops,
 // custo O(inaptos) por candidato. O cache é por referência do array, então não
@@ -893,6 +902,11 @@ function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, opti
   const resolvedPrefixCache = getResolvedPrefixCacheForMetaStore(metaStore, prefixCache);
   const shouldFilterInaptos = options.filterInaptos === true;
   const inaptosSet = shouldFilterInaptos ? inaptosArrayToSet(options.inaptosList) : null;
+  // winnerOnly: no caminho de estilo do mapa só precisamos de votos/cor/% por
+  // grupo — a lista ordenada de candidatos (alocação por candidato + sort) nunca
+  // é lida ali, então pulamos esse trabalho. Demais consumidores recebem a
+  // lista completa como antes.
+  const winnerOnly = options.winnerOnly === true;
   const groups = new Map();
   let total = 0;
 
@@ -913,8 +927,8 @@ function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, opti
     existing.votes += votes;
     existing.parties.set(groupInfo.party, (existing.parties.get(groupInfo.party) || 0) + votes);
 
-    const meta = metaStore?.[candidateId] || null;
-    if (candidateId.length > 2) {
+    if (!winnerOnly && candidateId.length > 2) {
+      const meta = metaStore?.[candidateId] || null;
       existing.candidates.push({
         id: candidateId,
         nome: meta?.[0] || candidateId,
@@ -938,7 +952,7 @@ function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, opti
       }
     });
 
-    group.candidates.sort((a, b) => b.votos - a.votos);
+    if (!winnerOnly) group.candidates.sort((a, b) => b.votos - a.votos);
     const colorPartyKey = options.colorKeyLookup?.get(group.key)
       || getProportionalListColorKey(group.name, group.composition, dominantParty);
     return {
@@ -969,7 +983,8 @@ function getWinningProportionalListData(votesMap, type = 'deputado') {
     {
       colorKeyLookup: getScopedProportionalColorKeyLookup(type, currentCargo),
       filterInaptos: STATE.filterInaptos,
-      inaptosList
+      inaptosList,
+      winnerOnly: true
     }
   );
   const winner = aggregated.groups[0] || null;
@@ -1017,6 +1032,18 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
   const isVereadorList = type === 'vereador' || String(cargoKey || '').startsWith('vereador');
   const resultStore = isVereadorList ? STATE.vereadorResults : STATE.deputyResults;
   const metaStore = isVereadorList ? STATE.vereadorMetadata : STATE.deputyMetadata;
+
+  // Tier 2: reaproveita o lookup já computado para este resultStore+cacheKey,
+  // mesmo após invalidações de seleção (que apenas zeram o cache de 1º nível).
+  if (resultStore) {
+    const perStore = _scopedColorLookupByStore.get(resultStore);
+    const hit = perStore && perStore.get(cacheKey);
+    if (hit) {
+      STATE._scopedProportionalColorLookupCache = { key: cacheKey, lookup: hit };
+      return hit;
+    }
+  }
+
   const prefixCache = getResolvedPrefixCacheForMetaStore(
     metaStore,
     isVereadorList ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache
@@ -1024,6 +1051,7 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
   const lookup = new Map();
 
   if (!resultStore || !metaStore) {
+    // Não persiste no Tier 2: dados ainda incompletos (ex.: metaStore não pronto).
     STATE._scopedProportionalColorLookupCache = { key: cacheKey, lookup };
     return lookup;
   }
@@ -1073,6 +1101,17 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
   });
 
   STATE._scopedProportionalColorLookupCache = { key: cacheKey, lookup };
+  // Persiste no Tier 2 apenas lookups não-vazios: um resultado vazio indica
+  // dados ainda não carregados (resultStore recém-criado e populado in place),
+  // e cacheá-lo por referência poderia devolver vazio após a carga concluir.
+  if (lookup.size > 0) {
+    let perStore = _scopedColorLookupByStore.get(resultStore);
+    if (!perStore) {
+      perStore = new Map();
+      _scopedColorLookupByStore.set(resultStore, perStore);
+    }
+    perStore.set(cacheKey, lookup);
+  }
   return lookup;
 }
 

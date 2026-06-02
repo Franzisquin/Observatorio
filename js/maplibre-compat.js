@@ -55,50 +55,62 @@
     return resolved;
   }
 
-  // ====== TILES / STYLE BASE (mesmos tiles raster CARTO do Leaflet) ======
-  const CARTO_SUBDOMAINS = ['a', 'b', 'c', 'd'];
-
-  function cartoTiles(theme) {
-    const flavor = theme === 'light' ? 'light_all' : 'dark_all';
-    return CARTO_SUBDOMAINS.map(
-      (s) => `https://${s}.basemaps.cartocdn.com/${flavor}/{z}/{x}/{y}.png`
-    );
-  }
+  // ====== ESTILO BASE (vetorial, gratuito, sem chave de API) ======
+  // Estilos vetoriais do OpenFreeMap (https://openfreemap.org) — compatíveis
+  // nativamente com o MapLibre, sem registro/token/cookies. Substituem os tiles
+  // raster do CARTO. São style.json válidos (version 8), então carregam direto.
+  const BASEMAP_STYLES = {
+    light: 'https://tiles.openfreemap.org/styles/positron',
+    dark: 'https://tiles.openfreemap.org/styles/dark'
+  };
 
   function buildBasemapStyle(theme) {
-    return {
-      version: 8,
-      sources: {
-        basemap: {
-          type: 'raster',
-          tiles: cartoTiles(theme),
-          tileSize: 256,
-          maxzoom: 20,
-          attribution:
-            '&copy; OpenStreetMap contributors &copy; CARTO'
-        }
-      },
-      layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }]
+    return theme === 'light' ? BASEMAP_STYLES.light : BASEMAP_STYLES.dark;
+  }
+
+  // Executa cb assim que o estilo estiver pronto para MUTAÇÃO (addSource/addLayer),
+  // imediatamente se já estiver, senão no próximo 'styledata' em que ficar.
+  //
+  // IMPORTANTE: para mutar o estilo basta o *spec* estar carregado — NÃO é preciso
+  // esperar os tiles. Num basemap VETORIAL, map.isStyleLoaded() fica false enquanto
+  // os tiles carregam (quase sempre após um fitBounds/flyTo, como ao aplicar um
+  // filtro), o que adiava — às vezes indefinidamente — a criação das camadas de
+  // pontos, fazendo os locais "sumirem". Por isso aceitamos também o flag de spec
+  // carregado (map.style._loaded), que independe dos tiles.
+  function styleReadyForMutation(map) {
+    if (map.isStyleLoaded && map.isStyleLoaded()) return true;
+    return !!(map.style && map.style._loaded);
+  }
+
+  function whenStyleReady(map, cb) {
+    if (!map) return;
+    if (styleReadyForMutation(map)) { cb(); return; }
+    const onData = () => {
+      if (styleReadyForMutation(map)) {
+        map.off('styledata', onData);
+        cb();
+      }
     };
+    map.on('styledata', onData);
+  }
+
+  function reattachGeoLayers(map) {
+    const layers = map.__geoLayers ? Array.from(map.__geoLayers) : [];
+    layers.forEach((layer) => {
+      try { layer.reattachToStyle(); } catch (_) { /* noop */ }
+    });
   }
 
   function setBasemapTheme(map, theme) {
     if (!map) return;
-    const src = map.getSource('basemap');
-    const tiles = cartoTiles(theme);
-    if (src && typeof src.setTiles === 'function') {
-      src.setTiles(tiles);
-    } else {
-      // Fallback: reconstrói a source/layer base
-      try {
-        if (map.getLayer('basemap')) map.removeLayer('basemap');
-        if (map.getSource('basemap')) map.removeSource('basemap');
-        map.addSource('basemap', {
-          type: 'raster', tiles, tileSize: 256, maxzoom: 20
-        });
-        map.addLayer({ id: 'basemap', type: 'raster', source: 'basemap' }, map.getStyle().layers[0]?.id);
-      } catch (_) { /* noop */ }
-    }
+    // setStyle remove as sources/layers das GeoLayers; re-adicionamos quando o
+    // novo estilo carregar. Os listeners delegados (map.on(type, layerId, fn))
+    // sobrevivem ao setStyle, então NÃO re-vinculamos eventos (evita duplicação).
+    map.setStyle(buildBasemapStyle(theme));
+    whenStyleReady(map, () => {
+      refreshThemeColors();
+      reattachGeoLayers(map);
+    });
   }
 
   // ====== BOUNDS / GEOMETRIA ======
@@ -257,6 +269,7 @@
       this.fc = { type: 'FeatureCollection', features: [] };
       this.layerIds = [];
       this.__added = false;
+      this._eventsWired = false;
       this._handlers = [];
       this._popup = null;
       this._popupOpen = false;
@@ -297,16 +310,32 @@
       // __added ainda seja false (guarda contra remoção antes do load).
       this.__added = true;
       m.__geoLayers && m.__geoLayers.add(this);
-      const doAdd = () => this._doAdd();
-      if (m.isStyleLoaded && m.isStyleLoaded()) doAdd();
-      else m.once('load', doAdd);
+      // whenStyleReady executa síncrono se o estilo já estiver carregado, ou
+      // aguarda o próximo 'styledata' pronto — funciona após um setStyle (troca
+      // de tema), ao contrário de once('load') que só dispara uma vez.
+      whenStyleReady(m, () => this._doAdd());
       return this;
     }
 
     _doAdd() {
-      const m = this.map;
       if (!this.__added) return; // removido antes do style carregar
-      if (m.getSource(this.sourceId)) return; // já adicionado
+      this._addSourceAndLayers();
+      if (!this._eventsWired) {
+        this._wireEvents();
+        this._eventsWired = true;
+      }
+    }
+
+    // Re-adiciona source/layers após uma troca de estilo (setStyle), sem
+    // re-vincular eventos: os listeners delegados sobrevivem ao setStyle.
+    reattachToStyle() {
+      if (!this.__added) return;
+      this._addSourceAndLayers();
+    }
+
+    _addSourceAndLayers() {
+      const m = this.map;
+      if (!m || m.getSource(this.sourceId)) return; // já adicionado
       m.addSource(this.sourceId, { type: 'geojson', data: this.fc, promoteId: '__id' });
 
       if (this.type === 'point') {
@@ -347,8 +376,6 @@
         });
         this.layerIds = [fid, linid];
       }
-
-      this._wireEvents();
     }
 
     _interactiveLayerId() {
@@ -517,6 +544,7 @@
       const m = this.map;
       this._handlers.forEach(([t, l, h]) => m.off(t, l, h));
       this._handlers = [];
+      this._eventsWired = false;
       if (this._popup) { this._popup.remove(); this._popup = null; }
       this._popupOpen = false;
       this._popupHtml = null;
@@ -535,7 +563,7 @@
     resolveCssColor,
     buildBasemapStyle,
     setBasemapTheme,
-    cartoTiles,
+    whenStyleReady,
     featureBounds,
     featureCollectionBounds,
     featureCenter,

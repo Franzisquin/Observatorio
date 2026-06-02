@@ -852,16 +852,16 @@ function renderResultsPanel(props, cargo) {
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       ${avisoHtml}
-      <div class="metric-item"${isEstadoCompleto ? ' style="border-left:3px solid var(--accent);"' : ''}>
+      <div class="metric-item">
         <span>Votos válidos</span>
         <strong>${fmtInt(totalBase)}</strong>
       </div>
-      <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>Comparecimento${isEstadoCompleto ? ' *' : ''}</span>
+      <div class="metric-item">
+        <span>Comparecimento</span>
         <strong>${fmtInt(comparecimento)}${turnoutStats.ratio !== null ? ` (${fmtPct(turnoutStats.ratio)})` : ''}</strong>
       </div>
-      <div class="metric-item"${isEstadoCompleto ? ' style="opacity:0.55;"' : ''}>
-        <span>Votos inválidos${isEstadoCompleto ? ' *' : ''}</span>
+      <div class="metric-item">
+        <span>Votos inválidos</span>
         <strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong>
       </div>
       ${votosInaptos > 0 ? `<div class="metric-item"><span>Inaptos (na soma)</span><strong style="color:var(--err)">${fmtInt(votosInaptos)}</strong></div>` : ''}
@@ -1201,16 +1201,16 @@ function renderDeputyResults(cargo) {
   dom.resultsMetrics.innerHTML = `
       <div class="metrics-grid">
         ${avisoDeputyHtml}
-        <div class="metric-item"${usarResultadosCompletos ? ' style="border-left:3px solid var(--accent);"' : ''}>
+        <div class="metric-item">
           <span>Votos válidos</span>
           <strong>${fmtInt(totalValidos)}</strong>
         </div>
-        <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
-          <span>Comparecimento${isParcialDeputy ? ' *' : ''}</span>
+        <div class="metric-item">
+          <span>Comparecimento</span>
           <strong>${fmtInt(comparecimento)}${turnoutStats.ratio !== null ? ` (${fmtPct(turnoutStats.ratio)})` : ''}</strong>
         </div>
-        <div class="metric-item"${isParcialDeputy ? ' style="opacity:0.55;"' : ''}>
-          <span>Votos inválidos${isParcialDeputy ? ' *' : ''}</span>
+        <div class="metric-item">
+          <span>Votos inválidos</span>
           <strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong>
         </div>
       </div>
