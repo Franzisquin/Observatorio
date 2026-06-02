@@ -397,39 +397,42 @@
 
 
             <!-- NEIGHBORHOOD PROFILE -->
-            <div id="neighborhoodProfile"
-              style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px;">
-              <div class="profile-header" style="position: relative; margin-bottom: 12px; text-align: center;">
-                <h3 style="margin: 0; font-size: 1rem; line-height: 1.3; font-weight: 700; color: var(--text);">Perfil Demográfico</h3>
-                <button id="btnInfoCensus" class="info-button" style="position:absolute; right:0; top:0px; background:transparent; border:1px solid var(--accent); color:var(--accent); border-radius:2px; padding:0 8px; cursor:pointer;" title="Informações sobre os dados">i</button>
+            <div id="neighborhoodProfile" class="profile-block">
+              <div class="profile-header">
+                <h3 class="profile-title">Perfil Demográfico</h3>
+                <button id="btnInfoCensus" class="profile-info-btn" title="Informações sobre os dados">i</button>
               </div>
+
               <div class="profile-section" id="profileRendaSection">
-                <h4>Renda Média</h4>
-                <div class="bar-chart-row">
-                  <div class="bar-chart-label" style="color: var(--muted); font-weight: normal;">R$</div>
-                  <div id="profileRendaVal" class="profile-renda" style="font-weight: 700; font-size: 0.95rem; color: var(--text);">--</div>
+                <div class="profile-section-label">Renda Média</div>
+                <div class="profile-renda-box">
+                  <span class="profile-renda-prefix">R$</span>
+                  <span id="profileRendaVal" class="profile-renda-val">--</span>
                 </div>
               </div>
 
               <div class="profile-section">
-                <h4>Cor/Raça</h4>
+                <div class="profile-section-label">Cor/Raça</div>
                 <div id="profileRacaChart"></div>
               </div>
 
               <div class="profile-section">
-                <h4>Faixa Etária</h4>
+                <div class="profile-section-label">Faixa Etária</div>
                 <div id="profileIdadeChart"></div>
               </div>
+
               <div class="profile-section">
-                <h4>Gênero</h4>
+                <div class="profile-section-label">Gênero</div>
                 <div id="profileGeneroChart"></div>
               </div>
+
               <div class="profile-section">
-                <h4>Saneamento</h4>
+                <div class="profile-section-label">Saneamento</div>
                 <div id="profileSaneamentoChart"></div>
               </div>
+
               <div class="profile-section">
-                <h4>ESCOLARIDADE</h4>
+                <div class="profile-section-label">Escolaridade</div>
                 <div id="profileEscolaridadeChart"></div>
               </div>
             </div>

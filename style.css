@@ -1560,61 +1560,126 @@ body {
   }
 }
 
-.profile-header {
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin-bottom: 12px;
-  text-align: left;
+/* ====== PERFIL DEMOGRÁFICO ====== */
+.profile-block {
+  border-top: 1px solid var(--border-color);
+  padding-top: 14px;
+  margin-top: 14px;
 }
 
-.profile-renda {
-  font-size: 0.85rem;
-  font-weight: 600;
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.profile-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
   color: var(--text);
-  margin-top: 0;
+}
+
+.profile-info-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--muted);
+  border-radius: 0;
+  padding: 0 7px;
+  height: 22px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s;
+}
+
+.profile-info-btn:hover {
+  border-color: var(--text-sec);
+  color: var(--text);
 }
 
 .profile-section {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.profile-section h4 {
-  margin: 0 0 8px 0;
-  font-size: 0.85rem;
-  font-weight: 700;
+.profile-section-label {
+  font-size: 0.68rem;
+  font-weight: 600;
   color: var(--muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08); /* Dark mode subtle border */
-  padding-bottom: 4px;
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
 }
 
+/* Renda — usa o mesmo visual de metric-item */
+.profile-renda-box {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.profile-renda-prefix {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.profile-renda-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Linhas de barra — padrão da cand-table */
 .bar-chart-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.07);
   font-size: 0.85rem;
-  font-weight: 600;
+}
+
+.bar-chart-row:last-child {
+  border-bottom: none;
 }
 
 .bar-chart-label {
-  width: 130px;
-  text-align: right;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--text);
 }
 
+.bar-chart-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 48px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 .bar-track {
-  flex: 1;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 0;
+  width: 90px;
+  height: 4px;
+  background: rgba(125, 125, 125, 0.15);
+  border-radius: 2px;
   overflow: hidden;
+  flex-shrink: 0;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
 }
 
 .bar-fill {
@@ -2875,13 +2940,6 @@ input:disabled {
   width: 100% !important;
 }
 
-.side-right .profile-section h4 {
-  text-align: left !important;
-  margin-left: 138px !important;
-  width: calc(100% - 138px) !important;
-  box-sizing: border-box !important;
-}
-
 /* Align the parent flex container of the results title/subtitle to the left */
 .side-right #resultsBox > div:first-child {
   display: flex !important;
@@ -2901,22 +2959,6 @@ input:disabled {
   display: flex !important;
   justify-content: flex-start !important;
   width: auto !important;
-}
-
-.side-right .profile-header {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  gap: 8px !important;
-  text-align: center !important;
-}
-
-.side-right .profile-header h3 {
-  margin: 0 !important;
-}
-
-.side-right .profile-header .info-button {
-  position: static !important;
 }
 
 /* Match metric values style with candidate votes */
