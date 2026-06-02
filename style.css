@@ -1630,11 +1630,12 @@ body {
 
 .profile-section h4 {
   margin: 0 0 6px 0;
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 300;
+  color: var(--text-sec);
+  text-transform: none;
+  letter-spacing: normal;
   border: none;
   padding-bottom: 0;
   text-align: left;
@@ -2958,9 +2959,21 @@ input:disabled {
 }
 
 .side-right .profile-section h4 {
-  text-align: left !important;
-  margin-left: 138px !important;
-  width: calc(100% - 138px) !important;
+  text-align: center !important;
+  margin-left: 117px !important;
+  width: calc(100% - 117px - 60px) !important;
+  box-sizing: border-box !important;
+}
+
+.side-right #profileRendaSection h4 {
+  margin-left: 0 !important;
+  width: 100% !important;
+}
+
+.side-right .profile-renda-display {
+  justify-content: center !important;
+  margin-left: 0 !important;
+  width: 100% !important;
   box-sizing: border-box !important;
 }
 
@@ -2981,8 +2994,8 @@ input:disabled {
 /* Align the turn tabs to the left next to other controls */
 .side-right #turnTabs {
   display: flex !important;
-  justify-content: flex-start !important;
-  width: auto !important;
+  justify-content: stretch !important;
+  flex: 1 !important;
 }
 
 .side-right .profile-header {
@@ -3031,16 +3044,20 @@ input:disabled {
    ========================================= */
 #turnTabs {
   gap: 4px !important;
-  width: auto !important;
+  flex: 1 !important;
   display: flex !important;
   margin-bottom: 0 !important;
 }
 
 #turnTabs .tab {
-  padding: 3px 8px !important;
-  font-size: 0.65rem !important;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
+  flex: 1;
+  text-align: center;
+  padding: 6px 8px !important;
+  font-size: 0.74rem !important;
+  font-family: var(--font-main) !important;
+  font-weight: 300 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
   border-radius: 0;
   height: auto;
   line-height: 1.2;
@@ -3051,7 +3068,7 @@ input:disabled {
   background: var(--accent) !important;
   color: #fff !important;
   border-color: var(--accent) !important;
-  font-weight: 600 !important;
+  font-weight: 500 !important;
 }
 
 /* =========================================
@@ -3059,7 +3076,7 @@ input:disabled {
    ========================================= */
 .results-controls-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
   margin-bottom: 12px;
   width: 100%;
@@ -3072,14 +3089,16 @@ input:disabled {
   border: 1px solid var(--border-color);
   color: var(--muted);
   font-family: var(--font-main);
-  font-size: 0.62rem;
-  font-weight: 500;
-  padding: 3px 8px;
+  font-size: 0.74rem;
+  font-weight: 300;
+  padding: 6px 8px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: center;
+  flex: 1;
 }
 
 .btn-toggle-inaptos:hover:not(:disabled) {
@@ -3096,7 +3115,7 @@ input:disabled {
   background: var(--err);
   color: #fff;
   border-color: var(--err);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Interactive hover for party group headers in proportional election table */
@@ -3416,11 +3435,12 @@ input:disabled {
 
 /* 4. Styled demographic categories dropdown (Censo) and tab headers */
 .side-left .ctrl label {
-  font-size: 0.74rem;
-  font-weight: 600;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 300;
   color: var(--text-sec);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  text-transform: none;
+  letter-spacing: normal;
   margin-bottom: 2px;
 }
 
@@ -4234,8 +4254,8 @@ background: rgba(255, 255, 255, 0.85) !important;
   margin: 0;
   font-size: 0.8rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: none;
+  letter-spacing: normal;
   color: var(--text);
   font-family: var(--font-main);
 }
@@ -4260,59 +4280,6 @@ background: rgba(255, 255, 255, 0.85) !important;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
-}
-
-/* CARGO SWITCH BAR */
-.major-history-switch {
-  display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: none; /* Hide scrollbar for Firefox */
-  gap: 12px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 4px;
-  margin-bottom: 10px;
-  width: 100%;
-}
-
-.major-history-switch::-webkit-scrollbar {
-  display: none; /* Hide scrollbar for Chrome/Safari/Opera */
-}
-
-.major-history-switch-btn {
-  flex: 0 0 auto;
-  background: transparent;
-  border: none;
-  padding: 2px 4px 6px 4px;
-  color: var(--muted);
-  font-size: 0.7rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-family: var(--font-main);
-  position: relative;
-  white-space: nowrap;
-}
-
-.major-history-switch-btn:hover {
-  color: var(--text);
-}
-
-.major-history-switch-btn.active {
-  color: var(--text);
-  font-weight: 700;
-}
-
-.major-history-switch-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: var(--text);
 }
 
 /* VOTING PLACE */
@@ -4439,12 +4406,12 @@ background: rgba(255, 255, 255, 0.85) !important;
   min-width: 0;
 }
 
-.history-party-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+.history-party-bar {
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
   flex-shrink: 0;
-  margin-top: 5px;
+  margin-top: 2px;
 }
 
 .history-winner-info {
@@ -4457,9 +4424,10 @@ background: rgba(255, 255, 255, 0.85) !important;
 }
 
 .history-winner-name {
-  font-weight: 600;
+  font-family: var(--font-main);
+  font-weight: 400;
   font-size: 0.8rem;
-  color: var(--text-sec);
+  color: var(--text);
   white-space: normal;
   word-break: break-word;
   line-height: 1.25;
@@ -4468,9 +4436,10 @@ background: rgba(255, 255, 255, 0.85) !important;
 }
 
 .history-winner-party {
-  font-size: 0.68rem;
+  font-family: var(--font-main);
+  font-size: 0.7rem;
   color: var(--muted);
-  font-weight: 500;
+  font-weight: 400;
   flex-shrink: 0;
   line-height: 1.2;
 }
@@ -4486,19 +4455,16 @@ background: rgba(255, 255, 255, 0.85) !important;
 }
 
 .history-stats-pct {
+  font-family: var(--font-main);
   font-weight: 700;
   font-size: 0.8rem;
   color: var(--text);
 }
 
 .history-stats-margin {
-  font-size: 0.68rem;
+  font-family: var(--font-main);
+  font-size: 0.7rem;
   color: var(--muted);
-}
-
-.history-stats-votes {
-  font-size: 0.65rem;
-  opacity: 0.8;
 }
 
 /* Adjustments inside split-active */

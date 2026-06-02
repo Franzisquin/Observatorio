@@ -286,6 +286,7 @@ async function init() {
   dom.searchLocal = document.getElementById('searchLocal');
   dom.btnApplyFilters = document.getElementById('btnApplyFilters') || document.createElement('button');
   dom.btnToggleInaptos = document.getElementById('btnToggleInaptos');
+  dom.btnToggleRules = document.getElementById('btnToggleRules');
 
   dom.vizBox = document.getElementById('vizBox');
   dom.vizCandidatoBox = document.getElementById('vizCandidatoBox');

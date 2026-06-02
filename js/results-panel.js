@@ -44,7 +44,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
       const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
-      dom.resultsSubtitle.textContent = `${bairro} • Zona: ${zona}`;
+      dom.resultsSubtitle.textContent = `${toTitleCase(bairro)} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
       dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
@@ -81,7 +81,7 @@ function updateSelectionUI(isFilterAggregation = false) {
       const bairro = getProp(props, 'ds_bairro') || 'Bairro não inf.';
       const zona = getProp(props, 'nr_zona') || 'Zona não inf.';
       dom.resultsTitle.textContent = nomeLocal;
-      dom.resultsSubtitle.textContent = `${nomeCidade} • ${bairro} • Zona: ${zona}`;
+      dom.resultsSubtitle.textContent = `${toTitleCase(nomeCidade)} • ${toTitleCase(bairro)} • Zona: ${zona}`;
     } else {
       dom.resultsTitle.textContent = `${count} locais agregados (${year})`;
       dom.resultsSubtitle.textContent = isDragSelection ? 'Seleção manual com Shift+Arrasta' : 'Seleção manual com Shift+Click';
@@ -679,6 +679,10 @@ function renderResultsPanel(props, cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
 
+  // Botão "Mostrar Regras" só vale para cargos proporcionais; será reexibido por
+  // renderProportionalExpandableList quando aplicável.
+  if (typeof updateToggleRulesButtonVisibility === 'function') updateToggleRulesButtonVisibility(false);
+
   // Limpa TODOS os toggles de navegacao ao trocar de cargo (clean slate)
   ['deputy-view-toggle', 'party-view-toggle', 'vereador-view-toggle', 'vereador-party-view-toggle'].forEach(id => {
     const el = document.getElementById(id);
@@ -1072,7 +1076,7 @@ function renderDeputyResults(cargo) {
       }
 
       const sw = getColorForCandidate(r.nome, r.partido);
-      const safeNome = escapeHtml(r.nome);
+      const safeNome = escapeHtml(toTitleCase(r.nome));
       const safePartyAndId = escapeHtml(`${r.partido} â€¢ ${r.id}`);
 
       div.setAttribute('data-status', simpleStatus);
@@ -1671,6 +1675,10 @@ function aggregateProportionalGroupsForSelection(cargo) {
 
 function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   ensureCustomCandTooltip();
+  // Controla a exibição das regras (status QP abaixo do partido + tooltips de regra dos
+  // candidatos). Escondidas por padrão; alternadas pelo botão "Mostrar Regras".
+  const showRules = STATE.showProportionalRules === true;
+  if (typeof updateToggleRulesButtonVisibility === 'function') updateToggleRulesButtonVisibility(true);
   const groups = (groupsPayload.groups || []).map((group) => {
     let dominantParty = group.party;
     let dominantVotes = -1;
@@ -1721,13 +1729,29 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   if (isVereador) {
     const totalsKey = `vereadores_${year_prop}`;
     const rawTotals = STATE.officialTotals?.[totalsKey];
-    const muniSanitized = String(currentCidadeFilter || '').trim().toUpperCase();
-    statsOfficial_prop = rawTotals?.[uf_prop]?.[muniSanitized]?.stats || rawTotals?.[uf_prop]?.stats || null;
+    // Usa a mesma resolução de UF/município de renderVereadorPartyResults para que
+    // o QE/vagas oficiais sejam encontrados (lookup por currentCidadeFilter falhava).
+    const uf_ver = loadedVereadorState.uf || dom.selectUFMunicipal?.value || uf_prop;
+    const muniSanitized = loadedVereadorState.muniSanitized || normalizeMunicipioSlug(dom.selectMunicipio?.value || currentCidadeFilter || '');
+    statsOfficial_prop = rawTotals?.[uf_ver]?.[muniSanitized]?.stats || rawTotals?.[uf_ver]?.stats || null;
   } else {
     const officialData = STATE.officialTotals?.[year_prop]?.[uf_prop]?.[proportionalTypeKey] || null;
     statsOfficial_prop = officialData?.stats || null;
   }
-  
+
+  // Total de votos válidos no escopo COMPLETO (estado p/ deputado, município p/ vereador).
+  // Mantém o QE estimado constante, independentemente da seleção atual no mapa.
+  const fullScopeVotesById = isVereador
+    ? (STATE.municipalOfficialTotals?.[currentCargo]?.['1T']?.votesById || null)
+    : (STATE.precomputedProportionalStateTotals?.[currentCargo]?.state?.votesById || null);
+  let fullScopeTotalValidos = 0;
+  if (fullScopeVotesById) {
+    Object.entries(fullScopeVotesById).forEach(([cid, v]) => {
+      if (cid === '95' || cid === '96') return;
+      fullScopeTotalValidos += ensureNumber(v);
+    });
+  }
+
   const QE_prop = statsOfficial_prop?.vr_qe || 0;
   let estimatedQE_prop = QE_prop;
   if (!estimatedQE_prop) {
@@ -1747,8 +1771,10 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         vagas = fedSeats <= 12 ? fedSeats * 3 : 36 + (fedSeats - 12);
       }
     }
-    if (vagas > 0 && totalValidos > 0) {
-      estimatedQE_prop = Math.round(totalValidos / vagas);
+    // Usa o total do escopo completo (constante) e só recorre à seleção como último recurso.
+    const estimateBase = fullScopeTotalValidos > 0 ? fullScopeTotalValidos : totalValidos;
+    if (vagas > 0 && estimateBase > 0) {
+      estimatedQE_prop = Math.round(estimateBase / vagas);
     }
   }
   
@@ -1787,10 +1813,10 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   if (vagasDisplay > 0 || qeDisplay > 0) {
     let topMetrics = document.createElement('div');
     topMetrics.className = 'proportional-top-bar';
-    topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
-    
-    let vagasHtml = vagasDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${vagasDisplay}</strong></div>` : '';
-    let qeHtml = qeDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(qeDisplay)}</strong></div>` : '';
+    topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; padding: 6px 8px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 0;';
+
+    let vagasHtml = vagasDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.65rem;">Vagas em Jogo</span><br><strong style="font-size:0.9rem; color:var(--text);">${vagasDisplay}</strong></div>` : '';
+    let qeHtml = qeDisplay ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.65rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:0.9rem; color:var(--text);">${fmtInt(qeDisplay)}</strong></div>` : '';
     
     topMetrics.innerHTML = vagasHtml + qeHtml;
     dom.resultsContent.appendChild(topMetrics);
@@ -1815,40 +1841,49 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   `;
   const tbody = container.querySelector('tbody');
 
+  // --- VOTOS POR GRUPO NO ESCOPO COMPLETO (ESTADO/MUNICÍPIO), CONSTANTES ---
+  // Separa os votos de candidatos inaptos/anulados (ex.: Deltan/Podemos-PR 2022) para que
+  // o cálculo do Quociente Partidário (QP) os desconsidere, igual ao cálculo de cadeiras.
+  const inaptosListForScope = isVereador
+    ? (STATE.inaptos['vereador_ord']?.['1T'] || [])
+    : (STATE.inaptos[currentCargo]?.['1T'] || []);
+  const inaptosScopeSet = new Set(inaptosListForScope);
+  const groupScopeVotes = new Map(); // key -> { total, validForQP }
+  if (fullScopeVotesById) {
+    const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
+    const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
+    Object.entries(fullScopeVotesById).forEach(([candId, rawV]) => {
+      if (candId === '95' || candId === '96') return;
+      const v = ensureNumber(rawV);
+      const gi = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+      const rec = groupScopeVotes.get(gi.key) || { total: 0, validForQP: 0 };
+      rec.total += v;
+      if (!inaptosScopeSet.has(candId)) rec.validForQP += v;
+      groupScopeVotes.set(gi.key, rec);
+    });
+  }
+
   groups.forEach((group) => {
     const pct = totalValidos > 0 ? (group.votes / totalValidos) : 0;
-    
+
     // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL DO GRUPO (STATEWIDE/MUNICIPALITY-WIDE) ---
+    // Prioriza o escopo completo (constante) e exclui votos inaptos/anulados para o QP.
     let partyStatewideVotes = group.votes;
-    if (typeof currentCargo === 'string' && currentCargo.startsWith('deputado')) {
+    const scopeRec = groupScopeVotes.get(group.key);
+    if (scopeRec && scopeRec.validForQP > 0) {
+      partyStatewideVotes = scopeRec.validForQP;
+    } else if (typeof currentCargo === 'string' && currentCargo.startsWith('deputado')) {
       const yearKey = STATE.currentElectionYear;
       const ufKey = uf_prop;
       const typeKey = currentCargo === 'deputado_federal' ? 'f' : 'e';
       const officialCoalitions = STATE.officialTotals?.[yearKey]?.[ufKey]?.[typeKey]?.coalitions;
       if (officialCoalitions) {
-        const matchedCoalition = officialCoalitions.find(c => 
-          String(c.id).toUpperCase() === String(group.name).toUpperCase() || 
+        const matchedCoalition = officialCoalitions.find(c =>
+          String(c.id).toUpperCase() === String(group.name).toUpperCase() ||
           String(c.raw_comp).toUpperCase() === String(group.composition || '').toUpperCase()
         );
         if (matchedCoalition) {
           partyStatewideVotes = ensureNumber(matchedCoalition.votes);
-        }
-      }
-    } else if (typeof currentCargo === 'string' && currentCargo.startsWith('vereador')) {
-      const muniScope = STATE.municipalOfficialTotals?.[currentCargo]?.['1T'];
-      if (muniScope?.votesById) {
-        let sum = 0;
-        const metaStore = STATE.vereadorMetadata || {};
-        const prefixCache = STATE._vereadorPartyPrefixCache || {};
-        Object.entries(muniScope.votesById).forEach(([candId, rawV]) => {
-          if (candId === '95' || candId === '96') return;
-          const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
-          if (groupInfo.key === group.key) {
-            sum += ensureNumber(rawV);
-          }
-        });
-        if (sum > 0) {
-          partyStatewideVotes = sum;
         }
       }
     }
@@ -1858,7 +1893,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     const partyReached80 = qeValue > 0 ? partyStatewideVotes >= qe80 : false;
     
     let propStatusHtml = '';
-    if (qeValue > 0) {
+    if (showRules && qeValue > 0) {
       const electionYearNum = parseInt(year_prop) || 2022;
       if (electionYearNum <= 2016) {
         // Epoch 1 (Até 2016): Modelo Tradicional sem regra 80/20 ou restrições de QE
@@ -1981,19 +2016,12 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         }
       }
 
-      // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL SE ESTIVER NO FILTRO ---
+      // --- VOTO NO ESCOPO COMPLETO (ESTADO/MUNICÍPIO), CONSTANTE ---
+      // Usa a soma total no estado/município, não a seleção atual no mapa, para que o
+      // valor exibido na tooltip não mude ao entrar em municípios/locais.
       let candStatewideVotes = candidate.votos;
-      
-      if (typeof currentCargo === 'string' && currentCargo.startsWith('deputado')) {
-        const stateScope = STATE.precomputedProportionalStateTotals?.[currentCargo]?.state;
-        if (stateScope?.votesById && stateScope.votesById[candidate.id] !== undefined) {
-          candStatewideVotes = ensureNumber(stateScope.votesById[candidate.id]);
-        }
-      } else if (typeof currentCargo === 'string' && currentCargo.startsWith('vereador')) {
-        const muniScope = STATE.municipalOfficialTotals?.[currentCargo]?.['1T'];
-        if (muniScope?.votesById && muniScope.votesById[candidate.id] !== undefined) {
-          candStatewideVotes = ensureNumber(muniScope.votesById[candidate.id]);
-        }
+      if (fullScopeVotesById && fullScopeVotesById[candidate.id] !== undefined) {
+        candStatewideVotes = ensureNumber(fullScopeVotesById[candidate.id]);
       }
 
       let ruleExplanation = '';
@@ -2100,10 +2128,13 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         </div>
       `;
 
-      const statusBadgeHtml = `<span class="status-badge ${badgeClass}" style="font-size:0.6rem; padding:1px 3px; display:inline-block; margin-top:2px;">${candLabel}</span>`;
+      // A tooltip de regra só é exibida quando as regras estão visíveis (botão "Mostrar Regras").
+      const ruleAttrs = showRules
+        ? ` cand-row-hoverable" data-explanation="${escapeHtml(ruleExplanation)}" style="cursor: help;"`
+        : `"`;
 
       candidatesHtml += `
-        <tr class="${candidate.statusInfo.rowClass} cand-row-hoverable" data-explanation="${escapeHtml(ruleExplanation)}" style="cursor: help;">
+        <tr class="${candidate.statusInfo.rowClass}${ruleAttrs}>
           <td class="color-bar-td">
             <div class="cand-color-bar" style="background-color: ${partyColor};"></div>
           </td>
@@ -2211,7 +2242,7 @@ function renderDeputyPartyResults(cargo) {
     topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
     
     let vagasHtml = statsOfficial.qt_vagas ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${statsOfficial.qt_vagas}</strong></div>` : '';
-    let qeHtml = statsOfficial.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(statsOfficial.vr_qe)}</strong></div>` : '';
+    let qeHtml = statsOfficial.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--text);">${fmtInt(statsOfficial.vr_qe)}</strong></div>` : '';
     
     topMetrics.innerHTML = vagasHtml + qeHtml;
     dom.resultsContent.appendChild(topMetrics);
@@ -2752,7 +2783,7 @@ function renderVereadorResults(cargo) {
       else if (st.includes('SUPLENTE')) { statusHtml = `<span class="status-badge suplente">Suplente</span>`; simpleStatus = 'SUPLENTE'; }
       div.setAttribute('data-status', simpleStatus);
       const sw = getColorForCandidate(r.nome, r.partido);
-      const safeNome = escapeHtml(r.nome);
+      const safeNome = escapeHtml(toTitleCase(r.nome));
       const safePartyAndId = escapeHtml(`${r.partido} â€¢ ${r.id}`);
       div.innerHTML = `
         <div class="cand-header">
@@ -2853,7 +2884,7 @@ function renderVereadorPartyResults(cargo) {
     topMetrics.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; margin-bottom: 8px; padding: 10px; background: rgba(255, 189, 33, 0.05); border: 1px solid rgba(255, 189, 33, 0.15); border-radius: 8px;';
     
     let vagasHtml = statsOfficial_ver.qt_vagas ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Vagas em Jogo</span><br><strong style="font-size:1.1rem; color:var(--text);">${statsOfficial_ver.qt_vagas}</strong></div>` : '';
-    let qeHtml = statsOfficial_ver.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--accent, #ffbd21);">${fmtInt(statsOfficial_ver.vr_qe)}</strong></div>` : '';
+    let qeHtml = statsOfficial_ver.vr_qe ? `<div style="text-align: center;"><span style="color:var(--muted); font-size:0.75rem;">Quociente Eleitoral (QE)</span><br><strong style="font-size:1.1rem; color:var(--text);">${fmtInt(statsOfficial_ver.vr_qe)}</strong></div>` : '';
     
     topMetrics.innerHTML = vagasHtml + qeHtml;
     dom.resultsContent.appendChild(topMetrics);
@@ -3580,7 +3611,7 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       <div class="cand-details-card cand-row-hoverable" data-explanation="${escapeHtml(ruleExplanation)}" style="border-bottom:1px solid var(--border); border-left:3px solid ${partyColor}; display:flex; align-items:center; padding:8px 8px; font-size:0.85rem; cursor:help; min-width:0; background:transparent;">
         <span style="color:var(--muted); font-size:0.75rem; width:24px; flex-shrink:0;">${idx + 1}°</span>
         <div style="flex:1; margin-right:8px; overflow:hidden; display:flex; flex-direction:column;">
-          <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text);">${c.nome}</span>
+          <span style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text);">${toTitleCase(c.nome)}</span>
           <span style="font-size:0.7rem; color:var(--muted); margin-top:1px;">${c.partido}</span>
         </div>
         <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0;">
@@ -3889,14 +3920,9 @@ function renderDeputyPartyResults(cargo) {
   }
 
   const payload = aggregateProportionalGroupsForSelection(cargo);
-  const typeKey = cargo === 'deputado_federal' ? 'f' : 'e';
-  const officialData = STATE.officialTotals?.[STATE.currentElectionYear]?.[dom.selectUFGeneral?.value || '']?.[typeKey] || null;
-  const extraMetrics = officialData?.stats
-    ? `
-      ${officialData.stats.qt_vagas ? `<div class="metric-item"><span>Vagas em jogo</span><strong>${fmtInt(officialData.stats.qt_vagas)}</strong></div>` : ''}
-      ${officialData.stats.vr_qe ? `<div class="metric-item"><span>Quociente eleitoral</span><strong>${fmtInt(officialData.stats.vr_qe)}</strong></div>` : ''}
-    `
-    : '';
+  // Vagas em jogo e Quociente eleitoral foram removidos daqui por serem
+  // redundantes com o container superior (proportional-top-bar) acima dos resultados.
+  const extraMetrics = '';
 
   const turnoutStats = getTurnoutStatsForSelection(null, cargo, '1T', payload.comparecimento);
   dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
@@ -3914,16 +3940,9 @@ function renderVereadorPartyResults(cargo) {
   closeCandidateColorPopoverOnViewChange();
 
   const payload = aggregateProportionalGroupsForSelection(cargo);
-  const totalsKey = `vereadores_${STATE.currentElectionYear}`;
-  const uf = loadedVereadorState.uf || dom.selectUFMunicipal?.value || '';
-  const muniSanitized = loadedVereadorState.muniSanitized || normalizeMunicipioSlug(dom.selectMunicipio?.value || '');
-  const officialStats = STATE.officialTotals?.[totalsKey]?.[uf]?.[muniSanitized]?.stats || null;
-  const extraMetrics = officialStats
-    ? `
-      ${officialStats.qt_vagas ? `<div class="metric-item"><span>Vagas em jogo</span><strong>${fmtInt(officialStats.qt_vagas)}</strong></div>` : ''}
-      ${officialStats.vr_qe ? `<div class="metric-item"><span>Quociente eleitoral</span><strong>${fmtInt(officialStats.vr_qe)}</strong></div>` : ''}
-    `
-    : '';
+  // Vagas em jogo e Quociente eleitoral foram removidos daqui por serem
+  // redundantes com o container superior (proportional-top-bar) acima dos resultados.
+  const extraMetrics = '';
 
   const turnoutStats = getTurnoutStatsForSelection(null, cargo, '1T', payload.comparecimento);
   dom.resultsSubtitle.textContent = `${(payload.groups || []).length} listas classificadas`;
@@ -3934,6 +3953,16 @@ function renderVereadorPartyResults(cargo) {
     nulos: payload.nulos,
     ratio: turnoutStats.ratio
   });
+}
+
+// Mostra/esconde o botão "Mostrar Regras" e sincroniza seu rótulo/estado com STATE.showProportionalRules.
+function updateToggleRulesButtonVisibility(visible) {
+  if (!dom.btnToggleRules) return;
+  dom.btnToggleRules.style.display = visible ? '' : 'none';
+  if (!visible) return;
+  const active = STATE.showProportionalRules === true;
+  dom.btnToggleRules.classList.toggle('active', active);
+  dom.btnToggleRules.textContent = active ? 'Ocultar Regras' : 'Mostrar Regras';
 }
 
 // --- SISTEMA DE TOOLTIP CUSTOMIZADO E INTEGRADO ---
@@ -3951,14 +3980,14 @@ function ensureCustomCandTooltip() {
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
+      border-radius: 0px;
       padding: 10px 12px;
       max-width: 320px;
       color: #f4f4f5;
       font-family: 'Libre Franklin', system-ui, -apple-system, sans-serif;
       font-size: 0.75rem;
       line-height: 1.45;
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+      box-shadow: none;
       transition: opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1), transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
       opacity: 0;
       transform: scale(0.96);
@@ -4024,26 +4053,15 @@ function formatTooltipText(exp) {
   const title = exp.substring(0, colonIdx).trim();
   const desc = exp.substring(colonIdx + 1).trim();
   
-  let badgeColor = '#9ca3af';
-  let icon = 'ℹ️';
-  
-  const upperTitle = title.toUpperCase();
-  if (upperTitle.includes('QP') || upperTitle.includes('DIRETAMENTE')) {
-    badgeColor = 'var(--accent, #ffbd21)';
-    icon = '⭐';
-  } else if (upperTitle.includes('MÉDIA') || upperTitle.includes('MEDIA') || upperTitle.includes('SOBRAS')) {
-    badgeColor = '#10b981';
-    icon = '🟢';
-  } else if (upperTitle.includes('SUPLENTE APTO')) {
-    badgeColor = '#3b82f6';
-    icon = '🔵';
-  } else if (upperTitle.includes('SUPLENTE INAPTO') || upperTitle.includes('INAPTO')) {
-    badgeColor = '#ef4444';
-    icon = '🔴';
-  } else if (upperTitle.includes('NÃO ELEITO')) {
-    badgeColor = '#a1a1aa';
-    icon = '⚪';
+  const normalized = exp.toUpperCase();
+  let isElected = false;
+  if (normalized.includes('INAPTO') || normalized.includes('NAO ELEITO') || normalized.includes('NÃO ELEITO') || normalized.includes('SUPLENTE')) {
+    isElected = false;
+  } else if (normalized.includes('QP') || normalized.includes('MEDIA') || normalized.includes('MÉDIA') || normalized.includes('ELEITO') || normalized.includes('ELEITA') || normalized.includes('ELEITO(A)')) {
+    isElected = true;
   }
+  
+  const badgeColor = isElected ? 'var(--ok, #22c55e)' : 'var(--err, #ef4444)';
   
   let mainDesc = desc;
   let noteHtml = '';
@@ -4053,7 +4071,7 @@ function formatTooltipText(exp) {
     const noteText = desc.substring(noteIdx).replace(/[()]/g, '').trim();
     noteHtml = `
       <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255, 255, 255, 0.08); font-size: 0.65rem; color: #a1a1aa; font-style: italic;">
-        💡 ${noteText}
+        ${noteText}
       </div>
     `;
   }
@@ -4061,8 +4079,7 @@ function formatTooltipText(exp) {
   return `
     <div style="display: flex; flex-direction: column; gap: 4px;">
       <div style="display: flex; align-items: center; gap: 6px;">
-        <span style="font-size: 0.8rem;">${icon}</span>
-        <span style="font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: ${badgeColor}; letter-spacing: 0.5px;">
+        <span style="font-weight: 700; font-size: 0.72rem; color: ${badgeColor};">
           ${title}
         </span>
       </div>

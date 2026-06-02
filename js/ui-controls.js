@@ -399,7 +399,7 @@ function setupControls() {
     municipios.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
       const opt = document.createElement('option');
       opt.value = nome;
-      opt.textContent = nome;
+      opt.textContent = toTitleCase(nome);
       dom.selectMunicipio.appendChild(opt);
     });
 
@@ -667,6 +667,15 @@ function setupControls() {
       dom.btnToggleInaptos.classList.toggle('active', STATE.filterInaptos);
       dom.btnToggleInaptos.textContent = STATE.filterInaptos ? 'Inaptos Filtrados' : 'Filtrar Inaptos';
       applyFiltersAndRedraw();
+      if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
+    });
+  }
+
+  if (dom.btnToggleRules) {
+    dom.btnToggleRules.addEventListener('click', () => {
+      STATE.showProportionalRules = !STATE.showProportionalRules;
+      dom.btnToggleRules.classList.toggle('active', STATE.showProportionalRules);
+      dom.btnToggleRules.textContent = STATE.showProportionalRules ? 'Ocultar Regras' : 'Mostrar Regras';
       if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
     });
   }
