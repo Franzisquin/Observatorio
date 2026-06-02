@@ -161,7 +161,7 @@
                 <option value="tab-renda" selected>Renda</option>
                 <option value="tab-raca">Cor/Raça</option>
                 <option value="tab-idade">Idade</option>
-
+                <option value="tab-escolaridade">Escolaridade</option>
                 <option value="tab-saneamento">Saneamento</option>
               </select>
             </div>
@@ -238,6 +238,32 @@
               </div>
             </div>
 
+
+            <!-- ESCOLARIDADE TAB -->
+            <div class="tab-content hidden" id="tab-escolaridade">
+              <div class="slider-box">
+                <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
+                  <select id="selectEscolaridade" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                    <option value="Superior" selected>Superior Completo</option>
+                    <option value="Médio">Médio Completo</option>
+                    <option value="Fundamental">Fundamental Completo</option>
+                    <option value="Sem escolaridade">Sem Escolaridade</option>
+                  </select>
+                  <div class="slider-input-group">
+                    <input id="inputEscolaridade" type="number" class="exact-input exact-input-sm" min="0" max="100" step="1"
+                      placeholder="%">
+                    <span class="slider-value" id="dispEscolaridade">0%</span>
+                  </div>
+                </div>
+                <div class="slider-wrapper">
+                  <div class="availability-bar" id="availEscolaridade"></div>
+                  <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderEscolaridade">
+                </div>
+                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
+                  Maior que <span id="valDispEscolaridade">0%</span>
+                </small>
+              </div>
+            </div>
 
             <!-- SANEAMENTO TAB -->
             <div class="tab-content hidden" id="tab-saneamento">

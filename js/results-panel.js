@@ -953,13 +953,7 @@ function renderDeputyResults(cargo) {
 
   const geojson = currentDataCollection[cargo];
 
-  const usarResultadosCompletos = shouldUseGeneralDeputyJsonTotals(cargo) || (
-    STATE.isFilterAggregationActive &&
-    STATE.currentElectionType === 'geral' &&
-    !hasRegionalScopeFilters() &&
-    currentCidadeFilter === 'all' &&
-    selectedLocationIDs.size > 100
-  );
+  const usarResultadosCompletos = shouldUseGeneralDeputyJsonTotals(cargo);
 
   if (usarResultadosCompletos) {
     for (const [key, locData] of Object.entries(STATE.deputyResults)) {
@@ -1641,13 +1635,7 @@ function aggregateProportionalGroupsForSelection(cargo) {
     }
   }
 
-  if (!isVereador && (shouldUseGeneralDeputyJsonTotals(cargo) || (
-    STATE.isFilterAggregationActive &&
-    STATE.currentElectionType === 'geral' &&
-    !hasRegionalScopeFilters() &&
-    currentCidadeFilter === 'all' &&
-    selectedLocationIDs.size > 100
-  ))) {
+  if (!isVereador && shouldUseGeneralDeputyJsonTotals(cargo)) {
     Object.values(resultStore).forEach((entry) => {
       if (entry?.[typeKey]) addVotesMap(entry[typeKey]);
     });
