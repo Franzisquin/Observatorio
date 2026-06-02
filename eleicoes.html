@@ -397,42 +397,45 @@
 
 
             <!-- NEIGHBORHOOD PROFILE -->
-            <div id="neighborhoodProfile" class="profile-block">
+            <!-- NEIGHBORHOOD PROFILE -->
+            <div id="neighborhoodProfile" class="neighborhood-profile">
               <div class="profile-header">
-                <h3 class="profile-title">Perfil Demográfico</h3>
-                <button id="btnInfoCensus" class="profile-info-btn" title="Informações sobre os dados">i</button>
+                <h3>Perfil Demográfico</h3>
+                <button id="btnInfoCensus" class="info-button" title="Informações sobre os dados">
+                  <svg class="info-icon"><use href="#svg-info"></use></svg>
+                </button>
               </div>
 
               <div class="profile-section" id="profileRendaSection">
-                <div class="profile-section-label">Renda Média</div>
-                <div class="profile-renda-box">
-                  <span class="profile-renda-prefix">R$</span>
-                  <span id="profileRendaVal" class="profile-renda-val">--</span>
+                <h4>Renda Média</h4>
+                <div class="profile-renda-display">
+                  <span class="renda-currency">R$</span>
+                  <span id="profileRendaVal" class="renda-amount">--</span>
                 </div>
               </div>
 
               <div class="profile-section">
-                <div class="profile-section-label">Cor/Raça</div>
+                <h4>Cor/Raça</h4>
                 <div id="profileRacaChart"></div>
               </div>
 
               <div class="profile-section">
-                <div class="profile-section-label">Faixa Etária</div>
+                <h4>Faixa Etária</h4>
                 <div id="profileIdadeChart"></div>
               </div>
 
               <div class="profile-section">
-                <div class="profile-section-label">Gênero</div>
+                <h4>Gênero</h4>
                 <div id="profileGeneroChart"></div>
               </div>
 
               <div class="profile-section">
-                <div class="profile-section-label">Saneamento</div>
+                <h4>Saneamento</h4>
                 <div id="profileSaneamentoChart"></div>
               </div>
 
               <div class="profile-section">
-                <div class="profile-section-label">Escolaridade</div>
+                <h4>Escolaridade</h4>
                 <div id="profileEscolaridadeChart"></div>
               </div>
             </div>

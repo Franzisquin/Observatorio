@@ -1560,11 +1560,10 @@ body {
   }
 }
 
-/* ====== PERFIL DEMOGRÁFICO ====== */
-.profile-block {
+.neighborhood-profile {
   border-top: 1px solid var(--border-color);
-  padding-top: 14px;
-  margin-top: 14px;
+  padding-top: 12px;
+  margin-top: 12px;
 }
 
 .profile-header {
@@ -1572,127 +1571,145 @@ body {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+  position: relative;
 }
 
-.profile-title {
+.profile-header h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  line-height: 1.3;
   color: var(--text);
+  letter-spacing: -0.2px;
 }
 
-.profile-info-btn {
+.info-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--muted);
-  border-radius: 0;
-  padding: 0 7px;
-  height: 22px;
-  font-size: 0.72rem;
+  border-radius: var(--radius-md);
+  width: 26px;
+  height: 26px;
   cursor: pointer;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: border-color .15s, color .15s;
-}
-
-.profile-info-btn:hover {
-  border-color: var(--text-sec);
-  color: var(--text);
-}
-
-.profile-section {
-  margin-bottom: 10px;
-}
-
-.profile-section-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  margin-bottom: 6px;
-}
-
-/* Renda — usa o mesmo visual de metric-item */
-.profile-renda-box {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  background: transparent;
-  border: none;
+  transition: all 0.15s ease;
   padding: 0;
 }
 
-.profile-renda-prefix {
+.info-button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .info-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.info-icon {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.profile-section {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+[data-theme="light"] .profile-section {
+  background: rgba(0, 0, 0, 0.01);
+}
+
+.profile-section h4 {
+  margin: 0 0 6px 0;
   font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border: none;
+  padding-bottom: 0;
+  text-align: left;
+}
+
+/* Custom styles for Renda display */
+.profile-renda-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.renda-currency {
+  font-size: 0.9rem;
+  font-weight: 500;
   color: var(--muted);
 }
 
-.profile-renda-val {
-  font-size: 0.9rem;
+.renda-amount {
+  font-size: 1.5rem;
   font-weight: 700;
   color: var(--text);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-main);
+  letter-spacing: -0.5px;
 }
 
-/* Linhas de barra — padrão da cand-table */
+/* Beautiful aligned progress bar rows */
 .bar-chart-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(125, 125, 125, 0.07);
-  font-size: 0.85rem;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
 }
 
 .bar-chart-row:last-child {
-  border-bottom: none;
+  margin-bottom: 0;
 }
 
 .bar-chart-label {
-  flex: 1;
-  min-width: 0;
+  width: 105px;
+  text-align: left;
+  flex-shrink: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--text);
-}
-
-.bar-chart-pct {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--text);
-  min-width: 48px;
-  text-align: right;
-  flex-shrink: 0;
+  color: var(--text-sec);
+  font-weight: 550;
 }
 
 .bar-track {
-  width: 90px;
-  height: 4px;
-  background: rgba(125, 125, 125, 0.15);
-  border-radius: 2px;
+  flex: 1;
+  height: 6px;
+  background: var(--chip);
+  border-radius: 4px;
   overflow: hidden;
-  flex-shrink: 0;
+  position: relative;
 }
 
 .bar-fill {
   height: 100%;
-  border-radius: 2px;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bar-value {
-  width: 45px;
+  width: 48px;
   text-align: right;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text);
+  font-size: 0.82rem;
 }
 
 .saneamento-grid {
@@ -2940,6 +2957,13 @@ input:disabled {
   width: 100% !important;
 }
 
+.side-right .profile-section h4 {
+  text-align: left !important;
+  margin-left: 138px !important;
+  width: calc(100% - 138px) !important;
+  box-sizing: border-box !important;
+}
+
 /* Align the parent flex container of the results title/subtitle to the left */
 .side-right #resultsBox > div:first-child {
   display: flex !important;
@@ -2959,6 +2983,22 @@ input:disabled {
   display: flex !important;
   justify-content: flex-start !important;
   width: auto !important;
+}
+
+.side-right .profile-header {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+  text-align: center !important;
+}
+
+.side-right .profile-header h3 {
+  margin: 0 !important;
+}
+
+.side-right .profile-header .info-button {
+  position: static !important;
 }
 
 /* Match metric values style with candidate votes */
@@ -3098,4 +3138,166 @@ input:disabled {
 }
 .prop-table .party-candidates {
   padding: 4px 4px 6px 18px;
+}
+
+/* =========================================
+   CUSTOM SELECT DROPDOWNS
+   ========================================= */
+.custom-select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Hide native select visually but keep accessible */
+.select.hidden-select {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+/* Custom Trigger Button */
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: var(--font-main);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.custom-select-trigger:hover:not(.disabled) {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="light"] .custom-select-trigger:hover:not(.disabled) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.custom-select-trigger.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+
+.custom-select-trigger:focus-visible {
+  outline: 1.5px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.custom-select-trigger.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.15);
+}
+
+/* Chevron arrow SVG */
+.custom-select-arrow {
+  width: 12px;
+  height: 12px;
+  stroke: var(--muted);
+  stroke-width: 2.5;
+  fill: none;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.15s;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.custom-select-trigger:hover .custom-select-arrow {
+  stroke: var(--text);
+}
+
+.custom-select-trigger.active .custom-select-arrow {
+  transform: rotate(180deg);
+  stroke: var(--accent);
+}
+
+/* Dropdown Options List Popover */
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  max-height: 240px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] .custom-select-dropdown {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.custom-select-dropdown.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Individual Option */
+.custom-select-option {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-select-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+[data-theme="light"] .custom-select-option:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.custom-select-option.selected {
+  background: var(--accent);
+  color: #ffffff !important;
+  font-weight: 600;
+}
+
+.custom-select-option.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Compact layout adjustments for mini-selects inside slider headers */
+.slider-header .custom-select-wrapper {
+  width: auto;
+  min-width: 120px;
+  max-width: 150px;
+  flex: 0 1 auto;
+}
+
+.slider-header .custom-select-trigger {
+  padding: 4px 8px;
+  font-size: 0.75rem;
 }
