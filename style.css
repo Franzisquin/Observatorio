@@ -3991,6 +3991,201 @@ input:disabled {
   }
   .app.split-active .cand-votos {
     font-size: 0.75rem !important;
+background: rgba(255, 255, 255, 0.85) !important;
+  }
+
+  /* Nav Buttons */
+  .mobile-nav-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--muted) !important;
+    font-family: var(--font-main) !important;
+    font-size: 0.65rem !important;
+    font-weight: 500 !important;
+    gap: 3px !important;
+    height: 100% !important;
+    flex: 1 !important;
+    cursor: pointer !important;
+    transition: color 0.15s ease, transform 0.10s ease;
+    position: relative !important;
+  }
+
+  .mobile-nav-btn:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-nav-btn.active {
+    color: var(--text) !important;
+  }
+  
+  [data-theme="dark"] .mobile-nav-btn.active {
+    color: var(--accent-2) !important; /* Glow/accent color for active tab */
+  }
+
+  .mobile-nav-icon {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.2;
+    transition: stroke-width 0.15s, transform 0.15s;
+  }
+
+  .mobile-nav-btn.active .mobile-nav-icon {
+    stroke-width: 2.5;
+    transform: scale(1.1);
+  }
+
+  /* Proactive Badge/Indicator */
+  .mobile-nav-btn.has-update::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: calc(50% - 14px);
+    width: 7px;
+    height: 7px;
+    background-color: var(--err);
+    border-radius: 50%;
+    border: 1px solid var(--card);
+    box-shadow: 0 0 8px var(--err);
+    animation: badgePulse 1.8s infinite;
+  }
+
+  @keyframes badgePulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 5px rgba(239, 68, 68, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+  }
+
+  /* 5. Mobile Adjustments for Internal Components */
+  .panel .body {
+    padding: 10px 12px 24px 12px !important; /* Prevent content from being hidden behind sticky navigations */
+  }
+  
+  .section {
+    padding: 10px 12px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* Adjust map-overlay-controls position on mobile to be centered and span nicely */
+  .map-overlay-controls {
+    top: 10px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: auto !important;
+    transform: none !important;
+    display: flex !important;
+    justify-content: center !important;
+  }
+  
+  .layer-toggle-group {
+    width: 100% !important;
+    display: flex !important;
+  }
+  
+  .layer-toggle-group .toggle-btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    text-align: center !important;
+    font-size: 0.72rem !important;
+    padding: 6px 4px !important;
+  }
+
+  /* Floating clear button position for map selection */
+  .btn-clear-selection {
+    bottom: 20px !important;
+    left: 20px !important;
+  }
+
+  /* Compact chips and buttons inside mobile results tab */
+  .results-controls-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Modals full-screen on mobile */
+  .info-modal {
+    padding: 18px !important;
+    margin: 10px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+
+  .wide-modal {
+    width: auto !important;
+    margin: 10px !important;
+  }
+
+  /* 6. Premium Mobile Split Screen (Map + Results) */
+  .app.split-active .panel.side-res {
+    height: 42% !important;
+    bottom: auto !important;
+  }
+  
+  .app.split-active .panel.side-right {
+    display: flex !important;
+    position: absolute !important;
+    height: 58% !important;
+    top: 42% !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 10 !important;
+    background: var(--bg) !important;
+    border-top: 1px solid var(--border-color) !important;
+    box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4) !important;
+    animation: none !important;
+  }
+
+  /* Make cargo chips scroll horizontally on mobile to save space */
+  #cargoChipsGeneral {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    width: 100% !important;
+    gap: 12px !important;
+    padding-bottom: 2px !important;
+    scrollbar-width: none !important;
+  }
+  #cargoChipsGeneral::-webkit-scrollbar {
+    display: none !important;
+  }
+  #cargoChipsGeneral .chip-button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+  }
+
+  /* Compact candidate listing for split screen mode */
+  .app.split-active .cand {
+    padding: 6px 0 !important;
+    font-size: 0.8rem !important;
+  }
+  .app.split-active .cand-name-wrapper {
+    width: 110px !important;
+  }
+  .app.split-active .cand-name-wrapper-stack {
+    width: 120px !important;
+  }
+  .app.split-active .cand-pct {
+    flex: 0 0 55px !important;
+    font-size: 0.8rem !important;
+  }
+  .app.split-active .cand-votos {
+    font-size: 0.75rem !important;
   }
   .app.split-active .results-controls-row {
     margin-bottom: 8px !important;
@@ -3998,4 +4193,319 @@ input:disabled {
   .app.split-active .side-right .profile-section {
     padding: 8px 10px !important;
   }
+}
+
+/* ULTRA-MINIMALIST ELECTORAL HISTORY STYLES */
+.president-history {
+  display: flex;
+  flex-direction: column;
+}
+
+.president-history.hidden {
+  display: none !important;
+}
+
+.president-history-card {
+  background: var(--card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.president-history-card.collapsed {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-header {
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.history-header h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  font-family: var(--font-main);
+}
+
+.history-toggle-actions {
+  display: flex;
+  align-items: center;
+}
+
+.history-toggle-icon {
+  font-size: 0.75rem;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+
+.history-header:hover .history-toggle-icon {
+  color: var(--text);
+}
+
+.president-history-body {
+  padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* CARGO SWITCH BAR */
+.major-history-switch {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none; /* Hide scrollbar for Firefox */
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+.major-history-switch::-webkit-scrollbar {
+  display: none; /* Hide scrollbar for Chrome/Safari/Opera */
+}
+
+.major-history-switch-btn {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  padding: 2px 4px 6px 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-family: var(--font-main);
+  position: relative;
+  white-space: nowrap;
+}
+
+.major-history-switch-btn:hover {
+  color: var(--text);
+}
+
+.major-history-switch-btn.active {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.major-history-switch-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: var(--text);
+}
+
+/* VOTING PLACE */
+.history-place {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--border-color);
+}
+
+.history-place strong {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.history-place small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* MATCH TAGS */
+.history-match-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.history-match-tag.strong {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--ok);
+}
+
+.history-match-tag.probable {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--warn);
+}
+
+.history-match-tag.weak {
+  background: rgba(163, 163, 163, 0.1);
+  color: var(--muted);
+}
+
+/* CHRONOLOGICAL ROWS */
+.president-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: 100%;
+}
+
+.president-history-year-group {
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(125, 125, 125, 0.08);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.president-history-year-group:last-child {
+  border-bottom: none;
+}
+
+.history-year-label {
+  font-family: var(--font-main);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+  width: 42px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.history-year-rows {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.president-history-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.history-turn-pill {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--muted);
+  width: 20px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+
+.history-winner {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-party-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.history-winner-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.history-winner-name {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-sec);
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  flex: 1;
+  min-width: 0;
+}
+
+.history-winner-party {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 500;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.history-stats {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 85px;
+}
+
+.history-stats-pct {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.history-stats-margin {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.history-stats-votes {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+/* Adjustments inside split-active */
+.app.split-active .president-history-card {
+  margin-bottom: 4px;
+}
+
+.app.split-active .president-history-year-group {
+  padding: 6px 0;
 }

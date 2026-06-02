@@ -1,4 +1,4 @@
-﻿const PRESIDENT_HISTORY_CACHE = new Map();
+const PRESIDENT_HISTORY_CACHE = new Map();
 let PRESIDENT_HISTORY_RENDER_TOKEN = 0;
 let SELECTED_MAJOR_HISTORY_CARGO = 'presidente';
 let HISTORY_CARGO_USER_SELECTED = false;
@@ -581,7 +581,7 @@ function getPresidentHistoryDisplayRecords(records, props) {
 
   return Array.from(byYear.values())
     .map((entry) => entry.record)
-    .sort((a, b) => getHistoryYearSortValue(a.ano) - getHistoryYearSortValue(b.ano));
+    .sort((a, b) => getHistoryYearSortValue(b.ano) - getHistoryYearSortValue(a.ano)); // Descending (newest first)
 }
 
 function getHistoryYearSortValue(value) {
@@ -595,34 +595,34 @@ function renderPresidentHistoryRows(records) {
   const rows = [];
   records
     .slice()
-    .sort((a, b) => getHistoryYearSortValue(a.ano) - getHistoryYearSortValue(b.ano))
+    .sort((a, b) => getHistoryYearSortValue(b.ano) - getHistoryYearSortValue(a.ano)) // Descending
     .forEach((record) => {
       const turns = (record.turnos || []).slice().sort((a, b) => String(a.turno).localeCompare(String(b.turno)));
       const turnRows = turns.map((turn) => {
         const partyColor = colorForParty(turn.partido);
         return `
           <div class="president-history-row">
-            <div class="history-turn-pill">${escapeHtml(turn.turno)}</div>
+            <span class="history-turn-pill">${escapeHtml(turn.turno)}</span>
             <div class="history-winner">
               <span class="history-party-dot" style="background:${partyColor}"></span>
-              <div>
-                <strong>${escapeHtml(turn.vencedor)}</strong>
-                <small>${escapeHtml(turn.partido || 'Sem partido')}</small>
+              <div class="history-winner-info">
+                <span class="history-winner-name">${escapeHtml(turn.vencedor)}</span>
+                <span class="history-winner-party">${escapeHtml(turn.partido || 'Sem partido')}</span>
               </div>
             </div>
             <div class="history-stats">
-              <strong>${fmtPct(turn.pct)}</strong>
-              <small>+${fmtPct(turn.margem_pct)} / ${fmtInt(turn.margem_votos)}</small>
+              <span class="history-stats-pct">${fmtPct(turn.pct)}</span>
+              <span class="history-stats-margin">+${fmtPct(turn.margem_pct)} <span class="history-stats-votes">(${fmtInt(turn.margem_votos)} v.)</span></span>
             </div>
           </div>
         `;
       }).join('');
 
       rows.push(`
-        <section class="president-history-year-group">
+        <div class="president-history-year-group">
           <div class="history-year-label">${escapeHtml(record.ano)}</div>
           <div class="history-year-rows">${turnRows}</div>
-        </section>
+        </div>
       `);
     });
   return rows.join('');
@@ -673,24 +673,22 @@ function renderPresidentHistoryCard(container, resolved, props, cargo = SELECTED
   container.classList.remove('hidden');
   container.innerHTML = `
     <div class="president-history-card ${isCollapsed ? 'collapsed' : ''}">
-      <div class="president-history-header">
-        <button type="button" class="president-history-toggle" aria-expanded="${String(!isCollapsed)}">
-          <span class="history-caret">▼</span>
-          <span class="history-header-text">
-            <strong>${escapeHtml(config.title)}</strong>
-            <small>${escapeHtml(records.length)} anos encontrados</small>
-          </span>
-        </button>
+      <div class="profile-header history-header" style="cursor: pointer;">
+        <h3>${escapeHtml(config.title)}</h3>
+        <div class="history-toggle-actions">
+          <span class="history-toggle-icon">${isCollapsed ? '▼' : '▲'}</span>
+        </div>
+      </div>
+      
+      <div class="president-history-body" style="display: ${isCollapsed ? 'none' : 'block'};">
         <div class="major-history-actions">
           ${renderHistoryCargoSwitch(config.cargo, props)}
         </div>
-      </div>
-      <div class="president-history-body">
         <div class="history-place">
           <strong>${escapeHtml(title)}</strong>
           <small>${escapeHtml(subtitle)}</small>
         </div>
-        <div class="president-history-grid">
+        <div class="president-history-list">
           ${renderPresidentHistoryRows(records)}
         </div>
       </div>
@@ -698,12 +696,17 @@ function renderPresidentHistoryCard(container, resolved, props, cargo = SELECTED
   `;
 
   const card = container.querySelector('.president-history-card');
-  const header = container.querySelector('.president-history-toggle');
+  const header = container.querySelector('.history-header');
+  const body = container.querySelector('.president-history-body');
+  const toggleIcon = container.querySelector('.history-toggle-icon');
+  
   bindHistoryCargoSwitch(container, props);
+  
   header.addEventListener('click', () => {
-    const isCollapsed = card.classList.toggle('collapsed');
-    PRESIDENT_HISTORY_USER_EXPANDED = !isCollapsed;
-    header.setAttribute('aria-expanded', String(!isCollapsed));
+    const currentlyCollapsed = card.classList.toggle('collapsed');
+    PRESIDENT_HISTORY_USER_EXPANDED = !currentlyCollapsed;
+    body.style.display = currentlyCollapsed ? 'none' : 'block';
+    toggleIcon.textContent = currentlyCollapsed ? '▼' : '▲';
   });
 }
 
@@ -719,23 +722,36 @@ async function updatePresidentHistoryPanel(props) {
 
   const container = getPresidentHistoryContainer();
   container.classList.remove('hidden');
+  
+  const isCollapsed = !PRESIDENT_HISTORY_USER_EXPANDED;
+  
   container.innerHTML = `
-    <div class="president-history-card collapsed">
-      <div class="president-history-header">
-        <button type="button" class="president-history-toggle" aria-expanded="false">
-          <span class="history-caret">▼</span>
-          <span class="history-header-text">
-            <strong>${escapeHtml(config.title)}</strong>
-            <small>Carregando...</small>
-          </span>
-        </button>
-        <div class="major-history-actions">
-          ${renderHistoryCargoSwitch(config.cargo, props)}
+    <div class="president-history-card ${isCollapsed ? 'collapsed' : ''}">
+      <div class="profile-header history-header" style="cursor: pointer;">
+        <h3>${escapeHtml(config.title)}</h3>
+        <div class="history-toggle-actions">
+          <span class="history-toggle-icon">${isCollapsed ? '▼' : '▲'}</span>
         </div>
+      </div>
+      <div class="president-history-body" style="display: ${isCollapsed ? 'none' : 'block'}; padding: 12px 0; text-align: center; color: var(--muted); font-size: 0.8rem;">
+        Carregando histórico...
       </div>
     </div>
   `;
+
+  const card = container.querySelector('.president-history-card');
+  const header = container.querySelector('.history-header');
+  const body = container.querySelector('.president-history-body');
+  const toggleIcon = container.querySelector('.history-toggle-icon');
+  
   bindHistoryCargoSwitch(container, props);
+  
+  header.addEventListener('click', () => {
+    const currentlyCollapsed = card.classList.toggle('collapsed');
+    PRESIDENT_HISTORY_USER_EXPANDED = !currentlyCollapsed;
+    body.style.display = currentlyCollapsed ? 'none' : 'block';
+    toggleIcon.textContent = currentlyCollapsed ? '▼' : '▲';
+  });
 
   try {
     const history = await loadMajorHistoryForProps(config.cargo, props);
@@ -745,21 +761,36 @@ async function updatePresidentHistoryPanel(props) {
     if (!resolved) {
       container.innerHTML = `
         <div class="president-history-card collapsed">
-          <div class="president-history-header">
-            <button type="button" class="president-history-toggle" aria-expanded="false">
-              <span class="history-caret">▼</span>
-              <span class="history-header-text">
-                <strong>${escapeHtml(config.title)}</strong>
-                <small>Sem vínculo seguro para este local</small>
-              </span>
-            </button>
+          <div class="profile-header history-header" style="cursor: pointer;">
+            <h3>${escapeHtml(config.title)}</h3>
+            <div class="history-toggle-actions">
+              <span class="history-toggle-icon">▼</span>
+            </div>
+          </div>
+          <div class="president-history-body" style="display: none;">
             <div class="major-history-actions">
               ${renderHistoryCargoSwitch(config.cargo, props)}
+            </div>
+            <div style="padding: 12px 0; text-align: center; color: var(--muted); font-size: 0.8rem;">
+              Sem vínculo histórico encontrado para este local.
             </div>
           </div>
         </div>
       `;
+      
+      const card = container.querySelector('.president-history-card');
+      const header = container.querySelector('.history-header');
+      const body = container.querySelector('.president-history-body');
+      const toggleIcon = container.querySelector('.history-toggle-icon');
+      
       bindHistoryCargoSwitch(container, props);
+      
+      header.addEventListener('click', () => {
+        const currentlyCollapsed = card.classList.toggle('collapsed');
+        PRESIDENT_HISTORY_USER_EXPANDED = !currentlyCollapsed;
+        body.style.display = currentlyCollapsed ? 'none' : 'block';
+        toggleIcon.textContent = currentlyCollapsed ? '▼' : '▲';
+      });
       return;
     }
 
@@ -768,21 +799,36 @@ async function updatePresidentHistoryPanel(props) {
     if (token !== PRESIDENT_HISTORY_RENDER_TOKEN) return;
     container.innerHTML = `
       <div class="president-history-card collapsed">
-        <div class="president-history-header">
-          <button type="button" class="president-history-toggle" aria-expanded="false">
-            <span class="history-caret">▼</span>
-            <span class="history-header-text">
-              <strong>${escapeHtml(config.title)}</strong>
-              <small>${escapeHtml(error.message || 'Histórico indisponível')}</small>
-            </span>
-          </button>
+        <div class="profile-header history-header" style="cursor: pointer;">
+          <h3>${escapeHtml(config.title)}</h3>
+          <div class="history-toggle-actions">
+            <span class="history-toggle-icon">▼</span>
+          </div>
+        </div>
+        <div class="president-history-body" style="display: none;">
           <div class="major-history-actions">
             ${renderHistoryCargoSwitch(config.cargo, props)}
+          </div>
+          <div style="padding: 12px 0; text-align: center; color: var(--muted); font-size: 0.8rem;">
+            Erro: ${escapeHtml(error.message || 'Histórico indisponível')}
           </div>
         </div>
       </div>
     `;
+    
+    const card = container.querySelector('.president-history-card');
+    const header = container.querySelector('.history-header');
+    const body = container.querySelector('.president-history-body');
+    const toggleIcon = container.querySelector('.history-toggle-icon');
+    
     bindHistoryCargoSwitch(container, props);
+    
+    header.addEventListener('click', () => {
+      const currentlyCollapsed = card.classList.toggle('collapsed');
+      PRESIDENT_HISTORY_USER_EXPANDED = !currentlyCollapsed;
+      body.style.display = currentlyCollapsed ? 'none' : 'block';
+      toggleIcon.textContent = currentlyCollapsed ? '▼' : '▲';
+    });
   }
 }
 

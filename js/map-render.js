@@ -2755,6 +2755,9 @@ function clearSelection(updateMap = true) {
     refreshMunicipalSelectionOverlay();
   }
   updateNeighborhoodProfileUI();
+  if (typeof hidePresidentHistoryPanel === 'function') {
+    hidePresidentHistoryPanel();
+  }
 
   // Update Voltar/Clear Selection button visibility
   if (typeof window.updateClearSelectionButtonVisibility === 'function') {

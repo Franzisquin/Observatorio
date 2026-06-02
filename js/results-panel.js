@@ -99,6 +99,9 @@ function updateSelectionUI(isFilterAggregation = false) {
 
   renderResultsPanel(aggregatedProps[currentCargo], currentCargo);
   updateNeighborhoodProfileUI();
+  if (typeof updatePresidentHistoryPanel === 'function') {
+    updatePresidentHistoryPanel(aggregatedProps[currentCargo]);
+  }
 
   // Call ISE Panel update
   if (typeof window.updateISEPanel === 'function') {
