@@ -2009,17 +2009,17 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         if (electionYearNum <= 2016) {
           // --- EPOCH 1 (ATÉ 2016): MODELO TRADICIONAL SEM BARREIRAS INDIVIDUAIS (SÓ 10% EM 2016) ---
           const has10PercentRule = (electionYearNum === 2016);
-          if (candLabel.includes('QP')) {
+          if (candLabel === 'ELEITO POR QP') {
             if (has10PercentRule) {
               ruleExplanation = `Eleito(a) por QP: O partido conquistou vaga direta e o candidato superou a barreira nominal de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
             } else {
               ruleExplanation = `Eleito(a) por QP: Vaga direta conquistada pelo Quociente Partidário, preenchida conforme votação interna (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
             }
-          } else if (candLabel.includes('MÉDIA') || candLabel.includes('MEDIA') || candLabel.includes('MÃ‰DIA')) {
+          } else if (candLabel === 'ELEITO POR MÉDIA') {
             ruleExplanation = `Eleito(a) por Média: Vaga obtida pelo critério de maior média partidária na distribuição das sobras sucessivas (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-          } else if (candLabel.includes('ELEITO')) {
+          } else if (candLabel === 'ELEITO') {
             ruleExplanation = `Eleito(a): Conquistou a vaga com base na votação nominal da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-          } else if (candLabel.includes('SUPLENTE')) {
+          } else if (candLabel === 'SUPLENTE') {
             ruleExplanation = `Suplente: Posicionado na lista de suplentes da legenda por ordem de votação (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
           } else {
             ruleExplanation = `Não eleito(a): A legenda não conquistou vagas suficientes nas médias de sobras (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
@@ -2027,17 +2027,17 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         } 
         else if (electionYearNum <= 2020) {
           // --- EPOCH 2 (2018-2020): REGRA 100% QE PARTIDO E 10% INDIVIDUAL ---
-          if (candLabel.includes('QP')) {
+          if (candLabel === 'ELEITO POR QP') {
             ruleExplanation = `Eleito(a) por QP: O partido conquistou vaga direta e o candidato superou a barreira de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
-          } else if (candLabel.includes('MÉDIA') || candLabel.includes('MEDIA') || candLabel.includes('MÃ‰DIA')) {
+          } else if (candLabel === 'ELEITO POR MÉDIA') {
             if (reached100) {
-              ruleExplanation = `Eleito(a) por Média: Vaga conquistada nas sobras de 2ª fase. O partido superou 100% do QE e o candidato superou 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
+              ruleExplanation = `Eleito(a) por Média: O partido superou 100% do QE e o candidato superou 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
             } else {
               ruleExplanation = `Eleito(a) por Média (3ª Fase): Vaga obtida na repescagem final de 3ª fase (sem exigência de 100% do QE para o partido), chamando o candidato mais votado da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
             }
-          } else if (candLabel.includes('ELEITO')) {
+          } else if (candLabel === 'ELEITO') {
             ruleExplanation = `Eleito(a): Candidato superou os limites e foi eleito por média (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-          } else if (candLabel.includes('SUPLENTE')) {
+          } else if (candLabel === 'SUPLENTE') {
             if (reached10) {
               ruleExplanation = `Suplente Apto: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 10% do QE, que é ${fmtInt(qe10)}), estando apto para assumir vagas na legenda.`;
             } else {
@@ -2055,17 +2055,17 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         } 
         else {
           // --- EPOCH 3 (2022 EM DIANTE): REGRA 80/20 E EXCEÇÃO STF ---
-          if (candLabel.includes('QP')) {
+          if (candLabel === 'ELEITO POR QP') {
             ruleExplanation = `Eleito(a) por QP: O partido conquistou vaga direta e o candidato superou a barreira individual de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
-          } else if (candLabel.includes('MÉDIA') || candLabel.includes('MEDIA') || candLabel.includes('MÃ‰DIA')) {
+          } else if (candLabel === 'ELEITO POR MÉDIA') {
             if (candStatewideVotes < qe20) {
               ruleExplanation = `Eleito(a) por Média (Decisão STF): Eleito(a) na terceira fase de partilha de sobras. Segundo o STF, quando esgotados os candidatos com votação nominal mínima, as vagas remanescentes são distribuídas sem a exigência dos 20% do QE individual, beneficiando a maior média partidária (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo de 20% do QE seria ${fmtInt(qe20)}).`;
             } else {
               ruleExplanation = `Eleito(a) por Média: A sigla atingiu mais de 80% do QE e o candidato superou 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
             }
-          } else if (candLabel.includes('ELEITO')) {
+          } else if (candLabel === 'ELEITO') {
             ruleExplanation = `Eleito(a) pelas regras proporcionais da legislação eleitoral (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-          } else if (candLabel.includes('SUPLENTE')) {
+          } else if (candLabel === 'SUPLENTE') {
             if (reached20) {
               ruleExplanation = `Suplente Apto para Sobra: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 20% do QE, que é ${fmtInt(qe20)}), estando apto para assumir sobras.`;
             } else if (reached10) {
@@ -3491,17 +3491,17 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       if (electionYearNum <= 2016) {
         // --- EPOCH 1 (ATÉ 2016): MODELO TRADICIONAL ---
         const has10PercentRule = (electionYearNum === 2016);
-        if (label.includes('QP')) {
+        if (label === 'ELEITO POR QP') {
           if (has10PercentRule) {
             ruleExplanation = `Eleito(a) diretamente (Vaga por QP): O partido conquistou vaga direta e o candidato superou a cláusula de barreira de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
           } else {
             ruleExplanation = `Eleito(a) diretamente (Vaga por QP): Vaga direta conquistada pelo Quociente Partidário, preenchida conforme votação interna (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
           }
-        } else if (label.includes('MÉDIA') || label.includes('MEDIA') || label.includes('MÃ‰DIA')) {
+        } else if (label === 'ELEITO POR MÉDIA') {
           ruleExplanation = `Eleito(a) por Média: Vaga obtida pelo critério de maior média partidária na distribuição das sobras sucessivas (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-        } else if (label.includes('ELEITO')) {
+        } else if (label === 'ELEITO') {
           ruleExplanation = `Eleito(a): Conquistou a vaga com base na votação nominal da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-        } else if (label.includes('SUPLENTE')) {
+        } else if (label === 'SUPLENTE') {
           ruleExplanation = `Suplente: Posicionado na lista de suplentes da legenda por ordem de votação (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
         } else {
           ruleExplanation = `Não eleito(a): A legenda não conquistou vagas suficientes nas médias de sobras (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
@@ -3509,17 +3509,17 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       }
       else if (electionYearNum <= 2020) {
         // --- EPOCH 2 (2018-2020): 100% DO QE E 10% INDIVIDUAL ---
-        if (label.includes('QP')) {
+        if (label === 'ELEITO POR QP') {
           ruleExplanation = `Eleito(a) diretamente (Vaga por QP): O partido conquistou vaga direta e o candidato superou a cláusula de barreira de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
-        } else if (label.includes('MÉDIA') || label.includes('MEDIA') || label.includes('MÃ‰DIA')) {
+        } else if (label === 'ELEITO POR MÉDIA') {
           if (reached100) {
-            ruleExplanation = `Eleito(a) por Média: Vaga conquistada nas sobras de 2ª fase. O partido superou 100% do QE e o candidato superou 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
+            ruleExplanation = `Eleito(a) por Média: O partido superou 100% do QE e o candidato superou 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
           } else {
             ruleExplanation = `Eleito(a) por Média (3ª Fase): Vaga obtida na repescagem final de 3ª fase (sem exigência de 100% do QE para o partido), chamando o candidato mais votado da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
           }
-        } else if (label.includes('ELEITO')) {
+        } else if (label === 'ELEITO') {
           ruleExplanation = `Eleito(a): Candidato superou os limites e foi eleito por média (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
-        } else if (label.includes('SUPLENTE')) {
+        } else if (label === 'SUPLENTE') {
           if (reached10) {
             ruleExplanation = `Suplente Apto: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 10% do QE, que é ${fmtInt(qe10)}), estando apto a assumir vagas na legenda.`;
           } else {
@@ -3537,23 +3537,23 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       }
       else {
         // --- EPOCH 3 (2022 EM DIANTE): REGRA 80/20 E EXCEÇÃO STF ---
-        if (label.includes('QP')) {
+        if (label === 'ELEITO POR QP') {
           ruleExplanation = `Eleito(a) diretamente (Vaga por QP): O partido conquistou vaga direta e o candidato superou a cláusula de barreira individual de 10% do Quociente Eleitoral (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
-        } else if (label.includes('MÉDIA') || label.includes('MEDIA') || label.includes('MÃ‰DIA')) {
+        } else if (label === 'ELEITO POR MÉDIA') {
           if (candStatewideVotes < qe20) {
             ruleExplanation = `Eleito(a) por Média (Decisão STF): Eleito(a) na terceira fase de partilha de sobras (sobras das sobras). Segundo o STF, quando esgotados os candidatos com votação nominal mínima, as vagas remanescentes são distribuídas sem a exigência dos 20% do QE individual, beneficiando a maior média partidária (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo de 20% do QE seria ${fmtInt(qe20)}).`;
           } else {
             ruleExplanation = `Eleito(a) por Média (Sobras - Regra 80/20): O partido atingiu mais de 80% do QE (${fmtInt(totalPartyStatewideVotes)} ${votesSuffix}) e o candidato superou os 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
           }
-        } else if (label.includes('ELEITO')) {
+        } else if (label === 'ELEITO') {
           ruleExplanation = `Eleito(a): Candidato obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} e foi eleito pelas regras proporcionais da legislação eleitoral.`;
-        } else if (label.includes('SUPLENTE')) {
+        } else if (label === 'SUPLENTE') {
           if (reached20) {
             ruleExplanation = `Suplente Apto(a) para Sobras: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 20% do QE, que é ${fmtInt(qe20)}), estando plenamente apto a assumir vaga direta ou sobra, mas ficou na suplência pela ordem de votação interna.`;
           } else if (reached10) {
             ruleExplanation = `Suplente Apto(a) apenas para QP: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix} (superou os 10% do QE, que é ${fmtInt(qe10)}), porém é inapto para disputar vagas de sobra por não alcançar os 20% do QE (${fmtInt(qe20)}).`;
           } else {
-            ruleExplanation = `Suplente Inapto(a) para assumir vaga imediata: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}, ficando abaixo dos mínimos individuais previstos em lei (10% do QE para vaga direta, ou seja, ${fmtInt(qe10)} ${votesSuffix}, e 20% para sobras, ou seja, ${fmtInt(qe20)}).`;
+            ruleExplanation = `Suplente Inapto(a) para assumir vaga imediata: Obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}, ficando abaixo dos mínimos individuais previstos in lei (10% do QE para vaga direta, ou seja, ${fmtInt(qe10)} ${votesSuffix}, e 20% para sobras, ou seja, ${fmtInt(qe20)}).`;
           }
         } else {
           if (!partyReached80) {

@@ -121,6 +121,7 @@ As alterações concentraram-se na separação limpa de lógicas no módulo de r
 - Modificação de `renderProportionalExpandableList` para resolver o escopo estadual/municipal do grupo e do candidato, vincular dados ao atributo `data-explanation` e ocultar `statusBadgeHtml` do layout estático.
 - Modificação de `renderProportionalModalUI` para aplicar cálculos e progresso com base em `totalPartyStatewideVotes`, substituir o container expansivo `<details>` por linhas estáticas mais limpas com tooltip no hover, e ajustar o texto informativo de instruções.
 - Integração do tooltip dinâmico no modal (`data-explanation` e classe `cand-row-hoverable` aplicados a `.cand-details-card`).
+- **Correção Crítica (Colisão de Status de Candidatos)**: Correção nas validações das strings de status no loop de renderização (do painel lateral e do modal). Substituição dos testes de substring baseados em `.includes(...)` por comparações de igualdade estrita (`===`). Isso sanou um bug em que candidatos com status `"NÃO ELEITO"` entravam indevidamente no caso de teste `"ELEITO"` (já que `"NÃO ELEITO"` contém `"ELEITO"`), resultando em mensagens de sucesso falsas positivas no hover para suplentes/não eleitos.
 
 ### [MODIFY] [eleicoes.html](file:///c:/mapas/Observatorio/eleicoes.html)
-- Incremento da versão do cache-buster do script para `results-panel.js?v=20260602f` para forçar o recarregamento imediato de todas as novas lógicas de UI e Tooltip no navegador do usuário.
+- Incremento da versão do cache-buster do script para `results-panel.js?v=20260602g` para forçar o recarregamento imediato de todas as novas lógicas de UI e Tooltip no navegador do usuário.
