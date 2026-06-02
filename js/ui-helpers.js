@@ -247,8 +247,6 @@ async function init() {
     // Update Basemap tiles (mesmos tiles raster CARTO, dark/light)
     const newTheme = document.body.dataset.theme === 'light' ? 'light' : 'dark';
     MLCompat.setBasemapTheme(map, newTheme);
-    MLCompat.refreshThemeColors();
-    applyFiltersAndRedraw();
   });
 
   dom.selectElectionLevel = document.getElementById('selectElectionLevel');

@@ -413,8 +413,6 @@ async function initSimulador() {
       themeBtn.innerHTML = isDark ? sunSvg : moonSvg;
 
       MLCompat.setBasemapTheme(simMap, document.body.dataset.theme === 'light' ? 'light' : 'dark');
-      MLCompat.refreshThemeColors();
-      if (SIM.estadosLayer) simRenderMapaEstados();
       scheduleSimMapRefresh();
     });
   }

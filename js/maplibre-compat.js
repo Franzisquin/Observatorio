@@ -78,6 +78,7 @@
   // pontos, fazendo os locais "sumirem". Por isso aceitamos também o flag de spec
   // carregado (map.style._loaded), que independe dos tiles.
   function styleReadyForMutation(map) {
+    if (map.__styleChangeInProgress) return false;
     if (map.isStyleLoaded && map.isStyleLoaded()) return true;
     return !!(map.style && map.style._loaded);
   }
@@ -85,13 +86,22 @@
   function whenStyleReady(map, cb) {
     if (!map) return;
     if (styleReadyForMutation(map)) { cb(); return; }
+    // Escuta tanto 'styledata' (verifica _loaded) quanto 'style.load' (sempre
+    // sinaliza pronto). Em MapLibre 4.x, isStyleLoaded() fica false enquanto tiles
+    // carregam, então sem 'style.load' os callbacks nunca disparariam após setStyle.
+    let fired = false;
+    const fire = () => {
+      if (fired) return;
+      fired = true;
+      map.off('styledata', onData);
+      map.off('style.load', fire);
+      cb();
+    };
     const onData = () => {
-      if (styleReadyForMutation(map)) {
-        map.off('styledata', onData);
-        cb();
-      }
+      if (styleReadyForMutation(map)) fire();
     };
     map.on('styledata', onData);
+    map.on('style.load', fire);
   }
 
   function reattachGeoLayers(map) {
@@ -103,14 +113,35 @@
 
   function setBasemapTheme(map, theme) {
     if (!map) return;
-    // setStyle remove as sources/layers das GeoLayers; re-adicionamos quando o
-    // novo estilo carregar. Os listeners delegados (map.on(type, layerId, fn))
-    // sobrevivem ao setStyle, então NÃO re-vinculamos eventos (evita duplicação).
-    map.setStyle(buildBasemapStyle(theme));
-    whenStyleReady(map, () => {
+    map.__styleChangeInProgress = true;
+
+    let resolved = false;
+    const resolveChange = () => {
+      if (resolved) return;
+      resolved = true;
+
+      map.off('style.load', resolveChange);
+      map.off('styledata', onStyleData);
+
+      map.__styleChangeInProgress = false;
       refreshThemeColors();
       reattachGeoLayers(map);
-    });
+    };
+
+    const onStyleData = () => {
+      const ready = (map.isStyleLoaded && map.isStyleLoaded()) || !!(map.style && map.style._loaded);
+      if (ready) {
+        resolveChange();
+      }
+    };
+
+    map.on('style.load', resolveChange);
+    map.on('styledata', onStyleData);
+
+    // Fallback de segurança de 800ms para garantir a liberação e renderização
+    setTimeout(resolveChange, 800);
+
+    map.setStyle(buildBasemapStyle(theme));
   }
 
   // ====== BOUNDS / GEOMETRIA ======
@@ -330,6 +361,7 @@
     // re-vincular eventos: os listeners delegados sobrevivem ao setStyle.
     reattachToStyle() {
       if (!this.__added) return;
+      this._computeProps();
       this._addSourceAndLayers();
     }
 
