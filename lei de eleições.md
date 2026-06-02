@@ -6,6 +6,29 @@
 
 ---
 
+## 📘 Guia Prático das Três Fases de Partilha Proporcional
+
+Para facilitar a consulta e a compreensão dos cálculos automatizados no Observatório, segue o resumo prático de como funciona a distribuição de cadeiras para **Deputado Federal, Estadual/Distrital e Vereador**, incluindo a jurisprudência recente do Supremo Tribunal Federal (STF):
+
+### 1ª Fase: Quociente Partidário (Vagas Regulares)
+*É a rodada principal onde se distribui a maior parte das cadeiras utilizando o voto direto do eleitor.*
+- **Como funciona:** Divide-se a votação total do partido pelo **Quociente Eleitoral (QE)**. O resultado inteiro dessa divisão (desprezadas as frações) é o número de vagas diretas que o partido ganha (**Quociente Partidário - QP**).
+- **Quem entra:** Os candidatos mais votados do partido, desde que cada um tenha atingido uma votação nominal mínima de **10% do QE** (a chamada cláusula de desempenho individual).
+
+### 2ª Fase: Sobras Eleitorais (Regra 80/20)
+*É a primeira etapa de repescagem para preencher as cadeiras que restaram da fase anterior, calculada por meio de médias sucessivas.*
+- **Como funciona:** Aplica-se a fórmula matemática de médias da Justiça Eleitoral:
+  $$\text{Média} = \frac{\text{Votos do Partido}}{\text{Cadeiras Obtidas} + 1}$$
+  A vaga vai para o partido/federação que obtiver a maior média naquela rodada. O processo é repetido até que não haja mais partidos aptos.
+- **A Barreira (Regra 80/20):** Só podem disputar essa vaga os partidos que alcançaram pelo menos **80% do QE** estadual/municipal e que possuam candidatos com votação nominal de pelo menos **20% do QE**.
+
+### 3ª Fase: "Sobras das Sobras" (Repescagem Final)
+*É a última rodada de partilha, acionada quando ainda sobram vagas porque nenhum partido ou candidato conseguiu cumprir os requisitos da fase anterior (como ocorreu no Amapá em 2022).*
+- **Como funciona:** O cálculo de médias continua sendo feito para definir qual legenda tem direito à cadeira.
+- **A Regra do STF (Jurisprudência ADI 7228 / ADI 7263 / ADI 7325):** Nesta etapa final de repescagem, as exigências de 80% do QE para o partido e de 20% para o candidato **deixam de existir**. Qualquer partido que disputou a eleição pode concorrer, e a vaga é preenchida pelo candidato mais votado da legenda vencedora, independentemente do seu número de votos individuais (sem votação nominal mínima).
+
+---
+
 ## Sumário
 
   - [Art. 1º](#art-1º)
