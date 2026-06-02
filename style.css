@@ -3026,18 +3026,6 @@ input:disabled {
   margin-top: 4px;
 }
 
-/* Sticky "Carregar Dados" header in left panel */
-.side-left #loaderBox {
-  position: sticky;
-  top: -6px;
-  z-index: 10;
-  background: var(--card) !important;
-  padding: 6px 0 8px 0 !important;
-  margin: -6px -8px 0 -8px !important;
-  padding-left: 8px !important;
-  padding-right: 8px !important;
-}
-
 /* =========================================
    TURNO BUTTONS — compact & discrete
    ========================================= */
@@ -3564,4 +3552,132 @@ input:disabled {
 
 [data-theme="light"] .custom-select-option.highlighted {
   background: rgba(0, 0, 0, 0.04);
+}
+
+/* Performance Stats Box and Slider styling matching demographic slider */
+.performance-stats-box {
+  margin-top: 15px;
+  margin-bottom: 15px;
+}
+
+.legend-gradient-wrapper {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  display: flex;
+  align-items: center;
+}
+
+.legend-gradient {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  border-radius: 3px;
+  z-index: 1;
+}
+
+.performance-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 24px;
+  background: transparent !important;
+  margin: 0;
+  position: relative;
+  z-index: 2;
+  outline: none;
+}
+
+/* Firefox track transparency */
+.performance-slider::-moz-range-track {
+  background: transparent !important;
+  border: none;
+}
+
+/* Webkit thumb style matching simple-slider in side-left */
+.performance-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  border: 2px solid var(--card);
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: transform 0.1s, background-color 0.15s;
+  margin-top: 0; /* Let flex/align-items center handle layout */
+}
+
+.performance-slider:hover::-webkit-slider-thumb {
+  background: var(--accent-hover);
+}
+
+.performance-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+/* Firefox thumb style matching simple-slider in side-left */
+.performance-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-2);
+  border: 2px solid var(--card);
+  cursor: pointer;
+  box-shadow: none !important;
+  transition: background-color 0.15s;
+}
+
+.performance-slider:hover::-moz-range-thumb {
+  background: var(--accent-hover);
+}
+
+/* Hide the custom slider indicator or make it not overlap / interfere */
+#sliderIndicator {
+  display: none;
+}
+
+.legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-sec);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.stats-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-sec);
+}
+
+.reset-filter-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-color);
+  color: var(--text);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.reset-filter-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] .reset-filter-btn {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .reset-filter-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
 }
