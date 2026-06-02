@@ -363,6 +363,9 @@ async function init() {
   // Init Shift+Drag Selector
   setupBoxSelection();
 
+  // Initialize Custom Select Dropdowns
+  initCustomDropdowns();
+
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
 function setupTabs() {
@@ -548,3 +551,191 @@ function calculateAgeSumForProps(props, mode) {
 if (typeof window !== 'undefined') {
   window.toTitleCase = toTitleCase;
 }
+
+// ====== CUSTOM SELECT COMPONENT ======
+function initCustomDropdowns() {
+  const selects = document.querySelectorAll('select.select');
+  selects.forEach(enhanceSelectElement);
+
+  // Set up observer to automatically enhance any dynamically added selects
+  const bodyObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          if (node.tagName === 'SELECT' && node.classList.contains('select')) {
+            enhanceSelectElement(node);
+          }
+          node.querySelectorAll('select.select').forEach(enhanceSelectElement);
+        }
+      });
+    });
+  });
+  bodyObserver.observe(document.body, { childList: true, subtree: true });
+}
+
+function enhanceSelectElement(select) {
+  if (select.dataset.enhanced === 'true' || select.closest('.custom-select-wrapper')) return;
+  select.dataset.enhanced = 'true';
+
+  // 1. Create Wrapper
+  const wrapper = document.createElement('div');
+  wrapper.className = 'custom-select-wrapper';
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+
+  // Hide the native select visually but keep it in the DOM and focusable
+  select.classList.add('hidden-select');
+
+  // 2. Create Custom Trigger
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'custom-select-trigger';
+  if (select.disabled) trigger.classList.add('disabled');
+
+  const triggerText = document.createElement('span');
+  triggerText.className = 'custom-select-trigger-text';
+  trigger.appendChild(triggerText);
+
+  // Create Chevron Arrow
+  const arrowSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  arrowSvg.setAttribute('class', 'custom-select-arrow');
+  arrowSvg.setAttribute('viewBox', '0 0 24 24');
+  arrowSvg.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+  trigger.appendChild(arrowSvg);
+
+  wrapper.appendChild(trigger);
+
+  // 3. Create Custom Dropdown Box
+  const dropdown = document.createElement('div');
+  dropdown.className = 'custom-select-dropdown';
+  wrapper.appendChild(dropdown);
+
+  // Function to rebuild options list
+  const rebuildOptions = () => {
+    dropdown.innerHTML = '';
+    const options = Array.from(select.options);
+    
+    options.forEach((opt, idx) => {
+      const customOpt = document.createElement('div');
+      customOpt.className = 'custom-select-option';
+      customOpt.textContent = opt.textContent;
+      customOpt.dataset.value = opt.value;
+      customOpt.dataset.index = idx;
+
+      if (opt.disabled) customOpt.classList.add('disabled');
+      if (opt.selected) {
+        customOpt.classList.add('selected');
+        triggerText.textContent = opt.textContent;
+      }
+
+      customOpt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (opt.disabled) return;
+
+        // Set value on native select
+        select.value = opt.value;
+        // Dispatch native change event
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // Close dropdown
+        closeAllDropdowns();
+      });
+
+      dropdown.appendChild(customOpt);
+    });
+
+    if (options.length === 0 || (options.length === 1 && options[0].disabled && options[0].value === '')) {
+      triggerText.textContent = select.placeholder || 'Selecione...';
+    }
+  };
+
+  // Function to sync custom trigger text with native select active option
+  const syncActiveText = () => {
+    const selectedOpt = select.options[select.selectedIndex];
+    if (selectedOpt) {
+      triggerText.textContent = selectedOpt.textContent;
+      // Update selected class in option list
+      dropdown.querySelectorAll('.custom-select-option').forEach(opt => {
+        const isSelected = parseInt(opt.dataset.index) === select.selectedIndex;
+        opt.classList.toggle('selected', isSelected);
+      });
+    } else {
+      triggerText.textContent = select.placeholder || 'Selecione...';
+    }
+    trigger.classList.toggle('disabled', select.disabled);
+  };
+
+  // Initial build
+  rebuildOptions();
+
+  // 4. Overwrite native prototype value & selectedIndex properties on the select instance!
+  // This captures any programmatic writes (e.g. select.value = 'x')
+  const originalValueProp = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+  Object.defineProperty(select, 'value', {
+    configurable: true,
+    get: function() {
+      return originalValueProp.get.call(this);
+    },
+    set: function(val) {
+      originalValueProp.set.call(this, val);
+      syncActiveText();
+    }
+  });
+
+  const originalIndexProp = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
+  Object.defineProperty(select, 'selectedIndex', {
+    configurable: true,
+    get: function() {
+      return originalIndexProp.get.call(this);
+    },
+    set: function(idx) {
+      originalIndexProp.set.call(this, idx);
+      syncActiveText();
+    }
+  });
+
+  // 5. Watch for dynamic DOM changes on options or disabled attribute
+  const observer = new MutationObserver((mutations) => {
+    let shouldRebuild = false;
+    mutations.forEach(m => {
+      if (m.type === 'childList') {
+        shouldRebuild = true;
+      } else if (m.type === 'attributes') {
+        if (m.attributeName === 'disabled') {
+          trigger.classList.toggle('disabled', select.disabled);
+        } else if (m.attributeName === 'value' || m.attributeName === 'selected') {
+          syncActiveText();
+        }
+      }
+    });
+
+    if (shouldRebuild) {
+      rebuildOptions();
+    }
+  });
+  observer.observe(select, { childList: true, attributes: true, subtree: true, attributeFilter: ['disabled', 'value', 'selected'] });
+
+  // 6. Trigger Click Event
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (select.disabled) return;
+
+    const isOpen = dropdown.classList.contains('open');
+    closeAllDropdowns();
+
+    if (!isOpen) {
+      trigger.classList.add('active');
+      dropdown.classList.add('open');
+    }
+  });
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.custom-select-trigger').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.custom-select-dropdown').forEach(el => el.classList.remove('open'));
+}
+
+// Close when clicking outside
+document.addEventListener('click', () => {
+  closeAllDropdowns();
+});

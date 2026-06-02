@@ -177,11 +177,11 @@ function updateNeighborhoodProfileUI() {
 
       html += `
         <div class="bar-chart-row">
-          <div class="bar-chart-label" title="${k}">${k}</div>
-          <div class="bar-chart-pct">${pct.toFixed(1)}%</div>
-          <div class="bar-track">
-            <div class="bar-fill" style="width:${Math.min(100, pct)}%; background:var(--accent);"></div>
-          </div>
+           <div class="bar-chart-label" title="${k}">${k}</div>
+           <div class="bar-track">
+              <div class="bar-fill" style="width: ${Math.min(100, pct)}%;"></div>
+           </div>
+           <div class="bar-value">${pct.toFixed(1)}%</div>
         </div>`;
     }
     el.innerHTML = html;
