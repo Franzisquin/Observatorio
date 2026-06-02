@@ -1859,6 +1859,15 @@ function applyFiltersAndRedraw() {
     return;
   }
 
+  // Recalcular estatísticas do candidato se estiver no modo Desempenho
+  if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
+    const candidatoKey = dom.selectVizCandidato.value;
+    performanceModeStats = calculateCandidateStats(candidatoKey) || {
+      candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
+    };
+    updatePerformanceStatsUI();
+  }
+
   if (shouldRenderGeneralMunicipalityOverview()) {
     CURRENT_VISIBLE_FEATURES_CACHE = [];
     CURRENT_VISIBLE_PROPS_CACHE = [];
@@ -1867,15 +1876,6 @@ function applyFiltersAndRedraw() {
       clearPendingFilterChanges();
     }
     return;
-  }
-
-  // Recalcular estatísticas do candidato se estiver no modo Desempenho
-  if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
-    const candidatoKey = dom.selectVizCandidato.value;
-    performanceModeStats = calculateCandidateStats(candidatoKey) || {
-      candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
-    };
-    updatePerformanceStatsUI();
   }
 
   updateAvailabilityBars(geojson);
@@ -1975,6 +1975,20 @@ function shouldFullRedrawOnTurnChange() {
 }
 
 function refreshTurnDependentUI() {
+  const hasData = !!currentDataCollection[currentCargo];
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+
+  if (hasData && currentVizMode.startsWith('desempenho')) {
+    populateVizCandidatoDropdown(turnoKey);
+    if (dom.selectVizCandidato?.value) {
+      const candidatoKey = dom.selectVizCandidato.value;
+      performanceModeStats = calculateCandidateStats(candidatoKey) || {
+        candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
+      };
+      updatePerformanceStatsUI();
+    }
+  }
+
   if (STATE.currentMapMode === 'municipios') {
     if (STATE.currentElectionType === 'geral' && shouldRenderGeneralMunicipalityOverview()) {
       void showGeneralMunicipalityOverview(STATE.currentMapMuniUF || dom.selectUFGeneral?.value);
@@ -1995,25 +2009,11 @@ function refreshTurnDependentUI() {
     void refreshMunicipalStatewideOverviewForTurn();
   }
 
-  if (!currentDataCollection[currentCargo]) return;
-
-  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
-
-  if (currentVizMode.startsWith('desempenho')) {
-    populateVizCandidatoDropdown(turnoKey);
-  }
+  if (!hasData) return;
 
   if (shouldFullRedrawOnTurnChange()) {
     applyFiltersAndRedraw();
     return;
-  }
-
-  if (currentVizMode.startsWith('desempenho') && dom.selectVizCandidato?.value) {
-    const candidatoKey = dom.selectVizCandidato.value;
-    performanceModeStats = calculateCandidateStats(candidatoKey) || {
-      candidato: candidatoKey, minPct: 0, maxPct: 100, avgPct: 0, totalLocais: 0
-    };
-    updatePerformanceStatsUI();
   }
 
   // Recolore/redimensiona os pontos para o novo turno (recalcula props e setData).
@@ -2820,27 +2820,83 @@ function getMunicipalPolygonStyle(feature, summary) {
     return emptyStyle;
   }
 
-  let winnerColorParty = result.winnerColorParty;
+  let fillColor = DEFAULT_SWATCH;
+  let fillOpacity = 0.78;
+  let pctVal = 0;
+
   const cargoKey = currentCargo;
   const isProportional = typeof cargoKey === 'string' && (cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador'));
-  if (isProportional && result.winnerCode) {
-    const type = cargoKey.startsWith('vereador') ? 'vereador' : 'deputado';
-    const scopedColorLookup = typeof getScopedProportionalColorKeyLookup === 'function'
-      ? getScopedProportionalColorKeyLookup(type, cargoKey)
-      : null;
-    if (scopedColorLookup) {
-      const colorPartyKey = scopedColorLookup.get(result.winnerCode);
-      if (colorPartyKey) {
-        winnerColorParty = colorPartyKey;
+
+  if (currentVizMode.startsWith('desempenho')) {
+    const candidatoKey = dom.selectVizCandidato?.value;
+    if (candidatoKey && result.votes) {
+      if (isProportional) {
+        const isVereador = cargoKey.startsWith('vereador');
+        const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+        const prefixCache = isVereador ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache;
+        const candId = getResolvedVisualizationCandidateId(candidatoKey, cargoKey);
+        if (candId) {
+          const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+          const groupKey = groupInfo.key;
+          const votesCand = ensureNumber(result.votes[groupKey]);
+          pctVal = (result.totalValid > 0) ? (votesCand / result.totalValid) * 100 : 0;
+
+          const isLegendaCand = candId.length <= 2;
+          if (isLegendaCand) {
+            const partidoReal = prefixCache?.[candId] || '';
+            fillColor = colorForParty(normalizePartyAlias(partidoReal.toUpperCase())) || DEFAULT_SWATCH;
+          } else {
+            const meta = metaStore[candId];
+            fillColor = getColorForCandidate(meta ? meta[0] : '', meta ? meta[1] : '');
+          }
+        }
+      } else {
+        const votesCand = ensureNumber(result.votes[candidatoKey]);
+        pctVal = (result.totalValid > 0) ? (votesCand / result.totalValid) * 100 : 0;
+
+        const match = candidatoKey.match(/\((.*?)\)/);
+        fillColor = match ? colorForParty(match[1]) : DEFAULT_SWATCH;
+      }
+
+      if (performanceModeStats.candidato) {
+        fillColor = getRelativeGradientColor(fillColor, pctVal, performanceModeStats.minPct, performanceModeStats.maxPct);
+      }
+
+      if (performanceFilterMinPct > 0 && pctVal < performanceFilterMinPct) {
+        fillColor = '#888888';
+        fillOpacity = 0.15;
+      } else if (pctVal === 0) {
+        fillColor = '#888888';
+        fillOpacity = 0.15;
+      }
+    } else {
+      fillColor = '#888888';
+      fillOpacity = 0.15;
+    }
+  } else {
+    let winnerColorParty = result.winnerColorParty;
+    if (isProportional && result.winnerCode) {
+      const type = cargoKey.startsWith('vereador') ? 'vereador' : 'deputado';
+      const scopedColorLookup = typeof getScopedProportionalColorKeyLookup === 'function'
+        ? getScopedProportionalColorKeyLookup(type, cargoKey)
+        : null;
+      if (scopedColorLookup) {
+        const colorPartyKey = scopedColorLookup.get(result.winnerCode);
+        if (colorPartyKey) {
+          winnerColorParty = colorPartyKey;
+        }
       }
     }
+
+    const normalizedParty = normalizePartyAlias(String(winnerColorParty || result.winnerParty || '').toUpperCase());
+    const baseColor = getColorForCandidate(result.winnerName, normalizedParty);
+    fillColor = getMarginAdjustedColor(baseColor, result.margin, result.winnerPct);
+    fillOpacity = 0.78;
   }
 
-  const normalizedParty = normalizePartyAlias(String(winnerColorParty || result.winnerParty || '').toUpperCase());
-  const baseColor = getColorForCandidate(result.winnerName, normalizedParty);
   const baseStyle = {
-    fillColor: getMarginAdjustedColor(baseColor, result.margin, result.winnerPct),
-    fillOpacity: 0.78,
+    fillColor: fillColor,
+    fillOpacity: fillOpacity,
     color: '#ffffff',
     weight: 0.6,
     opacity: 0.8
