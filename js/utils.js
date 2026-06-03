@@ -238,6 +238,11 @@ const GENERAL_SECOND_TURN_AVAILABILITY = {
     presidente: 'ALL',
     governador: { ord: ['GO', 'MA', 'PA', 'PB', 'PE', 'PR', 'RJ', 'RN', 'RS', 'SC'] },
     senador: { ord: [] }
+  },
+  '2002': {
+    presidente: 'ALL',
+    governador: { ord: ['AP', 'CE', 'DF', 'MS', 'PA', 'PB', 'PR', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
+    senador: { ord: [] }
   }
 };
 

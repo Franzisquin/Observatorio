@@ -10,6 +10,7 @@ let ZIP_READERS = (typeof LRUCache === 'function')
   : new Map(); // Cache de leitores ZIP: URL -> BlobReader
 let OFFICIAL_TOTALS_PROMISE = null; // Promise deduplication for official totals
 let SQL_JS_PROMISE = null;
+let GPKG_2002_DB_PROMISE = null;
 let GPKG_2006_DB_PROMISE = null;
 let GPKG_2010_DB_PROMISE = null;
 let GPKG_2008_DB_PROMISE = null;
@@ -20,6 +21,8 @@ let GPKG_2016_DB_PROMISE = null;
 let GPKG_2020_DB_PROMISE = null;
 let GPKG_2024_DB_PROMISE = null;
 let GPKG_2022_DB_PROMISE = null;
+let GENERAL_2002_BASE_CACHE = new Map();
+let CENSO_2002_CACHE = new Map();
 let GENERAL_2006_BASE_CACHE = new Map();
 let CENSO_2006_CACHE = new Map();
 let GENERAL_2010_BASE_CACHE = new Map();
@@ -207,6 +210,8 @@ function clearZipCache() {
   // Limpa também detalhes de candidatos que podem ser pesados
   CANDIDATE_DETAILS = null;
   CANDIDATE_DETAILS_PROMISE = null;
+  GENERAL_2002_BASE_CACHE.clear();
+  CENSO_2002_CACHE.clear();
   GENERAL_2006_BASE_CACHE.clear();
   CENSO_2006_CACHE.clear();
   GENERAL_2010_BASE_CACHE.clear();
@@ -227,6 +232,15 @@ function clearZipCache() {
   CENSO_2024_CACHE.clear();
   GENERAL_2022_BASE_CACHE.clear();
   CENSO_2022_CACHE.clear();
+
+  if (GPKG_2002_DB_PROMISE) {
+    GPKG_2002_DB_PROMISE.then((db) => {
+      if (db && typeof db.close === 'function') {
+        try { db.close(); } catch (e) { console.warn("Erro ao fechar DB 2002:", e); }
+      }
+    }).catch(() => { });
+    GPKG_2002_DB_PROMISE = null;
+  }
 
   if (GPKG_2006_DB_PROMISE) {
     GPKG_2006_DB_PROMISE.then((db) => {

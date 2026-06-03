@@ -175,6 +175,9 @@ window.onClickLoadData_General = async function () {
   if (year === '2006') {
     return onClickLoadData_Geral_2006();
   }
+  if (year === '2002') {
+    return onClickLoadData_Geral_2002();
+  }
 
   throw new Error(`Fluxo geral ${year} sem suporte no modo JSON + GPKG.`);
 };
@@ -195,6 +198,9 @@ window.onClickLoadData_Deputies = async function (uf, year) {
   }
   if (targetYear === '2006') {
     return onClickLoadData_Deputies_2006(uf, targetYear);
+  }
+  if (targetYear === '2002') {
+    return onClickLoadData_Deputies_2002(uf, targetYear);
   }
 
   throw new Error(`Fluxo de deputados ${targetYear} sem suporte no modo JSON + GPKG.`);
