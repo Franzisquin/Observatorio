@@ -1649,6 +1649,11 @@ function createMunicipiosGeoLayer(geojson, onSelectFeature) {
       onSelectFeature(feature);
     }
   });
+  
+  if (STATE.extrusion3DEnabled) {
+    layer.extrusionEnabled = true;
+  }
+  
   layer.setFeatures(geojson.features || []);
   return layer;
 }
@@ -2437,8 +2442,34 @@ function getVereadorFeatureData(props) {
   return { total, winner, winnerVotes, winningParty, votes };
 }
 
+function getTotalVotesForFeature(feature) {
+  const props = feature?.properties;
+  if (!props) return 0;
+  
+  const isDeputy = currentCargo.startsWith('deputado');
+  const isVereador = currentCargo.startsWith('vereador');
+  
+  if (isVereador) {
+    const depData = typeof getVereadorFeatureData === 'function' ? getVereadorFeatureData(props) : null;
+    return depData ? depData.total : 0;
+  }
+  
+  if (isDeputy) {
+    const depData = typeof getDeputyFeatureData === 'function' ? getDeputyFeatureData(props) : null;
+    return depData ? depData.total : 0;
+  }
+  
+  // Standard majoritarian
+  const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+  const valResult = typeof getVotosValidos === 'function' ? getVotosValidos(props, currentCargo, turnoKey, STATE.filterInaptos) : null;
+  return valResult ? valResult.totalValidos : 0;
+}
 
 function getFeatureStyle(feature) {
+  return getFeatureStyleRaw(feature);
+}
+
+function getFeatureStyleRaw(feature) {
   const props = feature.properties;
   let fillColor = DEFAULT_SWATCH;
   let fillOpacity = DEFAULT_POINT_FILL_OPACITY;
@@ -2897,12 +2928,26 @@ function getMunicipalPolygonStyle(feature, summary) {
     fillOpacity = 0.78;
   }
 
+  let height = 0;
+  if (STATE.extrusion3DEnabled && result) {
+    if (currentVizMode.startsWith('desempenho')) {
+      height = pctVal * 300; // 0% = 0m, 100% = 30km
+    } else {
+      if (currentGradientMode === 'winnerPct') {
+        height = (result.winnerPct / 100) * 30000;
+      } else {
+        height = result.margin * 30000; // Default: margin
+      }
+    }
+  }
+
   const baseStyle = {
     fillColor: fillColor,
     fillOpacity: fillOpacity,
     color: '#ffffff',
     weight: 0.6,
-    opacity: 0.8
+    opacity: 0.8,
+    height: height
   };
 
   if (!selectedMunicipality) {
@@ -2915,7 +2960,8 @@ function getMunicipalPolygonStyle(feature, summary) {
       fillOpacity: 0.02,
       color: 'rgba(255, 255, 255, 0.96)',
       weight: 2.4,
-      opacity: 1
+      opacity: 1,
+      height: height
     };
   }
 

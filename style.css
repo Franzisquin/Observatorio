@@ -2471,7 +2471,9 @@ input:disabled {
   transform: translateX(-50%);
   z-index: 1000;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   pointer-events: none;
 }
 
@@ -4721,4 +4723,37 @@ background: rgba(255, 255, 255, 0.85) !important;
   font-size: 0.82rem;
   font-weight: 700;
   color: var(--text);
+}
+
+/* =========================================
+   3D MAP MODE STYLING
+   ========================================= */
+
+.toggle-divider {
+  width: 1px;
+  background: rgba(255, 255, 255, 0.15);
+  margin: 4px 6px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .toggle-divider {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Ocultar bússola do NavigationControl no modo 2D */
+body:not(.mode-3d) .maplibregl-ctrl-compass {
+  display: none !important;
+}
+
+/* Animações e refinamentos para o botão 3D e densidade */
+#btnToggleExtrusion {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+}
+
+#btnToggleExtrusion.visible-inline {
+  display: inline-flex !important;
+  opacity: 1;
+  animation: fadeIn 0.2s ease-out;
 }

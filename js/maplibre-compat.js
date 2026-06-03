@@ -306,9 +306,12 @@
       this._popupOpen = false;
       this._popupHtml = null;
       this._hoveredId = null;
+      this.extrusionEnabled = false;
+      this._rawFeatures = [];
     }
 
     setFeatures(features) {
+      this._rawFeatures = features || [];
       this.fc = { type: 'FeatureCollection', features: features || [] };
       this._computeProps();
       return this;
@@ -316,11 +319,13 @@
 
     _computeProps() {
       const isPoint = this.type === 'point';
+      
       this.fc.features.forEach((f, i) => {
         const p = f.properties || (f.properties = {});
         p.__id = i;
         const s = this.styleFn(f) || {};
         p.__fill = resolveCssColor(s.fillColor != null ? s.fillColor : '#888888');
+        
         if (isPoint) {
           p.__opacity = s.fillOpacity != null ? s.fillOpacity : 0.8;
           p.__radius = this.radiusFn ? this.radiusFn(f) : (s.radius != null ? s.radius : 6);
@@ -329,6 +334,7 @@
           p.__line = resolveCssColor(s.color != null ? s.color : '#ffffff');
           p.__weight = s.weight != null ? s.weight : 0.6;
           p.__lineOpacity = s.opacity != null ? s.opacity : 1;
+          p.__height = s.height != null ? s.height : 0;
         }
       });
     }
@@ -385,8 +391,13 @@
       } else {
         const fid = this.id + '-fill';
         const linid = this.id + '-line';
+        const extid = this.id + '-extrusion';
+
         m.addLayer({
           id: fid, type: 'fill', source: this.sourceId,
+          layout: {
+            'visibility': this.extrusionEnabled ? 'none' : 'visible'
+          },
           paint: {
             'fill-color': ['coalesce', ['get', '__fill'], '#888888'],
             'fill-opacity': ['coalesce', ['get', '__fillOpacity'], 0.7]
@@ -394,6 +405,9 @@
         });
         m.addLayer({
           id: linid, type: 'line', source: this.sourceId,
+          layout: {
+            'visibility': this.extrusionEnabled ? 'none' : 'visible'
+          },
           paint: {
             'line-color': this.hover
               ? ['case', ['boolean', ['feature-state', 'hover'], false],
@@ -406,8 +420,41 @@
             'line-opacity': ['coalesce', ['get', '__lineOpacity'], 1]
           }
         });
-        this.layerIds = [fid, linid];
+        m.addLayer({
+          id: extid, type: 'fill-extrusion', source: this.sourceId,
+          layout: {
+            'visibility': this.extrusionEnabled ? 'visible' : 'none'
+          },
+          paint: {
+            'fill-extrusion-color': ['coalesce', ['get', '__fill'], '#888888'],
+            'fill-extrusion-height': ['coalesce', ['get', '__height'], 0],
+            'fill-extrusion-base': 0,
+            'fill-extrusion-opacity': ['coalesce', ['get', '__fillOpacity'], 0.7]
+          }
+        });
+        this.layerIds = [fid, linid, extid];
       }
+    }
+
+    setExtrusionEnabled(enabled) {
+      this.extrusionEnabled = !!enabled;
+      const m = this.map;
+      if (!m) return this;
+      const fid = this.id + '-fill';
+      const linid = this.id + '-line';
+      const extid = this.id + '-extrusion';
+      if (m.getLayer(fid) && m.getLayer(linid) && m.getLayer(extid)) {
+        if (enabled) {
+          m.setLayoutProperty(fid, 'visibility', 'none');
+          m.setLayoutProperty(linid, 'visibility', 'none');
+          m.setLayoutProperty(extid, 'visibility', 'visible');
+        } else {
+          m.setLayoutProperty(fid, 'visibility', 'visible');
+          m.setLayoutProperty(linid, 'visibility', 'visible');
+          m.setLayoutProperty(extid, 'visibility', 'none');
+        }
+      }
+      return this;
     }
 
     _interactiveLayerId() {
@@ -441,7 +488,9 @@
 
     _wireEvents() {
       const m = this.map;
-      const lid = this._interactiveLayerId();
+      const layers = this.type === 'point' 
+        ? [this.id + '-circle']
+        : [this.id + '-fill', this.id + '-extrusion'];
 
       const onMove = (e) => {
         m.getCanvas().style.cursor = 'pointer';
@@ -461,10 +510,6 @@
         if (this.tooltipFn) {
           const html = this.tooltipFn(feat);
           if (html) {
-            // Atualiza só a posição a cada movimento; o HTML (DOM) é
-            // reconstruído apenas quando o conteúdo muda e o popup é inserido
-            // uma única vez. Reconstruir/re-inserir a cada mousemove fazia a
-            // tooltip piscar mesmo sobre o mesmo objeto.
             const popup = this._ensurePopup();
             popup.setLngLat(e.lngLat);
             if (html !== this._popupHtml) {
@@ -490,18 +535,20 @@
         this._closePopup();
       };
 
-      m.on('mousemove', lid, onMove);
-      m.on('mouseleave', lid, onLeave);
-      this._handlers.push(['mousemove', lid, onMove], ['mouseleave', lid, onLeave]);
+      layers.forEach(lid => {
+        m.on('mousemove', lid, onMove);
+        m.on('mouseleave', lid, onLeave);
+        this._handlers.push(['mousemove', lid, onMove], ['mouseleave', lid, onLeave]);
 
-      if (this.onClickFn) {
-        const onClick = (e) => {
-          const raw = e.features && e.features[0];
-          if (raw) this.onClickFn(this._resolveOriginal(raw), e);
-        };
-        m.on('click', lid, onClick);
-        this._handlers.push(['click', lid, onClick]);
-      }
+        if (this.onClickFn) {
+          const onClick = (e) => {
+            const raw = e.features && e.features[0];
+            if (raw) this.onClickFn(this._resolveOriginal(raw), e);
+          };
+          m.on('click', lid, onClick);
+          this._handlers.push(['click', lid, onClick]);
+        }
+      });
     }
 
     _flush() {

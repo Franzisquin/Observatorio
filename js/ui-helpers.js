@@ -342,7 +342,48 @@ async function init() {
   MLCompat.augmentMap(map);
   MLCompat.refreshThemeColors();
   if (map.touchZoomRotate) map.touchZoomRotate.disableRotation();
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+  map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
+
+  // Sincronizar o botão do Modo 3D e controles com as mudanças de pitch da câmera
+  map.on('pitch', () => {
+    const currentPitch = map.getPitch();
+    const btn3D = document.getElementById('btnToggle3D');
+    
+    if (currentPitch > 10) {
+      if (btn3D && !btn3D.classList.contains('active')) {
+        btn3D.classList.add('active');
+        document.body.classList.add('mode-3d');
+        map.dragRotate.enable();
+        if (map.touchZoomRotate) map.touchZoomRotate.enableRotation();
+      }
+    } else {
+      if (btn3D && btn3D.classList.contains('active')) {
+        btn3D.classList.remove('active');
+        document.body.classList.remove('mode-3d');
+        map.dragRotate.disable();
+        if (map.touchZoomRotate) map.touchZoomRotate.disableRotation();
+      }
+    }
+    syncExtrusionButtonVisibility();
+  });
+
+  function syncExtrusionButtonVisibility() {
+    const btnExtrusion = document.getElementById('btnToggleExtrusion');
+    if (!map) return;
+    
+    const isPitched = map.getPitch() > 10;
+    const isMunicipios = STATE.currentMapMode === 'municipios';
+    
+    // Altura (Municípios)
+    if (btnExtrusion) {
+      if (isPitched && isMunicipios) {
+        btnExtrusion.classList.add('visible-inline');
+      } else {
+        btnExtrusion.classList.remove('visible-inline');
+      }
+    }
+  }
+  window.syncExtrusionButtonVisibility = syncExtrusionButtonVisibility;
 
   try {
     setupControls();

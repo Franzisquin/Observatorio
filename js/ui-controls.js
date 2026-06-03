@@ -515,13 +515,15 @@ function setupControls() {
         currentBairroFilter = 'all';
         currentLocalFilter = '';
         
-        
         if (dom.searchLocal) dom.searchLocal.value = '';
 
         STATE.currentMapMode = 'municipios';
         clearSelection(true);
         updateApplyButtonText();
         applyFiltersAndRedraw();
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
         return;
       }
 
@@ -534,6 +536,9 @@ function setupControls() {
         }
         window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
       }
+      if (typeof window.syncExtrusionButtonVisibility === 'function') {
+        window.syncExtrusionButtonVisibility();
+      }
     });
   }
 
@@ -545,6 +550,48 @@ function setupControls() {
       clearSelection(true);
       updateApplyButtonText();
       applyFiltersAndRedraw();
+      if (typeof window.syncExtrusionButtonVisibility === 'function') {
+        window.syncExtrusionButtonVisibility();
+      }
+    });
+  }
+
+  // ====== CONTROLES DO MAPA 3D ======
+  STATE.extrusion3DEnabled = false;
+
+  const btnToggle3D = document.getElementById('btnToggle3D');
+  const btnToggleExtrusion = document.getElementById('btnToggleExtrusion');
+
+  if (btnToggle3D) {
+    btnToggle3D.addEventListener('click', () => {
+      const isActive = btnToggle3D.classList.contains('active');
+      if (isActive) {
+        // Desativar 3D
+        map.easeTo({
+          pitch: 0,
+          bearing: 0,
+          duration: 800
+        });
+      } else {
+        // Ativar 3D
+        map.easeTo({
+          pitch: 55,
+          bearing: -15,
+          duration: 1000
+        });
+      }
+    });
+  }
+
+  if (btnToggleExtrusion) {
+    btnToggleExtrusion.addEventListener('click', () => {
+      STATE.extrusion3DEnabled = !STATE.extrusion3DEnabled;
+      btnToggleExtrusion.classList.toggle('active', STATE.extrusion3DEnabled);
+      
+      // Atualizar a camada de municípios com o novo estado de extrusão
+      if (STATE.municipiosLayer) {
+        STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled).refresh();
+      }
     });
   }
 
@@ -751,7 +798,6 @@ function setupControls() {
         currentBairroFilter = 'all';
         currentLocalFilter = '';
         
-        
         if (dom.searchLocal) dom.searchLocal.value = '';
         
         STATE.currentMapMode = 'municipios';
@@ -762,6 +808,9 @@ function setupControls() {
         clearSelection(true);
         updateApplyButtonText();
         applyFiltersAndRedraw();
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
         return;
       }
 
@@ -788,6 +837,9 @@ function setupControls() {
         if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
           window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
         }
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
         return;
       }
 
@@ -798,6 +850,9 @@ function setupControls() {
         clearSelection(true);
       updateApplyButtonText();
       applyFiltersAndRedraw();
+      if (typeof window.syncExtrusionButtonVisibility === 'function') {
+        window.syncExtrusionButtonVisibility();
+      }
     });
   }
 
