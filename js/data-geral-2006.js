@@ -172,33 +172,89 @@ async function loadGeneralStateBaseFromGpkg2006(uf) {
   return promise;
 }
 
-function filterGeneralFeatures2006(baseGeo, resultKeys) {
+// Some municipios tiveram suas zonas eleitorais renumeradas depois de 2006
+// (em 2006 eram administrados por uma zona vizinha e so depois ganharam zona
+// propria). O censo/GPKG "padronizado" carrega a zona moderna, enquanto os
+// resultados de 2006 usam a zona da epoca, entao a chave completa
+// `zona_cd_locvot` nao casa e o municipio fica sem votos. Este indice mapeia a
+// chave "frouxa" `cd_locvot` (codigo TSE do municipio + numero do local, sem a
+// zona) para a chave de resultado, apenas quando ela e inequivoca -- locais
+// ambiguos (mesmo local em zonas diferentes, comum em capitais) sao
+// descartados do fallback porque ja casam pela chave exata.
+function getGeneral2006LooseKey(fullKey) {
+  const parts = String(fullKey || '').split('_');
+  return parts.length >= 3 ? parts.slice(1).join('_') : '';
+}
+
+function buildGeneral2006LooseResultIndex(resultKeys) {
   const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
-  return {
-    type: 'FeatureCollection',
-    features: (baseGeo?.features || [])
-      .filter((feature) => {
-        const props = feature.properties || {};
-        const fullKey = String(props.id_unico || props.local_key || '');
-        return fullKey && keys.has(fullKey);
-      })
-      .map((feature) => ({
-        type: 'Feature',
-        geometry: feature.geometry ? {
-          type: feature.geometry.type,
-          coordinates: Array.isArray(feature.geometry.coordinates)
-            ? [...feature.geometry.coordinates]
-            : feature.geometry.coordinates
-        } : null,
-        properties: { ...(feature.properties || {}) }
-      }))
-  };
+  const byLoose = new Map();
+  const ambiguous = new Set();
+  keys.forEach((key) => {
+    const loose = getGeneral2006LooseKey(key);
+    if (!loose) return;
+    if (byLoose.has(loose)) {
+      ambiguous.add(loose);
+    } else {
+      byLoose.set(loose, key);
+    }
+  });
+  ambiguous.forEach((loose) => byLoose.delete(loose));
+  return byLoose;
+}
+
+function filterGeneralFeatures2006(baseGeo, resultKeys, looseIndex = null) {
+  const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
+  const loose = looseIndex || buildGeneral2006LooseResultIndex(keys);
+  const features = [];
+
+  (baseGeo?.features || []).forEach((feature) => {
+    const props = feature.properties || {};
+    const fullKey = String(props.id_unico || props.local_key || '');
+    if (!fullKey) return;
+
+    let matchedKey = keys.has(fullKey) ? fullKey : null;
+    if (!matchedKey) {
+      const looseKey = getGeneral2006LooseKey(fullKey);
+      if (looseKey && loose.has(looseKey)) matchedKey = loose.get(looseKey);
+    }
+    if (!matchedKey) return;
+
+    const newProps = { ...props };
+    if (matchedKey !== fullKey) {
+      // Realinha a identidade do local com a zona usada nos resultados de 2006
+      newProps.id_unico = matchedKey;
+      newProps.ID_UNICO = matchedKey;
+      newProps.local_key = matchedKey;
+      const parts = matchedKey.split('_');
+      const matchedZona = parseInt(parts[0], 10);
+      const matchedLocal = parseInt(parts[parts.length - 1], 10);
+      if (Number.isFinite(matchedZona)) newProps.nr_zona = matchedZona;
+      if (Number.isFinite(matchedZona) && Number.isFinite(matchedLocal)) {
+        newProps.local_id = `${matchedZona}_${matchedLocal}`;
+      }
+    }
+
+    features.push({
+      type: 'Feature',
+      geometry: feature.geometry ? {
+        type: feature.geometry.type,
+        coordinates: Array.isArray(feature.geometry.coordinates)
+          ? [...feature.geometry.coordinates]
+          : feature.geometry.coordinates
+      } : null,
+      properties: newProps
+    });
+  });
+
+  return { type: 'FeatureCollection', features };
 }
 
 async function loadGeneralScopeBase2006(ufs, resultKeys) {
+  const looseIndex = buildGeneral2006LooseResultIndex(resultKeys);
   const collections = await Promise.all((ufs || []).map(async (sigla) => {
     const baseGeo = await loadGeneralStateBaseFromGpkg2006(sigla);
-    return filterGeneralFeatures2006(baseGeo, resultKeys);
+    return filterGeneralFeatures2006(baseGeo, resultKeys, looseIndex);
   }));
 
   const features = collections.flatMap((collection) => collection.features || []);

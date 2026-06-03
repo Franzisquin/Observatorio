@@ -14,6 +14,11 @@ function buildGeneral2018Feature(row) {
     },
     properties: {
       local_id: zoneLocalKey,
+      // zona_local original do GPKG. O merge do censo sobrescreve nr_zona/
+      // nr_locvot/local_id quando casa por nome, podendo trocar a numeracao do
+      // local; guardamos a original (que o censo nao tem como chave) para o
+      // fallback de locais resgatados.
+      gpkg_zl: zoneLocalKey,
       id_unico: null,
       ID_UNICO: null,
       local_key: null,
@@ -172,33 +177,168 @@ async function loadGeneralStateBaseFromGpkg2018(uf) {
   return promise;
 }
 
-function filterGeneralFeatures2018(baseGeo, resultKeys) {
+// Fallbacks de casamento para 2018. Dois problemas distintos derrubam locais do
+// mapa quando a chave exata `zona_cd_locvot` nao casa:
+//  1) Zona renumerada depois de 2018: o local tem id_unico do censo mas com a
+//     zona moderna. Recuperamos pela chave `cd_locvot` (codigo TSE + local, sem
+//     a zona), pois o codigo do municipio nao muda.
+//  2) Locais "Resgatados do TSE (Base Eleitorado)" entram no GPKG sem codigo
+//     IBGE/TSE (cod=0) e com o nome corrompido, entao nunca recebem id_unico do
+//     censo. Esses tem zona e local corretos, entao recuperamos pela chave
+//     `zona_local` -- restrita aos codigos TSE do proprio estado (a zona se
+//     repete entre UFs) e apenas quando inequivoca.
+// Em ambos os casos so aceitamos casamentos inequivocos.
+function isAsciiText(value) {
+  return /^[\x00-\x7F]*$/.test(String(value || ''));
+}
+
+function getGeneral2018CdLooseKey(fullKey) {
+  const parts = String(fullKey || '').split('_');
+  return parts.length >= 3 ? parts.slice(1).join('_') : '';
+}
+
+function buildGeneral2018CdLooseIndex(resultKeys) {
   const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
-  return {
-    type: 'FeatureCollection',
-    features: (baseGeo?.features || [])
-      .filter((feature) => {
-        const props = feature.properties || {};
-        const fullKey = String(props.id_unico || props.local_key || '');
-        return fullKey && keys.has(fullKey);
-      })
-      .map((feature) => ({
-        type: 'Feature',
-        geometry: feature.geometry ? {
-          type: feature.geometry.type,
-          coordinates: Array.isArray(feature.geometry.coordinates)
-            ? [...feature.geometry.coordinates]
-            : feature.geometry.coordinates
-        } : null,
-        properties: { ...(feature.properties || {}) }
-      }))
-  };
+  const byLoose = new Map();
+  const ambiguous = new Set();
+  keys.forEach((key) => {
+    const loose = getGeneral2018CdLooseKey(key);
+    if (!loose) return;
+    if (byLoose.has(loose)) ambiguous.add(loose);
+    else byLoose.set(loose, key);
+  });
+  ambiguous.forEach((loose) => byLoose.delete(loose));
+  return byLoose;
+}
+
+function buildGeneral2018ZonaLooseIndex(resultKeys, allowedCds) {
+  const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
+  const allow = allowedCds instanceof Set ? allowedCds : null;
+  const byLoose = new Map();
+  const ambiguous = new Set();
+  keys.forEach((key) => {
+    const parts = String(key).split('_');
+    if (parts.length < 3) return;
+    const cd = String(parseInt(parts[1], 10));
+    if (allow && !allow.has(cd)) return;
+    const loose = `${parseInt(parts[0], 10)}_${parseInt(parts[parts.length - 1], 10)}`;
+    if (byLoose.has(loose)) ambiguous.add(loose);
+    else byLoose.set(loose, key);
+  });
+  ambiguous.forEach((loose) => byLoose.delete(loose));
+  return byLoose;
+}
+
+// Reune os codigos TSE de um estado e um nome de municipio "limpo" por codigo,
+// a partir dos locais que ja receberam identidade do censo. Usado para escopar
+// o fallback por zona e para consertar o nome dos locais resgatados (cujo nome
+// vem com bytes corrompidos).
+function collectGeneral2018UfCdInfo(baseGeo) {
+  const allowedCds = new Set();
+  const cdToCleanName = new Map();
+  (baseGeo?.features || []).forEach((feature) => {
+    const props = feature.properties || {};
+    const rawCd = getProp(props, 'cd_localidade_tse');
+    if (rawCd === null || rawCd === undefined || rawCd === '') return;
+    const cd = String(parseInt(rawCd, 10));
+    if (!cd || cd === 'NaN') return;
+    allowedCds.add(cd);
+    const nm = String(getProp(props, 'nm_localidade') || '').trim();
+    // Nomes de municipio chegam dobrados em ASCII; bytes nao-ASCII indicam um
+    // registro resgatado/corrompido, que nao serve de nome canonico.
+    if (nm && isAsciiText(nm) && !cdToCleanName.has(cd)) cdToCleanName.set(cd, nm);
+  });
+  return { allowedCds, cdToCleanName };
+}
+
+function filterGeneralFeatures2018(baseGeo, resultKeys, options = {}) {
+  const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
+  const features = baseGeo?.features || [];
+
+  const ufInfo = (options.allowedCds && options.cdToCleanName)
+    ? { allowedCds: options.allowedCds, cdToCleanName: options.cdToCleanName }
+    : collectGeneral2018UfCdInfo(baseGeo);
+  const cdIndex = options.cdIndex || buildGeneral2018CdLooseIndex(keys);
+  const zonaIndex = options.zonaIndex || buildGeneral2018ZonaLooseIndex(keys, ufInfo.allowedCds);
+  const cdToCleanName = ufInfo.cdToCleanName;
+
+  const out = [];
+  features.forEach((feature) => {
+    const props = feature.properties || {};
+    const fullKey = String(props.id_unico || props.local_key || '');
+    const featureCd = (props.cd_localidade_tse === null || props.cd_localidade_tse === undefined || props.cd_localidade_tse === '')
+      ? '' : String(parseInt(props.cd_localidade_tse, 10));
+
+    let matchedKey = (fullKey && keys.has(fullKey)) ? fullKey : null;
+
+    // (1) zona renumerada: mesmo cd_locvot, zona diferente.
+    if (!matchedKey && fullKey) {
+      const cdLoose = getGeneral2018CdLooseKey(fullKey);
+      if (cdLoose && cdIndex.has(cdLoose)) matchedKey = cdIndex.get(cdLoose);
+    }
+
+    // (2) local resgatado: casa por zona_local dentro do estado. Usa a chave
+    // ORIGINAL do GPKG (gpkg_zl), pois o merge do censo pode ter sobrescrito
+    // nr_zona/nr_locvot com uma numeracao divergente que nao existe nos votos.
+    if (!matchedKey) {
+      const gpkgZl = String(getProp(props, 'gpkg_zl') || '');
+      const zona = parseInt(getProp(props, 'nr_zona'), 10);
+      const local = parseInt(getProp(props, 'nr_locvot'), 10);
+      const looseKey = gpkgZl || (Number.isFinite(zona) && Number.isFinite(local) ? `${zona}_${local}` : '');
+      if (looseKey) {
+        const candidate = zonaIndex.get(looseKey);
+        // Nao reatribui locais que ja tem cd conhecido a um municipio diferente.
+        if (candidate && (!featureCd || String(parseInt(candidate.split('_')[1], 10)) === featureCd)) {
+          matchedKey = candidate;
+        }
+      }
+    }
+
+    if (!matchedKey) return;
+
+    const newProps = { ...props };
+    if (matchedKey !== fullKey) {
+      const parts = matchedKey.split('_');
+      const mZona = parseInt(parts[0], 10);
+      const mCd = parseInt(parts[1], 10);
+      const mLocal = parseInt(parts[parts.length - 1], 10);
+      newProps.id_unico = matchedKey;
+      newProps.ID_UNICO = matchedKey;
+      newProps.local_key = matchedKey;
+      if (Number.isFinite(mZona)) newProps.nr_zona = mZona;
+      if (Number.isFinite(mLocal)) newProps.nr_locvot = mLocal;
+      if (Number.isFinite(mCd)) newProps.cd_localidade_tse = mCd;
+      if (Number.isFinite(mZona) && Number.isFinite(mLocal)) newProps.local_id = `${mZona}_${mLocal}`;
+      const cleanName = Number.isFinite(mCd) ? cdToCleanName.get(String(mCd)) : null;
+      const currentName = String(newProps.nm_localidade || '');
+      if (cleanName && (!currentName || !isAsciiText(currentName))) {
+        newProps.nm_localidade = cleanName;
+      }
+    }
+
+    out.push({
+      type: 'Feature',
+      geometry: feature.geometry ? {
+        type: feature.geometry.type,
+        coordinates: Array.isArray(feature.geometry.coordinates)
+          ? [...feature.geometry.coordinates]
+          : feature.geometry.coordinates
+      } : null,
+      properties: newProps
+    });
+  });
+
+  return { type: 'FeatureCollection', features: out };
 }
 
 async function loadGeneralScopeBase2018(ufs, resultKeys) {
+  const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
+  const cdIndex = buildGeneral2018CdLooseIndex(keys);
   const collections = await Promise.all((ufs || []).map(async (sigla) => {
     const baseGeo = await loadGeneralStateBaseFromGpkg2018(sigla);
-    return filterGeneralFeatures2018(baseGeo, resultKeys);
+    const { allowedCds, cdToCleanName } = collectGeneral2018UfCdInfo(baseGeo);
+    const zonaIndex = buildGeneral2018ZonaLooseIndex(keys, allowedCds);
+    return filterGeneralFeatures2018(baseGeo, keys, { cdIndex, zonaIndex, allowedCds, cdToCleanName });
   }));
 
   const features = collections.flatMap((collection) => collection.features || []);
