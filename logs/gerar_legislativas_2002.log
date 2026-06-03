@@ -1,0 +1,63 @@
+Carregando metadados de candidatos...
+Gerando detalhes_candidatos_2002.json...
+  6151 candidatos -> C:\mapas\Observatorio\resultados_geo\Legislativas 2002\detalhes_candidatos_2002.json
+Gerando official_totals_2002.json...
+  27 UFs -> C:\mapas\Observatorio\resultados_geo\Legislativas 2002\official_totals_2002.json
+
+=== DEPUTADOS ===
+  AC federal: 513 locais -> deputados_federal_2002_AC.zip
+  AC estadual: 513 locais -> deputados_estadual_2002_AC.zip
+  AL federal: 722 locais -> deputados_federal_2002_AL.zip
+  AL estadual: 722 locais -> deputados_estadual_2002_AL.zip
+  AM federal: 1146 locais -> deputados_federal_2002_AM.zip
+  AM estadual: 1146 locais -> deputados_estadual_2002_AM.zip
+  AP federal: 204 locais -> deputados_federal_2002_AP.zip
+  AP estadual: 204 locais -> deputados_estadual_2002_AP.zip
+  BA federal: 8412 locais -> deputados_federal_2002_BA.zip
+  BA estadual: 8412 locais -> deputados_estadual_2002_BA.zip
+  CE federal: 6572 locais -> deputados_federal_2002_CE.zip
+  CE estadual: 6572 locais -> deputados_estadual_2002_CE.zip
+  DF federal: 356 locais -> deputados_federal_2002_DF.zip
+  DF estadual: 356 locais -> deputados_estadual_2002_DF.zip
+  ES federal: 1459 locais -> deputados_federal_2002_ES.zip
+  ES estadual: 1459 locais -> deputados_estadual_2002_ES.zip
+  GO federal: 2386 locais -> deputados_federal_2002_GO.zip
+  GO estadual: 2386 locais -> deputados_estadual_2002_GO.zip
+  MA federal: 4041 locais -> deputados_federal_2002_MA.zip
+  MA estadual: 4041 locais -> deputados_estadual_2002_MA.zip
+  MG federal: 9369 locais -> deputados_federal_2002_MG.zip
+  MG estadual: 9369 locais -> deputados_estadual_2002_MG.zip
+  MS federal: 890 locais -> deputados_federal_2002_MS.zip
+  MS estadual: 890 locais -> deputados_estadual_2002_MS.zip
+  MT federal: 1422 locais -> deputados_federal_2002_MT.zip
+  MT estadual: 1422 locais -> deputados_estadual_2002_MT.zip
+  PA federal: 3938 locais -> deputados_federal_2002_PA.zip
+  PA estadual: 3938 locais -> deputados_estadual_2002_PA.zip
+  PB federal: 2063 locais -> deputados_federal_2002_PB.zip
+  PB estadual: 2063 locais -> deputados_estadual_2002_PB.zip
+  PE federal: 2885 locais -> deputados_federal_2002_PE.zip
+  PE estadual: 2885 locais -> deputados_estadual_2002_PE.zip
+  PI federal: 2866 locais -> deputados_federal_2002_PI.zip
+  PI estadual: 2866 locais -> deputados_estadual_2002_PI.zip
+  PR federal: 5611 locais -> deputados_federal_2002_PR.zip
+  PR estadual: 5611 locais -> deputados_estadual_2002_PR.zip
+  RJ federal: 4962 locais -> deputados_federal_2002_RJ.zip
+  RJ estadual: 4962 locais -> deputados_estadual_2002_RJ.zip
+  RN federal: 1400 locais -> deputados_federal_2002_RN.zip
+  RN estadual: 1400 locais -> deputados_estadual_2002_RN.zip
+  RO federal: 502 locais -> deputados_federal_2002_RO.zip
+  RO estadual: 502 locais -> deputados_estadual_2002_RO.zip
+  RR federal: 245 locais -> deputados_federal_2002_RR.zip
+  RR estadual: 245 locais -> deputados_estadual_2002_RR.zip
+  RS federal: 9197 locais -> deputados_federal_2002_RS.zip
+  RS estadual: 9197 locais -> deputados_estadual_2002_RS.zip
+  SC federal: 4016 locais -> deputados_federal_2002_SC.zip
+  SC estadual: 4016 locais -> deputados_estadual_2002_SC.zip
+  SE federal: 770 locais -> deputados_federal_2002_SE.zip
+  SE estadual: 770 locais -> deputados_estadual_2002_SE.zip
+  SP federal: 6780 locais -> deputados_federal_2002_SP.zip
+  SP estadual: 6780 locais -> deputados_estadual_2002_SP.zip
+  TO federal: 783 locais -> deputados_federal_2002_TO.zip
+  TO estadual: 783 locais -> deputados_estadual_2002_TO.zip
+
+Concluido! Arquivos em: C:\mapas\Observatorio\resultados_geo\Legislativas 2002

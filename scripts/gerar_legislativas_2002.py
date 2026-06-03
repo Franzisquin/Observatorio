@@ -27,6 +27,61 @@ ALL_UFS = [
 # cd_cargo -> type_key (DF usa CD_CARGO=8 para Deputado Distrital, mapeado como estadual)
 CARGO_DEF = {6: 'federal', 7: 'estadual', 8: 'estadual'}
 
+# Prioridade para DS_SIT_TOT_TURNO — numero maior = prioridade maior (igual ao 2006)
+SIT_PRIORITY = {
+    '#NULO':         0,
+    '#NULO#':        0,
+    '':              1,
+    'SUPLENTE':      2,
+    'INAPTO':        2,
+    'NÃO ELEITO':    3,
+    'NAO ELEITO':    3,
+    'ELEITO POR QP': 4,
+    'ELEITO POR MÉDIA': 4,
+    'ELEITO POR MEDIA': 4,
+    'ELEITO':        4,
+    'MÉDIA':         4,
+    'MEDIA':         4,
+}
+
+INAPTO_KEYWORDS = [
+    'INAPTO', 'CASSADO', 'INELEGÍVEL', 'INELEGIVEL',
+    'INDEFERIDO', 'FALECIMENTO', 'RENÚNCIA', 'RENUNCIA',
+    'CANCELADO', 'NÃO CONHECIMENTO',
+]
+
+
+def get_sit_priority(sit_str):
+    return SIT_PRIORITY.get(str(sit_str).strip().upper(), 1)
+
+
+def resolve_status(sit_tot, detalhe_sit, sit_cand):
+    """Resolve status final detectando inaptos; respeita excecao COM RECURSO."""
+    sit_up     = str(sit_tot).strip().upper()
+    detalhe_up = str(detalhe_sit).strip().upper()
+    sit_cand_up = str(sit_cand).strip().upper()
+
+    inapto = (
+        any(k in detalhe_up  for k in INAPTO_KEYWORDS) or
+        any(k in sit_up      for k in INAPTO_KEYWORDS) or
+        any(k in sit_cand_up for k in INAPTO_KEYWORDS)
+    )
+    com_recurso = (
+        'COM RECURSO' in detalhe_up or
+        'COM RECURSO' in sit_up or
+        'COM RECURSO' in sit_cand_up
+    )
+    if inapto and not com_recurso:
+        return 'INAPTO'
+
+    return sit_up if sit_up not in ('#NULO#', '#NULO', '') else 'N/D'
+
+
+def normalize_comp(comp_str):
+    if not isinstance(comp_str, str) or not comp_str.strip():
+        return ''
+    return '/'.join(sorted(p.strip().upper() for p in comp_str.split('/')))
+
 
 def aggregate_votes_df(df_votes, cd_cargo):
     """Agrega votos por local (NR_TURNO=1 para deputados)."""
@@ -52,35 +107,45 @@ def aggregate_votes_df(df_votes, cd_cargo):
 
 def build_cand_names_df(df_cand, cd_cargo, sg_uf):
     """
-    Constroi cand_names para deputados incluindo:
-    - candidatos nominais: NR_CANDIDATO (4-5 digitos)
-    - votos de legenda: NR_PARTIDO (2 digitos)
+    Constroi cand_names para deputados com:
+    - Deduplicacao por prioridade de status (igual ao 2006)
+    - Deteccao de inaptos (CASSADO, INDEFERIDO, etc.) com excecao COM RECURSO
+    - Candidatos nominais e votos de legenda
     """
     mask = (df_cand['CD_CARGO'] == cd_cargo) & (df_cand['SG_UF'] == sg_uf) & (df_cand['NR_TURNO'] == 1)
     sub = df_cand[mask].copy()
 
     cand_names = {}
+    priority_map = {}
 
     if not sub.empty:
         sub['_nome'] = sub['NM_URNA_CANDIDATO'].fillna('').str.strip()
         empty_urna = sub['_nome'] == ''
         sub.loc[empty_urna, '_nome'] = sub.loc[empty_urna, 'NM_CANDIDATO'].fillna('').str.strip()
 
-        sub['_status'] = sub['DS_SIT_TOT_TURNO'].fillna('').str.strip()
-        sub.loc[sub['_status'].isin(['#NULO#', '']), '_status'] = 'N/D'
-
-        # Candidatos nominais
         for _, row in sub.iterrows():
             nr = str(int(row['NR_CANDIDATO']))
-            cand_names[nr] = [
+
+            sit_tot  = str(row.get('DS_SIT_TOT_TURNO', '')         or '')
+            detalhe  = str(row.get('DS_DETALHE_SITUACAO_CAND', '') or '')
+            sit_cand = str(row.get('DS_SITUACAO_CANDIDATURA', '')   or '')
+
+            status  = resolve_status(sit_tot, detalhe, sit_cand)
+            new_pri = get_sit_priority(sit_tot)
+
+            entry = [
                 row['_nome'],
                 str(row.get('SG_PARTIDO') or '').strip(),
-                row['_status'],
+                status,
                 str(row.get('NM_COLIGACAO') or '').strip(),
                 str(row.get('DS_COMPOSICAO_COLIGACAO') or '').strip(),
             ]
 
-        # Votos de legenda: chave = str(NR_PARTIDO) de 2 digitos
+            if new_pri > priority_map.get(nr, -1):
+                cand_names[nr] = entry
+                priority_map[nr] = new_pri
+
+        # Votos de legenda: chave = str(NR_PARTIDO) de ate 2 digitos
         party_groups = sub.groupby('NR_PARTIDO').first().reset_index()
         for _, prow in party_groups.iterrows():
             nr_partido = str(int(prow['NR_PARTIDO']))
@@ -91,8 +156,31 @@ def build_cand_names_df(df_cand, cd_cargo, sg_uf):
                 cand_names[nr_partido] = ['', sigla, 'LEGENDA', colig, comp]
 
     cand_names['95'] = ['VOTO BRANCO', '', 'BRANCO', '', '']
-    cand_names['96'] = ['VOTO NULO', '', 'NULO', '', '']
+    cand_names['96'] = ['VOTO NULO',   '', 'NULO',   '', '']
     return cand_names
+
+
+def verify_and_fix_names(cand_names, df_votes, cd_cargo):
+    """
+    Extrai nomes de candidatos do arquivo de votos (NM_VOTAVEL)
+    para candidatos nao encontrados no cadastro — mesmo padrao do 2006.
+    """
+    if 'NM_VOTAVEL' not in df_votes.columns:
+        return
+
+    mask = df_votes['CD_CARGO'] == cd_cargo
+    pairs = df_votes[mask][['NR_VOTAVEL', 'NM_VOTAVEL']].drop_duplicates()
+
+    for _, row in pairs.iterrows():
+        num = str(int(row['NR_VOTAVEL']))
+        if num in cand_names or len(num) <= 2 or num in ('95', '96', '97'):
+            continue
+        prefix = num[:2]
+        party = next(
+            (d[1] for k, d in cand_names.items() if len(str(k)) <= 2 and str(k) == prefix),
+            prefix,
+        )
+        cand_names[num] = [str(row['NM_VOTAVEL']).strip(), party, 'EXTRAÍDO', '', '']
 
 
 def write_zip(out_dir, zip_name, json_name, payload):
@@ -105,28 +193,39 @@ def write_zip(out_dir, zip_name, json_name, payload):
 
 
 def build_detalhes_candidatos(df_cand):
-    """Gera detalhes_candidatos_2002.json."""
-    mask = df_cand['CD_CARGO'].isin([6, 7]) & (df_cand['NR_TURNO'] == 1)
+    """Gera detalhes_candidatos_2002.json com deteccao de inaptos e deduplicacao."""
+    mask = df_cand['CD_CARGO'].isin([6, 7, 8]) & (df_cand['NR_TURNO'] == 1)
     sub = df_cand[mask].copy()
     sub['_nome'] = sub['NM_URNA_CANDIDATO'].fillna('').str.strip()
     empty = sub['_nome'] == ''
     sub.loc[empty, '_nome'] = sub.loc[empty, 'NM_CANDIDATO'].fillna('').str.strip()
-    sub['_status'] = sub['DS_SIT_TOT_TURNO'].fillna('').str.strip()
-    sub.loc[sub['_status'].isin(['#NULO#', '']), '_status'] = 'N/D'
 
     details = {}
+    priority_map = {}
+
     for _, row in sub.iterrows():
         nr = str(int(row['NR_CANDIDATO']))
-        details[nr] = {
-            'nome': row['_nome'],
-            'partido': str(row.get('SG_PARTIDO') or '').strip(),
-            'numero': nr,
-            'cargo': str(row.get('DS_CARGO') or '').upper().strip(),
-            'situacao': row['_status'],
-            'coligacao': str(row.get('NM_COLIGACAO') or '').strip(),
-            'composicao': str(row.get('DS_COMPOSICAO_COLIGACAO') or '').strip(),
-            'uf': str(row.get('SG_UF') or '').strip(),
-        }
+
+        sit_tot  = str(row.get('DS_SIT_TOT_TURNO', '')         or '')
+        detalhe  = str(row.get('DS_DETALHE_SITUACAO_CAND', '') or '')
+        sit_cand = str(row.get('DS_SITUACAO_CANDIDATURA', '')   or '')
+
+        status  = resolve_status(sit_tot, detalhe, sit_cand)
+        new_pri = get_sit_priority(sit_tot)
+
+        if new_pri > priority_map.get(nr, -1):
+            details[nr] = {
+                'nome':       row['_nome'],
+                'partido':    str(row.get('SG_PARTIDO') or '').strip(),
+                'numero':     nr,
+                'cargo':      str(row.get('DS_CARGO') or '').upper().strip(),
+                'situacao':   status,
+                'coligacao':  str(row.get('NM_COLIGACAO') or '').strip(),
+                'composicao': str(row.get('DS_COMPOSICAO_COLIGACAO') or '').strip(),
+                'uf':         str(row.get('SG_UF') or '').strip(),
+            }
+            priority_map[nr] = new_pri
+
     return details
 
 
@@ -136,62 +235,88 @@ def build_official_totals(qe_csv_path):
     Formato: {UF: {type_key: {stats: {...}, coalitions: [...]}}}
     """
     df = pd.read_csv(qe_csv_path, sep=';', encoding='latin1', low_memory=False)
-    # Normalizar nomes de colunas
     df.columns = [c.strip() for c in df.columns]
+    col_map = {c.upper(): c for c in df.columns}
 
-    # Mapear colunas do CSV
-    col_votos_validos = 'qt_votos_validos_qe'
-    col_vagas         = 'qt_vagas_qe'
-    col_qe            = 'vr_quociente_eleitoral'
-    col_comp          = 'ds_composicao_coligacao'
-    col_votos_comp    = [c for c in df.columns if 'votos' in c.lower() and 'composi' in c.lower()][0]
-    col_vagas_qp      = 'Vagas QP'
-    col_eleitos_qp    = [c for c in df.columns if 'eleitas' in c.lower() and 'qp' in c.lower()][0]
-    col_eleitos_avg   = [c for c in df.columns if 'eleitas' in c.lower() and 'm' in c.lower()]
-    col_eleitos_avg   = col_eleitos_avg[0] if col_eleitos_avg else None
+    def col(name):
+        return col_map.get(name.upper(), name)
+
+    # Detectar coluna de votos por composicao
+    votes_col = next(
+        (c for c in df.columns if 'votos' in c.lower() and 'composi' in c.lower()),
+        next((c for c in df.columns if 'votos' in c.lower() and 'válid' in c.lower()), None),
+    )
+    vagas_qp_col    = col('Vagas QP')
+    eleitos_qp_col  = next((c for c in df.columns if 'eleita' in c.lower() and 'qp' in c.lower()), None)
+    eleitos_avg_col = next(
+        (c for c in df.columns if 'eleita' in c.lower() and ('méd' in c.lower() or 'med' in c.lower())),
+        None,
+    )
+    comp_col = col('DS_COMPOSICAO_COLIGACAO')
+    uf_col   = col('UF')
 
     totals = {}
 
-    for uf, uf_df in df.groupby('UF'):
+    for uf, uf_df in df.groupby(uf_col):
+        uf = str(uf).strip()
         if uf not in ALL_UFS:
             continue
         totals[uf] = {}
 
-        for cd_cargo, type_key in CARGO_DEF.items():
-            cargo_df = uf_df[uf_df['cd_cargo'] == cd_cargo]
+        for cd_cargo, type_label in CARGO_DEF.items():
+            # Filtrar por codigo numerico ou por texto do cargo
+            cd_col = col('CD_CARGO')
+            if cd_col in df.columns:
+                cargo_df = uf_df[uf_df[cd_col] == cd_cargo]
+            else:
+                kw_map = {6: 'FEDERAL', 7: 'ESTADUAL', 8: 'DISTRITAL'}
+                ds_col = col('DS_CARGO')
+                cargo_df = uf_df[uf_df[ds_col].str.upper().str.contains(kw_map[cd_cargo], na=False)]
+
             if cargo_df.empty:
                 continue
 
             first_row = cargo_df.iloc[0]
+
+            def safe_int(key):
+                v = first_row.get(col(key), 0)
+                return int(v) if pd.notnull(v) and v != '' else 0
+
             stats = {
-                'qt_vagas': int(first_row[col_vagas]),
-                'vr_qe': int(first_row[col_qe]),
-                'qt_votos_validos': int(first_row[col_votos_validos]),
+                'qt_vagas':          safe_int('qt_vagas_qe'),
+                'vr_qe':             safe_int('vr_quociente_eleitoral'),
+                'qt_votos_validos':  safe_int('qt_votos_validos_qe'),
             }
 
             coalitions = []
             for _, row in cargo_df.iterrows():
-                comp = str(row[col_comp] or '').strip()
-                votos = int(row[col_votos_comp] or 0)
-                vagas_qp = int(row[col_vagas_qp] or 0)
-                eleitos_qp = int(row[col_eleitos_qp] or 0)
-                eleitos_avg = int(row[col_eleitos_avg] or 0) if col_eleitos_avg else 0
-                # ID normalized
-                comp_id = '/'.join(sorted(p.strip() for p in comp.split('/')))
+                def sv(c):
+                    if c is None or c not in row.index:
+                        return 0
+                    v = row[c]
+                    return int(v) if pd.notnull(v) and v != '' else 0
+
+                comp    = str(row.get(comp_col, '') or '').strip()
+                votos   = sv(votes_col)
+                vqp     = sv(vagas_qp_col)
+                el_qp   = sv(eleitos_qp_col)
+                el_avg  = sv(eleitos_avg_col)
+
                 coalitions.append({
-                    'id': comp_id,
-                    'raw_comp': comp,
-                    'votes': votos,
-                    'elected': eleitos_qp + eleitos_avg,
-                    'elected_qp': eleitos_qp,
-                    'elected_avg': eleitos_avg,
-                    'vagas_qp': vagas_qp,
+                    'id':          normalize_comp(comp),
+                    'raw_comp':    comp,
+                    'votes':       votos,
+                    'elected':     el_qp + el_avg,
+                    'elected_qp':  el_qp,
+                    'elected_avg': el_avg,
+                    'vagas_qp':    vqp,
                 })
 
-            totals[uf][type_key[0]] = {  # 'f' for federal, 'e' for estadual
-                'stats': stats,
-                'coalitions': coalitions,
-            }
+            coalitions.sort(key=lambda x: x['votes'], reverse=True)
+            key_char = type_label[0]  # 'f' ou 'e'
+            # Nao sobrescreve 'e' se ja foi preenchido por cargo 7 com cargo 8
+            if key_char not in totals[uf]:
+                totals[uf][key_char] = {'stats': stats, 'coalitions': coalitions}
 
     return totals
 
@@ -230,6 +355,7 @@ def main():
                 continue
 
             cand_names = build_cand_names_df(df_cand, cd_cargo, uf)
+            verify_and_fix_names(cand_names, df_uf, cd_cargo)
             results = aggregate_votes_df(df_uf, cd_cargo)
             if not results:
                 continue
