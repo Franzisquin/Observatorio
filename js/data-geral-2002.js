@@ -104,7 +104,7 @@ function mergeGeneralJsonPayloads2002(payloads) {
   return merged;
 }
 
-function applyGeneralMajoritariaJsonToGeojson2002(geojson, fullJson, turnoKey) {
+function applyGeneralMajoritariaJsonToGeojson2002(geojson, fullJson, turnoKey, muniNameMap) {
   if (!geojson?.features?.length || !fullJson?.RESULTS) return;
   const metadata = fullJson.METADATA?.cand_names || {};
 
@@ -113,6 +113,18 @@ function applyGeneralMajoritariaJsonToGeojson2002(geojson, fullJson, turnoKey) {
     const resultKey = String(props.id_unico || props.local_key || '');
     const votes = fullJson.RESULTS[resultKey];
     if (!votes) return;
+
+    // Corrige nm_localidade usando o cd_municipio TSE da chave do resultado.
+    // O GPKG 2006 pode rotular um local como "MANAUS" geograficamente, mas o
+    // resultado de 2002 pode pertencer a outro municipio (fronteira de zona).
+    // Sobrescrever garante agrupamento correto em buildGeneralMunicipalityOverviewSummary.
+    if (muniNameMap) {
+      const parts = resultKey.split('_');
+      if (parts.length >= 3) {
+        const cityName = muniNameMap.get(parts[1]);
+        if (cityName) props.nm_localidade = cityName;
+      }
+    }
 
     applyTurnMetricsFromJsonVotes(props, votes, turnoKey, false);
 
@@ -126,6 +138,73 @@ function applyGeneralMajoritariaJsonToGeojson2002(geojson, fullJson, turnoKey) {
       props[`${nome} (${partido}) (${status}) ${turnoKey}`] = ensureNumber(rawVotes);
     });
   });
+}
+
+// Features geometry:null com os votos do JSON NAO cobertos pelos dots reais.
+// Garante: sum(dots com nm_localidade TSE correto) + sum(sintetica) = total JSON.
+function buildSyntheticMuniFeatures2002(payloads, muniNameMap, coveredKeysByTurno) {
+  const fullByMuni = new Map();
+  const covByMuni  = new Map();
+
+  payloads.forEach(({ payload, turnoKey }) => {
+    if (!payload?.RESULTS) return;
+    const metadata  = payload.METADATA?.cand_names || {};
+    const coveredKs = coveredKeysByTurno[turnoKey] || new Set();
+
+    Object.entries(payload.RESULTS).forEach(([key, votes]) => {
+      const parts = key.split('_');
+      if (parts.length < 3) return;
+      const cdMuni = parts[1];
+      if (!muniNameMap.has(cdMuni)) return;
+
+      if (!fullByMuni.has(cdMuni)) fullByMuni.set(cdMuni, {});
+      const fT = fullByMuni.get(cdMuni);
+      if (!fT[turnoKey]) fT[turnoKey] = { raw: {}, metadata };
+      Object.entries(votes).forEach(([cid, v]) => {
+        fT[turnoKey].raw[cid] = (fT[turnoKey].raw[cid] || 0) + ensureNumber(v);
+      });
+
+      if (coveredKs.has(key)) {
+        if (!covByMuni.has(cdMuni)) covByMuni.set(cdMuni, {});
+        const cT = covByMuni.get(cdMuni);
+        if (!cT[turnoKey]) cT[turnoKey] = {};
+        Object.entries(votes).forEach(([cid, v]) => {
+          cT[turnoKey][cid] = (cT[turnoKey][cid] || 0) + ensureNumber(v);
+        });
+      }
+    });
+  });
+
+  const features = [];
+  fullByMuni.forEach((fByT, cdMuni) => {
+    const cityName = muniNameMap.get(cdMuni);
+    if (!cityName) return;
+    const props = { nm_localidade: cityName, id_unico: null, local_id: null };
+
+    Object.entries(fByT).forEach(([turnoKey, { raw: fullRaw, metadata }]) => {
+      const covRaw = covByMuni.get(cdMuni)?.[turnoKey] || {};
+      const remaining = {};
+      Object.entries(fullRaw).forEach(([cid, v]) => {
+        const r = v - ensureNumber(covRaw[cid]);
+        if (r > 0) remaining[cid] = r;
+      });
+
+      applyTurnMetricsFromJsonVotes(props, remaining, turnoKey, false);
+      Object.entries(remaining).forEach(([cid, total]) => {
+        if (cid === '95' || cid === '96') return;
+        const meta = metadata[cid];
+        if (!meta) return;
+        const nome = meta[0] || `Candidato ${cid}`;
+        const partido = meta[1] || '?';
+        const status = meta[2] || 'N/D';
+        props[`${nome} (${partido}) (${status}) ${turnoKey}`] = total;
+      });
+    });
+
+    features.push({ type: 'Feature', geometry: null, properties: props });
+  });
+
+  return features;
 }
 
 async function loadMajoritariaCargo2002(cargo, uf) {
@@ -160,17 +239,38 @@ async function loadMajoritariaCargo2002(cargo, uf) {
     }
   }
 
-  // Mapa de pontos: GPKG 2006 (o que bater bateu)
-  const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
-  applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T');
-  if (mergedTurno2) {
-    applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T');
-  }
-
-  // Totais de municipio: lidos direto do JSON via mapa de nomes do GPKG 2002
-  const muniNameMaps = await Promise.all(ufs.map((sigla) => getMuniNameMap2002(sigla).catch(() => new Map())));
+  // Mapa de nomes do GPKG 2002: cd_municipio_tse → nm_municipio
+  const muniNameMaps = await Promise.all(ufs.map((s) => getMuniNameMap2002(s).catch(() => new Map())));
   const muniNameMap = new Map();
   muniNameMaps.forEach((m) => m.forEach((v, k) => muniNameMap.set(k, v)));
+
+  // Mapa de pontos: GPKG 2006 (o que bater bateu).
+  // applyGeneralMajoritariaJsonToGeojson2002 tambem corrige nm_localidade dos dots
+  // usando o cd_municipio TSE da chave do resultado (evita agrupamento errado).
+  const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+  applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
+  if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
+
+  // Chaves dos dots cobertas pelo GPKG 2006 (por turno)
+  const coveredT1 = new Set();
+  const coveredT2 = new Set();
+  (geojson.features || []).forEach((f) => {
+    const k = String(f.properties?.id_unico || f.properties?.local_key || '');
+    if (!k) return;
+    if (mergedTurno1.RESULTS[k]) coveredT1.add(k);
+    if (mergedTurno2?.RESULTS[k]) coveredT2.add(k);
+  });
+
+  // Features sinteticas (geometry:null) com votos restantes (total_json - dots).
+  // sum(dots com nm_localidade correto) + sum(sintetica) = total JSON por municipio.
+  const payloadsForSynthetic = [
+    { payload: mergedTurno1, turnoKey: '1T' },
+    ...(mergedTurno2 ? [{ payload: mergedTurno2, turnoKey: '2T' }] : []),
+  ];
+  const syntheticFeatures = buildSyntheticMuniFeatures2002(
+    payloadsForSynthetic, muniNameMap, { '1T': coveredT1, '2T': coveredT2 }
+  );
+  geojson.features.push(...syntheticFeatures);
 
   return {
     geojson,

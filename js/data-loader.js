@@ -412,7 +412,7 @@ async function onClickLoadData_Deputies_legado(uf, year) {
       if (!STATE.officialTotals) STATE.officialTotals = {};
 
       // 0. Load Official Totals (Once per Year)
-      if (['2006', '2010', '2014', '2018', '2022'].includes(year) && !STATE.officialTotals[year]) {
+      if (['2002', '2006', '2010', '2014', '2018', '2022'].includes(year) && !STATE.officialTotals[year]) {
         try {
           const res = await fetch(`resultados_geo/Legislativas ${year}/official_totals_${year}.json`);
           if (res.ok) {
