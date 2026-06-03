@@ -287,6 +287,9 @@ async function init() {
   dom.btnApplyFilters = document.getElementById('btnApplyFilters') || document.createElement('button');
   dom.btnToggleInaptos = document.getElementById('btnToggleInaptos');
   dom.btnToggleRules = document.getElementById('btnToggleRules');
+  dom.btnExplainRules = document.getElementById('btnExplainRules');
+  dom.rulesExplainOverlay = document.getElementById('rulesExplainOverlay');
+  dom.btnCloseRulesExplain = document.getElementById('btnCloseRulesExplain');
 
   dom.vizBox = document.getElementById('vizBox');
   dom.vizCandidatoBox = document.getElementById('vizCandidatoBox');

@@ -2087,7 +2087,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
             ruleExplanation = `Eleito(a) por QP: O partido conquistou vaga direta e o candidato superou a barreira individual de 10% do QE (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
           } else if (candLabel === 'ELEITO POR MÉDIA') {
             if (candStatewideVotes < qe20) {
-              ruleExplanation = `Eleito(a) por Média (Decisão STF): Eleito(a) na terceira fase de partilha de sobras. Segundo o STF, quando esgotados os candidatos com votação nominal mínima, as vagas remanescentes são distribuídas sem a exigência dos 20% do QE individual, beneficiando a maior média partidária (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo de 20% do QE seria ${fmtInt(qe20)}).`;
+              ruleExplanation = `Eleito(a) por Média (Decisão STF - Aplicação Original): Candidato(a) eleito(a) na 3ª fase sob a regra de 2022 antes de ser declarada inconstitucional pelo STF. Atenção: Esta vaga foi posteriormente alterada na retotalização de set/2024 determinada pelo STF/TSE (no Amapá, os mandatos de Silvia Waiãpi, Sonize Barbosa, Maria Goreth e Dr. Pupio foram cancelados e as vagas redistribuídas para PP, Republicanos, FE Brasil e PSOL-REDE).`;
             } else {
               ruleExplanation = `Eleito(a) por Média: A sigla atingiu mais de 80% do QE e o candidato superou 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
             }
@@ -3572,7 +3572,7 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
           ruleExplanation = `Eleito(a) diretamente (Vaga por QP): O partido conquistou vaga direta e o candidato superou a cláusula de barreira individual de 10% do Quociente Eleitoral (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe10)}).`;
         } else if (label === 'ELEITO POR MÉDIA') {
           if (candStatewideVotes < qe20) {
-            ruleExplanation = `Eleito(a) por Média (Decisão STF): Eleito(a) na terceira fase de partilha de sobras (sobras das sobras). Segundo o STF, quando esgotados os candidatos com votação nominal mínima, as vagas remanescentes são distribuídas sem a exigência dos 20% do QE individual, beneficiando a maior média partidária (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo de 20% do QE seria ${fmtInt(qe20)}).`;
+            ruleExplanation = `Eleito(a) por Média (Decisão STF - Aplicação Original): Candidato(a) eleito(a) na 3ª fase sob a regra de 2022 antes de ser declarada inconstitucional pelo STF. Atenção: Esta vaga foi posteriormente alterada na retotalização de set/2024 determinada pelo STF/TSE (no Amapá, os mandatos de Silvia Waiãpi, Sonize Barbosa, Maria Goreth e Dr. Pupio foram cancelados e as vagas redistribuídas para PP, Republicanos, FE Brasil e PSOL-REDE).`;
           } else {
             ruleExplanation = `Eleito(a) por Média (Sobras - Regra 80/20): O partido atingiu mais de 80% do QE (${fmtInt(totalPartyStatewideVotes)} ${votesSuffix}) e o candidato superou os 20% do QE individual (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}; mínimo exigido: ${fmtInt(qe20)}).`;
           }
@@ -3959,6 +3959,12 @@ function renderVereadorPartyResults(cargo) {
 function updateToggleRulesButtonVisibility(visible) {
   if (!dom.btnToggleRules) return;
   dom.btnToggleRules.style.display = visible ? '' : 'none';
+  
+  const showExplain = visible && STATE.showProportionalRules === true;
+  if (dom.btnExplainRules) {
+    dom.btnExplainRules.style.display = showExplain ? '' : 'none';
+  }
+
   if (!visible) return;
   const active = STATE.showProportionalRules === true;
   dom.btnToggleRules.classList.toggle('active', active);

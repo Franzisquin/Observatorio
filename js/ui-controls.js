@@ -676,6 +676,11 @@ function setupControls() {
       STATE.showProportionalRules = !STATE.showProportionalRules;
       dom.btnToggleRules.classList.toggle('active', STATE.showProportionalRules);
       dom.btnToggleRules.textContent = STATE.showProportionalRules ? 'Ocultar Regras' : 'Mostrar Regras';
+      
+      if (dom.btnExplainRules) {
+        dom.btnExplainRules.style.display = STATE.showProportionalRules ? '' : 'none';
+      }
+
       if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
     });
   }
@@ -958,6 +963,8 @@ function setupControls() {
       if (e.target === guideOverlay) closeGuide();
     });
   }
+
+
 }
 
 // ====== FILTER TABS LOGIC RESTORED ======
@@ -1270,3 +1277,54 @@ function setupSliders() {
 }
 
 // ====== RESULTS TABS REMOVED ======
+
+// --- PROPORTIONAL RULES MODAL GLOBAL HANDLERS ---
+window.openProportionalRulesModal = function() {
+  const overlay = document.getElementById('rulesExplainOverlay');
+  if (!overlay) return;
+
+  // Pre-select correct tab based on current election year
+  const year = parseInt(window.STATE?.currentElectionYear) || 2022;
+  let activeTarget = 'panel-epoch3'; // Default: 2022 em Diante
+  if (year <= 2016) {
+    activeTarget = 'panel-epoch1';
+  } else if (year === 2018 || year === 2020) {
+    activeTarget = 'panel-epoch2';
+  }
+
+  // Update active classes on buttons
+  const tabBtns = overlay.querySelectorAll('.rules-tab-btn');
+  tabBtns.forEach(btn => {
+    const isTarget = btn.getAttribute('data-target') === activeTarget;
+    btn.classList.toggle('active', isTarget);
+  });
+
+  // Update active classes on panels
+  const panels = overlay.querySelectorAll('.rules-tab-panel');
+  panels.forEach(panel => {
+    const isTarget = panel.id === activeTarget;
+    panel.classList.toggle('active', isTarget);
+  });
+
+  // Show overlay
+  overlay.classList.add('visible');
+};
+
+window.closeProportionalRulesModal = function() {
+  const overlay = document.getElementById('rulesExplainOverlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+  }
+};
+
+window.selectRulesTab = function(btn) {
+  const targetId = btn.getAttribute('data-target');
+  const overlay = document.getElementById('rulesExplainOverlay');
+  if (!overlay) return;
+
+  const tabBtns = overlay.querySelectorAll('.rules-tab-btn');
+  const panels = overlay.querySelectorAll('.rules-tab-panel');
+
+  tabBtns.forEach(b => b.classList.toggle('active', b === btn));
+  panels.forEach(p => p.classList.toggle('active', p.id === targetId));
+};
