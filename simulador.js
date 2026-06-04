@@ -447,6 +447,7 @@ async function initSimulador() {
     simAddCandidato('Lula', 'PT');
     simAddCandidato('Flávio Bolsonaro', 'PL');
     simAddCandidato('Renan Santos', 'MISSÃO');
+    simAddCandidato('Romeu Zema', 'NOVO');
     simAddCandidato('Ronaldo Caiado', 'PSD');
   }
 
@@ -684,6 +685,7 @@ function simRenderAlvoSelector() {
          simAddCandidato('Lula', 'PT');
          simAddCandidato('Flávio Bolsonaro', 'PL');
          simAddCandidato('Renan Santos', 'MISSÃO');
+         simAddCandidato('Romeu Zema', 'NOVO');
          simAddCandidato('Ronaldo Caiado', 'PSD');
       } else {
          SIM.modo = 'governador';
