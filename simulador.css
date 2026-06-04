@@ -8,6 +8,18 @@
   grid-template-columns: 1fr 375px;
 }
 
+/* Align panel header typography/spacing with the visualizer's section headings.
+   Scoped to .sim-app so the shared visualizer styles stay untouched. */
+.sim-app .head {
+  padding: 8px 12px;
+}
+
+.sim-app .title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+}
+
 .sim-modal {
   max-width: 900px !important;
   width: 90vw !important;
@@ -20,21 +32,27 @@
   flex-shrink: 0;
 }
 
+/* Section headings inside the config modal — match the visualizer's heading scale */
+.sim-modal h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 /* Apply button in header */
 .sim-btn-apply-small {
   padding: 3px 10px;
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: var(--accent);
   color: #fff;
   border: none;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-  transition: box-shadow .2s;
+  transition: background .15s;
 }
 
 .sim-btn-apply-small:hover {
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  background: var(--accent-hover);
 }
 
 .sim-btn-edit-small {
@@ -77,14 +95,14 @@
 }
 
 .sim-btn-apply {
-  background: linear-gradient(135deg, #10b981, #059669);
+  background: var(--accent);
   color: #fff;
   border-color: transparent;
   font-weight: 600;
 }
 
 .sim-btn-apply:hover {
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  background: var(--accent-hover);
 }
 
 /* Candidatos List */
