@@ -26,10 +26,46 @@
   max-height: 85vh !important;
   display: flex;
   flex-direction: column;
+  padding: 0;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .sim-modal-header {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sim-modal-header h3 {
+  margin: 0;
+}
+
+/* Close button sits inline in the header now (not absolutely positioned) */
+.sim-modal-header .info-close {
+  position: static;
+  top: auto;
+  right: auto;
+}
+
+/* Footer holds the primary action, anchored bottom-right */
+.sim-modal-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--card);
+}
+
+.sim-modal-footer .sim-btn-apply {
+  padding: 9px 20px;
+  font-size: 0.85rem;
 }
 
 /* Section headings inside the config modal — match the visualizer's heading scale */
@@ -69,6 +105,7 @@
 .sim-btn {
   padding: 5px 12px;
   border: 1px solid var(--border-color);
+  border-radius: 4px;
   background: var(--input-bg);
   color: var(--text);
   cursor: pointer;
@@ -119,6 +156,7 @@
   padding: 6px 8px;
   background: var(--input-bg);
   border: 1px solid var(--border-color);
+  border-radius: 4px;
   transition: border-color 0.15s;
 }
 
@@ -152,13 +190,14 @@
 .sim-cand-partido { flex: 1; min-width: 50px; }
 
 .sim-cand-remove {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--err);
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
   background: transparent;
-  color: var(--err);
+  color: var(--muted);
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -434,25 +473,26 @@
 .sim-metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;
   margin-top: 12px;
+  font-size: 0.85rem;
 }
 
 .sim-metric-item {
   background: var(--input-bg);
   border: 1px solid var(--border-color);
-  padding: 6px 8px;
+  padding: 8px 10px;
 }
 
 .sim-metric-item span {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.7rem;
   color: var(--muted);
   margin-bottom: 2px;
 }
 
 .sim-metric-item strong {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -665,4 +705,73 @@
   border-color: #10b981;
   background: rgba(16, 185, 129, 0.05);
 }
+
+/* Custom styling for vote 2022 subgroups to add title divider line */
+.sim-subgroup-voto2022 {
+  padding: 0 !important;
+}
+
+.sim-subgroup-header {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sim-subgroup-body {
+  padding: 6px 10px 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+/* Simulator tab selector buttons (occupying full sidebar width, matching turn/inaptos visualizer buttons) */
+.sim-tab-group {
+  display: flex;
+  width: 100%;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.sim-tab-group .sim-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--muted);
+  font-family: var(--font-main);
+  font-size: 0.74rem;
+  font-weight: 300;
+  padding: 6px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: normal;
+  text-align: center;
+  flex: 1;
+  border-radius: 0;
+  height: auto;
+  line-height: 1.2;
+}
+
+.sim-tab-group .sim-tab:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.sim-tab-group .sim-tab.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 500;
+}
+
+/* Stack actions in results tab vertically and occupy full width */
+#simTabResultado .sim-actions-row {
+  flex-direction: column;
+  gap: 6px;
+}
+
+#simTabResultado .sim-actions-row .sim-btn {
+  width: 100%;
+}
+
 

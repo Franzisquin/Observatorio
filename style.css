@@ -1229,6 +1229,7 @@ body {
   box-shadow: none !important;
   font-family: var(--font-main) !important;
   min-width: 280px;
+  max-width: 340px !important;
   white-space: normal !important;
   box-sizing: border-box !important;
 }
@@ -1237,6 +1238,8 @@ body {
   font-size: 15px;
   color: #1a1a1a;
   margin-bottom: 8px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 .district-nyt-table {
   width: 100%;

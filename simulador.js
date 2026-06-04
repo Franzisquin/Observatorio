@@ -472,7 +472,7 @@ async function initSimulador() {
   });
   
   // New Unified Sidebar Tab Switcher
-  document.querySelectorAll('#simPanelResults .chip-button').forEach(btn => {
+  document.querySelectorAll('#simPanelResults .sim-tab').forEach(btn => {
     btn.addEventListener('click', e => {
       const tab = e.target.dataset.tab;
       simSidebarTabSwitch(tab);
@@ -831,10 +831,10 @@ function simRenderDemoGroup() {
   const isExpanded = SIM.expandedSections.has('demo_voto2022');
 
   html += '<div style="margin-bottom: 24px;">';
-  html += `<h4 class="sim-region-header" style="margin:0 0 10px 0; border-bottom:1px solid var(--border-color); padding-bottom:6px; color:var(--text); display:flex; justify-content:space-between; align-items:center; cursor:pointer;" data-section-id="demo_voto2022">
-    <span>Transferência de votos (Eleição 2022)</span>
+  html += `<div class="sim-region-header" style="cursor:pointer;" data-section-id="demo_voto2022">
+    <h4>Transferência de votos (Eleição 2022)</h4>
     <div class="sim-section-toggle ${isExpanded ? 'open' : ''}"><span class="sim-arrow"></span></div>
-  </h4>`;
+  </div>`;
   
   html += `<div class="sim-section-content ${isExpanded ? '' : 'collapsed'}" id="section_demo_voto2022">`;
   for (const [subKey, subLabel] of Object.entries(groupVoto.subgrupos)) {
@@ -842,8 +842,11 @@ function simRenderDemoGroup() {
     const total = catEntriesVoto.reduce((s, e) => s + (subData[e.key] || 0), 0);
     const isValid = Math.abs(total - 100) < 0.5;
 
-    html += `<div class="sim-subgroup" data-cat="${catVoto}" data-sub="${subKey}">`;
-    html += `<div class="sim-subgroup-title">${subLabel}</div>`;
+    html += `<div class="sim-subgroup sim-subgroup-voto2022" data-cat="${catVoto}" data-sub="${subKey}">`;
+    html += `<div class="sim-subgroup-header">`;
+    html += `<div class="sim-subgroup-title" style="margin-bottom:0;">${subLabel}</div>`;
+    html += `</div>`;
+    html += `<div class="sim-subgroup-body">`;
     html += `<div class="sim-total-indicator ${isValid ? 'valid' : 'invalid'}">Total: ${total.toFixed(1)}%</div>`;
 
     catEntriesVoto.forEach(entry => {
@@ -859,7 +862,7 @@ function simRenderDemoGroup() {
           <span class="sim-slider-pct">%</span>
         </div>`;
     });
-    html += '</div>';
+    html += '</div></div>';
   }
   html += '</div></div>';
 
@@ -1833,7 +1836,7 @@ function simRenderMapaEstados() {
   SIM.estadosLayer = new MLCompat.GeoLayer(simMap, {
     id: 'sim-estados',
     type: 'polygon',
-    tooltipClass: 'sim-tooltip',
+    tooltipClass: 'district-nyt-tooltip',
     styleFn: (f) => {
       const sigla = f.properties.SIGLA_UF;
       const cor = simGetCorKey(simGetVencedorUF(sigla)?.key);
@@ -1856,7 +1859,7 @@ function simRenderMapaEstados() {
       return {
         fillColor: fillCol,
         fillOpacity: isFaded ? 0.3 : 0.85,
-        color: isSelected ? '#fff' : '#333',
+        color: '#ffffff',
         weight: isSelected ? 2.5 : 1,
         opacity: isFaded ? 0.3 : (isSelected ? 1 : 0.7)
       };
@@ -1865,19 +1868,53 @@ function simRenderMapaEstados() {
       const sigla = f.properties.SIGLA_UF;
       const nome = f.properties.NM_UF;
       const res = SIM.resultadosPorUF[sigla];
-      const venc = simGetVencedorUF(sigla);
 
-      let tt = `<b>${nome} (${sigla})</b>`;
-      if (venc?.key) {
-        const ks = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-        const validVotos = ks.reduce((s, k) => s + (res[k]?.votos || 0), 0);
-        const pctObj = validVotos > 0 ? ((res[venc.key]?.votos || 0) / validVotos) * 100 : 0;
-
-        const c = SIM.candidatos.find(cc => cc.id === parseInt((venc.key || '').replace('cand_', '')));
-        if (c) tt += `<br>${c.nome}: ${pctObj.toFixed(1)}%`;
-        else if (venc.key === 'outros') tt += `<br>Outros: ${pctObj.toFixed(1)}%`;
+      let rowsHtml = '';
+      let validTotal = 0;
+      if (res) {
+        const keysObj = SIM.candidatos.map(c => 'cand_' + c.id).concat(['outros']);
+        validTotal = keysObj.reduce((s, k) => s + (res[k]?.votos || 0), 0);
+        const sortedKeys = [...keysObj].sort((a, b) => (res[b]?.votos || 0) - (res[a]?.votos || 0));
+        sortedKeys.forEach(k => {
+          const v = res[k]?.votos || 0;
+          if (v <= 0) return;
+          const label = k === 'outros' ? 'Outros' : (SIM.candidatos.find(c => c.id === parseInt(k.replace('cand_', '')))?.nome || k);
+          const cor = simGetCorKey(k) || '#cccccc';
+          const pct = validTotal > 0 ? (v / validTotal) * 100 : 0;
+          rowsHtml += `
+            <tr>
+              <td style="padding: 0;">
+                <div class="district-nyt-loser-cell" style="border-left-color: ${cor};">
+                  <span style="margin-left: 6px;">${escapeHtml(label)}</span>
+                </div>
+              </td>
+              <td class="votes-cell">${fmtInt(v)}</td>
+              <td class="pct-cell">${pct.toFixed(1)}%</td>
+            </tr>`;
+        });
       }
-      return tt;
+
+      if (rowsHtml === '') {
+        rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos válidos.</td></tr>`;
+      }
+
+      return `
+        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
+          <div class="district-nyt-title">${escapeHtml(nome)}</div>
+          <table class="district-nyt-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Candidato</th>
+                <th>Votos</th>
+                <th>%</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(validTotal)}</div>
+        </div>`;
     },
     onClick: (f) => simOnClickEstado(f.properties.SIGLA_UF)
   });
@@ -1920,13 +1957,26 @@ function simRefreshSidebar() {
 }
 
 function simSidebarTabSwitch(tab) {
+  // Tab availability depends on the current level:
+  // - Brasil (sem estado selecionado): sem "Ajustar"
+  // - Estado/Município: sem "Demografia"
+  const isBrasil = !SIM.selectedUF;
+  const available = {
+    resultado: true,
+    ajustar: !isBrasil,
+    demografia: isBrasil
+  };
+  // Se a aba pedida não existe neste nível, volta para o resultado.
+  if (!available[tab]) tab = 'resultado';
   SIM.currentSidebarTab = tab;
-  
-  // Update buttons
-  document.querySelectorAll('#simPanelResults .chip-button').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.tab === tab);
+
+  // Update buttons (visibilidade + estado ativo)
+  document.querySelectorAll('#simPanelResults .sim-tab').forEach(btn => {
+    const t = btn.dataset.tab;
+    btn.style.display = available[t] ? '' : 'none';
+    btn.classList.toggle('active', t === tab);
   });
-  
+
   // Update tabs
   const tabs = {
     resultado: document.getElementById('simTabResultado'),
@@ -1956,21 +2006,7 @@ function simSidebarTabSwitch(tab) {
 }
 
 function simRenderMetricsBrasil() {
-  const total = SIM.totalBrasil;
-  const votosValidos = SIM.candidatos.reduce((s, c) => s + (total[`cand_${c.id}`]?.votos || 0), 0) + (total.outros?.votos || 0);
-  const nb = total.nuloBranco?.votos || 0;
-  const ab = total.abstencao?.votos || 0;
-
-  document.getElementById('simMetricsContainer').innerHTML = `
-    <div class="sim-metrics-grid">
-      <div class="sim-metric-item"><span>Votos Válidos</span><strong>${fmtInt(votosValidos)}</strong></div>
-      <div class="sim-metric-item"><span>Nulos/Brancos</span><strong>${fmtInt(nb)} (${fmtPct(total.nuloBranco?.pct || 0)})</strong></div>
-      <div class="sim-metric-item"><span>Abstenção</span><strong>${fmtInt(ab)} (${fmtPct(total.abstencao?.pct || 0)})</strong></div>
-      <div class="sim-metric-item"><span>Comparecimento</span><strong>${fmtPct(100 - (total.abstencao?.pct || 0))}</strong></div>
-    </div>
-    <div class="sim-actions-row">
-      <button class="sim-btn" onclick="simReaplicarBase()">Reaplicar Base</button>
-    </div>`;
+  document.getElementById('simMetricsContainer').innerHTML = simMetricsHTML(SIM.totalBrasil);
 }
 
 function simRenderDemografiaTab() {
@@ -2115,53 +2151,95 @@ function simRenderDemografiaTab() {
   });
 }
 
-function simRenderBarsInto(containerId, data) {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
+// ====== RESULTS TABLE (replicates the visualizer's cand-table exactly) ======
+function simBuildEntries(data) {
   const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
   const validVotos = validKeys.reduce((s, k) => s + (data[k]?.votos || 0), 0);
-
-  const entries = SIM.candidatos.map(c => ({
+  return SIM.candidatos.map(c => ({
     key: `cand_${c.id}`, label: c.nome || 'S/N', partido: c.partido, cor: c.cor,
     votos: data[`cand_${c.id}`]?.votos || 0,
     pct: validVotos > 0 ? ((data[`cand_${c.id}`]?.votos || 0) / validVotos) * 100 : 0
   })).concat([
     { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: data.outros?.votos || 0, pct: validVotos > 0 ? ((data.outros?.votos || 0) / validVotos) * 100 : 0 }
   ]).sort((a, b) => b.votos - a.votos);
+}
 
-  const invalidEntries = [
-    { key: 'nuloBranco', label: 'Nulos/Brancos', partido: '', cor: '#a0a0a0', votos: data.nuloBranco?.votos || 0, pct: data.nuloBranco?.pct || 0 },
-    { key: 'abstencao', label: 'Abstenção', partido: '', cor: '#555', votos: data.abstencao?.votos || 0, pct: data.abstencao?.pct || 0 }
-  ];
+function simElectedKeys(entries, runoff) {
+  const electable = entries.filter(e => e.key !== 'outros' && e.votos > 0);
+  const set = new Set();
+  if (electable.length) {
+    set.add(electable[0].key);
+    if (runoff && (electable[0].pct || 0) < 50 && electable[1]) set.add(electable[1].key);
+  }
+  return set;
+}
 
-  let html = '<div class="sim-results-bars">';
+function simBuildResultsTable(entries, electedKeys) {
+  let rows = '';
   entries.forEach(e => {
     if (e.votos <= 0 && e.key !== 'outros') return;
-    html += `
-      <div class="sim-result-row">
-        <div class="sim-result-indicator" style="background:${e.cor}"></div>
-        <div class="sim-result-name"><span>${e.label}</span>${e.partido ? `<small>${e.partido}</small>` : ''}</div>
-        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
-        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
-      </div>`;
+    const cor = e.cor;
+    const checkHtml = electedKeys.has(e.key)
+      ? `<span class="cand-check-circle" style="background-color: ${cor};">✔</span>`
+      : '';
+    rows += `
+      <tr>
+        <td class="color-bar-td">
+          <div class="cand-color-bar" style="background-color: ${cor};"></div>
+        </td>
+        <td class="align-left">
+          <div class="cand-name-container">
+            ${checkHtml}
+            <span class="cand-name-text">${escapeHtml(e.label)}</span>
+          </div>
+          ${e.partido ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(e.partido)}</div>` : ''}
+        </td>
+        <td class="align-center cand-votes-text">${fmtInt(e.votos)}</td>
+        <td class="align-center">
+          <div class="pct-bar-container">
+            <span class="pct-text">${fmtPct(e.pct)}</span>
+            <div class="cand-mini-bar-wrap">
+              <div class="cand-mini-bar" style="width: ${Math.min(e.pct, 100)}%; background-color: ${cor};"></div>
+            </div>
+          </div>
+        </td>
+      </tr>`;
   });
+  return `
+    <table class="cand-table">
+      <thead>
+        <tr>
+          <th class="color-bar-td"></th>
+          <th class="align-left">Candidato</th>
+          <th class="align-center">Votos</th>
+          <th class="align-center">Pct.</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
 
-  html += '<div style="height:1px;background:var(--border-color);margin:16px 0;"></div>';
+function simMetricsHTML(data) {
+  const valid = SIM.candidatos.reduce((s, c) => s + (data[`cand_${c.id}`]?.votos || 0), 0) + (data.outros?.votos || 0);
+  const nb = data.nuloBranco?.votos || 0;
+  const ab = data.abstencao?.votos || 0;
+  const comparecimento = valid + nb;
+  const aptos = comparecimento + ab;
+  const turnout = aptos > 0 ? (comparecimento / aptos) * 100 : 0;
+  const invalidosPct = comparecimento > 0 ? (nb / comparecimento) * 100 : 0;
+  return `
+    <div class="metrics-grid">
+      <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(valid)}</strong></div>
+      <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(comparecimento)} (${fmtPct(turnout)})</strong></div>
+      <div class="metric-item"><span>Votos inválidos</span><strong>${fmtInt(nb)} (${fmtPct(invalidosPct)})</strong></div>
+    </div>`;
+}
 
-  invalidEntries.forEach(e => {
-    if (e.votos <= 0) return;
-    html += `
-      <div class="sim-result-row" style="opacity:0.8;">
-        <div class="sim-result-indicator" style="background:${e.cor}"></div>
-        <div class="sim-result-name"><span>${e.label}</span></div>
-        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
-        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
-      </div>`;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
+function simRenderBarsInto(containerId, data) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const entries = simBuildEntries(data);
+  container.innerHTML = simBuildResultsTable(entries, simElectedKeys(entries, true));
 }
 
 // ====== CLICK ESTADO ======
@@ -2217,12 +2295,6 @@ function simVoltarNivel() {
     simRenderMapaMunicipios(SIM.selectedUF);
     simRenderEstadoResultado(SIM.selectedUF);
     simRenderAjusteTab(SIM.selectedUF, null);
-    // restore title
-    document.getElementById('simEstadoTitle').textContent = `${UF_MAP.get(SIM.selectedUF)} (${SIM.selectedUF})`;
-    document.getElementById('simEstadoSub').textContent = `${fmtInt(SIM.resultadosPorUF[SIM.selectedUF]?._totalEleitores)} eleitores`;
-    if (SIM.overridesPorUF[SIM.selectedUF]) {
-      document.getElementById('simEstadoSub').textContent += ' • Editado manualmente';
-    }
     simAtualizarBtnVoltar();
   // vindo de municípios → volta para Brasil
   } else if (SIM.selectedUF) {
@@ -2337,7 +2409,7 @@ async function simRenderMapaMunicipios(uf) {
       }
 
       return `
-        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #333333; min-width: 250px;">
+        <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
           <div class="district-nyt-title">${escapeHtml(nome)}</div>
           <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">${escapeHtml(UF_MAP.get(uf) || uf)}</div>
           <table class="district-nyt-table">
@@ -2396,6 +2468,7 @@ function simRenderEstadoResultado(sigla) {
   const res = SIM.resultadosPorUF[sigla];
   if (!res) return;
 
+  document.getElementById('simPanelAreaTitle').textContent = `${UF_MAP.get(sigla)} (${sigla})`;
   document.getElementById('simPanelAreaSub').textContent = `${fmtInt(res._totalEleitores)} eleitores`;
   if (SIM.overridesPorUF[sigla]) {
     document.getElementById('simPanelAreaSub').textContent += ' • Editado manualmente';
@@ -2405,49 +2478,11 @@ function simRenderEstadoResultado(sigla) {
 }
 
 function simRenderBarsGenericInto(container, res) {
-  const validKeys = SIM.candidatos.map(c => `cand_${c.id}`).concat(['outros']);
-  const validVotos = validKeys.reduce((s, k) => s + (res[k]?.votos || 0), 0);
-
-  const entries = SIM.candidatos.map(c => ({
-    key: `cand_${c.id}`, label: c.nome || 'S/N', partido: c.partido, cor: c.cor,
-    votos: res[`cand_${c.id}`]?.votos || 0, 
-    pct: validVotos > 0 ? ((res[`cand_${c.id}`]?.votos || 0) / validVotos) * 100 : 0
-  })).concat([
-    { key: 'outros', label: 'Outros', partido: '', cor: '#7a8699', votos: res.outros?.votos || 0, pct: validVotos > 0 ? ((res.outros?.votos || 0) / validVotos) * 100 : 0 }
-  ]).sort((a, b) => b.votos - a.votos);
-
-  const invalidEntries = [
-    { key: 'nuloBranco', label: 'Nulos/Brancos', partido: '', cor: '#a0a0a0', votos: res.nuloBranco?.votos || 0, pct: res.nuloBranco?.pct || 0 },
-    { key: 'abstencao', label: 'Abstenção', partido: '', cor: '#555', votos: res.abstencao?.votos || 0, pct: res.abstencao?.pct || 0 }
-  ];
-
-  let html = '<div class="sim-results-bars">';
-  entries.forEach(e => {
-    if (e.votos <= 0 && e.key !== 'outros') return;
-    html += `
-      <div class="sim-result-row">
-        <div class="sim-result-indicator" style="background:${e.cor}"></div>
-        <div class="sim-result-name"><span>${e.label}</span>${e.partido ? `<small>${e.partido}</small>` : ''}</div>
-        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
-        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
-      </div>`;
-  });
-
-  html += '<div style="height:1px;background:var(--border-color);margin:16px 0;"></div>';
-
-  invalidEntries.forEach(e => {
-    if (e.votos <= 0) return;
-    html += `
-      <div class="sim-result-row" style="opacity:0.8;">
-        <div class="sim-result-indicator" style="background:${e.cor}"></div>
-        <div class="sim-result-name"><span>${e.label}</span></div>
-        <div class="sim-result-bar-wrap"><div class="sim-result-bar" style="width:${Math.min(e.pct,100)}%;background:${e.cor};"></div></div>
-        <div class="sim-result-numbers"><span class="sim-result-votos">${fmtInt(e.votos)}</span><span class="sim-result-pct">${fmtPct(e.pct)}</span></div>
-      </div>`;
-  });
-
-  html += '</div>';
-  container.innerHTML = html;
+  if (!container) return;
+  const entries = simBuildEntries(res);
+  container.innerHTML = simBuildResultsTable(entries, simElectedKeys(entries, false));
+  const metrics = document.getElementById('simMetricsContainer');
+  if (metrics) metrics.innerHTML = simMetricsHTML(res);
 }
 
 // ====== AJUSTE CONTEXTUAL (ESTADO OU MUNICÍPIO) ======

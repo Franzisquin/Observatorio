@@ -79,20 +79,22 @@
               <small id="simPanelAreaSub" style="color:var(--muted);"></small>
             </div>
             <div style="display:flex; gap:8px; align-items:center;">
-              <button class="sim-btn sim-btn-edit-small" id="btnEditSimGlobal" title="Editar simulação">Candidatos</button>
               <button class="sim-btn" id="btnVoltar" title="Voltar" style="display:none">← Voltar</button>
             </div>
           </div>
 
-          <div class="chip-group" style="margin-bottom:12px;">
-            <button class="chip-button active" data-tab="resultado">Resultado</button>
-            <button class="chip-button" data-tab="ajustar">Ajustar</button>
-            <button class="chip-button" data-tab="demografia">Demografia</button>
+          <div class="sim-tab-group" style="margin-bottom:12px;">
+            <button class="sim-tab active" data-tab="resultado">Resultado</button>
+            <button class="sim-tab" data-tab="ajustar">Ajustar</button>
+            <button class="sim-tab" data-tab="demografia">Demografia</button>
           </div>
 
           <div id="simTabResultado" class="sim-sidebar-tab">
             <div id="simBarsContainer"></div>
             <div id="simMetricsContainer" class="footer" style="margin-top:12px;"></div>
+            <div class="sim-actions-row">
+              <button class="sim-btn" id="btnEditSimGlobal">Editar simulação</button>
+            </div>
           </div>
           
           <div id="simTabAjustar" class="sim-sidebar-tab" style="display:none;">
@@ -114,11 +116,10 @@
       <div class="sim-modal-header">
         <h3>Configuração da Simulação</h3>
         <div class="sim-modal-actions">
-          <button class="sim-btn sim-btn-apply" id="btnAplicarSimModal">Aplicar Simulação</button>
           <button class="info-close" id="btnCloseConfigModal">✕</button>
         </div>
       </div>
-      <div id="simModalContent" style="display:flex; flex-direction:row; height:100%; overflow:hidden;">
+      <div id="simModalContent" style="display:flex; flex-direction:row; flex:1 1 auto; min-height:0; overflow:hidden;">
         <!-- Left half: Candidatos -->
         <div style="flex:1; border-right:1px solid var(--border-color); overflow-y:auto; padding:16px;">
           <h4 style="margin-top:0;margin-bottom:12px;">Candidatos</h4>
@@ -130,6 +131,9 @@
         <div style="flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:24px;">
           <div id="simDemoContent"></div>
         </div>
+      </div>
+      <div class="sim-modal-footer">
+        <button class="sim-btn sim-btn-apply" id="btnAplicarSimModal">Aplicar Simulação</button>
       </div>
     </div>
   </div>
