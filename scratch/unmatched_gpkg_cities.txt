@@ -1,0 +1,16 @@
+
+==========================================
+Analyzing 2002 GPKG: c:\mapas\Observatorio\resultados_geo\locais_votacao_2002_gkpg.zip
+==========================================
+Reading from table: locais_votacao_2002_padronizado
+Found 2 unmatched cities in 2002 GPKG:
+  UF: DF | GPKG Name: 'BRASÍLIA' | Candidates: []
+  UF: PE | GPKG Name: 'FERNANDO DE NORONHA' | Candidates: []
+
+==========================================
+Analyzing 2006 GPKG: c:\mapas\Observatorio\resultados_geo\locais_votacao_2006_gkpg.zip
+==========================================
+Reading from table: locais_votacao_2006_padronizado
+Found 2 unmatched cities in 2006 GPKG:
+  UF: DF | GPKG Name: 'BRASÍLIA' | Candidates: []
+  UF: PE | GPKG Name: 'FERNANDO DE NORONHA' | Candidates: []
