@@ -1609,6 +1609,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
         muniCode: String(getMunicipalityFeatureCode(props) || '').trim(),
         votes: {},
         groupParties: {},
+        rawVotes: {},
         totalValid: 0
       };
       grouped.set(cityName, entry);
@@ -1639,6 +1640,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
         const v = ensureNumber(count);
         if (v <= 0) return;
+
+        entry.rawVotes[candId] = (entry.rawVotes[candId] || 0) + v;
 
         const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
         const groupKey = groupInfo.key;
@@ -1736,7 +1739,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       turno: turnoKey,
       turnoLabel,
       votes: entry.votes,
-      rawTotals: entry.votes,
+      rawTotals: entry.rawVotes || entry.votes,
       isDetailed: true
     };
     if (entry.muniCode) summary[entry.muniCode] = summaryEntry;
@@ -3478,7 +3481,7 @@ function showOfficialCityResultPanel(entry, cityName) {
   if (isProportional && rawVotes) {
     const isVereador = currentCargo.startsWith('vereador');
     const typeKey = isVereador ? 'v' : (currentCargo === 'deputado_federal' ? 'f' : 'e');
-    const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
+    const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {});
     const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
 
     const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[currentCargo]?.['1T'] || []);
@@ -3680,6 +3683,10 @@ function showOfficialCityResultPanel(entry, cityName) {
 function syncResultsPanelToCurrentView() {
   if (!currentDataCollection[currentCargo]) return;
 
+  if (currentCargo.startsWith('deputado') && typeof syncDeputyDataForCargo === 'function') {
+    syncDeputyDataForCargo(currentCargo);
+  }
+
   if (selectedLocationIDs.size > 0) {
     updateSelectionUI(STATE.isFilterAggregationActive);
     return;
@@ -3712,8 +3719,8 @@ function syncResultsPanelToCurrentView() {
     if (!entry && String(currentCargo).startsWith('deputado')) {
       const isEstadual = currentCargo === 'deputado_estadual';
       const typeKey = isEstadual ? 'e' : 'f';
-      const metaStore = isEstadual ? STATE.deputyMetadataByType?.[typeKey] : STATE.deputyMetadataByType?.[typeKey];
-      const prefixCache = STATE._partyPrefixCache;
+      const metaStore = STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {};
+      const prefixCache = STATE._partyPrefixCache || {};
       const aliases = typeof getMunicipioAliasSlugs === 'function'
         ? getMunicipioAliasSlugs(currentCidadeFilter)
         : [normalizeMunicipioSlug(currentCidadeFilter)];
@@ -3760,7 +3767,7 @@ function syncResultsPanelToCurrentView() {
                 if (vNum <= 0) return;
                 rawVotesConsolidated[candId] = (rawVotesConsolidated[candId] || 0) + vNum;
                 if (candId === '95' || candId === '96') return;
-                const groupInfo = resolveProportionalGroupInfo(candId, STATE.deputyMetadata || metaStore, prefixCache);
+                const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
                 groupVotes[groupInfo.key] = (groupVotes[groupInfo.key] || 0) + vNum;
                 totalValid += vNum;
               });
