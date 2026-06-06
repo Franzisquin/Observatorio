@@ -40,6 +40,25 @@ async function getMuniNameMap2002(uf) {
       }
     }
     stmt.free();
+
+    // Municípios ausentes do GPKG 2002 (sem local geocodificado) ficam fora
+    // do mapa e seus votos são descartados em buildGeneralCityTotals2002.
+    // O censo 2006 cobre esses municípios com local_key={zona}_{cdMuni}_{local}
+    // e os códigos TSE são estáveis entre eleições — seguro usar 2006 para 2002.
+    // loadCensoJson2006 usa CENSO_2006_CACHE: custo de rede zero quando
+    // loadGeneralStateBaseFromGpkg2006 já iniciou o download em paralelo.
+    try {
+      const censusJson = await loadCensoJson2006(ufNorm);
+      Object.entries(censusJson?.RESULTS || {}).forEach(([fallbackKey, row]) => {
+        const localKey = String(row?.local_key || row?.ID_UNICO || fallbackKey || '');
+        const parts = localKey.split('_');
+        if (parts.length < 3) return;
+        const cdMuni = parts[1];
+        const cityName = String(row?.nm_localidade || '').trim();
+        if (cdMuni && cityName && !map.has(cdMuni)) map.set(cdMuni, cityName);
+      });
+    } catch (_) { /* censo indisponível, prossegue sem suplemento */ }
+
     return map;
   })();
 
@@ -409,6 +428,7 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
       STATE.generalOfficialTotals = {};
       STATE.generalOfficialTotalsByCity = {};
+      STATE.deputyCityTotals = {};
       uniqueCidades.clear();
       uniqueBairros.clear();
 
@@ -464,6 +484,24 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       if (precomputedTotals) {
         if (!STATE.precomputedProportionalStateTotals) STATE.precomputedProportionalStateTotals = {};
         STATE.precomputedProportionalStateTotals[cargoKey] = precomputedTotals;
+      } else {
+        // Build city-level vote totals from JSON (covers municipalities with no GPKG dot)
+        const muniNameMap = await getMuniNameMap2002(uf).catch(() => new Map());
+        const rawCityTotals = new Map();
+        Object.entries(results).forEach(([locId, voteMap]) => {
+          const parts = locId.split('_');
+          if (parts.length < 3) return;
+          const cdMuni = parts[1];
+          const cityName = muniNameMap.get(cdMuni);
+          if (!cityName) return;
+          let cityVotes = rawCityTotals.get(cityName);
+          if (!cityVotes) { cityVotes = {}; rawCityTotals.set(cityName, cityVotes); }
+          Object.entries(voteMap || {}).forEach(([cid, v]) => {
+            cityVotes[cid] = (cityVotes[cid] || 0) + ensureNumber(v);
+          });
+        });
+        if (!STATE.deputyCityTotals) STATE.deputyCityTotals = {};
+        STATE.deputyCityTotals[cargoKey] = rawCityTotals;
       }
 
       loadedDeputyState.types.add(typeKey);

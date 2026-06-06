@@ -1,4 +1,4 @@
-﻿{
+{
   "AC": [
     "ACRELÂNDIA",
     "ASSIS BRASIL",
@@ -2871,6 +2871,7 @@
     "ESCADA",
     "EXU",
     "FEIRA NOVA",
+    "FERNANDO DE NORONHA",
     "FERREIROS",
     "FLORES",
     "FLORESTA",
@@ -5619,6 +5620,8 @@
     "TUPIRATINS",
     "WANDERLÂNDIA",
     "XAMBIOÁ"
+  ],
+  "DF": [
+    "BRASÍLIA"
   ]
 }
-

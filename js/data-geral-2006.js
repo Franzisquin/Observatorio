@@ -368,6 +368,28 @@ async function loadMajoritariaCargo2006(cargo, uf) {
     applyGeneralMajoritariaJsonToGeojson2006(geojson, mergedTurno2, '2T');
   }
 
+  // Build muniNameMap from census-enriched base geo (cached, no extra network cost).
+  // Features with census match have local_key = {zona}_{cdMuni}_{local}.
+  // Also use matched dots (id_unico = result key) to maximize coverage.
+  const baseGeos = await Promise.all(ufs.map((s) => loadGeneralStateBaseFromGpkg2006(s).catch(() => null)));
+  const muniNameMap = new Map();
+  baseGeos.forEach((baseGeo) => {
+    (baseGeo?.features || []).forEach((f) => {
+      const props = f.properties || {};
+      const localKey = String(props.local_key || '');
+      const cdMuni = extractMunicipioCodeFromGeneralResultKey(localKey);
+      const cityName = String(props.nm_localidade || '').trim();
+      if (cdMuni && cityName && !muniNameMap.has(cdMuni)) muniNameMap.set(cdMuni, cityName);
+    });
+  });
+  geojson.features.forEach((f) => {
+    const props = f.properties || {};
+    const idUnico = String(props.id_unico || '');
+    const cdMuni = extractMunicipioCodeFromGeneralResultKey(idUnico);
+    const cityName = String(props.nm_localidade || '').trim();
+    if (cdMuni && cityName && !muniNameMap.has(cdMuni)) muniNameMap.set(cdMuni, cityName);
+  });
+
   return {
     geojson,
     officialTotals: {
@@ -375,8 +397,8 @@ async function loadMajoritariaCargo2006(cargo, uf) {
       ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummary(mergedTurno2, '2T') } : {})
     },
     officialCityTotals: {
-      '1T': buildGeneralOfficialSummariesByCity(mergedTurno1, '1T', geojson),
-      ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummariesByCity(mergedTurno2, '2T', geojson) } : {})
+      '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
+      ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
     }
   };
 }

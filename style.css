@@ -2466,6 +2466,10 @@ input:disabled {
   max-width: 200px;
 }
 
+#resultsBox:not(.section-hidden) ~ #resultsEmpty {
+  display: none;
+}
+
 /* MAP OVERLAY CONTROLS */
 .map-overlay-controls {
   position: absolute;
