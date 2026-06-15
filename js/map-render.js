@@ -613,9 +613,16 @@ function getCurrentMunicipalMapSelection() {
 function isSelectedMunicipalFeature(props, selection = getCurrentMunicipalMapSelection()) {
   if (!props || !selection) return false;
 
-  const featureSlug = normalizeMunicipioSlug(getMunicipalityFeatureName(props));
+  const featureName = getMunicipalityFeatureName(props);
+  if (selection.name && featureName) {
+    if (typeof matchesMunicipioName === 'function') {
+      if (matchesMunicipioName(selection.name, featureName)) return true;
+    }
+  }
+
+  const featureSlug = normalizeMunicipioSlug(featureName);
   if (selection.slug && featureSlug) {
-    return featureSlug === selection.slug;
+    if (featureSlug === selection.slug) return true;
   }
 
   const featureCode = getMunicipalityFeatureCode(props);
@@ -1425,12 +1432,156 @@ function getActiveTurnoKeyForCurrentCargo(cargoKey = currentCargo) {
   return (currentTurno === 2 && STATE.dataHas2T[cargoKey]) ? '2T' : '1T';
 }
 
+function buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey) {
+  const metaStore = STATE.deputyMetadata || {};
+  const prefixCache = STATE._partyPrefixCache;
+  const inaptosTurno = STATE.inaptos?.[cargoKey]?.[turnoKey] || [];
+  const turnoLabel = turnoKey === '2T' ? '2º Turno' : '1º Turno';
+  const summary = {};
+
+  rawCityTotals.forEach((rawVotes, cityName) => {
+    const groupVotes = {};
+    let totalValid = 0;
+
+    Object.entries(rawVotes).forEach(([candId, votes]) => {
+      if (candId === '95' || candId === '96') return;
+      if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
+      const v = ensureNumber(votes);
+      if (v <= 0) return;
+      const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+      groupVotes[groupInfo.key] = (groupVotes[groupInfo.key] || 0) + v;
+      totalValid += v;
+    });
+
+    if (totalValid <= 0) return;
+
+    const orderedGroups = Object.entries(groupVotes)
+      .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
+    if (!orderedGroups.length) return;
+
+    const [winnerKey, winnerVotesRaw] = orderedGroups[0];
+    const [, secondVotesRaw] = orderedGroups[1] || [null, 0];
+    const winnerVotes = ensureNumber(winnerVotesRaw);
+    const secondVotes = ensureNumber(secondVotesRaw);
+
+    const winnerParts = winnerKey.split(':');
+    const winnerType = winnerParts[0];
+    const idOrComp = winnerParts[1];
+    let winnerName = idOrComp;
+    let winnerParty = '';
+    let winnerColorParty = '';
+
+    if (winnerType === 'party') {
+      winnerName = idOrComp;
+      winnerParty = idOrComp;
+      winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, winnerParty);
+    } else {
+      const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
+      const found = groupedInfo.get(idOrComp)
+        || Array.from(groupedInfo.values()).find(info => info.key === winnerKey);
+      winnerName = found ? found.name : idOrComp;
+      winnerParty = found ? found.composition : idOrComp;
+      winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, '');
+    }
+
+    const slug = normalizeMunicipioSlug(cityName);
+    summary[slug] = {
+      nome: cityName,
+      muniCode: '',
+      winnerCode: winnerKey,
+      winnerName,
+      winnerParty,
+      winnerColorParty: winnerColorParty || winnerParty,
+      totalValid,
+      margin: totalValid > 0 ? ((winnerVotes - secondVotes) / totalValid) * 100 : 0,
+      winnerPct: totalValid > 0 ? (winnerVotes / totalValid) * 100 : 0,
+      turno: turnoKey,
+      turnoLabel,
+      votes: groupVotes,
+      rawTotals: rawVotes,
+      isDetailed: false
+    };
+  });
+
+  return summary;
+}
+
+function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
+  const turnoLabel = (turnoKey === '2T') ? '2º Turno' : '1º Turno';
+  const summary = {};
+  const seen = new Set();
+
+  Object.entries(officialCityTotals || {}).forEach(([cityKey, cityData]) => {
+    if (!cityData?.votesByDisplayKey) return;
+    const slug = normalizeMunicipioSlug(cityKey);
+    if (seen.has(slug)) return;
+    seen.add(slug);
+
+    const votes = cityData.votesByDisplayKey;
+    const totalValid = ensureNumber(cityData.totalValidos) || 0;
+    if (totalValid <= 0) return;
+
+    const orderedVotes = Object.entries(votes)
+      .filter(([, v]) => ensureNumber(v) > 0)
+      .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
+    if (!orderedVotes.length) return;
+
+    const [winnerKey, winnerVotesRaw] = orderedVotes[0];
+    const [, secondVotesRaw] = orderedVotes[1] || [null, 0];
+    const winnerVotes = ensureNumber(winnerVotesRaw);
+    const secondVotes = ensureNumber(secondVotesRaw);
+
+    const winnerInfo = typeof parseCandidateKey === 'function'
+      ? parseCandidateKey(winnerKey)
+      : { nome: winnerKey, partido: '' };
+    const winnerName = winnerInfo.nome || 'N/D';
+    const winnerParty = winnerInfo.partido || '';
+
+    summary[slug] = {
+      nome: cityKey,
+      muniCode: '',
+      winnerCode: winnerKey,
+      winnerName,
+      winnerParty,
+      winnerColorParty: winnerParty,
+      totalValid,
+      margin: totalValid > 0 ? ((winnerVotes - secondVotes) / totalValid) * 100 : 0,
+      winnerPct: totalValid > 0 ? (winnerVotes / totalValid) * 100 : 0,
+      turno: turnoKey,
+      turnoLabel,
+      votes,
+      rawTotals: cityData.rawTotals || {},
+      isDetailed: false
+    };
+  });
+
+  return summary;
+}
+
 function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   const precomputedSummary = typeof getPrecomputedMunicipalOverviewSummary === 'function'
     ? getPrecomputedMunicipalOverviewSummary(cargoKey)
     : null;
   if (precomputedSummary) {
     return precomputedSummary;
+  }
+
+  // For 2002/2006, use JSON-based official city totals (dot coverage is too sparse)
+  const year = String(STATE.currentElectionYear);
+  if (year === '2002' || year === '2006') {
+    const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+    const officialCityTotals = STATE.generalOfficialTotalsByCity?.[cargoKey]?.[turnoKey];
+    if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
+      return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
+    }
+    // For deputado 2002: use pre-built raw city totals resolved to groups at render time
+    if (year === '2002' && cargoKey.startsWith('deputado')) {
+      if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
+      const rawCityTotals = STATE.deputyCityTotals?.[cargoKey];
+      if (rawCityTotals?.size > 0) {
+        return buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey);
+      }
+    }
   }
 
   if (cargoKey.startsWith('deputado') && typeof syncDeputyDataForCargo === 'function') {
@@ -1458,6 +1609,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
         muniCode: String(getMunicipalityFeatureCode(props) || '').trim(),
         votes: {},
         groupParties: {},
+        rawVotes: {},
         totalValid: 0
       };
       grouped.set(cityName, entry);
@@ -1488,6 +1640,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
         const v = ensureNumber(count);
         if (v <= 0) return;
+
+        entry.rawVotes[candId] = (entry.rawVotes[candId] || 0) + v;
 
         const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
         const groupKey = groupInfo.key;
@@ -1585,7 +1739,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       turno: turnoKey,
       turnoLabel,
       votes: entry.votes,
-      rawTotals: entry.votes,
+      rawTotals: entry.rawVotes || entry.votes,
       isDetailed: true
     };
     if (entry.muniCode) summary[entry.muniCode] = summaryEntry;
@@ -2084,12 +2238,15 @@ function applyFiltersAndRedraw() {
     precomputeVereadorWinners();
   }
 
+  const isSpecialYearGeral = STATE.currentElectionType === 'geral' &&
+    (String(STATE.currentElectionYear) === '2002' || String(STATE.currentElectionYear) === '2006');
+
   const keepMunicipalOverviewVisible =
     !!STATE.municipiosLayer
     && map.hasLayer(STATE.municipiosLayer)
     && (
       (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value)
-      || (STATE.currentElectionType === 'geral' && !!STATE.currentMapMuniUF && currentCidadeFilter !== 'all')
+      || (STATE.currentElectionType === 'geral' && !!STATE.currentMapMuniUF && (currentCidadeFilter !== 'all' || isSpecialYearGeral))
     );
 
   if (!keepMunicipalOverviewVisible && STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
@@ -2101,6 +2258,34 @@ function applyFiltersAndRedraw() {
   if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.add('active');
 
   const visibleFeatures = (geojson.features || []).filter(filterFeature);
+
+  if (isSpecialYearGeral) {
+    if (currentCidadeFilter === 'all' || !STATE.munisWithDots) {
+      STATE.munisWithDots = new Set();
+      (geojson.features || []).forEach(f => {
+        if (f.geometry && f.geometry.type) {
+          const nm = String(f.properties?.nm_localidade || '').trim();
+          if (nm) STATE.munisWithDots.add(normalizeMunicipioSlug(nm));
+        }
+      });
+    }
+  } else {
+    STATE.munisWithDots = null;
+  }
+
+  let hasRealDots = false;
+  if (isSpecialYearGeral && STATE.munisWithDots) {
+    const selectedMuniName = getCurrentMunicipalMapSelection()?.name || currentCidadeFilter;
+    if (selectedMuniName && selectedMuniName !== 'all') {
+      const aliases = typeof getMunicipioAliasSlugs === 'function'
+        ? getMunicipioAliasSlugs(selectedMuniName)
+        : [normalizeMunicipioSlug(selectedMuniName)];
+      hasRealDots = aliases.some(alias => STATE.munisWithDots.has(alias));
+    }
+  } else {
+    hasRealDots = visibleFeatures.some(f => f.geometry !== null && f.geometry !== undefined);
+  }
+  STATE.currentCityHasNoDots = keepMunicipalOverviewVisible && !hasRealDots;
 
   currentLayer = new MLCompat.GeoLayer(map, {
     id: 'locais',
@@ -3030,6 +3215,27 @@ function getMunicipalPolygonStyle(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const selectedMunicipality = getCurrentMunicipalMapSelection();
   const isSelected = isSelectedMunicipalFeature(feature?.properties, selectedMunicipality);
+
+  // 2002/2006 locais mode:
+  if (STATE.currentMapMode === 'locais' && STATE.munisWithDots) {
+    // Se a visualização for do estado inteiro no modo locais (nenhum município selecionado),
+    // toda a malha municipal do estado deve ficar transparente (fillOpacity: 0.02).
+    if (!selectedMunicipality) {
+      return {
+        fillColor: DEFAULT_SWATCH,
+        fillOpacity: 0.02,
+        color: '#ffffff',
+        weight: 0.3,
+        opacity: 0.3,
+        height: 0
+      };
+    }
+    // Caso contrário (um município específico está selecionado), não aplicamos a transparência
+    // geral aqui. Deixamos o fluxo seguir normalmente, o que significa que o selecionado
+    // ficará destacado e transparente (ou colorido se não tiver pontos) e os outros municípios
+    // ficarão visíveis e coloridos normalmente, seguindo o padrão de 2010 a 2022.
+  }
+
   if (!result) {
     const emptyStyle = {
       fillColor: DEFAULT_SWATCH,
@@ -3042,6 +3248,7 @@ function getMunicipalPolygonStyle(feature, summary) {
     if (!selectedMunicipality) return emptyStyle;
 
     if (isSelected) {
+      if (STATE.currentCityHasNoDots) return emptyStyle;
       return {
         ...emptyStyle,
         fillOpacity: 0.06,
@@ -3155,6 +3362,14 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   if (isSelected) {
+    if (STATE.currentCityHasNoDots) {
+      return {
+        ...baseStyle,
+        color: 'rgba(255, 255, 255, 0.96)',
+        weight: 2.4,
+        opacity: 1
+      };
+    }
     return {
       ...baseStyle,
       fillOpacity: 0.02,
@@ -3454,16 +3669,332 @@ function focusCurrentLayerOnMap(options = {}) {
   });
 }
 
+function showOfficialCityResultPanel(entry, cityName) {
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.resultsTitle.textContent = toTitleCase(cityName);
+  dom.resultsSubtitle.textContent = 'Resultado oficial • sem locais cadastrados';
+  if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
+  dom.summaryGrid.innerHTML = '';
+
+  const isProportional = typeof currentCargo === 'string' && (currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador'));
+  const rawVotes = entry.rawTotals || entry.rawVotes;
+  if (isProportional && rawVotes) {
+    const isVereador = currentCargo.startsWith('vereador');
+    const typeKey = isVereador ? 'v' : (currentCargo === 'deputado_federal' ? 'f' : 'e');
+    const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {});
+    const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
+
+    const inaptos = isVereador ? (STATE.inaptos['vereador_ord']?.['1T'] || []) : (STATE.inaptos[currentCargo]?.['1T'] || []);
+    const inaptosSet = STATE.filterInaptos ? new Set(inaptos) : null;
+    const groups = new Map();
+    let totalVotes = 0;
+    let brancos = 0;
+    let nulos = 0;
+
+    Object.entries(rawVotes || {}).forEach(([candidateId, rawVotesVal]) => {
+      const votes = ensureNumber(rawVotesVal);
+      if (candidateId === '95') {
+        brancos += votes;
+        return;
+      }
+      if (candidateId === '96') {
+        nulos += votes;
+        return;
+      }
+      if (inaptosSet && inaptosSet.has(candidateId)) return;
+
+      totalVotes += votes;
+      const groupInfo = resolveProportionalGroupInfo(candidateId, metaStore, prefixCache);
+      const group = groups.get(groupInfo.key) || {
+        ...groupInfo,
+        votes: 0,
+        dominantParties: new Map(),
+        candidates: new Map()
+      };
+
+      group.votes += votes;
+      group.dominantParties.set(groupInfo.party, (group.dominantParties.get(groupInfo.party) || 0) + votes);
+
+      if (String(candidateId).length > 2) {
+        const metadata = metaStore[candidateId] || [];
+        const candidate = group.candidates.get(candidateId) || {
+          id: candidateId,
+          nome: metadata[0] || candidateId,
+          partido: groupInfo.party,
+          status: metadata[2] || '',
+          votos: 0
+        };
+        candidate.votos += votes;
+        group.candidates.set(candidateId, candidate);
+      }
+
+      groups.set(groupInfo.key, group);
+    });
+
+    const groupsPayload = {
+      groups: Array.from(groups.values()),
+      totalVotes,
+      brancos,
+      nulos,
+      comparecimento: totalVotes + brancos + nulos
+    };
+
+    const turnoutStats = getTurnoutStatsForSelection(null, currentCargo, '1T', groupsPayload.comparecimento);
+    dom.resultsSubtitle.textContent = `${(groupsPayload.groups || []).length} listas classificadas`;
+
+    if (typeof window.renderProportionalExpandableList === 'function') {
+      window.renderProportionalExpandableList(groupsPayload, {
+        extraMetrics: '',
+        comparecimento: groupsPayload.comparecimento,
+        brancos: groupsPayload.brancos,
+        nulos: groupsPayload.nulos,
+        ratio: turnoutStats.ratio
+      });
+    }
+    updateNeighborhoodProfileUI();
+    return;
+  }
+
+  const totalValid = entry.totalValid || 0;
+  const sortedVotes = Object.entries(entry.votes || {})
+    .filter(([, v]) => ensureNumber(v) > 0)
+    .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]))
+    .slice(0, 15);
+
+  if (!sortedVotes.length) {
+    dom.resultsContent.innerHTML =
+      '<div style="text-align:center;padding:20px;color:var(--muted)">Sem dados disponíveis.</div>';
+    dom.resultsMetrics.innerHTML = '';
+    updateNeighborhoodProfileUI();
+    return;
+  }
+
+  const formatPct = (val) => {
+    if (typeof fmtPct === 'function') return fmtPct(val);
+    return (val * 100).toFixed(2) + '%';
+  };
+
+  const tableRows = sortedVotes.map(([key, votesRaw]) => {
+    const votes = ensureNumber(votesRaw);
+    const pctVal = totalValid > 0 ? (votes / totalValid) : 0;
+    
+    let name = key;
+    let party = '';
+    let status = '';
+    let isSpecial = false;
+    
+    const match = key.match(/^(.*?)\s*\(([^)]+)\)\s*\(([^)]+)\)(?:\s*(\d+T))?$/);
+    if (match) {
+      name = match[1].trim();
+      party = match[2].trim();
+      status = match[3].trim().toUpperCase();
+      isSpecial = status === 'ELEITO' || status === '2° TURNO' || status === '2º TURNO';
+    } else {
+      let cleanedKey = key.replace(/^(group:|party:)/, '').replace(/_/g, ' ').trim();
+      name = cleanedKey;
+      party = cleanedKey;
+    }
+    
+    const sw = getColorForCandidate(name, party) || (typeof DEFAULT_SWATCH !== 'undefined' ? DEFAULT_SWATCH : '#888888');
+    const checkCircleHtml = isSpecial
+      ? `<span class="cand-check-circle" style="background-color: ${sw};">✔</span>`
+      : '';
+
+    const nameHtml = `
+      <div class="cand-name-container">
+        ${checkCircleHtml}
+        <span class="cand-name-text">${escapeHtml(toTitleCase(name))}</span>
+      </div>
+    `;
+
+    return `
+      <tr>
+        <td class="color-bar-td">
+          <button type="button" class="swatch-button cand-color-bar"
+               style="background-color: ${sw};"
+               data-candidate-name="${escapeHtml(name)}"
+               data-candidate-party="${escapeHtml(party)}"
+               data-current-color="${sw}"
+               title="Cor do candidato"></button>
+        </td>
+        <td class="align-left">
+          ${nameHtml}
+          ${party ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(party.toUpperCase())}</div>` : ''}
+        </td>
+        <td class="align-center cand-votes-text">
+          ${fmtInt(votes)}
+        </td>
+        <td class="align-center">
+          <div class="pct-bar-container">
+            <span class="pct-text">${formatPct(pctVal)}</span>
+            <div class="cand-mini-bar-wrap">
+              <div class="cand-mini-bar" style="width: ${pctVal * 100}%; background-color: ${sw};"></div>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  dom.resultsContent.innerHTML = `
+    <table class="cand-table">
+      <thead>
+        <tr>
+          <th class="color-bar-td"></th>
+          <th class="align-left">Candidato</th>
+          <th class="align-center">Votos</th>
+          <th class="align-center">Pct.</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRows}
+      </tbody>
+    </table>
+  `;
+
+  // Estatísticas extras
+  const rawTotals = entry.rawTotals || {};
+  const brancos = ensureNumber(rawTotals['95']) || 0;
+  const nulos = ensureNumber(rawTotals['96']) || 0;
+  const invalidos = brancos + nulos;
+  const comparecimento = totalValid + invalidos;
+  const invalidosPct = comparecimento > 0 ? (invalidos / comparecimento) : 0;
+
+  dom.resultsMetrics.innerHTML = `
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <span>Votos válidos</span>
+        <strong>${fmtInt(totalValid)}</strong>
+      </div>
+      <div class="metric-item">
+        <span>Comparecimento</span>
+        <strong>${fmtInt(comparecimento)}</strong>
+      </div>
+      <div class="metric-item">
+        <span>Votos inválidos</span>
+        <strong>${fmtInt(invalidos)} (${formatPct(invalidosPct)})</strong>
+      </div>
+    </div>
+  `;
+
+  updateNeighborhoodProfileUI();
+}
+
 function syncResultsPanelToCurrentView() {
   if (!currentDataCollection[currentCargo]) return;
+
+  if (currentCargo.startsWith('deputado') && typeof syncDeputyDataForCargo === 'function') {
+    syncDeputyDataForCargo(currentCargo);
+  }
 
   if (selectedLocationIDs.size > 0) {
     updateSelectionUI(STATE.isFilterAggregationActive);
     return;
   }
 
+  // Para eleições gerais de 2002 e 2006, se um município estiver selecionado,
+  // nós SEMPRE devemos exibir o resultado consolidado oficial do município (totals do JSON),
+  // e nunca a soma parcial dos locais de votação geocodificados.
+  const year = String(STATE.currentElectionYear);
+  if ((year === '2002' || year === '2006') &&
+      currentCidadeFilter !== 'all' &&
+      STATE.currentElectionType === 'geral') {
+    const slug = normalizeMunicipioSlug(String(currentCidadeFilter));
+    let entry = STATE.currentMapMuniSummary?.[slug];
+
+    if (!entry && STATE.generalOfficialTotalsByCity) {
+      const turnoKey = getActiveTurnoKeyForCurrentCargo(currentCargo);
+      const cityTotals = STATE.generalOfficialTotalsByCity[currentCargo]?.[turnoKey];
+      if (cityTotals) {
+        const matchKey = Object.keys(cityTotals).find(k => normalizeMunicipioSlug(k) === slug);
+        if (matchKey) {
+          const raw = cityTotals[matchKey];
+          const totalValid = ensureNumber(raw.totalValidos) ||
+            Object.values(raw.votesByDisplayKey || {}).reduce((s, v) => s + ensureNumber(v), 0);
+          entry = { nome: String(currentCidadeFilter), totalValid, votes: raw.votesByDisplayKey || {} };
+        }
+      }
+    }
+
+    if (!entry && String(currentCargo).startsWith('deputado')) {
+      const isEstadual = currentCargo === 'deputado_estadual';
+      const typeKey = isEstadual ? 'e' : 'f';
+      const metaStore = STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {};
+      const prefixCache = STATE._partyPrefixCache || {};
+      const aliases = typeof getMunicipioAliasSlugs === 'function'
+        ? getMunicipioAliasSlugs(currentCidadeFilter)
+        : [normalizeMunicipioSlug(currentCidadeFilter)];
+
+      const geojson = currentDataCollection[currentCargo];
+      if (geojson && geojson.features && STATE.deputyResults) {
+        const groupVotes = {};
+        const rawVotesConsolidated = {};
+        let totalValid = 0;
+        let matchFound = false;
+
+        // Construir o mapa de código TSE para nome do município
+        const codToNameMap = new Map();
+        geojson.features.forEach((feature) => {
+          const props = feature.properties || {};
+          const locId = String(props.id_unico || props.local_key || '');
+          const cityName = String(props.nm_localidade || '').trim();
+          if (locId && cityName) {
+            const parts = locId.split('_');
+            if (parts.length >= 3) {
+              const cdMuni = parts[1];
+              if (cdMuni && !codToNameMap.has(cdMuni)) {
+                codToNameMap.set(cdMuni, cityName);
+              }
+            }
+          }
+        });
+
+        // Somar os votos de todos os locais da base de dados bruta
+        Object.entries(STATE.deputyResults).forEach(([locId, typeMap]) => {
+          const parts = locId.split('_');
+          if (parts.length < 3) return;
+          const cdMuni = parts[1];
+          const cityName = codToNameMap.get(cdMuni);
+          if (!cityName) return;
+
+          const featureSlug = normalizeMunicipioSlug(cityName);
+          if (aliases.includes(featureSlug)) {
+            const votes = typeMap[typeKey];
+            if (votes) {
+              matchFound = true;
+              Object.entries(votes).forEach(([candId, v]) => {
+                const vNum = ensureNumber(v);
+                if (vNum <= 0) return;
+                rawVotesConsolidated[candId] = (rawVotesConsolidated[candId] || 0) + vNum;
+                if (candId === '95' || candId === '96') return;
+                const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+                groupVotes[groupInfo.key] = (groupVotes[groupInfo.key] || 0) + vNum;
+                totalValid += vNum;
+              });
+            }
+          }
+        });
+
+        if (matchFound && totalValid > 0) {
+          entry = {
+            nome: String(currentCidadeFilter),
+            totalValid,
+            votes: groupVotes,
+            rawVotes: rawVotesConsolidated
+          };
+        }
+      }
+    }
+
+    if (entry) {
+      showOfficialCityResultPanel(entry, String(currentCidadeFilter));
+      return;
+    }
+  }
+
   const visibleFeatures = CURRENT_VISIBLE_FEATURES_CACHE || [];
-  if (!visibleFeatures.length) {
+  const hasRealLocations = visibleFeatures.some(f => f.geometry !== null && f.geometry !== undefined);
+  if (!visibleFeatures.length || !hasRealLocations) {
     dom.resultsBox.classList.remove('section-hidden');
     dom.resultsTitle.textContent = 'Sem resultados';
     dom.resultsSubtitle.textContent = 'Nenhum local corresponde ao estado atual dos filtros';

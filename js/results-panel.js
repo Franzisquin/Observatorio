@@ -4131,3 +4131,4 @@ window.PARTY_COLOR_OVERRIDES = PARTY_COLOR_OVERRIDES;
 Object.defineProperty(window, 'currentTurno', { get() { return currentTurno; }, configurable: true });
 Object.defineProperty(window, 'currentCargo', { get() { return currentCargo; }, configurable: true });
 window.updateSelectionUI = updateSelectionUI;
+window.renderProportionalExpandableList = renderProportionalExpandableList;
