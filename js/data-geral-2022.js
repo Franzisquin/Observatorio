@@ -522,6 +522,9 @@ function finalizeGeneralLoadUI(ufToLoad) {
   dom.btnToggleInaptos.textContent = 'Filtrar Inaptos';
 
   updateConditionalUI();
+  if (typeof window.syncSetoresButtonVisibility === 'function') {
+    window.syncSetoresButtonVisibility();
+  }
   applyFiltersAndRedraw();
 
   if (currentLayer) {

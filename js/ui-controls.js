@@ -507,6 +507,7 @@ function setupControls() {
 
   if (dom.btnMapModeMunicipios) {
     dom.btnMapModeMunicipios.addEventListener('click', () => {
+      if (typeof window.removeSetoresLayer === 'function') window.removeSetoresLayer();
       if (STATE.currentElectionType === 'geral') {
         const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
         if (!uf || uf === 'BR') return;
@@ -545,6 +546,7 @@ function setupControls() {
   if (dom.btnMapModeLocais) {
     dom.btnMapModeLocais.addEventListener('click', () => {
       if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) return;
+      if (typeof window.removeSetoresLayer === 'function') window.removeSetoresLayer();
 
       STATE.currentMapMode = 'locais';
       clearSelection(true);
@@ -552,6 +554,14 @@ function setupControls() {
       applyFiltersAndRedraw();
       if (typeof window.syncExtrusionButtonVisibility === 'function') {
         window.syncExtrusionButtonVisibility();
+      }
+    });
+  }
+
+  if (dom.btnMapModeSetores) {
+    dom.btnMapModeSetores.addEventListener('click', () => {
+      if (typeof window.loadSetoresMode === 'function') {
+        void window.loadSetoresMode();
       }
     });
   }

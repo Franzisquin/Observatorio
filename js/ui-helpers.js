@@ -304,6 +304,7 @@ async function init() {
   dom.resultsSubtitle = document.getElementById('resultsSubtitle');
   dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
   dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
+  dom.btnMapModeSetores = document.getElementById('btnMapModeSetores');
   dom.layerToggleGroup = document.querySelector('.layer-toggle-group');
   dom.btnLocateSelection = document.getElementById('btnLocateSelection');
   dom.btnClearSelection = document.getElementById('btnClearSelection');

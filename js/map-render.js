@@ -1658,6 +1658,200 @@ function createMunicipiosGeoLayer(geojson, onSelectFeature) {
   return layer;
 }
 
+// ============================================================================
+// MODO "SETORES CENSITÁRIOS" — votação presidencial estimada (teste: SC, 2022)
+// Desagregação pré-calculada (scripts/gerar_setores_presidencial_2022_sc.py).
+// Renderização de polígonos no padrão de Municípios; tooltips no padrão de Locais.
+// ============================================================================
+
+// Habilita o modo apenas para o cenário de teste suportado.
+function isSetoresModeAvailable() {
+  return STATE.currentElectionType === 'geral'
+    && currentOffice === 'presidente'
+    && String(STATE.currentElectionYear) === '2022'
+    && String(dom.selectUFGeneral?.value || '').toUpperCase() === 'SC';
+}
+
+function syncSetoresButtonVisibility() {
+  if (!dom.btnMapModeSetores) return;
+  const available = isSetoresModeAvailable();
+  dom.btnMapModeSetores.style.display = available ? '' : 'none';
+  // Se saiu do cenário suportado enquanto estava no modo Setores, limpa a camada.
+  if (!available && STATE.currentMapMode === 'setores') {
+    if (typeof removeSetoresLayer === 'function') removeSetoresLayer();
+    STATE.currentMapMode = 'locais';
+  }
+}
+
+function getSetoresTurnoKey() {
+  // Usa o 2º turno quando o usuário está nele e há dados; senão 1º.
+  return (currentTurno === 2) ? 't2' : 't1';
+}
+
+function getSetorTurnData(props) {
+  const tk = getSetoresTurnoKey();
+  let d = props && props[tk];
+  if ((!d || d.venc == null) && props) d = props.t1 || props.t2;
+  return d || null;
+}
+
+function getSetorPolygonStyle(feature) {
+  const props = feature?.properties || {};
+  const d = getSetorTurnData(props);
+  const empty = { fillColor: DEFAULT_SWATCH, fillOpacity: 0.18, color: '#ffffff', weight: 0.35, opacity: 0.7 };
+  if (!d || d.venc == null) return empty;
+
+  const meta = (STATE.setoresMeta || {})[d.venc] || [];
+  const nome = meta[0] || '';
+  const partido = meta[1] || '';
+  const base = getColorForCandidate(nome, partido) || DEFAULT_SWATCH;
+  const fillColor = (typeof getMarginAdjustedColor === 'function')
+    ? getMarginAdjustedColor(base, d.margem, d.pct)
+    : base;
+  return { fillColor, fillOpacity: 0.82, color: '#ffffff', weight: 0.3, opacity: 0.55 };
+}
+
+function buildSetorTooltip(feature) {
+  const props = feature?.properties || {};
+  const meta = STATE.setoresMeta || {};
+  const nomeMun = formatTooltipDisplayName(props.nm_mun || 'Município');
+  const tk = getSetoresTurnoKey();
+  const turnoLabel = (tk === 't2') ? '2º Turno' : '1º Turno';
+  const d = getSetorTurnData(props);
+
+  const votos = (d && d.votos) ? d.votos : {};
+  const rows = Object.entries(votos)
+    .filter(([id]) => id !== '95' && id !== '96')
+    .map(([id, v]) => ({ id, votes: ensureNumber(v) }))
+    .filter((r) => r.votes > 0)
+    .sort((a, b) => b.votes - a.votes);
+  const totalValidos = rows.reduce((acc, r) => acc + r.votes, 0);
+
+  let rowsHtml = '';
+  rows.slice(0, 4).forEach((r) => {
+    const m = meta[r.id] || [];
+    const nome = formatTooltipDisplayName(m[0] || `Candidato ${r.id}`);
+    const color = getColorForCandidate(m[0] || '', m[1] || '') || '#cccccc';
+    const pct = totalValidos > 0 ? (r.votes / totalValidos) * 100 : 0;
+    rowsHtml += `
+      <tr>
+        <td style="padding: 0;">
+          <div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+            <span style="margin-left: 6px;">${escapeHtml(nome)}</span>
+          </div>
+        </td>
+        <td class="votes-cell">${fmtInt(r.votes)}</td>
+        <td class="pct-cell">${pct.toFixed(1)}%</td>
+      </tr>`;
+  });
+  if (rowsHtml === '') {
+    rowsHtml = `<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem votos estimados neste setor.</td></tr>`;
+  }
+
+  const pop = fmtInt(ensureNumber(props.pop));
+  const apt = fmtInt(ensureNumber(props.apt16));
+  const elet = fmtInt(ensureNumber(props.elet_estimado));
+  const over = ensureNumber(props.overflow);
+  const overHtml = over > 0
+    ? `<span style="color:#c0392b;"> (excede adultos em ${fmtInt(over)})</span>` : '';
+  const rendaHtml = (props.renda != null)
+    ? ` · Renda resp.: R$ ${fmtInt(Math.round(props.renda))}` : '';
+
+  return `
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
+      <div class="district-nyt-title">${escapeHtml(nomeMun)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">
+        Setor ${escapeHtml(String(props.cd_setor || ''))} · ${escapeHtml(turnoLabel)} <em>(estimado)</em>
+      </div>
+      <table class="district-nyt-table">
+        <thead><tr><th style="text-align: left;">Candidato</th><th>Votos</th><th>%</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div style="font-size: 11px; color: #777777; margin-top: 8px;">
+        Votos válidos estimados: ${fmtInt(totalValidos)}
+      </div>
+      <div style="font-size: 11px; color: #777777; margin-top: 2px;">
+        Pop.: ${pop} · Adultos (16+): ${apt} · Eleitores est.: ${elet}${overHtml}${rendaHtml}
+      </div>
+    </div>`;
+}
+
+function createSetoresGeoLayer(geojson) {
+  const layer = new MLCompat.GeoLayer(map, {
+    id: 'setores',
+    type: 'polygon',
+    hover: true,
+    styleFn: (feature) => getSetorPolygonStyle(feature),
+    tooltipFn: (feature) => buildSetorTooltip(feature)
+  });
+  layer.setFeatures(geojson.features || []);
+  return layer;
+}
+
+function refreshSetoresLayerStyle() {
+  if (STATE.setoresLayer && STATE.setoresGeojson && typeof STATE.setoresLayer.setData === 'function') {
+    // Recalcula as cores (styleFn lê currentTurno) e atualiza a fonte do mapa.
+    STATE.setoresLayer.setData(STATE.setoresGeojson.features || []);
+  }
+}
+
+async function loadSetoresMode() {
+  if (!isSetoresModeAvailable()) {
+    showToast('O modo Setores está disponível apenas para Presidente · 2022 · SC (teste).', 'info');
+    return;
+  }
+  try {
+    showMapLoading('Carregando votação estimada por setor censitário...');
+
+    if (!STATE.setoresGeojson) {
+      const { data } = await fetchJsonFromZipEntry(
+        `${DATA_BASE_URL}Setores 2022/setores_presidente_2022_SC.zip`,
+        'setores_presidente_2022_SC.json'
+      );
+      STATE.setoresGeojson = data;
+      STATE.setoresMeta = (data && data.metadata && data.metadata.cand_names) || {};
+    }
+
+    // Remove camadas dos outros modos.
+    if (currentLayer && map.hasLayer(currentLayer)) { map.removeLayer(currentLayer); }
+    if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) { map.removeLayer(STATE.municipiosLayer); }
+    if (STATE.setoresLayer && map.hasLayer(STATE.setoresLayer)) { map.removeLayer(STATE.setoresLayer); }
+
+    STATE.currentMapMode = 'setores';
+    STATE.setoresLayer = createSetoresGeoLayer(STATE.setoresGeojson);
+    STATE.setoresLayer.addTo(map);
+
+    try {
+      const bounds = STATE.setoresLayer.getBounds();
+      MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
+    } catch (e) { /* ignore */ }
+
+    if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.remove('active');
+    if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
+    if (dom.btnMapModeSetores) dom.btnMapModeSetores.classList.add('active');
+  } catch (error) {
+    console.error('[Setores] Falha ao carregar:', error);
+    showToast(`Erro ao carregar setores: ${error.message}`, 'error');
+  } finally {
+    hideMapLoading();
+  }
+}
+
+function removeSetoresLayer() {
+  if (STATE.setoresLayer && map && map.hasLayer(STATE.setoresLayer)) {
+    map.removeLayer(STATE.setoresLayer);
+  }
+  STATE.setoresLayer = null;
+  if (dom.btnMapModeSetores) dom.btnMapModeSetores.classList.remove('active');
+}
+
+if (typeof window !== 'undefined') {
+  window.loadSetoresMode = loadSetoresMode;
+  window.syncSetoresButtonVisibility = syncSetoresButtonVisibility;
+  window.refreshSetoresLayerStyle = refreshSetoresLayerStyle;
+  window.removeSetoresLayer = removeSetoresLayer;
+}
+
 async function showGeneralMunicipalityOverview(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
@@ -1982,6 +2176,12 @@ function shouldFullRedrawOnTurnChange() {
 function refreshTurnDependentUI() {
   const hasData = !!currentDataCollection[currentCargo];
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
+
+  // Modo Setores: re-colore conforme o turno selecionado.
+  if (STATE.currentMapMode === 'setores' && STATE.setoresLayer && map?.hasLayer?.(STATE.setoresLayer)) {
+    refreshSetoresLayerStyle();
+    return;
+  }
 
   if (hasData && currentVizMode.startsWith('desempenho')) {
     populateVizCandidatoDropdown(turnoKey);
