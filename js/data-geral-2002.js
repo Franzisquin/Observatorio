@@ -67,9 +67,10 @@ async function getMuniNameMap2002(uf) {
 }
 
 // Totais por municipio lidos direto do JSON (independente de quais locais bateram no GPKG).
-function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap) {
+function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap, muniIbgeMap = null) {
   const metadata = fullJson?.METADATA?.cand_names || {};
   const rawTotalsByCity = new Map();
+  const ibgeByCity = new Map();
 
   Object.entries(fullJson?.RESULTS || {}).forEach(([resultKey, voteMap]) => {
     const parts = resultKey.split('_');
@@ -83,11 +84,22 @@ function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap) {
     Object.entries(voteMap || {}).forEach(([cid, v]) => {
       rawTotals[cid] = (rawTotals[cid] || 0) + ensureNumber(v);
     });
+
+    // Codigo IBGE (CD_MUN da malha municipal) para casar o municipio por codigo,
+    // e nao apenas por nome — alguns municipios usam grafias divergentes entre
+    // o GPKG/censo e a malha (ex.: "Sao Caetano" vs "Sao Caitano"), o que deixava
+    // o poligono "sem votos" mesmo com resultados carregados.
+    if (muniIbgeMap && !ibgeByCity.has(cityName)) {
+      const ibge = muniIbgeMap.get(cdMuni);
+      if (ibge) ibgeByCity.set(cityName, String(ibge));
+    }
   });
 
   const summaries = {};
   rawTotalsByCity.forEach((rawTotals, cityName) => {
     const summary = buildGeneralOfficialSummaryFromRawTotals(rawTotals, metadata, turnoKey);
+    const ibge = ibgeByCity.get(cityName);
+    if (ibge) summary.ibge = ibge;
     summaries[cityName] = summary;
     summaries[norm(cityName)] = summary;
   });

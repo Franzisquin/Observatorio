@@ -429,7 +429,9 @@
             'fill-extrusion-color': ['coalesce', ['get', '__fill'], '#888888'],
             'fill-extrusion-height': ['coalesce', ['get', '__height'], 0],
             'fill-extrusion-base': 0,
-            'fill-extrusion-opacity': ['coalesce', ['get', '__fillOpacity'], 0.7]
+            // fill-extrusion-opacity NAO aceita expressao data-driven no MapLibre;
+            // precisa ser constante (caso contrario o addLayer lanca erro de validacao).
+            'fill-extrusion-opacity': 0.85
           }
         });
         this.layerIds = [fid, linid, extid];

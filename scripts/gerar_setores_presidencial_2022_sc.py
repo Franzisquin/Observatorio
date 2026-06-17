@@ -45,10 +45,17 @@ UF_CODE = "42"   # SC
 
 # ----------------------------------------------------------------------------- params (calibraveis)
 ADULT_FRAC_15_19 = 0.8     # fracao do grupo 15-19 contada como apta a votar (16-19)
-KERNEL_SCALE_KM  = 3.0     # sigma do kernel gaussiano de distancia
-MAX_RADIUS_KM    = 12.0    # raio maximo local->setor
-MIN_K_SECTORS    = 8       # garante ao menos k setores mais proximos por local
-IPF_ITERS        = 40      # iteracoes do ajuste com teto
+# --- Area de dissolucao ADAPTATIVA por local (baseada no eleitorado do local) ---
+# Cada local cresce o raio a partir do ponto ate a capacidade adulta (apt16) dos
+# setores acumulados atingir  eleitorado_local * CATCHMENT_FACTOR. Assim a area de
+# dissolucao escala com o eleitorado: local pequeno/denso -> raio pequeno;
+# local grande/rural (setores esparsos) -> raio maior.
+CATCHMENT_FACTOR = 2.5     # capacidade adulta alvo = eleitorado_local * fator (area justa)
+KERNEL_FRAC      = 0.5     # sigma = fracao do raio; concentra perto do local (menos dissolucao)
+MIN_SIGMA_KM     = 0.4     # piso do sigma (evita concentracao excessiva num unico setor)
+MIN_K_SECTORS    = 4       # garante ao menos k setores mais proximos por local
+MAX_RADIUS_KM    = 30.0    # teto de seguranca (apenas para casos patologicos isolados)
+IPF_ITERS        = 80      # iteracoes do ajuste com teto (redistribui DENTRO do catchment)
 PROFILE_WEIGHT   = 0.5     # 0 = so proximidade+capacidade ; 1 = perfil domina
 COORD_DECIMALS   = 6       # precisao das coordenadas (preserva todos os vertices)
 
@@ -56,6 +63,24 @@ NULO, BRANCO = "96", "95"
 
 def log(*a):
     print(*a, flush=True)
+
+def fnum(x, default=None):
+    """float seguro: NaN/inf/None/'' -> default."""
+    try:
+        v = float(x)
+        return v if math.isfinite(v) else default
+    except Exception:
+        return default
+
+def clean_json(obj):
+    """Substitui NaN/inf por None recursivamente (garante JSON valido)."""
+    if isinstance(obj, float):
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, dict):
+        return {k: clean_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean_json(v) for v in obj]
+    return obj
 
 def norm(s):
     s = str(s or "").upper().strip()
@@ -219,8 +244,9 @@ def profile_sim(loc, sec):
 def load_setores_sc(demo, renda):
     log("[4] Lendo geometria dos setores SC (resolucao total)...")
     t = time.time()
-    gdf = gpd.read_file(GPKG_SETORES, where=f"CD_UF='{UF_CODE}'", engine="pyogrio")
-    log(f"    {len(gdf)} setores em {round(time.time()-t,1)}s")
+    # CD_SIT='9' = Massa d'agua (sem populacao) -> excluido do arquivo.
+    gdf = gpd.read_file(GPKG_SETORES, where=f"CD_UF='{UF_CODE}' AND CD_SIT<>'9'", engine="pyogrio")
+    log(f"    {len(gdf)} setores em {round(time.time()-t,1)}s (massa d'agua excluida)")
     # centroides em metros (EPSG:5880 - Brazil Polyconic)
     cent = gdf.geometry.to_crs(5880).centroid
     xs = cent.x.to_numpy(); ys = cent.y.to_numpy()
@@ -228,11 +254,15 @@ def load_setores_sc(demo, renda):
     for i, r in enumerate(gdf.itertuples(index=False)):
         cs = getattr(r, "CD_SETOR")
         d = demo.get(cs)
-        pop  = float(d["pop"])  if d else (float(getattr(r, "v0001") or 0))
+        pop  = float(d["pop"])  if d else fnum(getattr(r, "v0001"), 0.0)
         apt  = float(d["apt16"]) if d else pop*0.78
-        sec = dict(cs=cs, nm_mun=getattr(r,"NM_MUN"), cd_mun=getattr(r,"CD_MUN"),
-                   sit=getattr(r,"SITUACAO"), area=float(getattr(r,"AREA_KM2") or 0),
-                   pop=pop, apt16=apt, renda=renda.get(cs),
+        sit_raw = getattr(r, "SITUACAO")
+        sit = sit_raw if isinstance(sit_raw, str) else None
+        nm_mun_raw = getattr(r, "NM_MUN")
+        sec = dict(cs=cs, nm_mun=(nm_mun_raw if isinstance(nm_mun_raw, str) else None),
+                   cd_mun=getattr(r,"CD_MUN"),
+                   sit=sit, area=fnum(getattr(r,"AREA_KM2"), 0.0),
+                   pop=pop, apt16=apt, renda=fnum(renda.get(cs)),
                    masc=float(d["masc"]) if d else pop*0.49, fem=float(d["fem"]) if d else pop*0.51,
                    b16_29=float(d["b16_29"]) if d else apt*0.3,
                    b30_45=float(d["b30_45"]) if d else apt*0.3,
@@ -244,26 +274,80 @@ def load_setores_sc(demo, renda):
 
 # ============================================================ 5) DESAGREGACAO (gravidade + IPF com teto)
 def build_weights(locais, secs):
-    log("[5] Construindo pesos local->setor (proximidade + capacidade + perfil)...")
+    log("[5] Construindo pesos local->setor (raio adaptativo p/ eleitorado + capacidade + perfil)...")
     tr = Transformer.from_crs(4326, 5880, always_xy=True)
     sx = np.array([s["x"] for s in secs]); sy = np.array([s["y"] for s in secs])
     apt = np.array([s["apt16"] for s in secs])
-    sigma = KERNEL_SCALE_KM*1000.0; rmax = MAX_RADIUS_KM*1000.0
-    rows = []  # (local_idx, np.array sector_idx, np.array weight)
+    nS = apt.shape[0]
+    rmax = MAX_RADIUS_KM*1000.0; min_sig = MIN_SIGMA_KM*1000.0
+
+    # Pesos acumulados por local: dict {setor_idx -> peso}. Usar dict permite que o
+    # passo de cobertura GARANTA um piso de peso por setor sem duplicar indices.
+    wdict = [dict() for _ in range(len(locais))]
+    sigma_by_local = np.full(len(locais), min_sig)
+    # Cobertura: menor distancia de cada setor a algum local + qual local.
+    best_d2    = np.full(nS, np.inf)
+    best_local = np.full(nS, -1, dtype=int)
+    radii_km = []
+
     for li, loc in enumerate(locais):
         lx, ly = tr.transform(loc["lon"], loc["lat"])
         d2 = (sx-lx)**2 + (sy-ly)**2
-        within = np.where(d2 <= rmax*rmax)[0]
-        if within.size < MIN_K_SECTORS:
-            within = np.argsort(d2)[:MIN_K_SECTORS]
-        dist = np.sqrt(d2[within])
+        closer = d2 < best_d2
+        best_d2[closer] = d2[closer]; best_local[closer] = li
+
+        order = np.argsort(d2)                       # setores do mais proximo ao mais distante
+        # Cresce o raio ate a capacidade adulta acumulada cobrir o eleitorado do local.
+        target = max(loc["elet"], 1.0) * CATCHMENT_FACTOR
+        cumcap = np.cumsum(apt[order])
+        k = int(np.searchsorted(cumcap, target) + 1)  # nº de setores p/ atingir o alvo
+        k = max(k, MIN_K_SECTORS)
+        sel = order[:k]
+        dist = np.sqrt(d2[sel])
+        keep = dist <= rmax                           # teto de seguranca
+        if keep.sum() >= MIN_K_SECTORS:
+            sel = sel[keep]; dist = dist[keep]
+        r_local = float(dist.max()) if dist.size else min_sig
+        radii_km.append(r_local/1000.0)
+        sigma = max(KERNEL_FRAC * r_local, min_sig)   # kernel concentra dentro do catchment
+        sigma_by_local[li] = sigma
         kern = np.exp(-(dist*dist)/(2*sigma*sigma))
-        cap  = apt[within]
-        sim  = np.array([(1.0-PROFILE_WEIGHT) + PROFILE_WEIGHT*profile_sim(loc, secs[j]) for j in within])
-        w = cap * kern * sim
+        wl = wdict[li]
+        for j, kv in zip(sel, kern):
+            sim = (1.0-PROFILE_WEIGHT) + PROFILE_WEIGHT*profile_sim(loc, secs[int(j)])
+            wl[int(j)] = apt[int(j)] * kv * sim
+
+    # --- COBERTURA por setor: cada setor POVOADO recebe um peso minimo do seu local
+    # mais proximo (kernel=1, pois e o mais perto), garantindo eleitores > 0.
+    boosted = 0
+    pops = np.where(apt > 0)[0]
+    for si in pops:
+        li = int(best_local[si])
+        if li < 0:
+            continue
+        loc = locais[li]
+        sim = (1.0-PROFILE_WEIGHT) + PROFILE_WEIGHT*profile_sim(loc, secs[int(si)])
+        floor_w = apt[int(si)] * sim                  # peso de capacidade plena (mais proximo)
+        wl = wdict[li]
+        if wl.get(int(si), 0.0) < floor_w:
+            if int(si) not in wl:
+                boosted += 1
+            wl[int(si)] = floor_w
+
+    rows = []
+    for li in range(len(locais)):
+        wl = wdict[li]
+        if not wl:
+            continue
+        idx = np.fromiter(wl.keys(), dtype=int, count=len(wl))
+        w   = np.fromiter(wl.values(), dtype=float, count=len(wl))
         if w.sum() <= 0:
-            w = cap + 1e-9
-        rows.append((li, within, w))
+            w = apt[idx] + 1e-9
+        rows.append((li, idx, w))
+
+    rk = np.array(radii_km)
+    log(f"    raio adaptativo (km): mediana={np.median(rk):.2f}  p90={np.percentile(rk,90):.2f}  max={rk.max():.2f}")
+    log(f"    setores povoados anexados por cobertura ao local mais proximo: {boosted}")
     return rows, apt
 
 def ipf_solve(locais, rows, apt):
@@ -371,18 +455,24 @@ def main():
             pct_masc=round(100.0*s["masc"]/s["pop"],1) if s["pop"]>0 else None,
             perfil_idade=[round(s["b16_29"]),round(s["b30_45"]),round(s["b46_59"]),round(s["b60"])],
             t1=p1, t2=p2)
-        feats.append(dict(type="Feature", properties=props, geometry=round_geom(s["geom"], COORD_DECIMALS)))
+        feats.append(dict(type="Feature", properties=clean_json(props),
+                          geometry=round_geom(s["geom"], COORD_DECIMALS)))
 
     fc = dict(type="FeatureCollection",
               metadata=dict(uf="SC", cargo="presidente", ano=2022,
                             cand_names=cand_names,
-                            params=dict(kernel_km=KERNEL_SCALE_KM, raio_km=MAX_RADIUS_KM,
+                            params=dict(catchment_factor=CATCHMENT_FACTOR, kernel_frac=KERNEL_FRAC,
+                                        min_sigma_km=MIN_SIGMA_KM, raio_max_km=MAX_RADIUS_KM,
                                         min_k=MIN_K_SECTORS, ipf_iters=IPF_ITERS,
                                         profile_weight=PROFILE_WEIGHT, adult_frac_15_19=ADULT_FRAC_15_19)),
               features=feats)
 
     os.makedirs(OUT_DIR, exist_ok=True)
-    payload = json.dumps(fc, ensure_ascii=False)
+    try:
+        payload = json.dumps(fc, ensure_ascii=False, allow_nan=False)
+    except ValueError:
+        log("    aviso: NaN remanescente detectado; limpando objeto inteiro...")
+        payload = json.dumps(clean_json(fc), ensure_ascii=False, allow_nan=False)
     with zipfile.ZipFile(OUT_ZIP, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         z.writestr(OUT_JSON, payload)
     mb = os.path.getsize(OUT_ZIP)/1e6

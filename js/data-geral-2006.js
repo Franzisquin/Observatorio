@@ -68,6 +68,139 @@ async function loadCensoJson2006(uf) {
   return promise;
 }
 
+// Distância de edição (Levenshtein) para nomes curtos de município.
+function general2006EditDistance(a, b) {
+  const m = a.length, n = b.length;
+  const prev = Array.from({ length: n + 1 }, (_, j) => j);
+  const curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      curr[j] = Math.min(prev[j] + 1, curr[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    for (let j = 0; j <= n; j++) prev[j] = curr[j];
+  }
+  return prev[n];
+}
+
+// Similaridade de nomes municipais (0..1), tolerante a variantes (plural, letra
+// dobrada, grafia antiga) que aparecem entre GPKG e censo de 2006.
+function general2006NameSim(a, b) {
+  const na = norm(a), nb = norm(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.startsWith(nb) || nb.startsWith(na)) return 0.85;
+  if (general2006EditDistance(na, nb) <= 2) return 0.7;
+  if (na.includes(nb) || nb.includes(na)) return 0.6;
+  return 0;
+}
+
+// Alguns municípios pequenos nunca recebem `local_key` pelo censo porque o nome
+// no GPKG e no censo divergem (ex.: "SANTA ROSA DO PURUS" vs "SANTA ROSA",
+// "MANOEL URBANO" vs "MANUEL URBANO", "BADY BASSITT" vs "BADY BASSIT") — e a
+// chave (zona, local) sozinha é ambígua porque o número do local se repete entre
+// municípios da mesma zona. Sem identidade, esses locais são descartados na
+// filtragem e o município fica "sem votos" apenas em 2006.
+//
+// Aqui derivamos o código TSE do município a partir do "rastro" de locais
+// (conjunto de pares zona_local) de cada município no GPKG (por IBGE) versus no
+// censo (por TSE), combinando sobreposição (Jaccard) com similaridade de nome.
+// Com o TSE, reconstruímos a chave de resultado `zona_TSE_local` e, de quebra,
+// anexamos os dados censitários do local correspondente. Só toca em locais que o
+// censo não casou — não altera municípios que já funcionam nem outros anos.
+function applyGeneral2006FootprintFallback(baseGeo, censusJson) {
+  const needy = baseGeo.features.filter((f) => {
+    const p = f.properties || {};
+    return !p.local_key && !p.id_unico;
+  });
+  if (!needy.length) return 0;
+
+  // Censo: rastro e nome por TSE, e índice por chave completa (p/ enriquecer).
+  const censusFootByTse = new Map();   // tse -> Set('zona_local')
+  const censusNameByTse = new Map();   // tse -> nm_localidade
+  const censusRowByFullKey = new Map(); // 'zona_tse_local' -> row
+  Object.values(censusJson.RESULTS).forEach((row) => {
+    if (!row) return;
+    const tse = row.cd_localidade_tse;
+    const zona = parseInt(row.nr_zona, 10);
+    const local = parseInt(row.nr_locvot, 10);
+    if (tse == null || !Number.isFinite(zona) || !Number.isFinite(local)) return;
+    const zl = `${zona}_${local}`;
+    let set = censusFootByTse.get(tse);
+    if (!set) { set = new Set(); censusFootByTse.set(tse, set); }
+    set.add(zl);
+    if (!censusNameByTse.has(tse)) censusNameByTse.set(tse, row.nm_localidade);
+    censusRowByFullKey.set(`${zona}_${tse}_${local}`, row);
+  });
+
+  // GPKG: rastro e nome por IBGE, restrito aos municípios "needy".
+  const needyIbges = new Set(
+    needy.map((f) => String(f.properties.cod_localidade_ibge || '')).filter(Boolean)
+  );
+  const gpkgFootByIbge = new Map();
+  const gpkgNameByIbge = new Map();
+  baseGeo.features.forEach((f) => {
+    const p = f.properties || {};
+    const ib = String(p.cod_localidade_ibge || '');
+    if (!ib || !needyIbges.has(ib)) return;
+    const zona = parseInt(p.nr_zona, 10);
+    const local = parseInt(p.nr_locvot, 10);
+    if (!Number.isFinite(zona) || !Number.isFinite(local)) return;
+    const zl = `${zona}_${local}`;
+    let set = gpkgFootByIbge.get(ib);
+    if (!set) { set = new Set(); gpkgFootByIbge.set(ib, set); }
+    set.add(zl);
+    if (!gpkgNameByIbge.has(ib)) gpkgNameByIbge.set(ib, p.nm_localidade);
+  });
+
+  // Deriva IBGE -> TSE pelo melhor escore (Jaccard + nome).
+  const ibgeToTse = new Map();
+  gpkgFootByIbge.forEach((gSet, ib) => {
+    let bestTse = null, bestScore = 0;
+    censusFootByTse.forEach((cSet, tse) => {
+      let inter = 0;
+      gSet.forEach((zl) => { if (cSet.has(zl)) inter++; });
+      if (inter === 0) return;
+      const jaccard = inter / (gSet.size + cSet.size - inter);
+      const score = jaccard + 0.5 * general2006NameSim(gpkgNameByIbge.get(ib), censusNameByTse.get(tse));
+      if (score > bestScore) { bestScore = score; bestTse = tse; }
+    });
+    // Limiar de confiança: exige rastro + nome minimamente coerentes.
+    if (bestTse != null && bestScore >= 0.3) ibgeToTse.set(ib, bestTse);
+  });
+
+  // Atribui identidade (e dados censitários) aos locais recuperados.
+  let recovered = 0;
+  needy.forEach((f) => {
+    const p = f.properties;
+    const ib = String(p.cod_localidade_ibge || '');
+    const tse = ibgeToTse.get(ib);
+    if (tse == null) return;
+    const zona = parseInt(p.nr_zona, 10);
+    const local = parseInt(p.nr_locvot, 10);
+    if (!Number.isFinite(zona) || !Number.isFinite(local)) return;
+    const fullKey = `${zona}_${tse}_${local}`;
+
+    const crow = censusRowByFullKey.get(fullKey);
+    if (crow) {
+      Object.entries(crow).forEach(([key, value]) => {
+        // Preserva o nome canônico do GPKG (moderno) — o censo às vezes traz a
+        // grafia antiga/variante (ex.: "AMAPARI", "SUD MENUCCI") que não casa com
+        // a geometria municipal nem com os outros anos.
+        if (key === 'nm_localidade') return;
+        if (value !== undefined) p[key] = value;
+      });
+    }
+    p.local_key = fullKey;
+    p.id_unico = fullKey;
+    p.ID_UNICO = fullKey;
+    if (!p.local_id) p.local_id = `${zona}_${local}`;
+    recovered++;
+  });
+
+  return recovered;
+}
+
 function mergeGeneralCensoJson2006(baseGeo, censusJson) {
   if (!baseGeo?.features?.length || !censusJson?.RESULTS) return;
 
@@ -118,7 +251,10 @@ function mergeGeneralCensoJson2006(baseGeo, censusJson) {
     mergedCount++;
   });
 
-  console.log(`[2006] Censo mesclado em ${mergedCount} locais.`);
+  // Recupera municípios cujo nome diverge entre GPKG e censo (sem votos só em 2006).
+  const recovered = applyGeneral2006FootprintFallback(baseGeo, censusJson);
+
+  console.log(`[2006] Censo mesclado em ${mergedCount} locais.` + (recovered ? ` (+${recovered} recuperados por rastro/nome)` : ''));
 }
 
 async function loadGeneralStateBaseFromGpkg2006(uf) {
@@ -373,6 +509,19 @@ async function loadMajoritariaCargo2006(cargo, uf) {
   // Also use matched dots (id_unico = result key) to maximize coverage.
   const baseGeos = await Promise.all(ufs.map((s) => loadGeneralStateBaseFromGpkg2006(s).catch(() => null)));
   const muniNameMap = new Map();
+  // Codigo TSE do municipio -> codigo IBGE (CD_MUN), por voto de maioria entre os
+  // locais daquele municipio. Permite casar o poligono da malha por codigo (e nao
+  // so por nome), corrigindo municipios cuja grafia diverge entre GPKG/censo e a
+  // malha municipal (que ficavam "sem votos" so em 2006).
+  const muniIbgeVotes = new Map(); // cdMuni(TSE) -> Map(ibge -> contagem)
+  const tallyIbge = (resultKey, ibgeRaw) => {
+    const cdMuni = extractMunicipioCodeFromGeneralResultKey(resultKey);
+    const ibge = String(ibgeRaw || '').trim();
+    if (!cdMuni || !ibge) return;
+    let votes = muniIbgeVotes.get(cdMuni);
+    if (!votes) { votes = new Map(); muniIbgeVotes.set(cdMuni, votes); }
+    votes.set(ibge, (votes.get(ibge) || 0) + 1);
+  };
   baseGeos.forEach((baseGeo) => {
     (baseGeo?.features || []).forEach((f) => {
       const props = f.properties || {};
@@ -380,6 +529,7 @@ async function loadMajoritariaCargo2006(cargo, uf) {
       const cdMuni = extractMunicipioCodeFromGeneralResultKey(localKey);
       const cityName = String(props.nm_localidade || '').trim();
       if (cdMuni && cityName && !muniNameMap.has(cdMuni)) muniNameMap.set(cdMuni, cityName);
+      tallyIbge(localKey, props.cod_localidade_ibge);
     });
   });
   geojson.features.forEach((f) => {
@@ -388,6 +538,13 @@ async function loadMajoritariaCargo2006(cargo, uf) {
     const cdMuni = extractMunicipioCodeFromGeneralResultKey(idUnico);
     const cityName = String(props.nm_localidade || '').trim();
     if (cdMuni && cityName && !muniNameMap.has(cdMuni)) muniNameMap.set(cdMuni, cityName);
+    tallyIbge(idUnico, props.cod_localidade_ibge);
+  });
+  const muniIbgeMap = new Map();
+  muniIbgeVotes.forEach((votes, cdMuni) => {
+    let bestIbge = '', bestCount = -1;
+    votes.forEach((count, ibge) => { if (count > bestCount) { bestCount = count; bestIbge = ibge; } });
+    if (bestIbge) muniIbgeMap.set(cdMuni, bestIbge);
   });
 
   return {
@@ -397,8 +554,8 @@ async function loadMajoritariaCargo2006(cargo, uf) {
       ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummary(mergedTurno2, '2T') } : {})
     },
     officialCityTotals: {
-      '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
-      ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
+      '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap, muniIbgeMap),
+      ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap, muniIbgeMap) } : {})
     }
   };
 }
