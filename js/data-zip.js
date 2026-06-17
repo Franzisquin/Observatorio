@@ -76,10 +76,30 @@ async function fetchBlobFromZipEntry(zipUrl, filename = null, matcher = null) {
 
 async function fetchJsonFromZipEntry(zipUrl, filename = null, matcher = null) {
   const { blob, name } = await fetchBlobFromZipEntry(zipUrl, filename, matcher);
-  return {
-    data: JSON.parse(await blob.text()),
-    name
-  };
+  const text = await blob.text();
+  try {
+    return {
+      data: JSON.parse(text),
+      name
+    };
+  } catch (err) {
+    if (err instanceof SyntaxError && (text.includes('NaN') || text.includes('Infinity'))) {
+      const cleaned = text
+        .replace(/(:\s*)-?NaN\b/g, '$1null')
+        .replace(/([,\[]\s*)-?NaN\b/g, '$1null')
+        .replace(/(:\s*)-?Infinity\b/g, '$1null')
+        .replace(/([,\[]\s*)-?Infinity\b/g, '$1null');
+      try {
+        return {
+          data: JSON.parse(cleaned),
+          name
+        };
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
 }
 
 async function ensureSqlJsReady() {

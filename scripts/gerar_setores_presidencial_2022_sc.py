@@ -467,6 +467,16 @@ def main():
                                         profile_weight=PROFILE_WEIGHT, adult_frac_15_19=ADULT_FRAC_15_19)),
               features=feats)
 
+    def sanitize_nan(obj):
+        if isinstance(obj, float):
+            return None if (math.isnan(obj) or math.isinf(obj)) else obj
+        elif isinstance(obj, dict):
+            return {k: sanitize_nan(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [sanitize_nan(x) for x in obj]
+        return obj
+    fc = sanitize_nan(fc)
+
     os.makedirs(OUT_DIR, exist_ok=True)
     try:
         payload = json.dumps(fc, ensure_ascii=False, allow_nan=False)
