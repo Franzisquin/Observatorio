@@ -31,6 +31,7 @@ let GENERAL_2014_BASE_CACHE = new Map();
 let CENSO_2014_CACHE = new Map();
 let GENERAL_2018_BASE_CACHE = new Map();
 let CENSO_2018_CACHE = new Map();
+let MUNICIPAL_2006_BASE_CACHE = new Map();
 let MUNICIPAL_2008_BASE_CACHE = new Map();
 let CENSO_2008_CACHE = new Map();
 let MUNICIPAL_2012_BASE_CACHE = new Map();

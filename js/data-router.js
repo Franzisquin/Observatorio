@@ -43,6 +43,24 @@ async function onClickLoadData_Municipal_2008(uf, municipio, ano) {
   await loadMunicipal2008Prefeito(uf, municipio, ano);
 }
 
+async function onClickLoadData_Municipal_2004(uf, municipio, ano) {
+  if (currentOffice === 'vereador') {
+    await loadMunicipal2004Vereador(uf, municipio, ano);
+    return;
+  }
+
+  await loadMunicipal2004Prefeito(uf, municipio, ano);
+}
+
+async function onClickLoadData_Municipal_2000(uf, municipio, ano) {
+  if (currentOffice === 'vereador') {
+    await loadMunicipal2000Vereador(uf, municipio, ano);
+    return;
+  }
+
+  await loadMunicipal2000Prefeito(uf, municipio, ano);
+}
+
 async function onClickLoadData_Municipal() {
   const uf = dom.selectUFMunicipal.value;
   const municipio = dom.selectMunicipio.value;
@@ -211,7 +229,7 @@ window.onClickLoadData_Municipal = async function () {
   const municipio = dom.selectMunicipio.value;
   const ano = STATE.currentElectionYear;
 
-  if (String(ano) !== '2024' && String(ano) !== '2020' && String(ano) !== '2016' && String(ano) !== '2012' && String(ano) !== '2008') {
+  if (!['2024', '2020', '2016', '2012', '2008', '2004', '2000'].includes(String(ano))) {
     throw new Error(`Fluxo municipal ${ano} sem suporte no modo JSON + GPKG.`);
   }
 
@@ -245,8 +263,12 @@ window.onClickLoadData_Municipal = async function () {
       await onClickLoadData_Municipal_2016(uf, municipio, ano);
     } else if (String(ano) === '2012') {
       await onClickLoadData_Municipal_2012(uf, municipio, ano);
-    } else {
+    } else if (String(ano) === '2008') {
       await onClickLoadData_Municipal_2008(uf, municipio, ano);
+    } else if (String(ano) === '2004') {
+      await onClickLoadData_Municipal_2004(uf, municipio, ano);
+    } else {
+      await onClickLoadData_Municipal_2000(uf, municipio, ano);
     }
   } catch (error) {
     console.error(`[Municipal ${ano}] Falha ao carregar ${ano}:`, error);

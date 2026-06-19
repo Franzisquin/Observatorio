@@ -268,7 +268,9 @@ const MUNICIPAL_SECOND_TURN_AVAILABILITY = {
   '2020': { ord: ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
   '2016': { ord: ['AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PE', 'PR', 'RJ', 'RO', 'RS', 'SC', 'SE', 'SP'] },
   '2012': { ord: ['AC', 'AM', 'AP', 'BA', 'CE', 'ES', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
-  '2008': { ord: ['AM', 'AP', 'BA', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PR', 'RJ', 'RS', 'SC', 'SP'] }
+  '2008': { ord: ['AM', 'AP', 'BA', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PR', 'RJ', 'RS', 'SC', 'SP'] },
+  '2004': { ord: ['AL', 'AM', 'BA', 'CE', 'ES', 'GO', 'MG', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
+  '2000': { ord: ['AM', 'CE', 'GO', 'MG', 'PA', 'PE', 'PR', 'RJ', 'RS', 'SP'] }
 };
 
 function hasMunicipalSecondTurnArchive(year, uf, subtype = 'ord') {

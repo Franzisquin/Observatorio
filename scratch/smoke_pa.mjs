@@ -1,0 +1,23 @@
+import { spawn } from 'node:child_process';
+import os from 'node:os'; import path from 'node:path'; import fs from 'node:fs';
+const CHROME = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const URL = 'http://127.0.0.1:8765/eleicoes.html';
+const userDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
+const chrome = spawn(CHROME, ['--headless=new', '--disable-gpu', '--no-first-run', '--remote-debugging-port=9222', `--user-data-dir=${userDir}`, 'about:blank'], { stdio: 'ignore' });
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function wsurl() { for (let i = 0; i < 40; i++) { try { const r = await fetch('http://127.0.0.1:9222/json/list'); const l = await r.json(); const p = l.find(t => t.type === 'page' && t.webSocketDebuggerUrl); if (p) return p.webSocketDebuggerUrl; } catch {} await sleep(250); } throw new Error('no page'); }
+const ws = new WebSocket(await wsurl());
+let id = 1; const pend = new Map(); const errs = [];
+ws.addEventListener('message', ev => { const m = JSON.parse(ev.data); if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); } if (m.method === 'Runtime.exceptionThrown') errs.push(m.params.exceptionDetails?.exception?.description || 'exc'); });
+const send = (method, params = {}) => new Promise(res => { const i = id++; pend.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+await new Promise(r => ws.addEventListener('open', r));
+await send('Page.enable'); await send('Runtime.enable');
+await send('Page.navigate', { url: URL });
+await sleep(6500);
+const ev = async e => { const r = await send('Runtime.evaluate', { expression: e, awaitPromise: true, returnByValue: true }); return r.result?.exceptionDetails ? ('EXC: ' + (r.result.exceptionDetails.exception?.description || '').split('\n')[0]) : r.result?.result?.value; };
+const pa = await ev(`(async()=>{const o=await loadPrefeitoJsonEarly('PA','BELEM',2004,'ord',1);const k=new Set(Object.keys(o.json.RESULTS));const g=await loadMunicipalBaseFromGpkg2006('PA','BELEM',o.muniCode,k,'prefeito');applyPrefeitoJsonToGeojson2024(g,o.json,'1T');const s=buildEarlyPrefeitoOfficialSummary(o.json,'1T');const top=Object.entries(s.votesByDisplayKey).sort((a,b)=>b[1]-a[1]).slice(0,2);return JSON.stringify({base:g.features.length,total:s.totalValidos,top});})()`);
+console.log('PA BELEM 2004 prefeito:', pa);
+const pav = await ev(`(async()=>{await ensureOfficialTotalsVereadores(2004);const v=await loadVereadorJsonEarly('PA','BELEM',2004);const k=new Set(Object.keys(v.json.RESULTS));const g=await loadMunicipalBaseFromGpkg2006('PA','BELEM',v.muniCode,k,'vereador');const t=STATE.officialTotals['vereadores_2004']?.['PA']?.['BELEM'];const nElect=Object.values(v.json.METADATA.cand_names).filter(m=>m[2]&&m[2].toUpperCase().includes('ELEITO')&&!m[2].toUpperCase().includes('NAO')&&!m[2].includes('NÃO')).length;return JSON.stringify({base:g.features.length,stats:t?.stats,candEleitosNoMeta:nElect});})()`);
+console.log('PA BELEM 2004 vereador:', pav);
+console.log('EXCEPTIONS:', errs.length ? errs.slice(0, 5).join(' | ') : '(nenhuma)');
+ws.close(); chrome.kill(); process.exit(0);
