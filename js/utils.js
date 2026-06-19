@@ -781,3 +781,158 @@ function updateClearSelectionButtonVisibility() {
 if (typeof window !== 'undefined') {
   window.updateClearSelectionButtonVisibility = updateClearSelectionButtonVisibility;
 }
+
+if (typeof window !== 'undefined') {
+  if (!window.CANDIDATE_NAME_TO_PARTY) {
+    window.CANDIDATE_NAME_TO_PARTY = new Map();
+  }
+}
+
+function cleanCandNamesMetadata(data, yearOrZipUrl) {
+  if (!data) return;
+  
+  let candNames = null;
+  if (data.METADATA && data.METADATA.cand_names) {
+    candNames = data.METADATA.cand_names;
+  } else if (data.cand_names) {
+    candNames = data.cand_names;
+  }
+  
+  if (!candNames) return;
+
+  let year = '';
+  if (yearOrZipUrl) {
+    const yearMatch = String(yearOrZipUrl).match(/\b(2000|2004)\b/);
+    if (yearMatch) {
+      year = yearMatch[1];
+    } else if (String(yearOrZipUrl) === '2000' || String(yearOrZipUrl) === '2004') {
+      year = String(yearOrZipUrl);
+    }
+  }
+  
+  if (!year && data.METADATA && data.METADATA.ano) {
+    if (String(data.METADATA.ano) === '2000' || String(data.METADATA.ano) === '2004') {
+      year = String(data.METADATA.ano);
+    }
+  }
+  
+  if (!year && typeof STATE !== 'undefined' && STATE.currentElectionYear) {
+    if (STATE.currentElectionYear === '2000' || STATE.currentElectionYear === '2004') {
+      year = STATE.currentElectionYear;
+    }
+  }
+
+  if (year !== '2000' && year !== '2004') return;
+
+  const mapping = {
+    10: 'PRB',
+    11: year === '2000' ? 'PPB' : 'PP',
+    12: 'PDT',
+    13: 'PT',
+    14: 'PTB',
+    15: 'PMDB',
+    16: 'PSTU',
+    17: 'PSL',
+    18: 'REDE',
+    19: 'PODE',
+    20: 'PSC',
+    21: 'PCB',
+    22: 'PL',
+    23: 'PPS',
+    24: 'PAN',
+    25: 'PFL',
+    26: 'PAN',
+    27: 'PSDC',
+    28: 'PRTB',
+    29: 'PCO',
+    30: 'NOVO',
+    31: 'PHS',
+    33: 'PMN',
+    35: 'PMB',
+    36: 'PTC',
+    40: 'PSB',
+    43: 'PV',
+    44: 'PRP',
+    45: 'PSDB',
+    50: 'PSOL',
+    51: 'PEN',
+    54: 'PPL',
+    55: 'PSD',
+    56: 'PRONA',
+    65: 'PC do B',
+    70: 'AVANTE',
+    77: 'SOLIDARIEDADE',
+    90: 'PROS'
+  };
+
+  Object.entries(candNames).forEach(([candId, meta]) => {
+    if (!meta || !Array.isArray(meta) || meta.length < 2) return;
+    const candName = String(meta[0] || '').trim();
+    let party = String(meta[1] || '').trim();
+    
+    const isNameConfusion = !party || 
+      party.length > 8 || 
+      party.toLowerCase() === candName.toLowerCase() || 
+      (party.includes(' ') && !['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'].includes(party.toUpperCase()));
+      
+    if (isNameConfusion) {
+      const pNum = parseInt(String(candId).substring(0, 2), 10);
+      const correctParty = mapping[pNum] || `P${pNum}`;
+      meta[1] = correctParty;
+      party = correctParty;
+    }
+    
+    if (typeof window !== 'undefined' && window.CANDIDATE_NAME_TO_PARTY) {
+      const cleanNameKey = candName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      if (cleanNameKey) {
+        window.CANDIDATE_NAME_TO_PARTY.set(cleanNameKey, party);
+      }
+    }
+  });
+
+  if (data.METADATA && data.METADATA.official_summary) {
+    Object.values(data.METADATA.official_summary).forEach((summary) => {
+      if (summary && summary.votesByDisplayKey) {
+        const cleanedVotes = {};
+        Object.entries(summary.votesByDisplayKey).forEach(([oldKey, votes]) => {
+          const match = oldKey.match(/^(.*?)\s*\(([^)]+)\)\s*\(([^)]+)\)(?:\s*(\d+T))?$/);
+          if (match) {
+            const name = match[1].trim();
+            const party = match[2].trim();
+            const status = match[3].trim();
+            const turno = match[4] || '';
+            
+            const isNameConfusion = !party || 
+              party.length > 8 || 
+              party.toLowerCase() === name.toLowerCase() || 
+              (party.includes(' ') && !['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'].includes(party.toUpperCase()));
+              
+            if (isNameConfusion) {
+              let candId = '';
+              for (const [id, cmeta] of Object.entries(candNames)) {
+                if (cmeta && cmeta[0] && cmeta[0].trim().toLowerCase() === name.toLowerCase()) {
+                  candId = id;
+                  break;
+                }
+              }
+              if (candId) {
+                const pNum = parseInt(String(candId).substring(0, 2), 10);
+                const correctParty = mapping[pNum] || `P${pNum}`;
+                const newKey = `${name} (${correctParty}) (${status}) ${turno}`.trim();
+                cleanedVotes[newKey] = votes;
+                return;
+              }
+            }
+          }
+          cleanedVotes[oldKey] = votes;
+        });
+        summary.votesByDisplayKey = cleanedVotes;
+      }
+    });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.cleanCandNamesMetadata = cleanCandNamesMetadata;
+}
+

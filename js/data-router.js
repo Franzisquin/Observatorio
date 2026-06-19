@@ -346,6 +346,9 @@ async function onClickLoadData_Vereadores(uf, municipio, ano, baseGeoProvided = 
     const blob = await jsonEntry.blob();
     const text = await blob.text();
     const fullJson = JSON.parse(text);
+    if (typeof cleanCandNamesMetadata === 'function') {
+      cleanCandNamesMetadata(fullJson, ano);
+    }
     if (!fullJson || !fullJson.RESULTS) throw new Error('JSON de vereadores invalido.');
 
     // 4. Popula STATE.vereador*

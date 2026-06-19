@@ -198,10 +198,15 @@ function matchesMunicipioName(requestedName, candidateName) {
   return getMunicipioAliasSlugs(requestedName).includes(candidateSlug);
 }
 
-function buildMunicipalOverviewEntry(summaryJson, subtype = 'ord') {
+function buildMunicipalOverviewEntry(summaryJson, subtype = 'ord', entryName = '', forcedTurno = null) {
   const metadata = summaryJson?.METADATA || {};
-  const rawTotals = summaryJson?.TOTALS || {};
-  const turno = Number(metadata.turno) === 2 ? '2T' : '1T';
+  const turno = forcedTurno || (Number(metadata.turno) === 2 ? '2T' : '1T');
+  
+  let rawTotals = summaryJson?.TOTALS || {};
+  if (!rawTotals || Object.keys(rawTotals).length === 0) {
+    rawTotals = metadata.official_summary?.[turno]?.rawTotals || {};
+  }
+
   const validEntries = Object.entries(rawTotals)
     .filter(([candidateId]) => candidateId !== '95' && candidateId !== '96')
     .map(([candidateId, votes]) => ({
@@ -224,9 +229,18 @@ function buildMunicipalOverviewEntry(summaryJson, subtype = 'ord') {
     votesByDisplayKey[displayKey] = entry.votes;
   });
 
+  let nm_municipio = metadata.nm_municipio;
+  if (!nm_municipio && entryName) {
+    const base = entryName.split('/').pop().replace('.json', '');
+    const parts = base.split('_');
+    if (parts.length > 1) {
+      nm_municipio = parts.slice(1).join(' ').replace(/_/g, ' ');
+    }
+  }
+
   return {
     muniCode: String(metadata.cd_municipio || '').trim(),
-    nome: metadata.nm_municipio || 'Município',
+    nome: nm_municipio || 'Município',
     winnerCode: winner?.candidateId || '',
     winnerName: winnerMeta[0] || 'N/D',
     winnerParty: winnerMeta[1] || '',
@@ -255,14 +269,24 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
       const zipUrl = `${DATA_BASE_URL}Municipais ${year}/prefeito_${year}_${subtype}_t${turno}_${ufNorm}.zip`;
       try {
         const reader = await getZipReader(zipUrl);
+        const isEarlyYear = String(year) === '2000' || String(year) === '2004';
         const entryNames = Object.keys(reader?.entries || {})
-          .filter((name) => name.toLowerCase().endsWith('_resumo.json'));
+          .filter((name) => {
+            const lower = name.toLowerCase();
+            if (isEarlyYear) {
+              return lower.endsWith('.json') && !lower.endsWith('_resumo.json');
+            }
+            return lower.endsWith('_resumo.json');
+          });
 
         for (const entryName of entryNames) {
           const entry = reader.entries[entryName];
           if (!entry) continue;
           const payload = JSON.parse(await (await entry.blob()).text());
-          const overview = buildMunicipalOverviewEntry(payload, subtype);
+          if (typeof cleanCandNamesMetadata === 'function') {
+            cleanCandNamesMetadata(payload, year);
+          }
+          const overview = buildMunicipalOverviewEntry(payload, subtype, entryName, turnoKey);
           if (!overview.muniCode) continue;
           stateSummary[turnoKey][overview.muniCode] = overview;
         }

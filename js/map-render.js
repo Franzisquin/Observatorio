@@ -3593,6 +3593,21 @@ function showOfficialCityResultPanel(entry, cityName) {
     if (match) {
       name = match[1].trim();
       party = match[2].trim();
+      
+      // Correct party name confusion
+      const isNameConfusion = !party || 
+        party.length > 8 || 
+        party.toLowerCase() === name.toLowerCase() || 
+        (party.includes(' ') && !['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'].includes(party.toUpperCase()));
+        
+      if (isNameConfusion && typeof window !== 'undefined' && window.CANDIDATE_NAME_TO_PARTY) {
+        const cleanNameKey = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const correctParty = window.CANDIDATE_NAME_TO_PARTY.get(cleanNameKey);
+        if (correctParty) {
+          party = correctParty;
+        }
+      }
+      
       status = match[3].trim().toUpperCase();
       isSpecial = status === 'ELEITO' || status === '2° TURNO' || status === '2º TURNO';
     } else {

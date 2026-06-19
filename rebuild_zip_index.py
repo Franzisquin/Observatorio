@@ -5,7 +5,7 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-SITE_DIR = r'c:\Users\Francisco\OneDrive\Documentos\Observatorio\resultados_geo'
+SITE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resultados_geo')
 
 index = {}
 

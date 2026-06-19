@@ -241,16 +241,20 @@ def build_geojson_for_year(year, locations_2006, section_to_local=None):
                     local_data[key]['nulos'] += votos
                 else:
                     partido_info = candidate_parties.get(nm_votavel, None)
-                    if not partido_info:
-                        # Derive from number
+                    if partido_info:
+                        partido = partido_info['partido']
+                        urna = str(partido_info['urna']).title()
+                    else:
+                        partido = None
+                        urna = str(nm_votavel).title()
+                    
+                    # Clean party name confusion
+                    is_name_confusion = not partido or len(partido) > 8 or partido.upper() == urna.upper() or (' ' in partido and partido.upper() not in ['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'])
+                    if is_name_confusion:
                         nr_p = nr_votavel
                         while nr_p >= 100:
                             nr_p = nr_p // 10
                         partido = get_party_from_number().get(nr_p, f'P{nr_p}')
-                        urna = str(nm_votavel).title()
-                    else:
-                        partido = partido_info['partido']
-                        urna = str(partido_info['urna']).title()
                     
                     # Build candidate display key: "NOME (PARTIDO) (STATUS) {turno_label}"
                     # Status = ELEITO, NAO ELEITO, 2 TURNO - we don't know from section data

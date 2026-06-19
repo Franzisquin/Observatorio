@@ -394,9 +394,13 @@ def process_special_year(year, geometrias, loc_index_2006, section_to_local=None
             
             # Determinar partido
             partido_info = candidate_parties.get(nm_votavel)
+            partido = None
             if partido_info:
                 partido = normalize_party(partido_info['partido'])
-            else:
+            
+            # Clean party name confusion
+            is_name_confusion = not partido or len(partido) > 8 or partido.upper() == normalize_party(nm_votavel) or ('_' in partido and partido.upper() not in ['PC_DO_B', 'PT_DO_B', 'PC_DOB', 'P_DO_B'])
+            if is_name_confusion:
                 partido = normalize_party(get_partido_from_nr(nr_votavel))
             
             col_name = f"{partido}_{year}_{turno_label}"

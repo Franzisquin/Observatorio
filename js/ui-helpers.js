@@ -65,8 +65,25 @@ function parseCandidateKey(key) {
   }
 
   const partidoMatch = statusMatches[0];
-  result.partido = partidoMatch[1];
-  result.nome = coreKey.substring(0, partidoMatch.index).trim();
+  let party = partidoMatch[1];
+  const name = coreKey.substring(0, partidoMatch.index).trim();
+
+  // Correct party name confusion
+  const isNameConfusion = !party || 
+    party.length > 8 || 
+    party.toLowerCase() === name.toLowerCase() || 
+    (party.includes(' ') && !['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'].includes(party.toUpperCase()));
+    
+  if (isNameConfusion && typeof window !== 'undefined' && window.CANDIDATE_NAME_TO_PARTY) {
+    const cleanNameKey = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    const correctParty = window.CANDIDATE_NAME_TO_PARTY.get(cleanNameKey);
+    if (correctParty) {
+      party = correctParty;
+    }
+  }
+
+  result.partido = party;
+  result.nome = name;
 
   const allStatus = statusMatches.slice(1).map(m => m[1].toUpperCase());
 

@@ -78,8 +78,12 @@ async function fetchJsonFromZipEntry(zipUrl, filename = null, matcher = null) {
   const { blob, name } = await fetchBlobFromZipEntry(zipUrl, filename, matcher);
   const text = await blob.text();
   try {
+    const parsed = JSON.parse(text);
+    if (typeof cleanCandNamesMetadata === 'function') {
+      cleanCandNamesMetadata(parsed, zipUrl);
+    }
     return {
-      data: JSON.parse(text),
+      data: parsed,
       name
     };
   } catch (err) {
@@ -716,7 +720,7 @@ function shouldUseMunicipalOfficialTotals() {
     censusFilters.saneamentoVal
   ].some((value) => value !== null && value !== undefined && Number(value) > 0);
   const year = String(STATE.currentElectionYear);
-  return (year === '2024' || year === '2020' || year === '2016' || year === '2012' || year === '2008')
+  return (year === '2024' || year === '2020' || year === '2016' || year === '2012' || year === '2008' || year === '2004' || year === '2000')
     && STATE.currentElectionType === 'municipal'
     && STATE.isFilterAggregationActive
     && !hasActiveCensusFilters
