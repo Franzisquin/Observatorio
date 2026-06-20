@@ -2174,6 +2174,17 @@ function refreshTurnDependentUI() {
   const hasData = !!currentDataCollection[currentCargo];
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
 
+  // Turno municipal sem dados por local (ex.: 2o turno de Maceio 2000, ou
+  // municipio inteiro do munzona): redesenha o mapa e mostra o resultado geral.
+  if (STATE.currentElectionType === 'municipal' && currentCargo.startsWith('prefeito')
+      && (STATE.candidates[currentCargo]?.[turnoKey] || []).length === 0
+      && STATE.municipalOfficialTotals?.[currentCargo]?.[turnoKey]
+      && typeof renderMunicipalOfficialOnlySidebar === 'function') {
+    if (currentLayer?.refresh) currentLayer.refresh();
+    renderMunicipalOfficialOnlySidebar(currentCargo);
+    return;
+  }
+
   if (hasData && currentVizMode.startsWith('desempenho')) {
     populateVizCandidatoDropdown(turnoKey);
     if (dom.selectVizCandidato?.value) {
@@ -3580,7 +3591,12 @@ function showOfficialCityResultPanel(entry, cityName) {
     return (val * 100).toFixed(2) + '%';
   };
 
-  const tableRows = sortedVotes.map(([key, votesRaw]) => {
+  const isEarlyMajoritarianWith2T = (window.STATE?.currentElectionYear === '2000' || window.STATE?.currentElectionYear === '2004')
+    && window.currentCargo?.startsWith('prefeito')
+    && window.currentTurno === 1
+    && window.STATE?.dataHas2T?.[window.currentCargo];
+
+  const tableRows = sortedVotes.map(([key, votesRaw], idx) => {
     const votes = ensureNumber(votesRaw);
     const pctVal = totalValid > 0 ? (votes / totalValid) : 0;
     
@@ -3610,6 +3626,9 @@ function showOfficialCityResultPanel(entry, cityName) {
       
       status = match[3].trim().toUpperCase();
       isSpecial = status === 'ELEITO' || status === '2° TURNO' || status === '2º TURNO';
+      if (isEarlyMajoritarianWith2T && idx < 2) {
+        isSpecial = true;
+      }
     } else {
       let cleanedKey = key.replace(/^(group:|party:)/, '').replace(/_/g, ' ').trim();
       name = cleanedKey;

@@ -240,6 +240,7 @@ window.onClickLoadData_Municipal = async function () {
   dom.mapLoader.classList.add('visible');
 
   clearZipCache();
+  CANDIDATES_CACHE.clear();
   clearSelection(true);
   currentDataCollection = {};
   currentDataCollection_2022 = {};
@@ -344,7 +345,7 @@ async function onClickLoadData_Vereadores(uf, municipio, ano, baseGeoProvided = 
     console.log(`[Vereadores] JSON: ${jsonName}`);
 
     const blob = await jsonEntry.blob();
-    const text = await blob.text();
+    const text = await readBlobAsText(blob);
     const fullJson = JSON.parse(text);
     if (typeof cleanCandNamesMetadata === 'function') {
       cleanCandNamesMetadata(fullJson, ano);

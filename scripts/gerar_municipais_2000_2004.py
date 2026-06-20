@@ -44,6 +44,7 @@ DADOS_DIR = r'E:\Mapas\Dados'
 GPKG_PATH = os.path.join(BASE_DIR, 'scratch', 'gpkg2006', 'locais_votacao_2006.gpkg')
 GPKG_ZIP = os.path.join(GEO_DIR, 'locais_votacao_2006_gkpg.zip')
 REPORT_CSV = os.path.join(SECOES_DIR, 'zonas_problematicas_2000_2004.csv')
+GAPS_CSV = os.path.join(SECOES_DIR, 'lacunas_preenchidas_munzona_2000_2004.csv')
 
 ALL_UFS = [
     'AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT',
@@ -202,25 +203,84 @@ def _sniff_rows(raw_bytes):
     return list(reader)
 
 
-def parse_munzona(uf, year):
-    """Retorna:
-       meta : {(cdmun:int, num:str): {urna, sigla, status, colig, comp}}
+def load_modern_name_to_code(uf):
+    """{slug_municipio: codigo_tse} a partir da referencia de 2008 (codigos estaveis).
+    Usado para resolver o codigo de layouts munzona sem codigo (ex.: PA 2000)."""
+    out = {}
+    zp = os.path.join(GEO_DIR, 'Municipais 2008', f'prefeito_2008_ord_t1_{uf}.zip')
+    if not os.path.exists(zp):
+        return out
+    with zipfile.ZipFile(zp) as zf:
+        for n in zf.namelist():
+            if n.endswith('_resumo.json'):
+                continue
+            m = re.match(r'(\d+)_(.+)\.json$', n)
+            if m:
+                code, sl = m.group(1), m.group(2)
+                out.setdefault(sl, code)
+                out.setdefault(loose_slug(sl), code)
+    return out
+
+
+def parse_munzona(uf, year, name_to_code=None):
+    """Retorna (meta, votes, names):
+       meta  : {(cdmun:int, num:str): {urna, sigla, status, colig, colig_seq}}
+       votes : {(cdmun:int, mode): {turno:int: {num:str: votos}}}  (totais municipais)
+       names : {cdmun:int: NM_MUNICIPIO}
     Usa ancora DS_CARGO ('PREFEITO'/'VEREADOR') e prefixo fixo do layout legado TSE.
+    Os totais por municipio sao usados para preencher lacunas do arquivo de secoes.
+    name_to_code: resolve o codigo por nome em layouts sem codigo (ex.: PA 2000, 12 campos).
     """
+    name_to_code = name_to_code or {}
     zip_path = os.path.join(DADOS_DIR, f'votacao_candidato_munzona_{year}.zip')
     meta = {}
+    votes = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    names = {}
     if not os.path.exists(zip_path):
         print(f'  [AVISO] munzona {year} nao encontrado em {DADOS_DIR}.')
-        return meta
+        return meta, votes, names
     with zipfile.ZipFile(zip_path) as zf:
         cand = [n for n in zf.namelist()
                 if f'_{uf}.' in n.upper() and (n.lower().endswith('.txt') or n.lower().endswith('.csv'))]
         if not cand:
             print(f'  [AVISO] munzona {year} {uf} nao encontrado no zip.')
-            return meta
+            return meta, votes, names
         rows = _sniff_rows(zf.read(cand[0]))
 
     for row in rows:
+        # Layout MIN12 (ex.: PA 2000): nome@1, sem codigo, cargo@8, num@4, votos@11.
+        if (len(row) == 12 and strip_accents_upper(row[8]) in ('PREFEITO', 'VEREADOR')
+                and not str(row[7]).strip().isdigit()):
+            nm = str(row[1]).strip()
+            code = name_to_code.get(slugify(nm)) or name_to_code.get(loose_slug(nm))
+            if not code:
+                continue
+            cdmun = int(code)
+            mode = 'prefeito' if strip_accents_upper(row[8]) == 'PREFEITO' else 'vereador'
+            try:
+                num = str(int(row[4]))
+            except (TypeError, ValueError):
+                continue
+            full = str(row[6]).strip()
+            urna = str(row[7]).strip()
+            sigla = str(row[10]).strip()
+            try:
+                t = int(row[0]); turno = t if t in (1, 2) else 1
+            except (TypeError, ValueError):
+                turno = 1
+            try:
+                qt = int(str(row[11]).strip())
+            except (TypeError, ValueError):
+                qt = None
+            key = (cdmun, num)
+            if key not in meta:
+                meta[key] = {'urna': urna or full, 'full': full, 'sigla': sigla,
+                             'status': '', 'colig': '', 'colig_seq': '', '_turno': turno}
+            if qt is not None:
+                votes[(cdmun, mode)][turno][num] += qt
+            names.setdefault(cdmun, nm)
+            continue
+
         if len(row) < 13:
             continue
         # localiza DS_CARGO
@@ -232,6 +292,7 @@ def parse_munzona(uf, year):
                 break
         if c is None:
             continue
+        mode = 'prefeito' if strip_accents_upper(row[c]) == 'PREFEITO' else 'vereador'
         try:
             cdmun = int(row[7])
             num = str(int(row[11]))
@@ -275,7 +336,16 @@ def parse_munzona(uf, year):
             'colig_seq': colig_seq,
             '_turno': turno,
         }
-    return meta
+
+        # Totais municipais (soma das zonas) por turno, para preencher lacunas
+        try:
+            qt = int(str(row[-1]).strip())
+        except (TypeError, ValueError):
+            qt = None
+        if qt is not None and turno > 0:
+            votes[(cdmun, mode)][turno][num] += qt
+        names.setdefault(cdmun, str(row[8]).strip())
+    return meta, votes, names
 
 
 def normalize_status(raw):
@@ -304,6 +374,87 @@ def normalize_comp(comp):
         return ''
     parts = [strip_accents_upper(p) for p in comp.split('/') if p.strip()]
     return '/'.join(sorted(parts))
+
+
+# ----------------------------------------------------------------------------
+# Coligacoes e cand_names (compartilhado entre secao e preenchimento de lacuna)
+# ----------------------------------------------------------------------------
+
+def build_coalition_maps(munz_meta):
+    """Reconstroi composicao por sequencial de coligacao a partir das siglas."""
+    comp_by_seq = defaultdict(set)
+    name_by_seq = {}
+    party_to_seq = {}
+    for cnum, inf in munz_meta.items():
+        seq = inf.get('colig_seq') or ''
+        if not seq:
+            continue
+        if inf.get('sigla'):
+            comp_by_seq[seq].add(strip_accents_upper(inf['sigla']))
+        if inf.get('colig'):
+            name_by_seq.setdefault(seq, inf['colig'])
+        if len(cnum) > 2:
+            party_to_seq.setdefault(cnum[:2], seq)
+    return comp_by_seq, name_by_seq, party_to_seq
+
+
+def make_coal_of(munz_meta, party_map, maps):
+    comp_by_seq, name_by_seq, party_to_seq = maps
+
+    def coal_of(num):
+        num = str(num)
+        inf = munz_meta.get(num)
+        seq = (inf.get('colig_seq') if inf else '') or ''
+        if not seq and len(num) <= 2:
+            seq = party_to_seq.get(num, '')
+        if seq:
+            comp = '/'.join(sorted(comp_by_seq.get(seq, set())))
+            return (f'SEQ:{seq}', name_by_seq.get(seq, ''), comp)
+        if inf and inf.get('sigla'):
+            sig = inf['sigla']
+        elif len(num) <= 2:
+            sig = party_map.get(num, '')
+        else:
+            sig = party_map.get(party_from_number(num), '')
+        sig = strip_accents_upper(sig)
+        return (f'PARTY:{sig}', '', sig)
+    return coal_of
+
+
+def build_candnames_coalmap(num_name_pairs, munz_meta, party_map, mode):
+    """num_name_pairs: lista de (num, nm_votavel). Retorna (cand_names, coal_map)."""
+    coal_of = make_coal_of(munz_meta, party_map, build_coalition_maps(munz_meta))
+    cand_names = {}
+    coal_map = {}
+    for nr, nm in num_name_pairs:
+        num = str(nr)
+        entry = cand_entry(nr, nm, munz_meta, party_map, mode)
+        if mode == 'vereador' and num not in ('95', '96', '97'):
+            ck, cname, comp = coal_of(num)
+            coal_map[num] = (ck, cname, comp)
+            entry[3] = cname or entry[3]
+            entry[4] = comp or entry[4]
+        cand_names[num] = entry
+    cand_names.setdefault('95', ['VOTO BRANCO', '', 'BRANCO', '', ''])
+    cand_names.setdefault('96', ['VOTO NULO', '', 'NULO', '', ''])
+    return cand_names, coal_map
+
+
+def apply_prefeito_status(cand_names, official_by_turno):
+    """Status do prefeito computado dos totais quando o munzona nao traz (CE/PA/PR)."""
+    if not official_by_turno:
+        return
+    last_turno = max(official_by_turno)
+    nominal = sorted(
+        ((cid, v) for cid, v in official_by_turno[last_turno].items()
+         if cid not in ('95', '96', '97')),
+        key=lambda x: -x[1])
+    winner = nominal[0][0] if nominal else None
+    for cid, entry in cand_names.items():
+        if cid in ('95', '96', '97'):
+            continue
+        if entry[2] in ('', 'N/D'):
+            entry[2] = 'ELEITO' if cid == winner else 'NÃO ELEITO'
 
 
 # ----------------------------------------------------------------------------
@@ -398,51 +549,114 @@ def summarize(raw_totals, include_legenda):
 # Processamento de um (uf, year)
 # ----------------------------------------------------------------------------
 
-def process_uf_year(uf, year, base, sec2local, report_rows):
+def process_uf_year(uf, year, base, sec2local, report_rows, gap_rows):
     df = read_section_csv(uf, year)
-    if df is None or df.empty:
-        print(f'  {uf} {year}: sem arquivo de secoes, pulando.')
-        return None
+    have_sections = df is not None and not df.empty
 
     canon_by_slug = base['canon_by_slug']
     canon_by_loose = base['canon_by_loose']
 
-    # nome canonico por municipio (via slug -> base 2006; fallback slug solto; fallback nome da secao)
-    name_by_cdmun = {}
-    rawname_by_cdmun = {}
-    for cd, nm in df[['CD_MUNICIPIO', 'NM_MUNICIPIO']].drop_duplicates().itertuples(index=False):
-        cd = int(cd)
-        canon = canon_by_slug.get(slugify(nm)) or canon_by_loose.get(loose_slug(nm)) or str(nm).strip()
-        name_by_cdmun[cd] = canon
-        rawname_by_cdmun[cd] = str(nm).strip()
+    def resolve_canon(nm):
+        return canon_by_slug.get(slugify(nm)) or canon_by_loose.get(loose_slug(nm)) or str(nm).strip()
 
-    # local de votacao por linha
-    if year == 2000:
-        df['LOCAL'] = [
-            sec2local.get((uf, int(z), int(s)), -1)
-            for z, s in zip(df['NR_ZONA'], df['NR_SECAO'].fillna(-1).astype(int))
-        ]
-    else:
-        df['LOCAL'] = df['NR_LOCAL_VOTACAO'].fillna(-1).astype(int)
-
-    munz = parse_munzona(uf, year)
-    # particiona meta por municipio: meta_by_mun[cdmun][num] = info
+    # munzona: metadados + totais municipais (para preencher lacunas do TSE)
+    munz_meta, mz_votes, mz_names = parse_munzona(uf, year, load_modern_name_to_code(uf))
     meta_by_mun = defaultdict(dict)
-    for (cdmun, num), info in munz.items():
+    for (cdmun, num), info in munz_meta.items():
         meta_by_mun[cdmun][num] = info
 
-    result = {
-        'prefeito': defaultdict(lambda: {'turnos': defaultdict(dict)}),  # cdmun -> turno -> {key:{num:votos}}
-        'vereador': {},
+    name_by_cdmun = {}
+    if have_sections:
+        for cd, nm in df[['CD_MUNICIPIO', 'NM_MUNICIPIO']].drop_duplicates().itertuples(index=False):
+            name_by_cdmun[int(cd)] = resolve_canon(nm)
+
+        if year == 2000:
+            df['LOCAL'] = [
+                sec2local.get((uf, int(z), int(s)), -1)
+                for z, s in zip(df['NR_ZONA'], df['NR_SECAO'].fillna(-1).astype(int))
+            ]
+        else:
+            df['LOCAL'] = df['NR_LOCAL_VOTACAO'].fillna(-1).astype(int)
+
+        pref = build_cargo(df, CD_PREFEITO, uf, year, base, meta_by_mun, name_by_cdmun, report_rows, mode='prefeito')
+        vere = build_cargo(df, CD_VEREADOR, uf, year, base, meta_by_mun, name_by_cdmun, report_rows, mode='vereador')
+    else:
+        print(f'  {uf} {year}: sem dados de secao; usando apenas totais do munzona.')
+        pref, vere = {}, {}
+
+    # ---- Preenchimento de lacunas do TSE a partir dos totais do munzona ----
+    fill_gaps_from_munzona(uf, year, pref, vere, mz_votes, mz_names, meta_by_mun,
+                           resolve_canon, name_by_cdmun, gap_rows)
+
+    return {'prefeito': pref, 'vereador': vere, 'name_by_cdmun': name_by_cdmun}
+
+
+def build_gap_payload(cdmun, canon, mode, votes_by_turno, munz_meta):
+    """Monta o payload de um municipio sem visao por local (RESULTS vazio),
+    apenas com os totais municipais do munzona (resultado geral)."""
+    party_map = {}
+    for num, inf in munz_meta.items():
+        if len(str(num)) <= 2 and inf.get('sigla'):
+            party_map[str(num)] = inf['sigla']
+    nums = set()
+    for turno_votes in votes_by_turno.values():
+        nums.update(turno_votes.keys())
+    pairs = [(num, (munz_meta.get(num, {}).get('full') or '')) for num in sorted(nums)]
+    cand_names, coal_map = build_candnames_coalmap(pairs, munz_meta, party_map, mode)
+
+    official_by_turno = {int(t): dict(v) for t, v in votes_by_turno.items()}
+    results_by_turno = {int(t): {} for t in votes_by_turno}  # sem visao por local
+    if mode == 'prefeito':
+        apply_prefeito_status(cand_names, official_by_turno)
+
+    return {
+        'slug': slugify(canon),
+        'canon': canon,
+        'cand_names': cand_names,
+        'results_by_turno': results_by_turno,
+        'official_by_turno': official_by_turno,
+        'party_map': party_map,
+        'munz_meta': munz_meta,
+        'coal_map': coal_map,
+        'gap': True,
     }
 
-    # ---- PREFEITO ----
-    pref = build_cargo(df, CD_PREFEITO, uf, year, base, meta_by_mun, name_by_cdmun,
-                       report_rows, mode='prefeito')
-    # ---- VEREADOR ----
-    vere = build_cargo(df, CD_VEREADOR, uf, year, base, meta_by_mun, name_by_cdmun,
-                       report_rows, mode='vereador')
-    return {'prefeito': pref, 'vereador': vere, 'name_by_cdmun': name_by_cdmun}
+
+def fill_gaps_from_munzona(uf, year, pref, vere, mz_votes, mz_names, meta_by_mun,
+                           resolve_canon, name_by_cdmun, gap_rows):
+    """Adiciona municipios/turnos ausentes na secao usando os totais do munzona."""
+    for (cdmun, mode), votes_by_turno in mz_votes.items():
+        if not votes_by_turno:
+            continue
+        target = pref if mode == 'prefeito' else vere
+        canon = name_by_cdmun.get(cdmun) or resolve_canon(mz_names.get(cdmun, str(cdmun)))
+        name_by_cdmun.setdefault(cdmun, canon)
+        munz_meta = meta_by_mun.get(cdmun, {})
+
+        if cdmun not in target:
+            # municipio inteiro ausente na secao -> cria do zero (sem local)
+            target[cdmun] = build_gap_payload(cdmun, canon, mode, votes_by_turno, munz_meta)
+            gap_rows.append({'UF': uf, 'Ano': year, 'CD_Municipio': cdmun, 'Municipio': canon,
+                             'Cargo': mode, 'Tipo': 'MUNICIPIO_AUSENTE_NA_SECAO',
+                             'Detalhe': 'Totais do munzona; sem visao por local'})
+        elif mode == 'prefeito':
+            # municipio existe mas pode faltar um turno (ex.: 2o turno)
+            existing = target[cdmun]
+            existing_turnos = set(existing['official_by_turno'])
+            for t, tv in votes_by_turno.items():
+                if int(t) in existing_turnos or not tv:
+                    continue
+                existing['official_by_turno'][int(t)] = dict(tv)
+                existing['results_by_turno'][int(t)] = {}
+                # garante que os candidatos do turno extra estejam em cand_names
+                for num in tv:
+                    if num not in existing['cand_names']:
+                        e = cand_entry(num, munz_meta.get(num, {}).get('full') or '', munz_meta, {}, 'prefeito')
+                        existing['cand_names'][num] = e
+                apply_prefeito_status(existing['cand_names'], existing['official_by_turno'])
+                gap_rows.append({'UF': uf, 'Ano': year, 'CD_Municipio': cdmun, 'Municipio': canon,
+                                 'Cargo': mode, 'Tipo': f'TURNO_{int(t)}_AUSENTE_NA_SECAO',
+                                 'Detalhe': 'Turno preenchido com totais do munzona; sem visao por local'})
 
 
 def build_cargo(df, cargo, uf, year, base, meta_by_mun, name_by_cdmun, report_rows, mode):
@@ -460,54 +674,9 @@ def build_cargo(df, cargo, uf, year, base, meta_by_mun, name_by_cdmun, report_ro
         munz_meta = meta_by_mun.get(cdmun, {})
         party_map = build_party_map(dmun) or party_map_global
 
-        # mapas de coligacao por sequencial (reconstroi composicao via siglas)
-        comp_by_seq = defaultdict(set)
-        name_by_seq = {}
-        party_to_seq = {}
-        for cnum, inf in munz_meta.items():
-            seq = inf.get('colig_seq') or ''
-            if not seq:
-                continue
-            if inf.get('sigla'):
-                comp_by_seq[seq].add(strip_accents_upper(inf['sigla']))
-            if inf.get('colig'):
-                name_by_seq.setdefault(seq, inf['colig'])
-            if len(cnum) > 2:
-                party_to_seq.setdefault(cnum[:2], seq)
-
-        def coal_of(num):
-            """(chave_agrupamento, nome_coligacao, composicao) para o vereador."""
-            num = str(num)
-            inf = munz_meta.get(num)
-            seq = (inf.get('colig_seq') if inf else '') or ''
-            if not seq and len(num) <= 2:
-                seq = party_to_seq.get(num, '')
-            if seq:
-                comp = '/'.join(sorted(comp_by_seq.get(seq, set())))
-                return (f'SEQ:{seq}', name_by_seq.get(seq, ''), comp)
-            if inf and inf.get('sigla'):
-                sig = inf['sigla']
-            elif len(num) <= 2:
-                sig = party_map.get(num, '')
-            else:
-                sig = party_map.get(party_from_number(num), '')
-            sig = strip_accents_upper(sig)
-            return (f'PARTY:{sig}', '', sig)
-
-        # cand_names (uniao de todos os numeros do municipio)
-        cand_names = {}
-        coal_map = {}
-        for nr, nm in dmun[['NR_VOTAVEL', 'NM_VOTAVEL']].drop_duplicates().itertuples(index=False):
-            num = str(nr)
-            entry = cand_entry(nr, nm, munz_meta, party_map, mode)
-            if mode == 'vereador' and num not in ('95', '96', '97'):
-                ck, cname, comp = coal_of(num)
-                coal_map[num] = (ck, cname, comp)
-                entry[3] = cname or entry[3]
-                entry[4] = comp or entry[4]
-            cand_names[num] = entry
-        cand_names.setdefault('95', ['VOTO BRANCO', '', 'BRANCO', '', ''])
-        cand_names.setdefault('96', ['VOTO NULO', '', 'NULO', '', ''])
+        # cand_names + coal_map (uniao de todos os numeros do municipio)
+        pairs = list(dmun[['NR_VOTAVEL', 'NM_VOTAVEL']].drop_duplicates().itertuples(index=False, name=None))
+        cand_names, coal_map = build_candnames_coalmap(pairs, munz_meta, party_map, mode)
 
         # ---- deteccao de zonas problematicas (uma vez por municipio; so no prefeito p/ nao duplicar)
         if mode == 'prefeito':
@@ -540,20 +709,9 @@ def build_cargo(df, cargo, uf, year, base, meta_by_mun, name_by_cdmun, report_ro
             payload_by_turno[turno] = results
             official_by_turno[turno] = dict(full)
 
-        # Status do prefeito computado a partir dos totais completos quando o
-        # munzona nao traz status (ex.: CE, PA, PR). Vencedor = ELEITO.
-        if mode == 'prefeito' and official_by_turno:
-            last_turno = max(official_by_turno)
-            nominal = sorted(
-                ((cid, v) for cid, v in official_by_turno[last_turno].items()
-                 if cid not in ('95', '96', '97')),
-                key=lambda x: -x[1])
-            winner = nominal[0][0] if nominal else None
-            for cid, entry in cand_names.items():
-                if cid in ('95', '96', '97'):
-                    continue
-                if entry[2] in ('', 'N/D'):
-                    entry[2] = 'ELEITO' if cid == winner else 'NÃO ELEITO'
+        # Status do prefeito computado dos totais quando o munzona nao traz (CE/PA/PR).
+        if mode == 'prefeito':
+            apply_prefeito_status(cand_names, official_by_turno)
 
         out[cdmun] = {
             'slug': slug,
@@ -680,11 +838,16 @@ def write_vereador(uf, year, vere, official_totals):
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         for cdmun, info in vere.items():
             results = info['results_by_turno'].get(1, {})
+            # Totais COMPLETOS por candidato (todas as secoes/zonas, inclusive sem
+            # geolocalizacao) — usados no "resultado geral" da sidebar quando nao
+            # ha dados por local (municipios do munzona) ou para corrigir o total.
+            official_votes = {str(k): int(v) for k, v in info['official_by_turno'].get(1, {}).items()}
             payload = {
                 'METADATA': {
                     'cand_names': info['cand_names'],
                     'cd_municipio': str(cdmun),
                     'coalition_adjustments': {},
+                    'official_votes': official_votes,
                 },
                 'RESULTS': results,
             }
@@ -783,6 +946,16 @@ def write_report(report_rows):
     print(f'\n  Relatorio de zonas problematicas: {len(report_rows)} linhas -> {REPORT_CSV}')
 
 
+def write_gaps(gap_rows):
+    cols = ['UF', 'Ano', 'CD_Municipio', 'Municipio', 'Cargo', 'Tipo', 'Detalhe']
+    gap_rows.sort(key=lambda r: (r['UF'], r['Ano'], r['Municipio'], r['Cargo']))
+    with open(GAPS_CSV, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.DictWriter(f, fieldnames=cols)
+        w.writeheader()
+        w.writerows(gap_rows)
+    print(f'  Lacunas preenchidas via munzona: {len(gap_rows)} linhas -> {GAPS_CSV}')
+
+
 # ----------------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------------
@@ -796,6 +969,7 @@ def main():
     ufs = [u.strip().upper() for u in args.ufs.split(',') if u.strip()]
 
     report_rows = []
+    gap_rows = []
     names_by_uf = defaultdict(set)
 
     for year in years:
@@ -805,7 +979,7 @@ def main():
         for uf in ufs:
             print(f'\n[{uf} {year}]')
             base = load_gpkg_uf(uf)
-            data = process_uf_year(uf, year, base, sec2local, report_rows)
+            data = process_uf_year(uf, year, base, sec2local, report_rows, gap_rows)
             if not data:
                 continue
             if data['prefeito']:
@@ -826,6 +1000,7 @@ def main():
 
     update_lista_municipios(names_by_uf)
     write_report(report_rows)
+    write_gaps(gap_rows)
     print('\nCONCLUIDO.')
 
 

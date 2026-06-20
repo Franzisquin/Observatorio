@@ -76,7 +76,7 @@ async function fetchBlobFromZipEntry(zipUrl, filename = null, matcher = null) {
 
 async function fetchJsonFromZipEntry(zipUrl, filename = null, matcher = null) {
   const { blob, name } = await fetchBlobFromZipEntry(zipUrl, filename, matcher);
-  const text = await blob.text();
+  const text = await readBlobAsText(blob);
   try {
     const parsed = JSON.parse(text);
     if (typeof cleanCandNamesMetadata === 'function') {

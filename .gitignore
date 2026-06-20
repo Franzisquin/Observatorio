@@ -1,0 +1,7 @@
+# Munzona oficial do TSE baixado sob demanda pelos scripts (grande e regeneravel;
+# versoes commitadas chegaram corrompidas por conversao CRLF).
+scratch/munzona_clean/
+
+# Bytecode Python
+__pycache__/
+*.pyc

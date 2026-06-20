@@ -269,8 +269,8 @@ const MUNICIPAL_SECOND_TURN_AVAILABILITY = {
   '2016': { ord: ['AL', 'AM', 'AP', 'BA', 'CE', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PE', 'PR', 'RJ', 'RO', 'RS', 'SC', 'SE', 'SP'] },
   '2012': { ord: ['AC', 'AM', 'AP', 'BA', 'CE', 'ES', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
   '2008': { ord: ['AM', 'AP', 'BA', 'ES', 'GO', 'MA', 'MG', 'MT', 'PA', 'PB', 'PR', 'RJ', 'RS', 'SC', 'SP'] },
-  '2004': { ord: ['AL', 'AM', 'BA', 'CE', 'ES', 'GO', 'MG', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
-  '2000': { ord: ['AM', 'CE', 'GO', 'MG', 'PA', 'PE', 'PR', 'RJ', 'RS', 'SP'] }
+  '2004': { ord: ['AL', 'AM', 'BA', 'CE', 'ES', 'GO', 'MG', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RS', 'SC', 'SP'] },
+  '2000': { ord: ['AL', 'AM', 'CE', 'GO', 'MG', 'PA', 'PE', 'PR', 'RJ', 'RS', 'SP'] }
 };
 
 function hasMunicipalSecondTurnArchive(year, uf, subtype = 'ord') {
@@ -935,4 +935,24 @@ function cleanCandNamesMetadata(data, yearOrZipUrl) {
 if (typeof window !== 'undefined') {
   window.cleanCandNamesMetadata = cleanCandNamesMetadata;
 }
+
+async function readBlobAsText(blob) {
+  if (!blob) return '';
+  const textUtf8 = await blob.text();
+  if (textUtf8.includes('\uFFFD')) {
+    try {
+      const buffer = await blob.arrayBuffer();
+      const decoder = new TextDecoder('windows-1252');
+      return decoder.decode(buffer);
+    } catch (e) {
+      console.warn("Failed to decode text as windows-1252, using default:", e);
+    }
+  }
+  return textUtf8;
+}
+
+if (typeof window !== 'undefined') {
+  window.readBlobAsText = readBlobAsText;
+}
+
 

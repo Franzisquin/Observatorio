@@ -129,8 +129,13 @@ async function loadMunicipalEarlyPrefeito(uf, municipio, ano) {
   currentDataCollection['prefeito_ord'] = ordGeo;
   processLoadedGeoJSON(ordGeo, 'prefeito_ord');
 
+  // 2o turno pode existir so nos totais oficiais (sem dados por local, ex.: Maceio 2000)
+  const off2T = STATE.municipalOfficialTotals['prefeito_ord']?.['2T']?.votesByDisplayKey;
+  if (off2T && Object.keys(off2T).length) STATE.dataHas2T['prefeito_ord'] = true;
+
   finalizeMunicipalLoadUI(municipio, false);
   if (!ordGeo.features.length) {
+    if (typeof renderMunicipalOfficialOnlySidebar === 'function') renderMunicipalOfficialOnlySidebar('prefeito_ord');
     showToast(`${municipio}/${uf} (${ano}): resultado geral exibido; mapa indisponivel (zonas alteradas desde 2006).`, 'info');
   } else {
     showToast(`Dados de ${municipio}/${uf} (${ano}) carregados!`, 'success');
@@ -183,6 +188,9 @@ async function loadMunicipalEarlyVereador(uf, municipio, ano) {
   STATE.vereadorLookup = null;
 
   finalizeMunicipalLoadUI(municipio, true);
+  if (!baseGeo.features.length && typeof renderMunicipalOfficialOnlySidebar === 'function') {
+    renderMunicipalOfficialOnlySidebar('vereador_ord');
+  }
   showToast(`Vereadores de ${municipio}/${uf} (${ano}) carregados!`, 'success');
 }
 

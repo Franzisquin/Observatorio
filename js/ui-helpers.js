@@ -141,6 +141,10 @@ function toTitleCase(str) {
   // Helper to check if word is a known party (acronym)
   const isPartyAcronym = (w) => {
     const clean = w.replace(/[^a-zA-Z0-9]/g, ''); // Remove ( ) / etc
+    const upperClean = clean.toUpperCase();
+    if (['NOVO', 'REDE', 'PATRIOTA', 'CIDADANIA', 'AVANTE', 'SOLIDARIEDADE', 'REPUBLICANOS', 'AGIR', 'PODEMOS', 'MOBILIZA'].includes(upperClean)) {
+      return false;
+    }
     const normalized = typeof getNormalizedPartyColorKey === 'function'
       ? getNormalizedPartyColorKey(clean)
       : clean.toUpperCase();

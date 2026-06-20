@@ -11,6 +11,7 @@ function setupControls() {
   // Popular UF Municipal
   dom.selectUFMunicipal.innerHTML = '<option value="" disabled selected>Selecione UF</option>';
   ALL_STATE_SIGLAS.forEach(sigla => {
+    if (sigla === 'DF') return;
     const nome = UF_MAP.get(sigla) || sigla;
     const opt = document.createElement('option');
     opt.value = sigla;
@@ -616,7 +617,13 @@ function setupControls() {
     }
 
     const allFiltered = getAllFeaturesForAggregation();
-    if (!allFiltered.length) return;
+    if (!allFiltered.length) {
+      // Municipio sem dados por local (totais do munzona): mostra o resultado geral.
+      if (typeof renderMunicipalOfficialOnlySidebar === 'function') {
+        renderMunicipalOfficialOnlySidebar();
+      }
+      return;
+    }
 
     selectedLocationIDs.clear();
     allFiltered.forEach((feature) => {

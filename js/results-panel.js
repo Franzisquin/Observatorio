@@ -330,17 +330,24 @@ function setupTurnTabs(props) {
   if (!dom.turnTabs) return;
   dom.turnTabs.innerHTML = '';
   
-  const has1T = (STATE.candidates[currentCargo]?.['1T'] || []).length > 0;
-  let has2T = STATE.dataHas2T[currentCargo] || false;
+  // Totais oficiais do municipio (resultado geral) — habilitam turnos mesmo sem
+  // dados por local de votacao (ex.: 2o turno de Maceio 2000, ou municipios
+  // inteiros vindos do munzona).
+  const muniOfficial = currentCargo.startsWith('prefeito') ? STATE.municipalOfficialTotals?.[currentCargo] : null;
+  const officialHas = (tk) => !!(muniOfficial?.[tk]?.votesByDisplayKey
+    && Object.keys(muniOfficial[tk].votesByDisplayKey).length);
+
+  const has1T = ((STATE.candidates[currentCargo]?.['1T'] || []).length > 0) || officialHas('1T');
+  let has2T = (STATE.dataHas2T[currentCargo] || false) || officialHas('2T');
 
   // 1. Hard-coded rules: Legislative offices NEVER have a 2nd turn
-  const neverHas2T = (currentCargo.startsWith('senador') || 
-                   currentCargo.startsWith('deputado') || 
+  const neverHas2T = (currentCargo.startsWith('senador') ||
+                   currentCargo.startsWith('deputado') ||
                    currentCargo.startsWith('vereador'));
   if (neverHas2T) has2T = false;
 
-  // 2. Data-driven verification for majoritarian offices
-  if (has2T && props) {
+  // 2. Data-driven verification for majoritarian offices (ignora se ha total oficial 2T)
+  if (has2T && props && !officialHas('2T')) {
     let totalVotos2T = ensureNumber(getProp(props, 'Total_Votos_Validos 2T'));
     if (totalVotos2T === 0) {
       const { totalValidos } = getVotosValidos(props, currentCargo, '2T', STATE.filterInaptos);
@@ -675,6 +682,35 @@ function resetCandidateColorPopover() {
   closeCandidateColorPopover();
 }
 
+// Renderiza a sidebar usando apenas os totais oficiais do municipio (resultado
+// geral), para municipios sem dados por local de votacao (totais do munzona).
+// Retorna true se renderizou.
+function renderMunicipalOfficialOnlySidebar(cargo = currentCargo) {
+  if (STATE.currentElectionType !== 'municipal') return false;
+  const totals = STATE.municipalOfficialTotals?.[cargo];
+  const hasAny = totals && (
+    (totals['1T'] && (totals['1T'].votesByDisplayKey || totals['1T'].votesById)) ||
+    (totals['2T'] && (totals['2T'].votesByDisplayKey || totals['2T'].votesById))
+  );
+  if (!hasAny) return false;
+
+  STATE.isFilterAggregationActive = true;
+  if (typeof selectedLocationIDs?.clear === 'function') selectedLocationIDs.clear();
+
+  const municipio = dom.selectMunicipio?.value || '';
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.summaryBoxContainer.classList.add('section-hidden');
+  dom.resultsTitle.textContent = municipio || 'Município';
+  dom.resultsSubtitle.textContent = 'Resultado geral • sem dados por local de votação';
+
+  const props = { official_only: true, nm_localidade: municipio };
+  setupTurnTabs(props);
+  renderResultsPanel(props, cargo);
+  if (typeof updateNeighborhoodProfileUI === 'function') updateNeighborhoodProfileUI();
+  if (typeof window.updateClearSelectionButtonVisibility === 'function') window.updateClearSelectionButtonVisibility();
+  return true;
+}
+
 function renderResultsPanel(props, cargo) {
   initializeCandidateColorUI();
   closeCandidateColorPopoverOnViewChange();
@@ -706,12 +742,20 @@ function renderResultsPanel(props, cargo) {
   }
 
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[cargo]) ? '2T' : '1T';
-  const candidatos = STATE.candidates[cargo]?.[turnoKey] || [];
   const officialGeneralSummary = getGeneralOfficialSummaryForScope(cargo, turnoKey);
   const officialMunicipalSummary = (cargo.startsWith('prefeito') && shouldUseMunicipalOfficialTotals())
     ? STATE.municipalOfficialTotals?.[cargo]?.[turnoKey]
     : null;
   const officialSummary = officialGeneralSummary || officialMunicipalSummary;
+
+  // Lista de candidatos: usa as chaves do resumo oficial quando disponivel
+  // (cobre municipios sem dados por local de votacao — totais do munzona — e o
+  // 2o turno cujos votos por local nao existem, ex.: Maceio 2000); senao usa as
+  // chaves descobertas nas features do mapa.
+  const candidatos = (officialSummary && officialSummary.votesByDisplayKey
+    && Object.keys(officialSummary.votesByDisplayKey).length)
+    ? Object.keys(officialSummary.votesByDisplayKey)
+    : (STATE.candidates[cargo]?.[turnoKey] || []);
 
   const { totalValidos, votosInaptos } = officialSummary
     ? {
@@ -772,10 +816,18 @@ function renderResultsPanel(props, cargo) {
       <tbody>
   `;
 
-  results.forEach(r => {
+  const isEarlyMajoritarianWith2T = (STATE.currentElectionYear === '2000' || STATE.currentElectionYear === '2004')
+    && cargo.startsWith('prefeito')
+    && currentTurno === 1
+    && STATE.dataHas2T[cargo];
+
+  results.forEach((r, idx) => {
     if (r.votos === 0 && results.length > 2) return;
 
-    const cleanStatus = r.status ? r.status.toUpperCase() : '';
+    let cleanStatus = r.status ? r.status.toUpperCase() : '';
+    if (isEarlyMajoritarianWith2T && idx < 2) {
+      cleanStatus = '2º TURNO';
+    }
     const sw = getColorForCandidate(r.nome, r.partido);
     const isSpecial = cleanStatus === 'ELEITO' || cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO';
     const isInapto = cleanStatus === 'INAPTO';
