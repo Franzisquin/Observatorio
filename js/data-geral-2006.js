@@ -339,48 +339,67 @@ function buildGeneral2006LooseResultIndex(resultKeys) {
   return byLoose;
 }
 
+function buildFilteredGeneralFeature2006(feature, props, matchedKey) {
+  const newProps = { ...props };
+  const fullKey = String(props.id_unico || props.local_key || '');
+  if (matchedKey !== fullKey) {
+    // Realinha a identidade do local com a zona usada nos resultados de 2006
+    newProps.id_unico = matchedKey;
+    newProps.ID_UNICO = matchedKey;
+    newProps.local_key = matchedKey;
+    const parts = matchedKey.split('_');
+    const matchedZona = parseInt(parts[0], 10);
+    const matchedLocal = parseInt(parts[parts.length - 1], 10);
+    if (Number.isFinite(matchedZona)) newProps.nr_zona = matchedZona;
+    if (Number.isFinite(matchedZona) && Number.isFinite(matchedLocal)) {
+      newProps.local_id = `${matchedZona}_${matchedLocal}`;
+    }
+  }
+  return {
+    type: 'Feature',
+    geometry: feature.geometry ? {
+      type: feature.geometry.type,
+      coordinates: Array.isArray(feature.geometry.coordinates)
+        ? [...feature.geometry.coordinates]
+        : feature.geometry.coordinates
+    } : null,
+    properties: newProps
+  };
+}
+
 function filterGeneralFeatures2006(baseGeo, resultKeys, looseIndex = null) {
   const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
   const loose = looseIndex || buildGeneral2006LooseResultIndex(keys);
   const features = [];
 
+  // Cada chave de resultado e atribuida a no maximo UM local. A correspondencia
+  // exata (zona_cdMuni_local) tem prioridade; o fallback "frouxo" (cdMuni_local,
+  // sem zona) so vale para chaves ainda nao reivindicadas. Sem isso, em capitais
+  // dois locais fisicos distintos em zonas diferentes com o mesmo numero de local
+  // herdavam a mesma chave/id_unico -> votos duplicados e selecao conjunta.
+  const claimed = new Set();
+  const pending = [];
+
   (baseGeo?.features || []).forEach((feature) => {
     const props = feature.properties || {};
     const fullKey = String(props.id_unico || props.local_key || '');
     if (!fullKey) return;
-
-    let matchedKey = keys.has(fullKey) ? fullKey : null;
-    if (!matchedKey) {
-      const looseKey = getGeneral2006LooseKey(fullKey);
-      if (looseKey && loose.has(looseKey)) matchedKey = loose.get(looseKey);
+    if (keys.has(fullKey)) {
+      if (claimed.has(fullKey)) return; // dedupe de locais com identidade repetida
+      claimed.add(fullKey);
+      features.push(buildFilteredGeneralFeature2006(feature, props, fullKey));
+    } else {
+      pending.push({ feature, props, fullKey });
     }
-    if (!matchedKey) return;
+  });
 
-    const newProps = { ...props };
-    if (matchedKey !== fullKey) {
-      // Realinha a identidade do local com a zona usada nos resultados de 2006
-      newProps.id_unico = matchedKey;
-      newProps.ID_UNICO = matchedKey;
-      newProps.local_key = matchedKey;
-      const parts = matchedKey.split('_');
-      const matchedZona = parseInt(parts[0], 10);
-      const matchedLocal = parseInt(parts[parts.length - 1], 10);
-      if (Number.isFinite(matchedZona)) newProps.nr_zona = matchedZona;
-      if (Number.isFinite(matchedZona) && Number.isFinite(matchedLocal)) {
-        newProps.local_id = `${matchedZona}_${matchedLocal}`;
-      }
-    }
-
-    features.push({
-      type: 'Feature',
-      geometry: feature.geometry ? {
-        type: feature.geometry.type,
-        coordinates: Array.isArray(feature.geometry.coordinates)
-          ? [...feature.geometry.coordinates]
-          : feature.geometry.coordinates
-      } : null,
-      properties: newProps
-    });
+  pending.forEach(({ feature, props, fullKey }) => {
+    const looseKey = getGeneral2006LooseKey(fullKey);
+    if (!looseKey || !loose.has(looseKey)) return;
+    const matchedKey = loose.get(looseKey);
+    if (claimed.has(matchedKey)) return; // ja reivindicada (exata ou outro frouxo)
+    claimed.add(matchedKey);
+    features.push(buildFilteredGeneralFeature2006(feature, props, matchedKey));
   });
 
   return { type: 'FeatureCollection', features };
