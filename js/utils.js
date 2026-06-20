@@ -243,6 +243,12 @@ const GENERAL_SECOND_TURN_AVAILABILITY = {
     presidente: 'ALL',
     governador: { ord: ['AP', 'CE', 'DF', 'MS', 'PA', 'PB', 'PR', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
     senador: { ord: [] }
+  },
+  '1998': {
+    // Presidente 1998: FHC reeleito em 1o turno -> sem 2o turno.
+    presidente: { ord: [] },
+    governador: { ord: ['AP', 'DF', 'GO', 'MG', 'MS', 'PA', 'PI', 'RJ', 'RO', 'RR', 'RS', 'SE', 'SP'] },
+    senador: { ord: [] }
   }
 };
 

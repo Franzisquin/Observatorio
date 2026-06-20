@@ -21,6 +21,7 @@ let GPKG_2016_DB_PROMISE = null;
 let GPKG_2020_DB_PROMISE = null;
 let GPKG_2024_DB_PROMISE = null;
 let GPKG_2022_DB_PROMISE = null;
+let GENERAL_1998_BASE_CACHE = new Map();
 let GENERAL_2002_BASE_CACHE = new Map();
 let CENSO_2002_CACHE = new Map();
 let GENERAL_2006_BASE_CACHE = new Map();
@@ -211,6 +212,7 @@ function clearZipCache() {
   // Limpa também detalhes de candidatos que podem ser pesados
   CANDIDATE_DETAILS = null;
   CANDIDATE_DETAILS_PROMISE = null;
+  GENERAL_1998_BASE_CACHE.clear();
   GENERAL_2002_BASE_CACHE.clear();
   CENSO_2002_CACHE.clear();
   GENERAL_2006_BASE_CACHE.clear();

@@ -316,8 +316,9 @@ def parse_munzona(uf, year, name_to_code=None):
                 sigla = str(row[c + 2]).strip()
             full = urna
 
-        if colig_seq in ('', '-1', '#NE#'):
+        if colig_seq in ('', '-1', '#NE#', '-3', '-3.0') or colig in ('#NULO#', 'NULO'):
             colig_seq = ''
+            colig = ''
         try:
             turno = int(row[3])
         except (TypeError, ValueError):
@@ -332,7 +333,7 @@ def parse_munzona(uf, year, name_to_code=None):
             'full': full,
             'sigla': sigla or (prev.get('sigla') if prev else ''),
             'status': normalize_status(status),
-            'colig': colig if colig not in ('#NE#', '-1') else '',
+            'colig': colig if colig not in ('#NE#', '-1', '#NULO#', 'NULO') else '',
             'colig_seq': colig_seq,
             '_turno': turno,
         }

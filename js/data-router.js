@@ -196,6 +196,9 @@ window.onClickLoadData_General = async function () {
   if (year === '2002') {
     return onClickLoadData_Geral_2002();
   }
+  if (year === '1998') {
+    return onClickLoadData_Geral_1998();
+  }
 
   throw new Error(`Fluxo geral ${year} sem suporte no modo JSON + GPKG.`);
 };

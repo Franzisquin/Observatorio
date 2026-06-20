@@ -123,9 +123,9 @@ def read_clean_munzona(year, uf):
 
         sigla = col(row, 'SG_PARTIDO')
         nm_colig = col(row, 'NM_COLIGACAO')
-        colig = '' if nm_colig in ('#NULO#', '#NE#', '-1', '') else nm_colig
+        colig = '' if nm_colig in ('#NULO#', '#NE#', '-1', 'NULO', '') else nm_colig
         sq = col(row, 'SQ_COLIGACAO')
-        colig_seq = '' if sq in ('', '-1', '#NE#', '0') else sq
+        colig_seq = '' if sq in ('', '-1', '#NE#', '0', '-3', '-3.0') or colig == '' else sq
         info = {
             'urna': col(row, 'NM_URNA_CANDIDATO'),
             'full': col(row, 'NM_CANDIDATO'),

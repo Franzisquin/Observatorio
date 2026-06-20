@@ -142,6 +142,7 @@ function setupControls() {
             b.classList.toggle('active', b.dataset.value === 'presidente');
           });
         }
+        updateCargoChipsVisibility();
       } else if (type === 'municipal') {
         dom.loaderBoxGeneral.classList.add('section-hidden');
         dom.loaderBoxMunicipal.classList.remove('section-hidden');
@@ -173,6 +174,7 @@ function setupControls() {
     dom.selectYearGeneral.addEventListener('change', (e) => {
       STATE.currentElectionYear = e.target.value;
       updateLoadButtonState();
+      updateCargoChipsVisibility();
     });
   }
 
@@ -375,6 +377,7 @@ function setupControls() {
     STATE.currentElectionYear = dom.selectYearGeneral.value;
     updateLoadButtonState();
     clearPendingFilterChanges();
+    updateCargoChipsVisibility();
     if (canInstantLoadCurrentContext()) {
       scheduleInstantLoad();
     }
@@ -1336,6 +1339,35 @@ function setupSliders() {
   setupDynamicFilter('sliderEscolaridade', 'inputEscolaridade', 'selectEscolaridade', 'dispEscolaridade', 'valDispEscolaridade', 'escolaridadeVal', 'escolaridadeMode');
   setupDynamicFilter('sliderEstadoCivil', 'inputEstadoCivil', 'selectEstadoCivil', 'dispEstadoCivil', 'valDispEstadoCivil', 'estadoCivilVal', 'estadoCivilMode');
   setupDynamicFilter('sliderSaneamento', 'inputSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
+  updateCargoChipsVisibility();
+}
+
+function updateCargoChipsVisibility() {
+  if (!dom.cargoChipsGeneral) return;
+  const year = dom.selectYearGeneral?.value || STATE.currentElectionYear;
+  const is1998 = (String(year) === '1998');
+
+  const federalBtn = dom.cargoChipsGeneral.querySelector('[data-value="deputado_federal"]');
+  const estadualBtn = dom.cargoChipsGeneral.querySelector('[data-value="deputado_estadual"]');
+
+  if (federalBtn) federalBtn.style.display = is1998 ? 'none' : '';
+  if (estadualBtn) estadualBtn.style.display = is1998 ? 'none' : '';
+
+  if (is1998 && currentOffice === 'deputado') {
+    // Se estiver selecionado deputado, volta para presidente
+    currentOffice = 'presidente';
+    currentSubType = 'ord';
+    currentCargo = 'presidente_ord';
+    
+    // Atualiza classes nos chips
+    dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === 'presidente');
+    });
+    
+    if (typeof updateElectionTypeUI === 'function') {
+      updateElectionTypeUI();
+    }
+  }
 }
 
 // ====== RESULTS TABS REMOVED ======
