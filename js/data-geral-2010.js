@@ -307,6 +307,16 @@ async function loadMajoritariaCargo2010(cargo, uf) {
   }
 
   const geojson = await loadGeneralScopeBase2010(ufs, resultKeys);
+
+  // Reatribui votos de cidades que ainda nao existiam em 2010 (distritos do pai).
+  if (window.EMANC) {
+    await window.EMANC.ensureLoaded();
+    window.EMANC.apply(2010, {
+      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
+      features: geojson.features,
+    });
+  }
+
   applyGeneralMajoritariaJsonToGeojson2010(geojson, mergedTurno1, '1T');
   if (mergedTurno2) {
     applyGeneralMajoritariaJsonToGeojson2010(geojson, mergedTurno2, '2T');
@@ -478,6 +488,12 @@ async function onClickLoadData_Deputies_2010(uf, year) {
       const results = fullJson.RESULTS || {};
       const meta = fullJson.METADATA?.cand_names || {};
 
+      // Reatribui locais de cidades que ainda nao existiam em 2010 (distritos do pai).
+      if (window.EMANC) {
+        await window.EMANC.ensureLoaded();
+        window.EMANC.apply(2010, { resultsObjects: [results] });
+      }
+
       Object.entries(results).forEach(([locId, votes]) => {
         if (!STATE.deputyResults[locId]) STATE.deputyResults[locId] = { f: {}, e: {} };
         STATE.deputyResults[locId][typeKey] = votes;
@@ -520,6 +536,12 @@ async function onClickLoadData_Deputies_2010(uf, year) {
     const baseGeo = await buildDeputyBaseGeojson2010(uf);
     if (!baseGeo?.features?.length) {
       throw new Error('Nenhum local de deputado 2010 encontrado no GPKG.');
+    }
+
+    // Reatribui as features dos locais reatribuidos (mesma chave dos RESULTS).
+    if (window.EMANC) {
+      await window.EMANC.ensureLoaded();
+      window.EMANC.apply(2010, { features: baseGeo.features });
     }
 
     if (shouldReloadBaseState || !currentDataCollection['deputado_federal']) {

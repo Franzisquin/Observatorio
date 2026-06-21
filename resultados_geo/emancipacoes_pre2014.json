@@ -1,0 +1,3147 @@
+{
+ "_meta": {
+  "mecanismo": "nome do local + zona; identidade pelo censo padronizado",
+  "naming_year": {
+   "1998": "2006",
+   "2002": "2006",
+   "2006": "2006",
+   "2010": "2010"
+  },
+  "census_years": [
+   "2006",
+   "2008",
+   "2010",
+   "2012",
+   "2014",
+   "2016",
+   "2018",
+   "2020",
+   "2022",
+   "2024"
+  ]
+ },
+ "anos": {
+  "1998": {
+   "AL": [
+    {
+     "cd_tse": "27065",
+     "nome": "JEQUIA DA PRAIA",
+     "cd_ibge": "2703759",
+     "parents": [
+      "27111"
+     ],
+     "parents_nomes": {
+      "27111": "BARRA DE SAO MIGUEL"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2553,
+     "locais": [
+      {
+       "zona": 18,
+       "local": 1023,
+       "parent": "27111",
+       "nm_locvot": "GRUPO ESCOLAR JOSE CALAZANS DE MEDEIROS"
+      },
+      {
+       "zona": 18,
+       "local": 1031,
+       "parent": "27111",
+       "nm_locvot": "GRUPO ESCOLAR MARIA LOPES BERTOLDO"
+      }
+     ]
+    }
+   ],
+   "BA": [
+    {
+     "cd_tse": "30007",
+     "nome": "LUIS EDUARDO MAGALHAES",
+     "cd_ibge": "2919553",
+     "parents": [
+      "33634"
+     ],
+     "parents_nomes": {
+      "33634": "BARREIRAS"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 9,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 10088,
+     "locais": [
+      {
+       "zona": 70,
+       "local": 1015,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL SAO PAULO"
+      },
+      {
+       "zona": 70,
+       "local": 1023,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL FABIO JOHNNER"
+      },
+      {
+       "zona": 70,
+       "local": 1031,
+       "parent": "33634",
+       "nm_locvot": "GRUPO ESCOLAR HENRIQUE DE FREITAS MOREIRA-COLEGIO 02"
+      },
+      {
+       "zona": 70,
+       "local": 1066,
+       "parent": "33634",
+       "nm_locvot": "COLEGIO MUNICIPAL JOSE CARDOSO DE LIMA"
+      },
+      {
+       "zona": 70,
+       "local": 1090,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL OTTOMAR SCHWENGBER"
+      },
+      {
+       "zona": 70,
+       "local": 1104,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL AMELIO GATTO"
+      },
+      {
+       "zona": 70,
+       "local": 1112,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL SAO FRANCISCO DE ASSIS"
+      },
+      {
+       "zona": 70,
+       "local": 1120,
+       "parent": "33634",
+       "nm_locvot": "ESPECIAL ESCOLA MUNICIPAL IVO HERIG"
+      },
+      {
+       "zona": 70,
+       "local": 1139,
+       "parent": "33634",
+       "nm_locvot": "ESCOLA MUNICIPAL VANIA RIBEIRO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "30775",
+     "nome": "BARROCAS",
+     "cd_ibge": "2903276",
+     "parents": [
+      "33715",
+      "39098"
+     ],
+     "parents_nomes": {
+      "33715": "BIRITINGA",
+      "39098": "SERRINHA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 17,
+     "n_nomes_descartados_ambiguos": 2,
+     "votos_presidente_t1": 11084,
+     "locais": [
+      {
+       "zona": 150,
+       "local": 1015,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL FEBRONIO TELES DE OLIVEIRA"
+      },
+      {
+       "zona": 150,
+       "local": 1031,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1º GRAU ROQUE AVELINO DE QUEIROZ FILHO"
+      },
+      {
+       "zona": 150,
+       "local": 1058,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1º. GRAU ANTONIO CANDIDO PEREIRA"
+      },
+      {
+       "zona": 150,
+       "local": 1074,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1ª GRAU ROQUE AVELINO DE QUEIROZ"
+      },
+      {
+       "zona": 150,
+       "local": 1082,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL JOSE ALVES QUEIROZ"
+      },
+      {
+       "zona": 150,
+       "local": 1090,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL DE SANTA ROSA"
+      },
+      {
+       "zona": 150,
+       "local": 1104,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL MARIA QUITERIA"
+      },
+      {
+       "zona": 150,
+       "local": 1139,
+       "parent": "33715",
+       "nm_locvot": "ESCOLA MUNICIPAL JOSE QUINTINO ROCHA"
+      },
+      {
+       "zona": 150,
+       "local": 1147,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL HORIOSVALDO SANTOS"
+      },
+      {
+       "zona": 150,
+       "local": 1155,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL SAO JOSE"
+      },
+      {
+       "zona": 150,
+       "local": 1163,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1º GRAU JOSE PEDRO MOTA"
+      },
+      {
+       "zona": 150,
+       "local": 1180,
+       "parent": "39098",
+       "nm_locvot": "GRUPO ESCOLAR AGENOR DE FREITAS"
+      },
+      {
+       "zona": 150,
+       "local": 1201,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL DANIEL GALDINO"
+      },
+      {
+       "zona": 150,
+       "local": 1210,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL JOSE ANCELMO DA SILVA"
+      },
+      {
+       "zona": 150,
+       "local": 1228,
+       "parent": "39098",
+       "nm_locvot": "PREDIO ESCOLAR MUNICIPAL ANTONIO ROBERTO FERREIRA"
+      },
+      {
+       "zona": 150,
+       "local": 1236,
+       "parent": "39098",
+       "nm_locvot": "ESPECIAL COLEGIO ESTADUAL PLINIO CARNEIRO DA SILVA"
+      },
+      {
+       "zona": 150,
+       "local": 1244,
+       "parent": "39098",
+       "nm_locvot": "ESCOLA MUNICIPAL DE VELHO DOMINGOS"
+      }
+     ]
+    }
+   ],
+   "ES": [
+    {
+     "cd_tse": "56308",
+     "nome": "GOVERNADOR LINDENBERG",
+     "cd_ibge": "3202256",
+     "parents": [
+      "56294"
+     ],
+     "parents_nomes": {
+      "56294": "COLATINA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 5740,
+     "locais": [
+      {
+       "zona": 6,
+       "local": 1040,
+       "parent": "56294",
+       "nm_locvot": "EEEF IRINEU MORELLO"
+      },
+      {
+       "zona": 6,
+       "local": 1074,
+       "parent": "56294",
+       "nm_locvot": "PRE-ESCOLA MUNICIPAL SAO JOSE"
+      },
+      {
+       "zona": 6,
+       "local": 1082,
+       "parent": "56294",
+       "nm_locvot": "CENTRO COMUNITARIO BARRA DE NOVO BRASIL"
+      }
+     ]
+    }
+   ],
+   "GO": [
+    {
+     "cd_tse": "93548",
+     "nome": "IPIRANGA DE GOIAS",
+     "cd_ibge": "5210158",
+     "parents": [
+      "96555"
+     ],
+     "parents_nomes": {
+      "96555": "NOVA GLORIA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 1231,
+     "locais": [
+      {
+       "zona": 72,
+       "local": 1031,
+       "parent": "96555",
+       "nm_locvot": "ESCOLA REUNIDA BOM JESUS"
+      },
+      {
+       "zona": 72,
+       "local": 1040,
+       "parent": "96555",
+       "nm_locvot": "COLEGIO ESTADUAL SETE DE SETEMBRO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "93580",
+     "nome": "CAMPO LIMPO DE GOIAS",
+     "cd_ibge": "5204854",
+     "parents": [
+      "92215"
+     ],
+     "parents_nomes": {
+      "92215": "ANAPOLIS"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2560,
+     "locais": [
+      {
+       "zona": 3,
+       "local": 1015,
+       "parent": "92215",
+       "nm_locvot": "ESCOLA MUNICIPAL ALFREDO PEDRO DA SILVEIRA"
+      }
+     ]
+    }
+   ],
+   "MS": [
+    {
+     "cd_tse": "55069",
+     "nome": "FIGUEIRAO",
+     "cd_ibge": "5003900",
+     "parents": [
+      "98035"
+     ],
+     "parents_nomes": {
+      "98035": "COSTA RICA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2561,
+     "locais": [
+      {
+       "zona": 38,
+       "local": 1015,
+       "parent": "98035",
+       "nm_locvot": "EM BENEDITO ALVES BOMFIM"
+      },
+      {
+       "zona": 38,
+       "local": 1023,
+       "parent": "98035",
+       "nm_locvot": "EEPG DR. ARNALDO ESTEVAO DE FIGUEIREDO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "55050",
+     "nome": "PARAISO DAS AGUAS",
+     "cd_ibge": "5006275",
+     "parents": [
+      "98035"
+     ],
+     "parents_nomes": {
+      "98035": "COSTA RICA"
+     },
+     "revisar": false,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 860,
+     "locais": [
+      {
+       "zona": 38,
+       "local": 1066,
+       "parent": "98035",
+       "nm_locvot": "EEPPSG VEREADOR KENDY NAKAY"
+      }
+     ]
+    }
+   ],
+   "MT": [
+    {
+     "cd_tse": "90964",
+     "nome": "NOVA NAZARE",
+     "cd_ibge": "5106174",
+     "parents": [
+      "98671"
+     ],
+     "parents_nomes": {
+      "98671": "COCALINHO"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 872,
+     "locais": [
+      {
+       "zona": 30,
+       "local": 1015,
+       "parent": "98671",
+       "nm_locvot": "ESCOLA MUNICIPAL NOVA NAZARE"
+      }
+     ]
+    },
+    {
+     "cd_tse": "91049",
+     "nome": "SANTA RITA DO TRIVELATO",
+     "cd_ibge": "5107768",
+     "parents": [
+      "90093",
+      "90646"
+     ],
+     "parents_nomes": {
+      "90093": "ALTO PARAGUAI",
+      "90646": "NOVA MUTUM"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1811,
+     "locais": [
+      {
+       "zona": 7,
+       "local": 1015,
+       "parent": "90646",
+       "nm_locvot": "E.M.P.G. 3 DE NOVEMBRO"
+      },
+      {
+       "zona": 7,
+       "local": 1023,
+       "parent": "90093",
+       "nm_locvot": "E.M.P.G. NOVA BRUSQUE"
+      }
+     ]
+    },
+    {
+     "cd_tse": "73709",
+     "nome": "BOA ESPERANCA DO NORTE",
+     "cd_ibge": "5101837",
+     "parents": [
+      "98930"
+     ],
+     "parents_nomes": {
+      "98930": "SORRISO"
+     },
+     "revisar": false,
+     "census_year": "2024",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1045,
+     "locais": [
+      {
+       "zona": 43,
+       "local": 1074,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL AGUA LIMPA"
+      },
+      {
+       "zona": 43,
+       "local": 1082,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL PROFESSORA VERA LUCIA SCHMIDT"
+      },
+      {
+       "zona": 43,
+       "local": 1244,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL BOA ESPERANCA"
+      }
+     ]
+    }
+   ],
+   "PA": [
+    {
+     "cd_tse": "4863",
+     "nome": "MOJUI DOS CAMPOS",
+     "cd_ibge": "1504752",
+     "parents": [
+      "4804",
+      "5355"
+     ],
+     "parents_nomes": {
+      "4804": "BELTERRA",
+      "5355": "SANTAREM"
+     },
+     "revisar": true,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 14,
+     "n_nomes_descartados_ambiguos": 18,
+     "votos_presidente_t1": 1832,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1260,
+       "parent": "4804",
+       "nm_locvot": "EMEF NOSSA SENHORA DO PERPETUO SOCORRO"
+      },
+      {
+       "zona": 20,
+       "local": 1864,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO TOME"
+      },
+      {
+       "zona": 20,
+       "local": 1880,
+       "parent": "5355",
+       "nm_locvot": "EMEF ISMAEL ARAUJO"
+      },
+      {
+       "zona": 20,
+       "local": 1899,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF RAQUEL FREIRE PAZ"
+      },
+      {
+       "zona": 20,
+       "local": 1910,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF ANTONIETA DOLORES TEIXEIRA"
+      },
+      {
+       "zona": 20,
+       "local": 1929,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANTANA"
+      },
+      {
+       "zona": 20,
+       "local": 1945,
+       "parent": "5355",
+       "nm_locvot": "EMEF RUI BARBOSA"
+      },
+      {
+       "zona": 20,
+       "local": 1970,
+       "parent": "5355",
+       "nm_locvot": "EMEF BARAO DO RIO BRANCO"
+      },
+      {
+       "zona": 20,
+       "local": 3182,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO JOAO BATISTA"
+      },
+      {
+       "zona": 20,
+       "local": 3344,
+       "parent": "5355",
+       "nm_locvot": "EMEF JOAO PAULO II"
+      },
+      {
+       "zona": 20,
+       "local": 3638,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO JOAO"
+      },
+      {
+       "zona": 20,
+       "local": 3697,
+       "parent": "5355",
+       "nm_locvot": "EMEF RAINHA DA FLORESTA"
+      },
+      {
+       "zona": 20,
+       "local": 3719,
+       "parent": "5355",
+       "nm_locvot": "EMEF GERALDO MONTEIRO"
+      },
+      {
+       "zona": 20,
+       "local": 3735,
+       "parent": "5355",
+       "nm_locvot": "EMEF CECILIA FLORES"
+      }
+     ]
+    }
+   ],
+   "PI": [
+    {
+     "cd_tse": "12726",
+     "nome": "NAZARIA",
+     "cd_ibge": "2206720",
+     "parents": [
+      "12190"
+     ],
+     "parents_nomes": {
+      "12190": "TERESINA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 9,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 11810,
+     "locais": [
+      {
+       "zona": 97,
+       "local": 1015,
+       "parent": "12190",
+       "nm_locvot": "GINASIO MUNICIPAL LIDIA RIBEIRO DE CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1023,
+       "parent": "12190",
+       "nm_locvot": "GRUPO ESCOLAR FRANCISCO ALVES CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1031,
+       "parent": "12190",
+       "nm_locvot": "UNIDADE ESCOLAR HILTON LEITE DE CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1040,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL CRISPIM"
+      },
+      {
+       "zona": 97,
+       "local": 1058,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL PETRONIO PORTELA"
+      },
+      {
+       "zona": 97,
+       "local": 1074,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL CAITITUS"
+      },
+      {
+       "zona": 97,
+       "local": 1082,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL ERNESTO RIBEIRO SOARES"
+      },
+      {
+       "zona": 97,
+       "local": 1090,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL BOM JARDIM"
+      },
+      {
+       "zona": 97,
+       "local": 1104,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL DIONISIO CARVALHO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "12734",
+     "nome": "AROEIRAS DO ITAIM",
+     "cd_ibge": "2200954",
+     "parents": [
+      "10944",
+      "11592"
+     ],
+     "parents_nomes": {
+      "10944": "PAQUETA",
+      "11592": "PICOS"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 856,
+     "locais": [
+      {
+       "zona": 10,
+       "local": 1040,
+       "parent": "11592",
+       "nm_locvot": "UNIDADE ESCOLAR MIGUEL ANTONIO DA ROCHA"
+      },
+      {
+       "zona": 10,
+       "local": 1058,
+       "parent": "10944",
+       "nm_locvot": "UNIDADE ESCOLAR COSME RIBEIRO DE SOUSA"
+      },
+      {
+       "zona": 10,
+       "local": 1066,
+       "parent": "10944",
+       "nm_locvot": "UNIDADE ESCOLAR MANOEL BORGES GONCALVES"
+      }
+     ]
+    }
+   ],
+   "RJ": [
+    {
+     "cd_tse": "58467",
+     "nome": "MESQUITA",
+     "cd_ibge": "3302858",
+     "parents": [
+      "58696"
+     ],
+     "parents_nomes": {
+      "58696": "NOVA IGUACU"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 36,
+     "n_nomes_descartados_ambiguos": 5,
+     "votos_presidente_t1": 71905,
+     "locais": [
+      {
+       "zona": 83,
+       "local": 1023,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO ESTADUAL BRASIL"
+      },
+      {
+       "zona": 83,
+       "local": 1031,
+       "parent": "58696",
+       "nm_locvot": "CIEP SAO FRANCISCO DE ASSIS"
+      },
+      {
+       "zona": 83,
+       "local": 1058,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO PROFESSOR ANSELMO"
+      },
+      {
+       "zona": 83,
+       "local": 1066,
+       "parent": "58696",
+       "nm_locvot": "CLUBE SOCIAL PROLETARIO"
+      },
+      {
+       "zona": 83,
+       "local": 1074,
+       "parent": "58696",
+       "nm_locvot": "ESCOLA MUNICIPAL AMERICO SANTOS"
+      },
+      {
+       "zona": 83,
+       "local": 1082,
+       "parent": "58696",
+       "nm_locvot": "CIEP 111- GELSON FREITAS"
+      },
+      {
+       "zona": 83,
+       "local": 1112,
+       "parent": "58696",
+       "nm_locvot": "CIEP 364-NELSON RAMOS"
+      },
+      {
+       "zona": 83,
+       "local": 1120,
+       "parent": "58696",
+       "nm_locvot": "ESCOLA MUNICIPAL PRESIDENTE CASTELO BRANCO"
+      },
+      {
+       "zona": 83,
+       "local": 1139,
+       "parent": "58696",
+       "nm_locvot": "CENTRO COMUNITARIO PADRE DANIEL LEUUW"
+      },
+      {
+       "zona": 83,
+       "local": 1147,
+       "parent": "58696",
+       "nm_locvot": "IGREJA NOSSA SENHORA DE FATIMA"
+      },
+      {
+       "zona": 83,
+       "local": 1163,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO ESTADUAL SANTO ELIAS"
+      },
+      {
+       "zona": 83,
+       "local": 1180,
+       "parent": "58696",
+       "nm_locvot": "GRUPO ESCOLAR VILA BELA"
+      },
+      {
+       "zona": 83,
+       "local": 1279,
+       "parent": "58696",
+       "nm_locvot": "ASSOCIACAO DE MORADORES DO COSMORAMA"
+      },
+      {
+       "zona": 83,
+       "local": 1287,
+       "parent": "58696",
+       "nm_locvot": "ASSEMBLEIA DE DEUS DE COSMORAMA"
+      },
+      {
+       "zona": 150,
+       "local": 1015,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO MACHADO DE ASSIS"
+      },
+      {
+       "zona": 150,
+       "local": 1023,
+       "parent": "58696",
+       "nm_locvot": "COMUNIDADE SAO MARCOS"
+      },
+      {
+       "zona": 150,
+       "local": 1058,
+       "parent": "58696",
+       "nm_locvot": "COMUNIDADE SAO MATEUS"
+      },
+      {
+       "zona": 150,
+       "local": 1082,
+       "parent": "58696",
+       "nm_locvot": "UNIAO FUTEBOL CLUBE"
+      },
+      {
+       "zona": 150,
+       "local": 1104,
+       "parent": "58696",
+       "nm_locvot": "MESQUITA FUTEBOL CLUB"
+      },
+      {
+       "zona": 150,
+       "local": 1112,
+       "parent": "58696",
+       "nm_locvot": "CENTRO EDUCACIONAL NAZARENO (CENAZA)"
+      },
+      {
+       "zona": 150,
+       "local": 1120,
+       "parent": "58696",
+       "nm_locvot": "INSTITUTO BATISTA DE ENSINO"
+      },
+      {
+       "zona": 150,
+       "local": 1147,
+       "parent": "58696",
+       "nm_locvot": "GRUPO ESCOLAR DOM PEDRO I"
+      },
+      {
+       "zona": 150,
+       "local": 1155,
+       "parent": "58696",
+       "nm_locvot": "IGREJA DO NAZARENO"
+      },
+      {
+       "zona": 150,
+       "local": 1163,
+       "parent": "58696",
+       "nm_locvot": "GINASIO VOCACIONAL PRESIDENTE CASTELO BRANCO"
+      },
+      {
+       "zona": 150,
+       "local": 1171,
+       "parent": "58696",
+       "nm_locvot": "ESCOLA MUNICIPAL ROTARIANO ARTHUR SILVA"
+      },
+      {
+       "zona": 150,
+       "local": 1201,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO MANOEL REIS"
+      },
+      {
+       "zona": 150,
+       "local": 1210,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO ESTADUAL PIERRE PLANCHER"
+      },
+      {
+       "zona": 150,
+       "local": 1228,
+       "parent": "58696",
+       "nm_locvot": "CENTRO EDUCACIONAL ARTE E VIDA"
+      },
+      {
+       "zona": 150,
+       "local": 1236,
+       "parent": "58696",
+       "nm_locvot": "ESCOLA MUNICIPAL ELI BAHIENSE VAILANTE"
+      },
+      {
+       "zona": 150,
+       "local": 1252,
+       "parent": "58696",
+       "nm_locvot": "POSTO DE SAUDE - UNIDADE BASICA DA CHATUBA"
+      },
+      {
+       "zona": 150,
+       "local": 1260,
+       "parent": "58696",
+       "nm_locvot": "PRIMEIRA IGREJA BATISTA DE MESQUITA"
+      },
+      {
+       "zona": 150,
+       "local": 1279,
+       "parent": "58696",
+       "nm_locvot": "COLEGIO ESTADUAL ANA NERI"
+      },
+      {
+       "zona": 150,
+       "local": 1287,
+       "parent": "58696",
+       "nm_locvot": "IGREJA NOSSA SENHORA DAS GRACAS"
+      },
+      {
+       "zona": 150,
+       "local": 1295,
+       "parent": "58696",
+       "nm_locvot": "PAROQUIA NOSSA SENHORA DE FATIMA"
+      },
+      {
+       "zona": 150,
+       "local": 1309,
+       "parent": "58696",
+       "nm_locvot": "CENTRO EDUCACIONAL CUNHA TRINDADE"
+      },
+      {
+       "zona": 150,
+       "local": 1317,
+       "parent": "58696",
+       "nm_locvot": "TENIS CLUBE DE MESQUITA"
+      }
+     ]
+    }
+   ],
+   "RS": [
+    {
+     "cd_tse": "88986",
+     "nome": "ACEGUA",
+     "cd_ibge": "4300034",
+     "parents": [
+      "85316",
+      "86487",
+      "86800"
+     ],
+     "parents_nomes": {
+      "85316": "BAGE",
+      "86487": "CANDIOTA",
+      "86800": "HULHA NEGRA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1739,
+     "locais": [
+      {
+       "zona": 7,
+       "local": 1023,
+       "parent": "85316",
+       "nm_locvot": "ESCOLA BARAO DO ACEGUA"
+      },
+      {
+       "zona": 7,
+       "local": 1040,
+       "parent": "86800",
+       "nm_locvot": "ESCOLA MENNO SIMONS"
+      },
+      {
+       "zona": 7,
+       "local": 1074,
+       "parent": "86487",
+       "nm_locvot": "ESCOLA SAO TIMOTEO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89001",
+     "nome": "ALMIRANTE TAMANDARE DO SUL",
+     "cd_ibge": "4300471",
+     "parents": [
+      "86037",
+      "86606",
+      "87661"
+     ],
+     "parents_nomes": {
+      "86037": "CHAPADA",
+      "86606": "COQUEIROS DO SUL",
+      "87661": "SANTO ANTONIO DO PLANALTO"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1337,
+     "locais": [
+      {
+       "zona": 15,
+       "local": 1015,
+       "parent": "87661",
+       "nm_locvot": "ALMIRANTE TAMANDARE - ESC. EST. DE ENS. MEDIO"
+      },
+      {
+       "zona": 15,
+       "local": 1040,
+       "parent": "87661",
+       "nm_locvot": "PAVILHAO CATOLICO DA CAPELA SAO JORGE"
+      },
+      {
+       "zona": 15,
+       "local": 1058,
+       "parent": "86037",
+       "nm_locvot": "RAIMUNDO NEDEL - ESC. MUN. DE ENS. FUNDAMENTAL"
+      },
+      {
+       "zona": 15,
+       "local": 1066,
+       "parent": "86606",
+       "nm_locvot": "BENTO GONCALVES - ESC MUN. DE ENS. FUNDAMENTAL"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89028",
+     "nome": "ARROIO DO PADRE",
+     "cd_ibge": "4301073",
+     "parents": [
+      "86185",
+      "87912"
+     ],
+     "parents_nomes": {
+      "86185": "MORRO REDONDO",
+      "87912": "PELOTAS"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 5,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 3069,
+     "locais": [
+      {
+       "zona": 60,
+       "local": 1023,
+       "parent": "86185",
+       "nm_locvot": "ESCOLA MUNICIPAL PROFESSORA GERTHA BONOW SCHEUNEMANN"
+      },
+      {
+       "zona": 60,
+       "local": 1040,
+       "parent": "87912",
+       "nm_locvot": "ESCOLA MUNICIPAL SILVEIRA MARTINS"
+      },
+      {
+       "zona": 60,
+       "local": 1058,
+       "parent": "86185",
+       "nm_locvot": "ESCOLA MUNICIPAL RIO BRANCO"
+      },
+      {
+       "zona": 60,
+       "local": 1066,
+       "parent": "86185",
+       "nm_locvot": "ESCOLA ESTADUAL ARROIO DO PADRE"
+      },
+      {
+       "zona": 60,
+       "local": 1074,
+       "parent": "87912",
+       "nm_locvot": "CASA COMERCIAL SR. ENO VENZKE"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89044",
+     "nome": "BOA VISTA DO CADEADO",
+     "cd_ibge": "4302220",
+     "parents": [
+      "98272"
+     ],
+     "parents_nomes": {
+      "98272": "FORTALEZA DOS VALOS"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 679,
+     "locais": [
+      {
+       "zona": 17,
+       "local": 1066,
+       "parent": "98272",
+       "nm_locvot": "CENTRO COMUNITARIO RINCAO DO TIGRE"
+      },
+      {
+       "zona": 17,
+       "local": 1074,
+       "parent": "98272",
+       "nm_locvot": "SALAO COMUNITARIO SAO JOAO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89087",
+     "nome": "BOZANO",
+     "cd_ibge": "4302584",
+     "parents": [
+      "86622",
+      "87050",
+      "88560"
+     ],
+     "parents_nomes": {
+      "86622": "CORONEL BARROS",
+      "87050": "IJUI",
+      "88560": "NOVA RAMADA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 5,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 1496,
+     "locais": [
+      {
+       "zona": 23,
+       "local": 1023,
+       "parent": "87050",
+       "nm_locvot": "CENTRO COMUNITARIO SAO MIGUEL"
+      },
+      {
+       "zona": 23,
+       "local": 1031,
+       "parent": "86622",
+       "nm_locvot": "CENTRO COMUNITARIO DA CAPELA SANTO ANTONIO"
+      },
+      {
+       "zona": 23,
+       "local": 1074,
+       "parent": "87050",
+       "nm_locvot": "CENTRO COMUNITARIO SANTA LUCIA"
+      },
+      {
+       "zona": 23,
+       "local": 1082,
+       "parent": "87050",
+       "nm_locvot": "CENTRO COMUNITARIO DE BOA ESPERANCA"
+      },
+      {
+       "zona": 23,
+       "local": 1090,
+       "parent": "88560",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1 GRAU INC. SANTOS DUMONT"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89109",
+     "nome": "CANUDOS DO VALE",
+     "cd_ibge": "4304614",
+     "parents": [
+      "86215",
+      "87904",
+      "88820"
+     ],
+     "parents_nomes": {
+      "86215": "CRUZEIRO DO SUL",
+      "87904": "SERIO",
+      "88820": "MARQUES DE SOUZA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 397,
+     "locais": [
+      {
+       "zona": 29,
+       "local": 1040,
+       "parent": "86215",
+       "nm_locvot": "SALAO COMUNITARIO DE BAIXO CANUDOS"
+      },
+      {
+       "zona": 29,
+       "local": 1066,
+       "parent": "87904",
+       "nm_locvot": "ESCOLA ESTADUAL HUGO OSCAR SPOHR"
+      },
+      {
+       "zona": 29,
+       "local": 1090,
+       "parent": "88820",
+       "nm_locvot": "SALAO COMUNITARIO DE NOVA PARIS"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89125",
+     "nome": "CAPAO BONITO DO SUL",
+     "cd_ibge": "4304622",
+     "parents": [
+      "87165",
+      "87270"
+     ],
+     "parents_nomes": {
+      "87165": "MULITERNO",
+      "87270": "LAGOA VERMELHA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 606,
+     "locais": [
+      {
+       "zona": 28,
+       "local": 1058,
+       "parent": "87165",
+       "nm_locvot": "SALAO 3 DE JUNHO"
+      },
+      {
+       "zona": 28,
+       "local": 1082,
+       "parent": "87270",
+       "nm_locvot": "ASSOCIACAO DE MORADORES ASSENTAMENTO 25 DE NOVEMBRO - POSTO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89141",
+     "nome": "CAPAO DO CIPO",
+     "cd_ibge": "4304655",
+     "parents": [
+      "88510"
+     ],
+     "parents_nomes": {
+      "88510": "SANTIAGO"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 7,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 2207,
+     "locais": [
+      {
+       "zona": 44,
+       "local": 1031,
+       "parent": "88510",
+       "nm_locvot": "ESCOLA ESTADUAL MACEDO BELTRAO DO NASCIMENTO"
+      },
+      {
+       "zona": 44,
+       "local": 1040,
+       "parent": "88510",
+       "nm_locvot": "ESCOLA MUNICIPAL EUGENIO JOSE DE VARGAS"
+      },
+      {
+       "zona": 44,
+       "local": 1058,
+       "parent": "88510",
+       "nm_locvot": "ESCOLA MUNICIPAL NOSSA SENHORA DE FATIMA"
+      },
+      {
+       "zona": 44,
+       "local": 1082,
+       "parent": "88510",
+       "nm_locvot": "CENTRO DE TRADICOES GAUCHAS"
+      },
+      {
+       "zona": 44,
+       "local": 1104,
+       "parent": "88510",
+       "nm_locvot": "CTG DE PROGRESSO"
+      },
+      {
+       "zona": 44,
+       "local": 1112,
+       "parent": "88510",
+       "nm_locvot": "IGREJA CATOLICA DE INHACAPETUM"
+      },
+      {
+       "zona": 44,
+       "local": 1120,
+       "parent": "88510",
+       "nm_locvot": "PREFEITURA MUNICIPAL DE CAPAO DO CIPO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89168",
+     "nome": "COQUEIRO BAIXO",
+     "cd_ibge": "4305835",
+     "parents": [
+      "85197",
+      "85421",
+      "86509",
+      "87637",
+      "87980"
+     ],
+     "parents_nomes": {
+      "85197": "ARROIO DO MEIO",
+      "85421": "POUSO NOVO",
+      "86509": "CAPITAO",
+      "87637": "NOVA BRESCIA",
+      "87980": "TRAVESSEIRO"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 9,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 1114,
+     "locais": [
+      {
+       "zona": 104,
+       "local": 1015,
+       "parent": "85421",
+       "nm_locvot": "SALAO COMUNITARIO ARROIO DA LAJE"
+      },
+      {
+       "zona": 104,
+       "local": 1023,
+       "parent": "87637",
+       "nm_locvot": "ESCOLA ESTADUAL ENSINO FUNDAMENTAL COQUEIRO ALTO"
+      },
+      {
+       "zona": 104,
+       "local": 1031,
+       "parent": "87637",
+       "nm_locvot": "ESCOLA ESTADUAL ENSINO FUNDAMENTAL DONATO CAUMO"
+      },
+      {
+       "zona": 104,
+       "local": 1040,
+       "parent": "86509",
+       "nm_locvot": "SALAO COMUNITARIO DE LINHA ALEGRE BAIXA"
+      },
+      {
+       "zona": 104,
+       "local": 1058,
+       "parent": "87980",
+       "nm_locvot": "ESCOLA MUNICIPAL LINHA GARIBALDI"
+      },
+      {
+       "zona": 104,
+       "local": 1066,
+       "parent": "85197",
+       "nm_locvot": "SALAO COMUNITARIO SANTO IZIDORO"
+      },
+      {
+       "zona": 104,
+       "local": 1074,
+       "parent": "85197",
+       "nm_locvot": "ESCOLA MUNICIPAL ENSINO FUNDAMENTAL SETE DE SETEMBRO"
+      },
+      {
+       "zona": 104,
+       "local": 1082,
+       "parent": "86509",
+       "nm_locvot": "PAVILHAO DA COMUNIDADE NOSSA SENHORA DAS DORES"
+      },
+      {
+       "zona": 104,
+       "local": 1090,
+       "parent": "86509",
+       "nm_locvot": "SALAO COMUNITARIO SAGRADO CORACAO DE JESUS"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89184",
+     "nome": "CORONEL PILAR",
+     "cd_ibge": "4305934",
+     "parents": [
+      "88161"
+     ],
+     "parents_nomes": {
+      "88161": "BOA VISTA DO SUL"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 9,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1101,
+     "locais": [
+      {
+       "zona": 98,
+       "local": 1023,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL ALBERTO PASQUALINI"
+      },
+      {
+       "zona": 98,
+       "local": 1031,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL BENTO GONCALVES"
+      },
+      {
+       "zona": 98,
+       "local": 1040,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL CARLOS GOMES"
+      },
+      {
+       "zona": 98,
+       "local": 1058,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL PADRE COSME FIORINI"
+      },
+      {
+       "zona": 98,
+       "local": 1066,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL VERA CRUZ"
+      },
+      {
+       "zona": 98,
+       "local": 1074,
+       "parent": "88161",
+       "nm_locvot": "SALAO COMUNITARIO NOVENTA"
+      },
+      {
+       "zona": 98,
+       "local": 1090,
+       "parent": "88161",
+       "nm_locvot": "ESCOLA MUNICIPAL BENJAMIN CONSTANT"
+      },
+      {
+       "zona": 98,
+       "local": 1104,
+       "parent": "88161",
+       "nm_locvot": "SALAO COMUNITARIO CRUZEIRO"
+      },
+      {
+       "zona": 98,
+       "local": 1112,
+       "parent": "88161",
+       "nm_locvot": "SALAO COMUNITARIO DE CARAVAGGIO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89206",
+     "nome": "CRUZALTENSE",
+     "cd_ibge": "4306130",
+     "parents": [
+      "85170",
+      "86371",
+      "86380"
+     ],
+     "parents_nomes": {
+      "85170": "ARATIBA",
+      "86371": "ERECHIM",
+      "86380": "BARRA DO RIO AZUL"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 2,
+     "votos_presidente_t1": 1750,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1031,
+       "parent": "86380",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL RUI BARBOSA"
+      },
+      {
+       "zona": 20,
+       "local": 1074,
+       "parent": "86371",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL CARLOS HEITOR DE AZEVEDO"
+      },
+      {
+       "zona": 20,
+       "local": 1104,
+       "parent": "85170",
+       "nm_locvot": "ESCOLA ESTADUAL DE ENSINO MEDIO VERA CRUZ"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89222",
+     "nome": "FORQUETINHA",
+     "cd_ibge": "4308433",
+     "parents": [
+      "84760",
+      "87904"
+     ],
+     "parents_nomes": {
+      "84760": "PROGRESSO",
+      "87904": "SERIO"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 479,
+     "locais": [
+      {
+       "zona": 29,
+       "local": 1023,
+       "parent": "87904",
+       "nm_locvot": "SOCIEDADE DE CANTORES CARLOS GOMES"
+      },
+      {
+       "zona": 29,
+       "local": 1031,
+       "parent": "84760",
+       "nm_locvot": "SOCIEDADE NAI DATTSCHLAND"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89247",
+     "nome": "SANTA CECILIA DO SUL",
+     "cd_ibge": "4316733",
+     "parents": [
+      "88749"
+     ],
+     "parents_nomes": {
+      "88749": "VILA LANGARO"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 193,
+     "locais": [
+      {
+       "zona": 100,
+       "local": 1058,
+       "parent": "88749",
+       "nm_locvot": "ESCOLA ESTADUAL DE ENS. FUND. BELARMINO AMERICO DA VEIGA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89265",
+     "nome": "JACUIZINHO",
+     "cd_ibge": "4310876",
+     "parents": [
+      "84840",
+      "85235",
+      "88404"
+     ],
+     "parents_nomes": {
+      "84840": "TUNAS",
+      "85235": "ARROIO DO TIGRE",
+      "88404": "ESTRELA VELHA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 7,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 850,
+     "locais": [
+      {
+       "zona": 154,
+       "local": 1015,
+       "parent": "88404",
+       "nm_locvot": "BORGES DE MEDEIROS ESCOLA"
+      },
+      {
+       "zona": 154,
+       "local": 1023,
+       "parent": "84840",
+       "nm_locvot": "ESCOLA ESTADUAL MENINO JESUS"
+      },
+      {
+       "zona": 154,
+       "local": 1031,
+       "parent": "84840",
+       "nm_locvot": "ESCOLA MUNICIPAL THOMAS ANTONIO GONZAGA"
+      },
+      {
+       "zona": 154,
+       "local": 1040,
+       "parent": "84840",
+       "nm_locvot": "ESCOLA MUNICIPAL GREGORIO RODRIGUES DA COSTA"
+      },
+      {
+       "zona": 154,
+       "local": 1066,
+       "parent": "85235",
+       "nm_locvot": "ESCOLA MUNICIPAL NOSSA SENHORA DO ROSARIO"
+      },
+      {
+       "zona": 154,
+       "local": 1112,
+       "parent": "88404",
+       "nm_locvot": "ESCOLA ANDRE SCHNEIDER NETO"
+      },
+      {
+       "zona": 154,
+       "local": 1139,
+       "parent": "88404",
+       "nm_locvot": "ESCOLA MUNICIPAL AVELINO JOSE DA SILVA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89281",
+     "nome": "LAGOA BONITA DO SUL",
+     "cd_ibge": "4311239",
+     "parents": [
+      "88889"
+     ],
+     "parents_nomes": {
+      "88889": "PASSA SETE"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 321,
+     "locais": [
+      {
+       "zona": 53,
+       "local": 1015,
+       "parent": "88889",
+       "nm_locvot": "ESCOLA MUNICIPAL 25 DE JULHO"
+      },
+      {
+       "zona": 53,
+       "local": 1031,
+       "parent": "88889",
+       "nm_locvot": "ESCOLA MUNICIPAL MARECHAL TEODORO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89303",
+     "nome": "MATO QUEIMADO",
+     "cd_ibge": "4312179",
+     "parents": [
+      "88870"
+     ],
+     "parents_nomes": {
+      "88870": "SAO NICOLAU"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 2511,
+     "locais": [
+      {
+       "zona": 52,
+       "local": 1015,
+       "parent": "88870",
+       "nm_locvot": "ESPORTE CLUBE SAO LUIZ"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89320",
+     "nome": "NOVO XINGU",
+     "cd_ibge": "4313466",
+     "parents": [
+      "86134",
+      "87335"
+     ],
+     "parents_nomes": {
+      "86134": "CONSTANTINA",
+      "87335": "LIBERATO SALZANO"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1611,
+     "locais": [
+      {
+       "zona": 146,
+       "local": 1015,
+       "parent": "86134",
+       "nm_locvot": "ESCOLA MUNIC. ENSINO FUND. HUMBERTO DE CAMPOS"
+      },
+      {
+       "zona": 146,
+       "local": 1058,
+       "parent": "87335",
+       "nm_locvot": "ESCOLA MUNIC. ENSINO FUND. JULIO DE CASTILHO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89362",
+     "nome": "PINHAL DA SERRA",
+     "cd_ibge": "4314464",
+     "parents": [
+      "86452",
+      "86460",
+      "88544",
+      "88803",
+      "89532"
+     ],
+     "parents_nomes": {
+      "86452": "ESMERALDA",
+      "86460": "CAMPESTRE DA SERRA",
+      "88544": "MUITOS CAPOES",
+      "88803": "MONTE ALEGRE DOS CAMPOS",
+      "89532": "VACARIA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 8,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 3065,
+     "locais": [
+      {
+       "zona": 58,
+       "local": 1015,
+       "parent": "86460",
+       "nm_locvot": "SALAO COMUNITARIO DA CAPELA SAO ROQUE"
+      },
+      {
+       "zona": 58,
+       "local": 1031,
+       "parent": "88544",
+       "nm_locvot": "ESC. MUN. ENS. FUNDAMENTAL AFONSO PENA"
+      },
+      {
+       "zona": 58,
+       "local": 1040,
+       "parent": "89532",
+       "nm_locvot": "SALAO COMUNITARIO CAPELA NOSSA SRA. DA CONCEICAO"
+      },
+      {
+       "zona": 58,
+       "local": 1058,
+       "parent": "88544",
+       "nm_locvot": "SALAO COMUNITARIO DA CAPELA SAO PEDRO"
+      },
+      {
+       "zona": 58,
+       "local": 1066,
+       "parent": "86460",
+       "nm_locvot": "ESC. MUN. ENS. FUNDAMENTAL MARCULINO CHAVES"
+      },
+      {
+       "zona": 58,
+       "local": 1074,
+       "parent": "88803",
+       "nm_locvot": "SALAO COMUNITARIO PORTEIRA DO PINHAL"
+      },
+      {
+       "zona": 58,
+       "local": 1082,
+       "parent": "86452",
+       "nm_locvot": "SALAO COMUNITARIO DA CAPELA SAO CRISTOVAO"
+      },
+      {
+       "zona": 58,
+       "local": 1104,
+       "parent": "89532",
+       "nm_locvot": "ESC. EST. ENS. FUNDAMENTAL PAULO SEXTO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89400",
+     "nome": "ROLADOR",
+     "cd_ibge": "4315958",
+     "parents": [
+      "85049",
+      "85499",
+      "85650",
+      "88811"
+     ],
+     "parents_nomes": {
+      "85049": "DEZESSEIS DE NOVEMBRO",
+      "85499": "BOSSOROCA",
+      "85650": "CAIBATE",
+      "88811": "SAO LUIZ GONZAGA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 5,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 3274,
+     "locais": [
+      {
+       "zona": 52,
+       "local": 1031,
+       "parent": "88811",
+       "nm_locvot": "ESC. MUN. NOSSA SENHORA DOS NAVEGANTES"
+      },
+      {
+       "zona": 52,
+       "local": 1090,
+       "parent": "85049",
+       "nm_locvot": "ESC. EST. DE ENS. MEDIO CASTRO ALVES"
+      },
+      {
+       "zona": 52,
+       "local": 1104,
+       "parent": "85650",
+       "nm_locvot": "ESC. EST. ENS. FUND. JOAO MANUEL DE LIMA E SILVA"
+      },
+      {
+       "zona": 52,
+       "local": 1112,
+       "parent": "88811",
+       "nm_locvot": "ESCOLA MUNICIPAL DE 1 GRAU PRINCESA ISABEL"
+      },
+      {
+       "zona": 52,
+       "local": 1120,
+       "parent": "85499",
+       "nm_locvot": "ESCOLA MUNICIPAL AMALIA MENEZES"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89443",
+     "nome": "SANTA MARGARIDA DO SUL",
+     "cd_ibge": "4316972",
+     "parents": [
+      "88692"
+     ],
+     "parents_nomes": {
+      "88692": "SAO GABRIEL"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 6,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 6914,
+     "locais": [
+      {
+       "zona": 49,
+       "local": 1015,
+       "parent": "88692",
+       "nm_locvot": "CLUBE UNIAO RECREATIVA MARGARIDENSE"
+      },
+      {
+       "zona": 49,
+       "local": 1031,
+       "parent": "88692",
+       "nm_locvot": "ESCOLA MUNICIPAL RODRIGUES ALVES"
+      },
+      {
+       "zona": 49,
+       "local": 1040,
+       "parent": "88692",
+       "nm_locvot": "ESCOLA MUNICIPAL ROSALINA MACHADO FIALHO"
+      },
+      {
+       "zona": 49,
+       "local": 1074,
+       "parent": "88692",
+       "nm_locvot": "ESCOLA MUNICIPAL MARIO PRATES DE MORAES"
+      },
+      {
+       "zona": 49,
+       "local": 1082,
+       "parent": "88692",
+       "nm_locvot": "ESCOLA MUNICIPAL JOSE CAON"
+      },
+      {
+       "zona": 49,
+       "local": 1090,
+       "parent": "88692",
+       "nm_locvot": "ESCOLA MUNICIPAL MANOELA PRATES DE BEZERRA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89460",
+     "nome": "SAO JOSE DO SUL",
+     "cd_ibge": "4318614",
+     "parents": [
+      "86983",
+      "87327",
+      "88331"
+     ],
+     "parents_nomes": {
+      "86983": "MARATA",
+      "87327": "PARECI NOVO",
+      "88331": "SALVADOR DO SUL"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1380,
+     "locais": [
+      {
+       "zona": 31,
+       "local": 1015,
+       "parent": "86983",
+       "nm_locvot": "SOCIEDADE SANTA CECILIA"
+      },
+      {
+       "zona": 31,
+       "local": 1023,
+       "parent": "87327",
+       "nm_locvot": "E.M.E.F. JACO PEDRO CALSING"
+      },
+      {
+       "zona": 31,
+       "local": 1040,
+       "parent": "88331",
+       "nm_locvot": "ASSOCIACAO UNIAO VETERANOS DA LINHA BONITA BAIXA"
+      },
+      {
+       "zona": 31,
+       "local": 1066,
+       "parent": "88331",
+       "nm_locvot": "E.M.E.F. JOAO LERNER"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89486",
+     "nome": "SAO PEDRO DAS MISSOES",
+     "cd_ibge": "4319364",
+     "parents": [
+      "86428"
+     ],
+     "parents_nomes": {
+      "86428": "BOA VISTA DAS MISSOES"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 273,
+     "locais": [
+      {
+       "zona": 32,
+       "local": 1040,
+       "parent": "86428",
+       "nm_locvot": "ESCOLA MUNICIPAL ULMIRINDO MACHADO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89508",
+     "nome": "TIO HUGO",
+     "cd_ibge": "4321469",
+     "parents": [
+      "87556"
+     ],
+     "parents_nomes": {
+      "87556": "NAO-ME-TOQUE"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2386,
+     "locais": [
+      {
+       "zona": 117,
+       "local": 1031,
+       "parent": "87556",
+       "nm_locvot": "ASSOCIACAO DO LAR BOA ESPERANCA (ALBE)"
+      },
+      {
+       "zona": 117,
+       "local": 1058,
+       "parent": "87556",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL FREI CLEMENTE"
+      },
+      {
+       "zona": 117,
+       "local": 1066,
+       "parent": "87556",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL LAURENTINO MACHADO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89524",
+     "nome": "WESTFALIA",
+     "cd_ibge": "4323770",
+     "parents": [
+      "85472",
+      "86584",
+      "88366",
+      "98213"
+     ],
+     "parents_nomes": {
+      "85472": "BOM RETIRO DO SUL",
+      "86584": "COLINAS",
+      "88366": "FAZENDA VILANOVA",
+      "98213": "TEUTONIA"
+     },
+     "revisar": true,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 7,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 3013,
+     "locais": [
+      {
+       "zona": 21,
+       "local": 1015,
+       "parent": "86584",
+       "nm_locvot": "SOCIEDADE ESPORTIVA JUVENTUDE"
+      },
+      {
+       "zona": 21,
+       "local": 1023,
+       "parent": "98213",
+       "nm_locvot": "CLUBE ESPORTIVO ESPERANCA"
+      },
+      {
+       "zona": 21,
+       "local": 1031,
+       "parent": "86584",
+       "nm_locvot": "CASA DA COMUNIDADE EVANGELICA LINHA SCHMIDT (COMUNIDADE SIAO)"
+      },
+      {
+       "zona": 21,
+       "local": 1040,
+       "parent": "88366",
+       "nm_locvot": "CENTRO COMUNITARIO LINHA FRANK"
+      },
+      {
+       "zona": 21,
+       "local": 1058,
+       "parent": "86584",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL VILA SCHMIDT"
+      },
+      {
+       "zona": 21,
+       "local": 1074,
+       "parent": "85472",
+       "nm_locvot": "SOCIEDADE ESPORTIVA PALMEIRAS"
+      },
+      {
+       "zona": 21,
+       "local": 1090,
+       "parent": "86584",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL RIO BRANCO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "89567",
+     "nome": "PEDRAS ALTAS",
+     "cd_ibge": "4314175",
+     "parents": [
+      "87939"
+     ],
+     "parents_nomes": {
+      "87939": "PINHEIRO MACHADO"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 7,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 4713,
+     "locais": [
+      {
+       "zona": 35,
+       "local": 1015,
+       "parent": "87939",
+       "nm_locvot": "ASSIS BRASIL, ESC. MUN. ENS. FUND."
+      },
+      {
+       "zona": 35,
+       "local": 1023,
+       "parent": "87939",
+       "nm_locvot": "ARROIO MAU, ASSIS BRASIL, ESCOLA MUNICIPAL"
+      },
+      {
+       "zona": 35,
+       "local": 1031,
+       "parent": "87939",
+       "nm_locvot": "SAO DIOGO, ESC. EST. ENS. FUND."
+      },
+      {
+       "zona": 35,
+       "local": 1040,
+       "parent": "87939",
+       "nm_locvot": "VISCONDE DE CERRO ALEGRE, ESC. EST. ENS. FUND."
+      },
+      {
+       "zona": 35,
+       "local": 1058,
+       "parent": "87939",
+       "nm_locvot": "EUNIL ELIAS DOS SANTOS, ESC. MUN. ENS. FUND."
+      },
+      {
+       "zona": 35,
+       "local": 1066,
+       "parent": "87939",
+       "nm_locvot": "NEUZA BRIZOLA, ESC. MUN. ENS. FUND."
+      },
+      {
+       "zona": 35,
+       "local": 1074,
+       "parent": "87939",
+       "nm_locvot": "LAGO AZUL, ESCOLA MUN. ENS. FUND."
+      }
+     ]
+    },
+    {
+     "cd_tse": "89540",
+     "nome": "PINTO BANDEIRA",
+     "cd_ibge": "4314548",
+     "parents": [
+      "85413"
+     ],
+     "parents_nomes": {
+      "85413": "BENTO GONCALVES"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1243,
+     "locais": [
+      {
+       "zona": 8,
+       "local": 1945,
+       "parent": "85413",
+       "nm_locvot": "JOSE PANSERA - ESCOLA"
+      },
+      {
+       "zona": 8,
+       "local": 1953,
+       "parent": "85413",
+       "nm_locvot": "SALAO SAO GABRIEL"
+      },
+      {
+       "zona": 8,
+       "local": 1996,
+       "parent": "85413",
+       "nm_locvot": "BARAO DO MAUA - ESCOLA"
+      }
+     ]
+    }
+   ],
+   "SC": [
+    {
+     "cd_tse": "83909",
+     "nome": "BALNEARIO RINCAO",
+     "cd_ibge": "4220000",
+     "parents": [
+      "81370"
+     ],
+     "parents_nomes": {
+      "81370": "ICARA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2953,
+     "locais": [
+      {
+       "zona": 79,
+       "local": 1163,
+       "parent": "81370",
+       "nm_locvot": "CENTRO DE EDUCACAO INFANTIL MUNDO ENCANTADO"
+      },
+      {
+       "zona": 79,
+       "local": 1228,
+       "parent": "81370",
+       "nm_locvot": "SALAO PAROQUIAL LAGOA DOS ESTEVES"
+      },
+      {
+       "zona": 79,
+       "local": 1236,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA BASICA GERVASIO TEIXEIRA FERNANDES"
+      },
+      {
+       "zona": 79,
+       "local": 1252,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MELCHIADES BONIFACIO ESPINDOLA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "83925",
+     "nome": "PESCARIA BRAVA",
+     "cd_ibge": "4212650",
+     "parents": [
+      "81850"
+     ],
+     "parents_nomes": {
+      "81850": "LAGUNA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1502,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1201,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MARTINHO CALLADO JUNIOR"
+      },
+      {
+       "zona": 20,
+       "local": 1228,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA DOMINGOS BARBOSA CABRAL"
+      },
+      {
+       "zona": 20,
+       "local": 1295,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA PALMIRA MORAES DE MIRANDA"
+      }
+     ]
+    }
+   ]
+  },
+  "2002": {
+   "MS": [
+    {
+     "cd_tse": "55069",
+     "nome": "FIGUEIRAO",
+     "cd_ibge": "5003900",
+     "parents": [
+      "98035"
+     ],
+     "parents_nomes": {
+      "98035": "COSTA RICA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 3685,
+     "locais": [
+      {
+       "zona": 38,
+       "local": 1015,
+       "parent": "98035",
+       "nm_locvot": "EM BENEDITO ALVES BOMFIM"
+      },
+      {
+       "zona": 38,
+       "local": 1023,
+       "parent": "98035",
+       "nm_locvot": "EEPG DR. ARNALDO ESTEVAO DE FIGUEIREDO"
+      }
+     ]
+    },
+    {
+     "cd_tse": "55050",
+     "nome": "PARAISO DAS AGUAS",
+     "cd_ibge": "5006275",
+     "parents": [
+      "98035"
+     ],
+     "parents_nomes": {
+      "98035": "COSTA RICA"
+     },
+     "revisar": false,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1199,
+     "locais": [
+      {
+       "zona": 38,
+       "local": 1066,
+       "parent": "98035",
+       "nm_locvot": "EEPPSG VEREADOR KENDY NAKAY"
+      }
+     ]
+    }
+   ],
+   "MT": [
+    {
+     "cd_tse": "73709",
+     "nome": "BOA ESPERANCA DO NORTE",
+     "cd_ibge": "5101837",
+     "parents": [
+      "98930"
+     ],
+     "parents_nomes": {
+      "98930": "SORRISO"
+     },
+     "revisar": false,
+     "census_year": "2024",
+     "naming_year": "2006",
+     "n_locais": 2,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 777,
+     "locais": [
+      {
+       "zona": 43,
+       "local": 1074,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL AGUA LIMPA"
+      },
+      {
+       "zona": 43,
+       "local": 1082,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL PROFESSORA VERA LUCIA SCHMIDT"
+      }
+     ]
+    }
+   ],
+   "PA": [
+    {
+     "cd_tse": "4863",
+     "nome": "MOJUI DOS CAMPOS",
+     "cd_ibge": "1504752",
+     "parents": [
+      "5355"
+     ],
+     "parents_nomes": {
+      "5355": "SANTAREM"
+     },
+     "revisar": false,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 14,
+     "n_nomes_descartados_ambiguos": 18,
+     "votos_presidente_t1": 3222,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1260,
+       "parent": "5355",
+       "nm_locvot": "EMEF NOSSA SENHORA DO PERPETUO SOCORRO"
+      },
+      {
+       "zona": 20,
+       "local": 1864,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO TOME"
+      },
+      {
+       "zona": 20,
+       "local": 1880,
+       "parent": "5355",
+       "nm_locvot": "EMEF ISMAEL ARAUJO"
+      },
+      {
+       "zona": 20,
+       "local": 1899,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF RAQUEL FREIRE PAZ"
+      },
+      {
+       "zona": 20,
+       "local": 1910,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF ANTONIETA DOLORES TEIXEIRA"
+      },
+      {
+       "zona": 20,
+       "local": 1929,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANTANA"
+      },
+      {
+       "zona": 20,
+       "local": 1945,
+       "parent": "5355",
+       "nm_locvot": "EMEF RUI BARBOSA"
+      },
+      {
+       "zona": 20,
+       "local": 1970,
+       "parent": "5355",
+       "nm_locvot": "EMEF BARAO DO RIO BRANCO"
+      },
+      {
+       "zona": 20,
+       "local": 3182,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO JOAO BATISTA"
+      },
+      {
+       "zona": 20,
+       "local": 3344,
+       "parent": "5355",
+       "nm_locvot": "EMEF JOAO PAULO II"
+      },
+      {
+       "zona": 20,
+       "local": 3697,
+       "parent": "5355",
+       "nm_locvot": "EMEF RAINHA DA FLORESTA"
+      },
+      {
+       "zona": 20,
+       "local": 3719,
+       "parent": "5355",
+       "nm_locvot": "EMEF GERALDO MONTEIRO"
+      },
+      {
+       "zona": 20,
+       "local": 3735,
+       "parent": "5355",
+       "nm_locvot": "EMEF CECILIA FLORES"
+      },
+      {
+       "zona": 20,
+       "local": 3743,
+       "parent": "5355",
+       "nm_locvot": "EMEF PADRE ANTONIO VIEIRA"
+      }
+     ]
+    }
+   ],
+   "PI": [
+    {
+     "cd_tse": "12726",
+     "nome": "NAZARIA",
+     "cd_ibge": "2206720",
+     "parents": [
+      "12190"
+     ],
+     "parents_nomes": {
+      "12190": "TERESINA"
+     },
+     "revisar": false,
+     "census_year": "2006",
+     "naming_year": "2006",
+     "n_locais": 8,
+     "n_nomes_descartados_ambiguos": 1,
+     "votos_presidente_t1": 10450,
+     "locais": [
+      {
+       "zona": 97,
+       "local": 1015,
+       "parent": "12190",
+       "nm_locvot": "GINASIO MUNICIPAL LIDIA RIBEIRO DE CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1023,
+       "parent": "12190",
+       "nm_locvot": "GRUPO ESCOLAR FRANCISCO ALVES CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1031,
+       "parent": "12190",
+       "nm_locvot": "UNIDADE ESCOLAR HILTON LEITE DE CARVALHO"
+      },
+      {
+       "zona": 97,
+       "local": 1040,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL CRISPIM"
+      },
+      {
+       "zona": 97,
+       "local": 1074,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL CAITITUS"
+      },
+      {
+       "zona": 97,
+       "local": 1082,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL ERNESTO RIBEIRO SOARES"
+      },
+      {
+       "zona": 97,
+       "local": 1090,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL BOM JARDIM"
+      },
+      {
+       "zona": 97,
+       "local": 1104,
+       "parent": "12190",
+       "nm_locvot": "ESCOLA MUNICIPAL DIONISIO CARVALHO"
+      }
+     ]
+    }
+   ],
+   "SC": [
+    {
+     "cd_tse": "83909",
+     "nome": "BALNEARIO RINCAO",
+     "cd_ibge": "4220000",
+     "parents": [
+      "81370"
+     ],
+     "parents_nomes": {
+      "81370": "ICARA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 3777,
+     "locais": [
+      {
+       "zona": 79,
+       "local": 1163,
+       "parent": "81370",
+       "nm_locvot": "CENTRO DE EDUCACAO INFANTIL MUNDO ENCANTADO"
+      },
+      {
+       "zona": 79,
+       "local": 1228,
+       "parent": "81370",
+       "nm_locvot": "SALAO PAROQUIAL LAGOA DOS ESTEVES"
+      },
+      {
+       "zona": 79,
+       "local": 1236,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA BASICA GERVASIO TEIXEIRA FERNANDES"
+      },
+      {
+       "zona": 79,
+       "local": 1252,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MELCHIADES BONIFACIO ESPINDOLA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "83925",
+     "nome": "PESCARIA BRAVA",
+     "cd_ibge": "4212650",
+     "parents": [
+      "81850"
+     ],
+     "parents_nomes": {
+      "81850": "LAGUNA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1593,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1201,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MARTINHO CALLADO JUNIOR"
+      },
+      {
+       "zona": 20,
+       "local": 1228,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA DOMINGOS BARBOSA CABRAL"
+      },
+      {
+       "zona": 20,
+       "local": 1295,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA PALMIRA MORAES DE MIRANDA"
+      }
+     ]
+    }
+   ]
+  },
+  "2006": {
+   "MS": [
+    {
+     "cd_tse": "55050",
+     "nome": "PARAISO DAS AGUAS",
+     "cd_ibge": "5006275",
+     "parents": [
+      "98035"
+     ],
+     "parents_nomes": {
+      "98035": "COSTA RICA"
+     },
+     "revisar": false,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 1,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1525,
+     "locais": [
+      {
+       "zona": 38,
+       "local": 1066,
+       "parent": "98035",
+       "nm_locvot": "EEPPSG VEREADOR KENDY NAKAY"
+      }
+     ]
+    }
+   ],
+   "MT": [
+    {
+     "cd_tse": "73709",
+     "nome": "BOA ESPERANCA DO NORTE",
+     "cd_ibge": "5101837",
+     "parents": [
+      "98930"
+     ],
+     "parents_nomes": {
+      "98930": "SORRISO"
+     },
+     "revisar": false,
+     "census_year": "2024",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2073,
+     "locais": [
+      {
+       "zona": 43,
+       "local": 1074,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL AGUA LIMPA"
+      },
+      {
+       "zona": 43,
+       "local": 1082,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL PROFESSORA VERA LUCIA SCHMIDT"
+      },
+      {
+       "zona": 43,
+       "local": 1244,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL BOA ESPERANCA"
+      }
+     ]
+    }
+   ],
+   "PA": [
+    {
+     "cd_tse": "4863",
+     "nome": "MOJUI DOS CAMPOS",
+     "cd_ibge": "1504752",
+     "parents": [
+      "5355"
+     ],
+     "parents_nomes": {
+      "5355": "SANTAREM"
+     },
+     "revisar": false,
+     "census_year": "2010",
+     "naming_year": "2006",
+     "n_locais": 21,
+     "n_nomes_descartados_ambiguos": 12,
+     "votos_presidente_t1": 3777,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1260,
+       "parent": "5355",
+       "nm_locvot": "EMEF NOSSA SENHORA DO PERPETUO SOCORRO"
+      },
+      {
+       "zona": 20,
+       "local": 1864,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO TOME"
+      },
+      {
+       "zona": 20,
+       "local": 1880,
+       "parent": "5355",
+       "nm_locvot": "EMEF ISMAEL ARAUJO"
+      },
+      {
+       "zona": 20,
+       "local": 1899,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF RAQUEL FREIRE PAZ"
+      },
+      {
+       "zona": 20,
+       "local": 1910,
+       "parent": "5355",
+       "nm_locvot": "EMEF PROF ANTONIETA DOLORES TEIXEIRA"
+      },
+      {
+       "zona": 20,
+       "local": 1929,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANTANA"
+      },
+      {
+       "zona": 20,
+       "local": 1945,
+       "parent": "5355",
+       "nm_locvot": "EMEF RUI BARBOSA"
+      },
+      {
+       "zona": 20,
+       "local": 1970,
+       "parent": "5355",
+       "nm_locvot": "EMEF BARAO DO RIO BRANCO"
+      },
+      {
+       "zona": 20,
+       "local": 3182,
+       "parent": "5355",
+       "nm_locvot": "EMEF SAO JOAO BATISTA"
+      },
+      {
+       "zona": 20,
+       "local": 3344,
+       "parent": "5355",
+       "nm_locvot": "EMEF JOAO PAULO II"
+      },
+      {
+       "zona": 20,
+       "local": 3697,
+       "parent": "5355",
+       "nm_locvot": "EMEF RAINHA DA FLORESTA"
+      },
+      {
+       "zona": 20,
+       "local": 3719,
+       "parent": "5355",
+       "nm_locvot": "EMEF GERALDO MONTEIRO"
+      },
+      {
+       "zona": 20,
+       "local": 3735,
+       "parent": "5355",
+       "nm_locvot": "EMEF CECILIA FLORES"
+      },
+      {
+       "zona": 20,
+       "local": 3743,
+       "parent": "5355",
+       "nm_locvot": "EMEF PADRE ANTONIO VIEIRA"
+      },
+      {
+       "zona": 20,
+       "local": 3905,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANTA MARIA"
+      },
+      {
+       "zona": 20,
+       "local": 3930,
+       "parent": "5355",
+       "nm_locvot": "EMEF NOSSA SENHORA DO PERPETUO SOCORRO"
+      },
+      {
+       "zona": 20,
+       "local": 3964,
+       "parent": "5355",
+       "nm_locvot": "EMEF PRINCESA ISABEL"
+      },
+      {
+       "zona": 20,
+       "local": 3999,
+       "parent": "5355",
+       "nm_locvot": "EMEF MARIA DO ROSARIO NUNES"
+      },
+      {
+       "zona": 20,
+       "local": 4170,
+       "parent": "5355",
+       "nm_locvot": "EMEF FRANCISCO PEREIRA DOS SANTOS"
+      },
+      {
+       "zona": 20,
+       "local": 4200,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANSAO DA SILVA"
+      },
+      {
+       "zona": 20,
+       "local": 4227,
+       "parent": "5355",
+       "nm_locvot": "EMEF SANTA RITA DE CASSIA"
+      }
+     ]
+    }
+   ],
+   "RS": [
+    {
+     "cd_tse": "89540",
+     "nome": "PINTO BANDEIRA",
+     "cd_ibge": "4314548",
+     "parents": [
+      "85413"
+     ],
+     "parents_nomes": {
+      "85413": "BENTO GONCALVES"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1420,
+     "locais": [
+      {
+       "zona": 8,
+       "local": 1945,
+       "parent": "85413",
+       "nm_locvot": "JOSE PANSERA - ESCOLA"
+      },
+      {
+       "zona": 8,
+       "local": 1953,
+       "parent": "85413",
+       "nm_locvot": "SALAO SAO GABRIEL"
+      },
+      {
+       "zona": 8,
+       "local": 1996,
+       "parent": "85413",
+       "nm_locvot": "BARAO DO MAUA - ESCOLA"
+      }
+     ]
+    }
+   ],
+   "SC": [
+    {
+     "cd_tse": "83909",
+     "nome": "BALNEARIO RINCAO",
+     "cd_ibge": "4220000",
+     "parents": [
+      "81370"
+     ],
+     "parents_nomes": {
+      "81370": "ICARA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 4403,
+     "locais": [
+      {
+       "zona": 79,
+       "local": 1163,
+       "parent": "81370",
+       "nm_locvot": "CENTRO DE EDUCACAO INFANTIL MUNDO ENCANTADO"
+      },
+      {
+       "zona": 79,
+       "local": 1228,
+       "parent": "81370",
+       "nm_locvot": "SALAO PAROQUIAL LAGOA DOS ESTEVES"
+      },
+      {
+       "zona": 79,
+       "local": 1236,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA BASICA GERVASIO TEIXEIRA FERNANDES"
+      },
+      {
+       "zona": 79,
+       "local": 1252,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MELCHIADES BONIFACIO ESPINDOLA"
+      }
+     ]
+    },
+    {
+     "cd_tse": "83925",
+     "nome": "PESCARIA BRAVA",
+     "cd_ibge": "4212650",
+     "parents": [
+      "81850"
+     ],
+     "parents_nomes": {
+      "81850": "LAGUNA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2006",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1667,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1201,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MARTINHO CALLADO JUNIOR"
+      },
+      {
+       "zona": 20,
+       "local": 1228,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA DOMINGOS BARBOSA CABRAL"
+      },
+      {
+       "zona": 20,
+       "local": 1295,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA PALMIRA MORAES DE MIRANDA"
+      }
+     ]
+    }
+   ]
+  },
+  "2010": {
+   "MT": [
+    {
+     "cd_tse": "73709",
+     "nome": "BOA ESPERANCA DO NORTE",
+     "cd_ibge": "5101837",
+     "parents": [
+      "98930"
+     ],
+     "parents_nomes": {
+      "98930": "SORRISO"
+     },
+     "revisar": false,
+     "census_year": "2024",
+     "naming_year": "2010",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2025,
+     "locais": [
+      {
+       "zona": 43,
+       "local": 1074,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL AGUA LIMPA"
+      },
+      {
+       "zona": 43,
+       "local": 1082,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL PROFESSORA VERA LUCIA SCHMIDT"
+      },
+      {
+       "zona": 43,
+       "local": 1244,
+       "parent": "98930",
+       "nm_locvot": "ESCOLA MUNICIPAL BOA ESPERANCA"
+      }
+     ]
+    }
+   ],
+   "RS": [
+    {
+     "cd_tse": "89540",
+     "nome": "PINTO BANDEIRA",
+     "cd_ibge": "4314548",
+     "parents": [
+      "85413"
+     ],
+     "parents_nomes": {
+      "85413": "BENTO GONCALVES"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2010",
+     "n_locais": 3,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 1570,
+     "locais": [
+      {
+       "zona": 8,
+       "local": 1945,
+       "parent": "85413",
+       "nm_locvot": "JOSE PANSERA - ESCOLA"
+      },
+      {
+       "zona": 8,
+       "local": 1953,
+       "parent": "85413",
+       "nm_locvot": "SALAO SAO GABRIEL"
+      },
+      {
+       "zona": 8,
+       "local": 1996,
+       "parent": "85413",
+       "nm_locvot": "BARAO DO MAUA - ESCOLA"
+      }
+     ]
+    }
+   ],
+   "SC": [
+    {
+     "cd_tse": "83909",
+     "nome": "BALNEARIO RINCAO",
+     "cd_ibge": "4220000",
+     "parents": [
+      "81370"
+     ],
+     "parents_nomes": {
+      "81370": "ICARA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2010",
+     "n_locais": 7,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 6579,
+     "locais": [
+      {
+       "zona": 79,
+       "local": 1163,
+       "parent": "81370",
+       "nm_locvot": "CENTRO DE EDUCACAO INFANTIL MUNDO ENCANTADO"
+      },
+      {
+       "zona": 79,
+       "local": 1201,
+       "parent": "81370",
+       "nm_locvot": "CENTRO DE EDUCACAO INFANTIL MUNDO ENCANTADO"
+      },
+      {
+       "zona": 79,
+       "local": 1228,
+       "parent": "81370",
+       "nm_locvot": "SALAO PAROQUIAL LAGOA DOS ESTEVES"
+      },
+      {
+       "zona": 79,
+       "local": 1236,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA BASICA GERVASIO TEIXEIRA FERNANDES"
+      },
+      {
+       "zona": 79,
+       "local": 1244,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL PROF. AMELIA DE SOUZA SILVA"
+      },
+      {
+       "zona": 79,
+       "local": 1252,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MELCHIADES BONIFACIO ESPINDOLA"
+      },
+      {
+       "zona": 79,
+       "local": 1465,
+       "parent": "81370",
+       "nm_locvot": "ESCOLA MUNICIPAL DE ENSINO FUNDAMENTAL JOSE REUS"
+      }
+     ]
+    },
+    {
+     "cd_tse": "83925",
+     "nome": "PESCARIA BRAVA",
+     "cd_ibge": "4212650",
+     "parents": [
+      "81850"
+     ],
+     "parents_nomes": {
+      "81850": "LAGUNA"
+     },
+     "revisar": false,
+     "census_year": "2012",
+     "naming_year": "2010",
+     "n_locais": 4,
+     "n_nomes_descartados_ambiguos": 0,
+     "votos_presidente_t1": 2129,
+     "locais": [
+      {
+       "zona": 20,
+       "local": 1201,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA MARTINHO CALLADO JUNIOR"
+      },
+      {
+       "zona": 20,
+       "local": 1260,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA PONTA DAS LARANJEIRAS"
+      },
+      {
+       "zona": 20,
+       "local": 1295,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE EDUCACAO BASICA PALMIRA MORAES DE MIRANDA"
+      },
+      {
+       "zona": 20,
+       "local": 1490,
+       "parent": "81850",
+       "nm_locvot": "ESCOLA DE ENSINO FUNDAMENTAL PEDRO FRANCISCO DA SILVA"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

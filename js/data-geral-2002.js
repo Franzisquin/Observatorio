@@ -279,6 +279,18 @@ async function loadMajoritariaCargo2002(cargo, uf) {
   // applyGeneralMajoritariaJsonToGeojson2002 tambem corrige nm_localidade dos dots
   // usando o cd_municipio TSE da chave do resultado (evita agrupamento errado).
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+
+  // Reatribui votos de cidades que ainda nao existiam em 2002 (distritos do pai)
+  // para o codigo TSE moderno da cidade — antes de aplicar/agrupar.
+  if (window.EMANC) {
+    await window.EMANC.ensureLoaded();
+    window.EMANC.apply(2002, {
+      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
+      features: geojson.features,
+      muniNameMap: muniNameMap,
+    });
+  }
+
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
@@ -469,6 +481,12 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       const results = fullJson.RESULTS || {};
       const meta = fullJson.METADATA?.cand_names || {};
 
+      // Reatribui locais de cidades que ainda nao existiam em 2002 (distritos do pai).
+      if (window.EMANC) {
+        await window.EMANC.ensureLoaded();
+        window.EMANC.apply(2002, { resultsObjects: [results] });
+      }
+
       Object.entries(results).forEach(([locId, votes]) => {
         if (!STATE.deputyResults[locId]) STATE.deputyResults[locId] = { f: {}, e: {} };
         STATE.deputyResults[locId][typeKey] = votes;
@@ -529,6 +547,11 @@ async function onClickLoadData_Deputies_2002(uf, year) {
     const baseGeo = await buildDeputyBaseGeojson2002(uf);
     if (!baseGeo?.features?.length) {
       throw new Error('Nenhum local de deputado 2002 encontrado no GPKG 2006.');
+    }
+
+    if (window.EMANC) {
+      await window.EMANC.ensureLoaded();
+      window.EMANC.apply(2002, { features: baseGeo.features });
     }
 
     if (shouldReloadBaseState || !currentDataCollection['deputado_federal']) {

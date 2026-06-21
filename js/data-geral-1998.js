@@ -116,6 +116,17 @@ async function loadMajoritariaCargo1998(cargo, uf) {
 
   // Pontos do mapa: base 2006 (o que bater bateu).
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+
+  // Reatribui votos de cidades que ainda nao existiam em 1998 (distritos do pai).
+  if (window.EMANC) {
+    await window.EMANC.ensureLoaded();
+    window.EMANC.apply(1998, {
+      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
+      features: geojson.features,
+      muniNameMap: muniNameMap,
+    });
+  }
+
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
