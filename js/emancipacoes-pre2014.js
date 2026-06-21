@@ -1,20 +1,18 @@
 // =====================================================================
-// EMANCIPACOES PRE-2014 — reatribuicao de votos a cidades que ainda nao
-// existiam nas eleicoes nacionais de 1998/2002/2006/2010.
+// EMANCIPACOES PRE-2014 — reatribuicao por SECAO ELEITORAL.
 // =====================================================================
-// Nessas eleicoes varias cidades de hoje eram distritos de um municipio-pai;
-// seus votos ficaram sob o codigo TSE do pai. A tabela
+// Nas eleicoes nacionais de 1998/2002/2006/2010, cidades que ainda nao existiam
+// tinham os votos sob o municipio-pai. A tabela
 // resultados_geo/emancipacoes_pre2014.json (gerada por
-// scripts/gerar_emancipacoes_pre2014.py) lista, por ano, os locais de votacao
-// (zona + nr_locvot) que pertenciam a cada cidade nova e sob qual codigo-pai a
-// eleicao os guardou.
+// scripts/gerar_emancipacoes_pre2014.py) traz, por ano/UF/cidade, o RESULTADO
+// (votos por candidato, por cargo e turno) obtido somando as SECOES ELEITORAIS
+// da cidade -- identificadas na eleicao mais antiga em que ela existiu e puxadas
+// do arquivo bruto do ano-alvo -- e o detalhamento por pai (`por_pai`).
 //
-// Aqui aplicamos a reatribuicao EM TEMPO DE CARGA, sem mexer nos ZIPs: para cada
-// local casado, trocamos o codigo do meio da chave ``zona_CODIGO_local`` (tanto
-// nos RESULTS quanto nas features do mapa) do pai para o codigo TSE moderno da
-// cidade, e injetamos o nome/IBGE no mapa de nomes. Como dots, coropletico e
-// totais agrupam por esse codigo, tudo passa a contar para a cidade certa. A
-// soma por UF/turno e preservada (apenas redistribui entre municipios).
+// Aqui ajustamos os TOTAIS POR MUNICIPIO em tempo de carga: adicionamos a cidade
+// nova (com seu resultado) e subtraimos esses votos do(s) municipio(s)-pai. A
+// soma por UF/turno e preservada (apenas redistribui). Os pontos do mapa
+// permanecem como estao (o numero do local nao e usado nesta correcao).
 
 (function (global) {
   'use strict';
@@ -22,102 +20,148 @@
   var URL = (typeof DATA_BASE_URL !== 'undefined' ? DATA_BASE_URL : 'resultados_geo/')
     + 'emancipacoes_pre2014.json';
 
-  var _tablePromise = null;
-  var _remapByYear = null; // { year: Map(origKey -> {code,name,ibge}) }
+  var _promise = null;
+  var _table = null;
 
   function ensureLoaded() {
-    if (_tablePromise) return _tablePromise;
-    _tablePromise = fetch(URL)
+    if (_promise) return _promise;
+    _promise = fetch(URL)
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) { _remapByYear = buildIndex(data); return _remapByYear; })
-      .catch(function () { _remapByYear = {}; return _remapByYear; });
-    return _tablePromise;
+      .then(function (data) { _table = (data && data.anos) || {}; return _table; })
+      .catch(function () { _table = {}; return _table; });
+    return _promise;
   }
 
-  function buildIndex(data) {
-    var byYear = {};
-    var anos = (data && data.anos) || {};
-    Object.keys(anos).forEach(function (year) {
-      var m = new Map();
-      var perUf = anos[year] || {};
-      Object.keys(perUf).forEach(function (uf) {
-        (perUf[uf] || []).forEach(function (city) {
-          var info = { code: String(city.cd_tse), name: city.nome,
-                       ibge: city.cd_ibge != null ? String(city.cd_ibge) : null };
-          (city.locais || []).forEach(function (L) {
-            // chave original na eleicao: zona_PARENT_local
-            m.set(L.zona + '_' + L.parent + '_' + L.local, info);
-          });
+  function _norm(s) {
+    if (typeof norm === 'function') return norm(s);
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .toUpperCase().trim();
+  }
+
+  function _citiesFor(year, uf) {
+    if (!_table) return [];
+    var per = _table[String(year)];
+    return (per && per[String(uf).toUpperCase()]) || [];
+  }
+
+  function _subtract(a, b) {
+    var out = {};
+    Object.keys(a || {}).forEach(function (k) { out[k] = a[k]; });
+    Object.keys(b || {}).forEach(function (k) {
+      out[k] = (out[k] || 0) - b[k];
+      if (out[k] <= 0) delete out[k];
+    });
+    return out;
+  }
+
+  function _add(a, b) {
+    var out = {};
+    Object.keys(a || {}).forEach(function (k) { out[k] = a[k]; });
+    Object.keys(b || {}).forEach(function (k) { out[k] = (out[k] || 0) + b[k]; });
+    return out;
+  }
+
+  function _setSummary(summaries, name, summary) {
+    summaries[name] = summary;
+    summaries[_norm(name)] = summary;
+  }
+
+  function _getSummary(summaries, name) {
+    return summaries[name] || summaries[_norm(name)] || null;
+  }
+
+  // Ajusta o mapa de totais por cidade (cityName -> summary) para um (ano, uf,
+  // cargo, turno). `summaries` e mutado no lugar.
+  //   cargo: 'presidente' | 'governador' | 'senador' | 'deputado_federal' | 'deputado_estadual'
+  //   turnoKey: '1T' | '2T'
+  function adjustCityTotals(opts) {
+    if (!_table) return 0;
+    if (typeof buildGeneralOfficialSummaryFromRawTotals !== 'function') return 0;
+    var cities = _citiesFor(opts.year, opts.uf);
+    if (!cities.length) return 0;
+    var turno = String(opts.turnoKey || '1T').charAt(0); // '1' | '2'
+    var cargo = opts.cargo;
+    var summaries = opts.summaries;
+    var meta = opts.metadata || {};
+    var nameByCode = opts.muniNameMap; // Map(codeTSE -> nome) p/ achar o pai
+    var affected = opts.affected;      // Set opcional: nomes tocados (cidade+pais)
+    var n = 0;
+
+    cities.forEach(function (c) {
+      var rawCity = c.resultados && c.resultados[cargo] && c.resultados[cargo][turno];
+      if (!rawCity) return;
+
+      // 1) subtrai do(s) pai(s)
+      var porPai = c.por_pai || {};
+      Object.keys(porPai).forEach(function (code) {
+        var rawP = porPai[code] && porPai[code][cargo] && porPai[code][cargo][turno];
+        if (!rawP) return;
+        var parentName = nameByCode && nameByCode.get ? nameByCode.get(String(code)) : null;
+        if (!parentName) return;
+        var target = _getSummary(summaries, parentName);
+        if (!target || !target.rawTotals) return;
+        var newRaw = _subtract(target.rawTotals, rawP);
+        var s = buildGeneralOfficialSummaryFromRawTotals(newRaw, meta, opts.turnoKey);
+        if (target.ibge) s.ibge = target.ibge;
+        _setSummary(summaries, parentName, s);
+        if (affected) affected.add(parentName);
+      });
+
+      // 2) adiciona a cidade nova (acumula se ja houver entrada)
+      var existing = _getSummary(summaries, c.nome);
+      var base = existing && existing.rawTotals ? existing.rawTotals : {};
+      var s = buildGeneralOfficialSummaryFromRawTotals(_add(base, rawCity), meta, opts.turnoKey);
+      if (c.cd_ibge) s.ibge = String(c.cd_ibge);
+      _setSummary(summaries, c.nome, s);
+      if (affected) affected.add(c.nome);
+      n++;
+    });
+    return n;
+  }
+
+  // Deputados: ajusta o Map(cityName -> {candId:votos}) usado no coropletico de
+  // deputados (add cidade nova, subtrai do pai). cargo: deputado_federal|estadual.
+  function adjustDeputyCityTotals(opts) {
+    if (!_table) return 0;
+    var cities = _citiesFor(opts.year, opts.uf);
+    if (!cities.length) return 0;
+    var cargo = opts.cargo;
+    var turno = '1';
+    var map = opts.rawCityTotals;
+    var nameByCode = opts.muniNameMap;
+    var affected = opts.affected;
+    var n = 0;
+    cities.forEach(function (c) {
+      var rawCity = c.resultados && c.resultados[cargo] && c.resultados[cargo][turno];
+      if (!rawCity) return;
+      var porPai = c.por_pai || {};
+      Object.keys(porPai).forEach(function (code) {
+        var rawP = porPai[code] && porPai[code][cargo] && porPai[code][cargo][turno];
+        if (!rawP) return;
+        var pName = nameByCode && nameByCode.get ? nameByCode.get(String(code)) : null;
+        if (!pName) return;
+        var pv = map.get(pName);
+        if (!pv) return;
+        Object.keys(rawP).forEach(function (cid) {
+          pv[cid] = (pv[cid] || 0) - rawP[cid];
+          if (pv[cid] <= 0) delete pv[cid];
         });
+        if (affected) affected.add(pName);
       });
-      byYear[year] = m;
+      var cv = map.get(c.nome);
+      if (!cv) { cv = {}; map.set(c.nome, cv); }
+      Object.keys(rawCity).forEach(function (cid) { cv[cid] = (cv[cid] || 0) + rawCity[cid]; });
+      if (affected) affected.add(c.nome);
+      n++;
     });
-    return byYear;
+    return n;
   }
 
-  // Reatribui RESULTS + features e enriquece muniNameMap/muniIbgeMap.
-  // year: 1998|2002|2006|2010 (numero ou string). Mutating in place.
-  function apply(year, opts) {
-    if (!_remapByYear) return 0;
-    var remap = _remapByYear[String(year)];
-    if (!remap || !remap.size) return 0;
-    var moved = 0;
-
-    // 1) Nomes/IBGE para os codigos novos (senao o agrupamento descarta os votos).
-    if (opts.muniNameMap) {
-      remap.forEach(function (info) {
-        if (info.name) opts.muniNameMap.set(info.code, info.name);
-      });
-    }
-    if (opts.muniIbgeMap) {
-      remap.forEach(function (info) {
-        if (info.ibge) opts.muniIbgeMap.set(info.code, info.ibge);
-      });
-    }
-
-    // 2) RESULTS: troca o codigo do meio da chave (pai -> cidade).
-    (opts.resultsObjects || []).forEach(function (results) {
-      if (!results) return;
-      remap.forEach(function (info, origKey) {
-        var votes = results[origKey];
-        if (votes === undefined) return;
-        var parts = origKey.split('_');
-        var newKey = parts[0] + '_' + info.code + '_' + parts[2];
-        if (results[newKey]) {
-          var dst = results[newKey];
-          Object.keys(votes).forEach(function (cid) {
-            dst[cid] = (dst[cid] || 0) + votes[cid];
-          });
-        } else {
-          results[newKey] = votes;
-        }
-        delete results[origKey];
-        moved++;
-      });
-    });
-
-    // 3) Features do mapa: reescreve id_unico/local_key (pai -> cidade) e nm_localidade.
-    (opts.features || []).forEach(function (feat) {
-      var p = feat && feat.properties;
-      if (!p) return;
-      var key = String(p.id_unico || p.local_key || '');
-      if (!key) return;
-      var info = remap.get(key);
-      if (!info) return;
-      var parts = key.split('_');
-      var newKey = parts[0] + '_' + info.code + '_' + parts[2];
-      if (p.id_unico) p.id_unico = newKey;
-      if (p.local_key) p.local_key = newKey;
-      if (info.name) p.nm_localidade = info.name;
-      // 2010/2022 agrupam por cd_localidade_tse da feature; aponta para a cidade.
-      p.cd_localidade_tse = info.code;
-      // 2006/2010 derivam o IBGE do municipio a partir do proprio ponto; aponta
-      // para o IBGE da cidade nova para casar o poligono certo.
-      if (info.ibge) p.cod_localidade_ibge = info.ibge;
-    });
-
-    return moved;
-  }
-
-  global.EMANC = { ensureLoaded: ensureLoaded, apply: apply };
+  global.EMANC = {
+    ensureLoaded: ensureLoaded,
+    adjustCityTotals: adjustCityTotals,
+    adjustDeputyCityTotals: adjustDeputyCityTotals,
+    // compat: chamadas antigas de remap viram no-op (tabela mudou p/ secoes).
+    apply: function () { return 0; },
+  };
 })(typeof window !== 'undefined' ? window : this);

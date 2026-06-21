@@ -307,20 +307,26 @@ async function loadMajoritariaCargo2010(cargo, uf) {
   }
 
   const geojson = await loadGeneralScopeBase2010(ufs, resultKeys);
-
-  // Reatribui votos de cidades que ainda nao existiam em 2010 (distritos do pai).
-  if (window.EMANC) {
-    await window.EMANC.ensureLoaded();
-    window.EMANC.apply(2010, {
-      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
-      features: geojson.features,
-    });
-  }
-
   applyGeneralMajoritariaJsonToGeojson2010(geojson, mergedTurno1, '1T');
   if (mergedTurno2) {
     applyGeneralMajoritariaJsonToGeojson2010(geojson, mergedTurno2, '2T');
   }
+
+  // Mapa codigo TSE -> nome (das features) p/ achar o pai na reatribuicao.
+  const muniNameMap = new Map();
+  (geojson.features || []).forEach((f) => {
+    const p = f.properties || {};
+    const code = String(getProp(p, 'cd_localidade_tse') || '').trim();
+    const name = String(getProp(p, 'nm_localidade') || '').trim();
+    if (code && name && !muniNameMap.has(code)) muniNameMap.set(code, name);
+  });
+
+  const officialCityTotals = {
+    '1T': buildGeneralOfficialSummariesByCity(mergedTurno1, '1T', geojson),
+    ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummariesByCity(mergedTurno2, '2T', geojson) } : {})
+  };
+  await adjustEmancCityTotals(2010, cargo, ufs, muniNameMap, officialCityTotals,
+    { '1T': mergedTurno1, '2T': mergedTurno2 });
 
   return {
     geojson,
@@ -328,10 +334,7 @@ async function loadMajoritariaCargo2010(cargo, uf) {
       '1T': buildGeneralOfficialSummary(mergedTurno1, '1T'),
       ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummary(mergedTurno2, '2T') } : {})
     },
-    officialCityTotals: {
-      '1T': buildGeneralOfficialSummariesByCity(mergedTurno1, '1T', geojson),
-      ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummariesByCity(mergedTurno2, '2T', geojson) } : {})
-    }
+    officialCityTotals
   };
 }
 

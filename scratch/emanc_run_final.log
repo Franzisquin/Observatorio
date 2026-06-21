@@ -1,0 +1,34 @@
+    baixando TSE 2012 AL ...
+  1998 AL: 1 cidades
+    baixando TSE 2012 BA ...
+  1998 BA: 2 cidades
+    baixando TSE 2012 ES ...
+  1998 ES: 1 cidades
+    baixando TSE 2012 GO ...
+  1998 GO: 4 cidades
+  2002 GO: 0 cidades
+    baixando TSE 2012 MS ...
+  1998 MS: 1 cidades
+  2002 MS: 1 cidades
+    baixando TSE 2006 MS ...
+  2006 MS: 1 cidades
+    baixando TSE 2010 MS ...
+  2010 MS: 0 cidades
+    baixando TSE 2012 MT ...
+  1998 MT: 9 cidades
+  2002 MT: 0 cidades
+  2006 MT: 0 cidades
+    baixando TSE 2012 PI ...
+  1998 PI: 2 cidades
+  2002 PI: 1 cidades
+  2006 PI: 0 cidades
+    baixando TSE 2012 RJ ...
+  1998 RJ: 1 cidades
+  1998 RS: 24 cidades
+  2002 RS: 0 cidades
+  2006 RS: 1 cidades
+  2010 RS: 1 cidades
+  presidente 2002 preenchido (varredura dirigida do arquivo BR).
+
+OK -> C:\Users\lixov\OneDrive\Documentos\Observatorio\resultados_geo\emancipacoes_pre2014.json  (50 cidades-ano, 50 linhas CSV)
+     C:\Users\lixov\OneDrive\Documentos\Observatorio\resultados_geo\cidades_ausentes_por_ano.csv  (60 cidades ausentes catalogadas)

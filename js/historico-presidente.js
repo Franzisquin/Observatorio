@@ -12,7 +12,7 @@ const MAJOR_HISTORY_CONFIG = {
     title: 'Histórico presidencial',
     folder: 'Historico Presidente',
     filePrefix: 'historico_presidente',
-    cacheVersion: '20260502a'
+    cacheVersion: '20260621a'
   },
   governador: {
     cargo: 'governador',
@@ -20,7 +20,7 @@ const MAJOR_HISTORY_CONFIG = {
     title: 'Histórico governador',
     folder: 'Historico Governador',
     filePrefix: 'historico_governador',
-    cacheVersion: '20260501c'
+    cacheVersion: '20260621a'
   },
   senador: {
     cargo: 'senador',
@@ -28,7 +28,7 @@ const MAJOR_HISTORY_CONFIG = {
     title: 'Histórico senador',
     folder: 'Historico Senador',
     filePrefix: 'historico_senador',
-    cacheVersion: '20260501b'
+    cacheVersion: '20260621a'
   },
   prefeito: {
     cargo: 'prefeito',
@@ -36,7 +36,7 @@ const MAJOR_HISTORY_CONFIG = {
     title: 'Histórico prefeito',
     folder: 'Historico Prefeito',
     filePrefix: 'historico_prefeito',
-    cacheVersion: '20260501c',
+    cacheVersion: '20260621a',
     municipal: true
   }
 };

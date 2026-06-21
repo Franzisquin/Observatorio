@@ -279,18 +279,6 @@ async function loadMajoritariaCargo2002(cargo, uf) {
   // applyGeneralMajoritariaJsonToGeojson2002 tambem corrige nm_localidade dos dots
   // usando o cd_municipio TSE da chave do resultado (evita agrupamento errado).
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
-
-  // Reatribui votos de cidades que ainda nao existiam em 2002 (distritos do pai)
-  // para o codigo TSE moderno da cidade — antes de aplicar/agrupar.
-  if (window.EMANC) {
-    await window.EMANC.ensureLoaded();
-    window.EMANC.apply(2002, {
-      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
-      features: geojson.features,
-      muniNameMap: muniNameMap,
-    });
-  }
-
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
@@ -315,17 +303,42 @@ async function loadMajoritariaCargo2002(cargo, uf) {
   );
   geojson.features.push(...syntheticFeatures);
 
+  const officialCityTotals = {
+    '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
+    ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
+  };
+  await adjustEmancCityTotals(2002, cargo, ufs, muniNameMap, officialCityTotals,
+    { '1T': mergedTurno1, '2T': mergedTurno2 });
+
   return {
     geojson,
     officialTotals: {
       '1T': buildGeneralOfficialSummary(mergedTurno1, '1T'),
       ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummary(mergedTurno2, '2T') } : {})
     },
-    officialCityTotals: {
-      '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
-      ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
-    }
+    officialCityTotals
   };
+}
+
+// Reatribui votos das cidades que ainda nao existiam (distritos do pai) somando
+// suas SECOES eleitorais: adiciona a cidade e subtrai do(s) pai(s) nos totais
+// por municipio. Reusado por 1998/2002/2006/2010 (mesma estrutura de summaries).
+async function adjustEmancCityTotals(year, cargo, ufs, muniNameMap, cityTotals, mergedByTurno) {
+  if (!window.EMANC) return;
+  await window.EMANC.ensureLoaded();
+  ['1T', '2T'].forEach((tk) => {
+    const summaries = cityTotals[tk];
+    const merged = mergedByTurno[tk];
+    if (!summaries || !merged) return;
+    const metadata = merged.METADATA?.cand_names || {};
+    // Nomes (cidade nova + pais) tocados, p/ o coropletico 1998/2010 (que agrega
+    // por dots) sobrepor as entradas corrigidas vindas dos totais oficiais.
+    const affected = summaries._emancAffected instanceof Set ? summaries._emancAffected : new Set();
+    Object.defineProperty(summaries, '_emancAffected', { value: affected, enumerable: false, configurable: true, writable: true });
+    (ufs || []).forEach((uf) => {
+      window.EMANC.adjustCityTotals({ year, uf, cargo, turnoKey: tk, summaries, muniNameMap, metadata, affected });
+    });
+  });
 }
 
 async function buildDeputyBaseGeojson2002(uf) {
@@ -530,6 +543,10 @@ async function onClickLoadData_Deputies_2002(uf, year) {
             cityVotes[cid] = (cityVotes[cid] || 0) + ensureNumber(v);
           });
         });
+        if (window.EMANC) {
+          await window.EMANC.ensureLoaded();
+          window.EMANC.adjustDeputyCityTotals({ year: 2002, uf, cargo: cargoKey, rawCityTotals, muniNameMap });
+        }
         if (!STATE.deputyCityTotals) STATE.deputyCityTotals = {};
         STATE.deputyCityTotals[cargoKey] = rawCityTotals;
       }

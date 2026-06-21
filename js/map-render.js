@@ -1751,7 +1751,28 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
     summary[normalizeMunicipioSlug(entry.nome)] = summaryEntry;
   });
 
+  applyEmancOverlayToSummary(summary, cargoKey, turnoKey);
   return summary;
+}
+
+// 1998/2010 montam o coropletico agregando os DOTS do mapa; cidades que ainda
+// nao existiam nesses anos nao tem dots, entao nao apareciam. Aqui sobrepomos as
+// entradas ja corrigidas (cidade nova + pais com votos subtraidos) calculadas em
+// EMANC.adjustCityTotals e guardadas nos totais oficiais por cidade. Casa por
+// slug/IBGE, entao a cidade nova passa a colorir seu poligono e o pai reduz.
+function applyEmancOverlayToSummary(summary, cargoKey, turnoKey) {
+  const year = String(STATE.currentElectionYear);
+  if (year !== '1998' && year !== '2010') return; // 2002/2006 ja usam os oficiais
+  const oct = STATE.generalOfficialTotalsByCity?.[cargoKey]?.[turnoKey];
+  const affected = oct && oct._emancAffected;
+  if (!(affected instanceof Set) || affected.size === 0) return;
+  const filtered = {};
+  affected.forEach((name) => {
+    const e = oct[name] || oct[normalizeMunicipioSlug(name)];
+    if (e) filtered[name] = e;
+  });
+  const partial = buildMunicipalSummaryFromOfficialTotals(filtered, turnoKey);
+  Object.assign(summary, partial);
 }
 
 function renderGeneralStatewideMunicipalityResults(summary, uf) {

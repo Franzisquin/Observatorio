@@ -116,17 +116,6 @@ async function loadMajoritariaCargo1998(cargo, uf) {
 
   // Pontos do mapa: base 2006 (o que bater bateu).
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
-
-  // Reatribui votos de cidades que ainda nao existiam em 1998 (distritos do pai).
-  if (window.EMANC) {
-    await window.EMANC.ensureLoaded();
-    window.EMANC.apply(1998, {
-      resultsObjects: [mergedTurno1.RESULTS, mergedTurno2 && mergedTurno2.RESULTS].filter(Boolean),
-      features: geojson.features,
-      muniNameMap: muniNameMap,
-    });
-  }
-
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
@@ -151,16 +140,20 @@ async function loadMajoritariaCargo1998(cargo, uf) {
   );
   geojson.features.push(...syntheticFeatures);
 
+  const officialCityTotals = {
+    '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
+    ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
+  };
+  await adjustEmancCityTotals(1998, cargo, ufs, muniNameMap, officialCityTotals,
+    { '1T': mergedTurno1, '2T': mergedTurno2 });
+
   return {
     geojson,
     officialTotals: {
       '1T': buildGeneralOfficialSummary(mergedTurno1, '1T'),
       ...(mergedTurno2 ? { '2T': buildGeneralOfficialSummary(mergedTurno2, '2T') } : {})
     },
-    officialCityTotals: {
-      '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
-      ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
-    }
+    officialCityTotals
   };
 }
 

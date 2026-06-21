@@ -1,59 +1,46 @@
 """
-Gera a TABELA DE EMANCIPACOES para as eleicoes nacionais previas a 2014.
+Reatribuicao por SECAO ELEITORAL: nas eleicoes nacionais pre-2014, cidades que
+ainda nao existiam tinham os votos sob o municipio-pai. Identificamos as SECOES
+ELEITORAIS de cada cidade na ELEICAO MAIS ANTIGA em que ela ja existia (arquivos
+brutos de 2000/2004 etc.) e PUXAMOS essas mesmas (zona, secao) do arquivo bruto
+do ano-alvo, somando os votos -> resultado da cidade naquele ano. O numero da
+secao + zona e o identificador estavel (o nome do local ou o numero do local nao
+sao confiaveis).
 
-Problema
---------
-Nas eleicoes nacionais de 1998/2002/2006/2010 varias cidades de hoje ainda nao
-existiam: eram distritos de um municipio-pai, e os votos do distrito foram
-registrados sob o codigo TSE do pai. No site isso faz a cidade nova aparecer sem
-votos e infla o pai.
+Exemplo: Arroio do Padre-RS em 2000 tem as secoes da zona 60; em 1998 essas mesmas
+(zona 60, secoes) estavam sob Pelotas -> somando-as temos o resultado de Arroio
+do Padre em 1998.
 
-Mecanismo (decidido com o usuario)
-----------------------------------
-Identificamos os locais de votacao da cidade nova pelo NOME DO LOCAL + ZONA
-ELEITORAL (o numero do local -- nr_locvot -- NAO e estavel: a TSE renumera os
-locais quando o distrito emancipa; ja o nome do estabelecimento e a zona se
-mantem). A "identidade moderna" de cada local vem do CENSO padronizado do projeto
-(resultados_geo/Censo AAAA/censo_AAAA_UF.json), cujas chaves sao
-``zona_CDTSE_local`` e cujo ``nm_localidade`` ja e o municipio ATUAL e
-``cd_localidade_tse`` o codigo TSE atual da cidade.
+Saidas: resultados_geo/emancipacoes_pre2014.json (+ _revisao.csv).
 
-Para cada cidade C que existe no censo mas esta AUSENTE na eleicao do ano Y:
-  1. Pegamos o "rastro" de C no censo MAIS ANTIGO que a conhece: conjunto de
-     ``(zona, nm_locvot_normalizado)``.
-  2. Casamos esse rastro com os locais da eleicao Y pela base de locais (GPKG) do
-     ano de referencia daquela eleicao (1998->2006, 2006->2006, 2010->2010),
-     que da ``(zona, nome) -> [nr_locvot]``.
-  3. Descobrimos sob qual codigo-pai a eleicao Y guardou aqueles (zona, local) e
-     registramos a reatribuicao para o codigo TSE moderno de C.
+Fontes de dados brutos (votacao por secao):
+  1998: ../Resultados 1998/votacao_secao_1998_{UF}.zip  (gov/sen/dep)
+        ../Resultados 1998/votacao_secao-municipio_1998_{uf}_presidente.csv.zip
+  2000/2004 (identidade): Resultados 2000-2004/votacao_secao_{ano}_{UF}.zip
+  2002: Resultados 2002/votacao_secao_2002_{UF}.parquet (+ presidente externo)
+  2006/2010: E:/Mapas/Dados/votacao_secao_{ano}_{UF}.(csv|zip)  (faltantes: TSE)
 
-2002 fica de fora por ora: a base de locais de 2002 nao tem nome de local
-(nm_locvot vazio); sera tratada noutra fonte.
-
-Saidas
-------
-  resultados_geo/emancipacoes_pre2014.json   (consumida pelo patch da Fase B)
-  resultados_geo/emancipacoes_pre2014_revisao.csv  (conferencia humana)
-
-Uso
----
+Uso:
+  py scripts/gerar_emancipacoes_pre2014.py --years 1998 --ufs RS
   py scripts/gerar_emancipacoes_pre2014.py
-  py scripts/gerar_emancipacoes_pre2014.py --years 2010 --ufs SC,PA
 """
 
 import argparse
 import csv
-import glob
+import io
 import json
 import os
-import sqlite3
-import tempfile
 import unicodedata
 import zipfile
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEO_DIR = os.path.join(BASE_DIR, 'resultados_geo')
+PARENT_DIR = os.path.dirname(BASE_DIR)
+RES1998 = os.path.join(PARENT_DIR, 'Resultados 1998')
+RES2002 = os.path.join(BASE_DIR, 'Resultados 2002')
+RES0004 = os.path.join(BASE_DIR, 'Resultados 2000-2004')
+EXT_DIR = r'E:\Mapas\Dados'
 OUT_JSON = os.path.join(GEO_DIR, 'emancipacoes_pre2014.json')
 OUT_CSV = os.path.join(GEO_DIR, 'emancipacoes_pre2014_revisao.csv')
 
@@ -61,20 +48,25 @@ ALL_UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS
            'MT', 'PA', 'PB', 'PE', 'PI', 'PR', 'RJ', 'RN', 'RO', 'RR', 'RS', 'SC',
            'SE', 'SP', 'TO']
 
-# Ano da eleicao -> ano da base de locais (GPKG) usada para nomear os locais.
-# A base de 2002 nao tem nome de local (nm_locvot vazio), entao 2002 usa a base de
-# 2006 (numeracao de local 2002<->2006 estavel onde nao houve emancipacao no meio).
-NAMING_YEAR = {'1998': '2006', '2002': '2006', '2006': '2006', '2010': '2010'}
+# Anos cujas eleicoes recebem a correcao (nacionais pre-2014).
 TARGET_YEARS = ['1998', '2002', '2006', '2010']
+# Anos brutos usados para descobrir as SECOES de cada cidade (ordem crescente:
+# usa-se a eleicao MAIS ANTIGA em que a cidade ja aparece com codigo proprio).
+# 2000/2004 (repo) cobrem a onda de 1996-2001; 2008/2012 cobrem criadas ate 2011.
+IDENTITY_YEARS = ['2000', '2004', '2008', '2012']
 
-# Cargo "canonico" para detectar o conjunto de locais de cada (ano, UF).
-# A reatribuicao detectada aqui vale para todos os cargos do ano (mesmos locais);
-# o patch (Fase B) aplica a todos os ZIPs.
-PRES_ZIP = {
-    '1998': 'Majoritarias 1998/presidente_1998_t1_{uf}.zip',
-    '2002': 'Majoritarias 2002/presidente_2002_t1_{uf}.zip',
-    '2006': 'Majoritarias 2006/presidente_2006_t1_{uf}.zip',
-    '2010': 'Majoritarias 2010/presidente_2010_t1_{uf}.zip',
+# Casos NAO monotonicos (existiram, sumiram e voltaram). A regra "1a municipal >
+# ano-alvo" nao os pega; aqui forcamos a candidatura nos anos em que estavam
+# ausentes, usando as secoes do ano de identidade indicado.
+# Pinto Bandeira-RS (89540): emancipada 2000, votou em 2002, anulada pela Justica
+# (vazia em 2006 e 2010), recriada em 2012.
+SPECIAL_NONMONO = {
+    ('RS', '89540'): {'force_years': {'2006', '2010'}, 'identity_year': '2012'},
+}
+
+CARGO_BY_DS = {
+    'PRESIDENTE': 'presidente', 'GOVERNADOR': 'governador', 'SENADOR': 'senador',
+    'DEPUTADO FEDERAL': 'deputado_federal', 'DEPUTADO ESTADUAL': 'deputado_estadual',
 }
 
 
@@ -85,323 +77,207 @@ def norm(s):
 
 
 # ---------------------------------------------------------------------------
-# Censo padronizado: identidade moderna + rastro das cidades
+# Leitor generico de arquivos de votacao por secao (header-driven, case-insensitive)
 # ---------------------------------------------------------------------------
 
-def census_years():
-    ys = []
-    for d in glob.glob(os.path.join(GEO_DIR, 'Censo *')):
-        if os.path.isdir(d):
-            part = os.path.basename(d).split()
-            if len(part) == 2 and part[1].isdigit():
-                ys.append(part[1])
-    return sorted(ys)
+def _csv_rows(text):
+    rdr = csv.reader(io.StringIO(text), delimiter=';')
+    header = [h.strip().lower() for h in next(rdr)]
+    idx = {h: i for i, h in enumerate(header)}
+    for row in rdr:
+        yield row, idx
 
 
-def load_census(year, uf):
-    zp = os.path.join(GEO_DIR, f'Censo {year}', f'censo_{year}_{uf}.zip')
-    if not os.path.exists(zp):
+def _emit(row, idx):
+    """Normaliza uma linha -> dict padrao ou None."""
+    def g(*names):
+        for n in names:
+            i = idx.get(n)
+            if i is not None and i < len(row):
+                return row[i]
+        return ''
+    try:
+        zona = int(g('nr_zona'))
+        secao = int(g('nr_secao'))
+    except (TypeError, ValueError):
         return None
-    with zipfile.ZipFile(zp) as z:
-        name = f'censo_{year}_{uf}.json'
-        if name not in z.namelist():
-            cand = [n for n in z.namelist() if n.endswith('.json')]
-            if not cand:
-                return None
-            name = cand[0]
-        return json.loads(z.read(name)).get('RESULTS', {})
+    ds = norm(g('ds_cargo'))
+    cargo = CARGO_BY_DS.get(ds)
+    if cargo is None:
+        cd = g('cd_cargo')
+        cargo = {'1': 'presidente', '3': 'governador', '5': 'senador',
+                 '6': 'deputado_federal', '7': 'deputado_estadual'}.get(cd)
+    try:
+        votos = int(g('qt_votos') or 0)
+    except ValueError:
+        votos = 0
+    return {
+        'cd_mun': str(g('cd_municipio')).strip(),
+        'nm_mun': g('nm_municipio'),
+        'zona': zona, 'secao': secao, 'cargo': cargo,
+        'turno': str(g('nr_turno') or '1').strip(),
+        'votavel': str(g('nr_votavel')).strip(),
+        'votos': votos,
+        'comparecimento': g('qt_comparecimento'),
+    }
 
 
-def build_city_footprints(uf, cyears):
-    """({cd_tse(str): {...}}, owners_by_year).
-
-    Para cada codigo usa o censo MAIS ANTIGO em que aparece (rastro mais proximo
-    da emancipacao). ``foot`` = set((zona, nm_locvot_norm)). ``owners_by_year`` =
-    {census_year: {(zona, name): set(codes)}} para detectar nomes ambiguos
-    (mesmo nome de local em mais de um municipio na mesma zona -- ex.: "EMEF
-    SANTO ANTONIO" no interior). So usamos nomes UNICOS para reatribuir.
-    """
-    cities = {}
-    owners_by_year = {}
-    for year in cyears:  # ascendente
-        res = load_census(year, uf)
-        if not res:
-            continue
-        foots = defaultdict(set)
-        names = defaultdict(lambda: defaultdict(int))
-        owners = defaultdict(set)
-        for row in res.values():
-            code = str(row.get('cd_localidade_tse') or '').strip()
-            if not code:
-                continue
-            zona = row.get('nr_zona')
-            nmlv = norm(row.get('nm_locvot'))
-            if zona is None or not nmlv:
-                continue
-            try:
-                zona = int(zona)
-            except (TypeError, ValueError):
-                continue
-            foots[code].add((zona, nmlv))
-            owners[(zona, nmlv)].add(code)
-            names[code][norm(row.get('nm_localidade'))] += 1
-        owners_by_year[year] = owners
-        for code, foot in foots.items():
-            if code in cities:
-                continue  # ja registrado num censo mais antigo
-            best_name = max(names[code].items(), key=lambda kv: kv[1])[0]
-            cities[code] = {'name': best_name, 'census_year': year, 'foot': foot}
-    return cities, owners_by_year
+def _read_zip_csv(path):
+    with zipfile.ZipFile(path) as z:
+        member = [n for n in z.namelist() if n.lower().endswith(('.csv', '.txt'))][0]
+        text = z.read(member).decode('latin-1')
+    for row, idx in _csv_rows(text):
+        r = _emit(row, idx)
+        if r:
+            yield r
 
 
-# ---------------------------------------------------------------------------
-# Base de locais (GPKG) para nomear os locais de votacao de cada eleicao
-# ---------------------------------------------------------------------------
-
-_GPKG_CACHE = {}
-
-
-def _gpkg_cursor(year):
-    if year in _GPKG_CACHE:
-        return _GPKG_CACHE[year]
-    zp = os.path.join(GEO_DIR, f'locais_votacao_{year}_gkpg.zip')
-    z = zipfile.ZipFile(zp)
-    member = [n for n in z.namelist() if n.lower().endswith('.gpkg')][0]
-    path = os.path.join(tempfile.gettempdir(), f'emanc_lv_{year}.gpkg')
-    if not os.path.exists(path) or os.path.getsize(path) != z.getinfo(member).file_size:
-        with open(path, 'wb') as f:
-            f.write(z.read(member))
-    con = sqlite3.connect(path)
-    cur = con.cursor()
-    table = [r[0] for r in cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-             if r[0].lower().startswith('locais_votacao')
-             and ('padroniz' in r[0].lower() or 'enriquec' in r[0].lower())][0]
-    _GPKG_CACHE[year] = (cur, table)
-    return _GPKG_CACHE[year]
+def _read_plain_csv(path):
+    with open(path, encoding='latin-1') as f:
+        text = f.read()
+    for row, idx in _csv_rows(text):
+        r = _emit(row, idx)
+        if r:
+            yield r
 
 
-_ZNAME_CACHE = {}
-
-
-def gpkg_zname(year, uf):
-    """{(zona, nm_locvot_norm): [nr_locvot,...]} da base de locais do ano/UF."""
-    key = (year, uf)
-    if key in _ZNAME_CACHE:
-        return _ZNAME_CACHE[key]
-    cur, table = _gpkg_cursor(year)
-    idx = defaultdict(list)
-    q = f"SELECT nr_zona, nr_locvot, nm_locvot FROM {table} WHERE sg_uf=?"
-    for zona, loc, nmlv in cur.execute(q, (uf,)):
+def _read_parquet(path):
+    import pandas as pd
+    cols = ['CD_MUNICIPIO', 'NM_MUNICIPIO', 'NR_ZONA', 'NR_SECAO', 'DS_CARGO',
+            'CD_CARGO', 'NR_TURNO', 'NR_VOTAVEL', 'QT_VOTOS']
+    df = pd.read_parquet(path)
+    have = [c for c in cols if c in df.columns]
+    for t in df[have].itertuples(index=False):
+        d = dict(zip(have, t))
+        ds = norm(d.get('DS_CARGO'))
+        cargo = CARGO_BY_DS.get(ds) or {'1': 'presidente', '3': 'governador',
+            '5': 'senador', '6': 'deputado_federal', '7': 'deputado_estadual'}.get(str(d.get('CD_CARGO')))
         try:
-            zona = int(zona)
-            loc = int(loc)
-        except (TypeError, ValueError):
+            zona = int(d['NR_ZONA']); secao = int(d['NR_SECAO'])
+        except (TypeError, ValueError, KeyError):
             continue
-        nm = norm(nmlv)
-        if nm:
-            idx[(zona, nm)].append(loc)
-    _ZNAME_CACHE[key] = idx
-    return idx
+        yield {'cd_mun': str(d.get('CD_MUNICIPIO')).strip(),
+               'nm_mun': d.get('NM_MUNICIPIO'), 'zona': zona, 'secao': secao,
+               'cargo': cargo, 'turno': str(d.get('NR_TURNO') or '1').strip(),
+               'votavel': str(d.get('NR_VOTAVEL')).strip(),
+               'votos': int(d.get('QT_VOTOS') or 0), 'comparecimento': ''}
+
+
+def _first_existing(*paths):
+    for p in paths:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def raw_section_rows(year, uf):
+    """Itera as linhas de votacao por secao de (year, uf), de todas as fontes."""
+    uf = uf.upper()
+    if year == '1998':
+        main = os.path.join(RES1998, f'votacao_secao_1998_{uf}.zip')
+        if os.path.exists(main):
+            yield from _read_zip_csv(main)
+        pres = os.path.join(RES1998, f'votacao_secao-municipio_1998_{uf.lower()}_presidente.csv.zip')
+        if os.path.exists(pres):
+            yield from _read_zip_csv(pres)
+        return
+    if year in ('2000', '2004'):
+        p = os.path.join(RES0004, f'votacao_secao_{year}_{uf}.zip')
+        if os.path.exists(p):
+            yield from _read_zip_csv(p)
+        return
+    if year == '2002':
+        # gov/sen/dep do parquet do repo. PRESIDENTE 2002 nao esta nos arquivos
+        # por UF (e nacional, arquivo BR) -> preenchido depois por fill_2002_presidente.
+        p = os.path.join(RES2002, f'votacao_secao_2002_{uf}.parquet')
+        if os.path.exists(p):
+            yield from _read_parquet(p)
+        return
+    # 2006, 2008, 2010, 2012, 2014 -> fonte externa (E:) ou TSE (cache scratch)
+    ext = _first_existing(os.path.join(EXT_DIR, f'votacao_secao_{year}_{uf}.csv'),
+                          os.path.join(EXT_DIR, f'votacao_secao_{year}_{uf}.zip'))
+    if ext:
+        yield from (_read_plain_csv(ext) if ext.endswith('.csv') else _read_zip_csv(ext))
+        return
+    tse = _ensure_tse(year, uf)
+    if tse:
+        yield from _read_zip_csv(tse)
+
+
+_TSE_DIR = os.path.join(BASE_DIR, 'scratch', 'secoes_tse')
+
+
+def _ensure_tse(year, uf):
+    """Baixa votacao_secao_{ano}_{UF}.zip do CDN do TSE (cache em scratch)."""
+    os.makedirs(_TSE_DIR, exist_ok=True)
+    dest = os.path.join(_TSE_DIR, f'votacao_secao_{year}_{uf}.zip')
+    if os.path.exists(dest):
+        return dest
+    import urllib.request
+    url = (f'https://cdn.tse.jus.br/estatistica/sead/odsele/votacao_secao/'
+           f'votacao_secao_{year}_{uf}.zip')
+    try:
+        print(f'    baixando TSE {year} {uf} ...')
+        urllib.request.urlretrieve(url, dest)
+        return dest
+    except Exception as e:
+        print(f'    [FALHA TSE {year} {uf}] {e}')
+        if os.path.exists(dest):
+            os.remove(dest)
+        return None
 
 
 # ---------------------------------------------------------------------------
-# Eleicao: mapa (zona, local) -> codigo e votos (presidente t1 como canonico)
+# Identidade: codigo do municipio -> conjunto de (zona, secao)
 # ---------------------------------------------------------------------------
 
-def load_election_locmap(year, uf):
-    """((zona,local)->code, set(codes), (zona,local)->total_votos)."""
-    rel = PRES_ZIP[year].format(uf=uf)
-    zp = os.path.join(GEO_DIR, rel)
-    if not os.path.exists(zp):
-        return None, None, None
-    with zipfile.ZipFile(zp) as z:
-        main = [n for n in z.namelist() if not n.endswith('_resumo.json')][0]
-        res = json.loads(z.read(main)).get('RESULTS', {})
-    loc2code = {}
-    votes = {}
-    codes = set()
-    for k, cand in res.items():
-        p = k.split('_')
-        if len(p) < 3:
-            continue
-        zona, code, loc = p[0], p[1], p[2]
-        codes.add(code)
-        if loc.startswith('S'):
-            continue  # sintetica (1998): sem nr_locvot -> nao casa por nome
-        try:
-            zl = (int(zona), int(loc))
-        except ValueError:
-            continue
-        loc2code[zl] = code
-        votes[zl] = sum(v for v in cand.values() if isinstance(v, int))
-    return loc2code, codes, votes
+_IDENT_CACHE = {}
 
 
-# ---------------------------------------------------------------------------
-# Deteccao das reatribuicoes
-# ---------------------------------------------------------------------------
-
-def detect(years, ufs):
-    cyears = census_years()
-    # Estrutura de saida: por ano -> por uf -> lista de cidades reatribuidas.
-    out = {'_meta': {'mecanismo': 'nome do local + zona; identidade pelo censo padronizado',
-                     'naming_year': NAMING_YEAR, 'census_years': cyears},
-           'anos': {}}
-    csv_rows = []
-    dropped_total = 0
-    for uf in ufs:
-        cities, owners_by_year = build_city_footprints(uf, cyears)
-        if not cities:
-            continue
-        muni_ibge = load_muni_ibge(uf)
-        code_names = load_code_names(uf, cyears)
-        for year in years:
-            if year not in NAMING_YEAR:
+def build_section_identity(uf, id_years=None):
+    """{cd_mun: {'secs': set((zona,secao)), 'nome', 'ano'}} pela eleicao mais antiga."""
+    id_years = id_years or IDENTITY_YEARS
+    ck = (uf, tuple(id_years))
+    if ck in _IDENT_CACHE:
+        return _IDENT_CACHE[ck]
+    ident = {}
+    for year in id_years:
+        rows_seen = False
+        secs = defaultdict(set)
+        names = {}
+        for r in raw_section_rows(year, uf):
+            rows_seen = True
+            if not r['cd_mun']:
                 continue
-            loc2code, present, votes = load_election_locmap(year, uf)
-            if loc2code is None:
-                continue
-            zname = gpkg_zname(NAMING_YEAR[year], uf)
-            for code, info in cities.items():
-                if code in present:
-                    continue  # cidade ja existe nessa eleicao
-                owners = owners_by_year.get(info['census_year'], {})
-                # casa o rastro da cidade com os locais do ano Y, por NOME UNICO.
-                matched = defaultdict(dict)   # zona -> {local: parent_code}
-                namebyloc = {}
-                dropped = 0
-                for (zona, nm) in info['foot']:
-                    # 1) nome precisa ser UNICO da cidade naquele censo (sem
-                    #    colisao com outro municipio na mesma zona).
-                    if owners.get((zona, nm), set()) != {code}:
-                        dropped += 1
-                        continue
-                    locs = zname.get((zona, nm), [])
-                    if not locs:
-                        continue
-                    # 2) na eleicao, todos os locais desse nome devem estar sob
-                    #    UM unico codigo-pai (!= cidade). Caso contrario o nome
-                    #    casou lugares de municipios diferentes -> descarta.
-                    par = {loc2code.get((zona, loc)) for loc in locs}
-                    par.discard(None)
-                    par.discard(code)
-                    if len(par) != 1:
-                        dropped += 1
-                        continue
-                    parent = next(iter(par))
-                    for loc in locs:
-                        if loc2code.get((zona, loc)) == parent:
-                            matched[zona][loc] = parent
-                            namebyloc[(zona, loc)] = nm
-                dropped_total += dropped
-                if not matched:
-                    continue
-                locs = []
-                parents = set()
-                tot_votes = 0
-                for zona, lz in matched.items():
-                    for loc, parent in lz.items():
-                        parents.add(parent)
-                        tot_votes += votes.get((zona, loc), 0)
-                        locs.append({'zona': zona, 'local': loc, 'parent': parent,
-                                     'nm_locvot': namebyloc[(zona, loc)]})
-                parents_nomes = {p: code_names.get(p, '?') for p in sorted(parents)}
-                revisar = len(parents) > 1
-                entry = {
-                    'cd_tse': code,
-                    'nome': info['name'],
-                    'cd_ibge': muni_ibge.get(info['name']),
-                    'parents': sorted(parents),
-                    'parents_nomes': parents_nomes,
-                    'revisar': revisar,
-                    'census_year': info['census_year'],
-                    'naming_year': NAMING_YEAR[year],
-                    'n_locais': len(locs),
-                    'n_nomes_descartados_ambiguos': dropped,
-                    'votos_presidente_t1': tot_votes,
-                    'locais': sorted(locs, key=lambda x: (x['zona'], x['local'])),
-                }
-                out['anos'].setdefault(year, {}).setdefault(uf, []).append(entry)
-        # libera caches de UF grandes
-        _ZNAME_CACHE.clear()
-
-    # Um local fisico so pode pertencer a UMA cidade. Se duas cidades novas
-    # reivindicam o mesmo (zona, pai, local) -- colisao de nomes genericos entre
-    # vizinhas -- removemos de ambas (ambiguo) e recomputamos as entradas.
-    _drop_cross_city_collisions(out)
-
-    csv_rows = _build_csv_rows(out, ufs)
-    return out, csv_rows
-
-
-def _orig_key(L):
-    return f"{L['zona']}_{L['parent']}_{L['local']}"
-
-
-def _drop_cross_city_collisions(out):
-    for year, per_uf in out['anos'].items():
-        claims = defaultdict(set)  # orig_key -> set(cd_tse)
-        for cities in per_uf.values():
-            for c in cities:
-                for L in c['locais']:
-                    claims[_orig_key(L)].add(c['cd_tse'])
-        bad = {k for k, s in claims.items() if len(s) > 1}
-        if not bad:
+            secs[r['cd_mun']].add((r['zona'], r['secao']))
+            names.setdefault(r['cd_mun'], r['nm_mun'])
+        if not rows_seen:
             continue
-        for uf, cities in list(per_uf.items()):
-            kept_cities = []
-            for c in cities:
-                locs = [L for L in c['locais'] if _orig_key(L) not in bad]
-                if not locs:
-                    continue  # cidade ficou sem locais -> remove
-                c['locais'] = locs
-                c['n_locais'] = len(locs)
-                parents = sorted({L['parent'] for L in locs})
-                c['parents'] = parents
-                c['parents_nomes'] = {p: c['parents_nomes'].get(p, '?') for p in parents}
-                c['revisar'] = len(parents) > 1
-                kept_cities.append(c)
-            if kept_cities:
-                per_uf[uf] = kept_cities
-            else:
-                del per_uf[uf]
+        for cd, ss in secs.items():
+            e = ident.get(cd)
+            if e is None:
+                e = {'secs': ss, 'nome': names.get(cd, ''), 'ano': year,
+                     'secs_by_year': {}}
+                ident[cd] = e
+            e['secs_by_year'][year] = ss
+    _IDENT_CACHE[ck] = ident
+    return ident
 
 
-def _build_csv_rows(out, ufs):
-    rows = []
-    for year, per_uf in out['anos'].items():
-        for uf, cities in per_uf.items():
-            for c in cities:
-                for L in c['locais']:
-                    rows.append([year, uf, c['nome'], c['cd_tse'], c['cd_ibge'],
-                                 L['parent'], c['parents_nomes'].get(L['parent'], '?'),
-                                 L['zona'], L['local'], L['nm_locvot'],
-                                 c['census_year'], 'SIM' if c['revisar'] else ''])
-    return rows
+# ---------------------------------------------------------------------------
+# Indexacao do ano-alvo: por (zona, secao) -> municipio dono + votos por cargo
+# ---------------------------------------------------------------------------
 
-
-_CODE_NAMES_CACHE = {}
-
-
-def load_code_names(uf, cyears):
-    """{cd_tse(str): nm_localidade} a partir do censo mais recente da UF."""
-    if uf in _CODE_NAMES_CACHE:
-        return _CODE_NAMES_CACHE[uf]
-    mapping = {}
-    for year in reversed(cyears):  # mais recente primeiro
-        res = load_census(year, uf)
-        if not res:
+def index_target_year(year, uf):
+    """((zona,secao) -> {cd_mun: {(cargo,turno): {votavel: votos}}}, present_codes)."""
+    by_sec = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
+    present = set()
+    for r in raw_section_rows(year, uf):
+        if not r['cargo'] or not r['cd_mun']:
             continue
-        counts = defaultdict(lambda: defaultdict(int))
-        for row in res.values():
-            code = str(row.get('cd_localidade_tse') or '').strip()
-            if code:
-                counts[code][norm(row.get('nm_localidade'))] += 1
-        for code, c in counts.items():
-            if code not in mapping:
-                mapping[code] = max(c.items(), key=lambda kv: kv[1])[0]
-    _CODE_NAMES_CACHE[uf] = mapping
-    return mapping
+        present.add(r['cd_mun'])
+        by_sec[(r['zona'], r['secao'])][r['cd_mun']][(r['cargo'], r['turno'])][r['votavel']] += r['votos']
+    return by_sec, present
 
 
 _MUNI_IBGE_CACHE = {}
@@ -422,34 +298,222 @@ def load_muni_ibge(uf):
     return mapping
 
 
+# ---------------------------------------------------------------------------
+# Deteccao + soma
+# ---------------------------------------------------------------------------
+
+def detect(years, ufs):
+    out = {'_meta': {'mecanismo': 'soma das SECOES ELEITORAIS da cidade (identidade pela eleicao mais antiga) puxadas do arquivo bruto do ano-alvo'},
+           'anos': {}}
+    csv_rows = []
+    catalog = []  # cidades AUSENTES por ano (existam ou nao secoes p/ reatribuir)
+    for uf in ufs:
+        ident = build_section_identity(uf)
+        if not ident:
+            continue
+        ibge_map = load_muni_ibge(uf)
+        for year in years:
+            if year not in TARGET_YEARS:
+                continue
+            # So PODE estar ausente em 'year' a cidade cuja PRIMEIRA eleicao
+            # municipal (ano de identidade) e POSTERIOR a 'year'. Se nenhuma
+            # cidade da UF se enquadra, nao ha o que corrigir nesse ano -> NAO
+            # baixa/processa o arquivo bruto desse ano (ex.: UF com municipios
+            # ausentes apenas em 1998 nao toca 2002/2006/2010).
+            yi = int(year)
+            candidatas = {cd: info for cd, info in ident.items() if int(info['ano']) > yi}
+            # Casos nao monotonicos (ex.: Pinto Bandeira anulada): forca candidatura
+            # nos anos de ausencia usando as secoes do ano de identidade indicado.
+            for (suf, scode), spec in SPECIAL_NONMONO.items():
+                if suf != uf or year not in spec['force_years']:
+                    continue
+                info = ident.get(scode)
+                if not info:
+                    continue
+                secs = info.get('secs_by_year', {}).get(spec['identity_year'])
+                if secs:
+                    candidatas[scode] = dict(info, secs=secs, ano=spec['identity_year'])
+            if not candidatas:
+                continue
+            by_sec, present = index_target_year(year, uf)
+            if not by_sec:
+                continue
+            for cd, info in candidatas.items():
+                if cd in present:
+                    continue  # existia mesmo (instalada entre a municipal e a geral)
+                nome = info['nome'] or ''
+                cd_ibge = ibge_map.get(norm(nome))
+                # secoes da cidade que existem no ano-alvo
+                sec_hits = [s for s in info['secs'] if s in by_sec]
+                if not sec_hits:
+                    catalog.append([year, uf, cd, nome, cd_ibge, info['ano'],
+                                    'AUSENTE_SEM_SECOES', 0])
+                    continue
+                # por_pai[owner][cargo][turno][votavel] = votos (para subtrair do pai)
+                por_pai = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(int))))
+                parents = Counter()
+                used_secs = []
+                ambiguous = 0
+                for (zona, secao) in sec_hits:
+                    owners = by_sec[(zona, secao)]
+                    # (zona, secao) deve pertencer a UM unico municipio no ano-alvo.
+                    # Numeros de secao se repetem entre municipios da mesma zona;
+                    # quando ha mais de um dono, e ambiguo -> descarta (nao atribui).
+                    if len(owners) != 1:
+                        ambiguous += 1
+                        continue
+                    owner = next(iter(owners))
+                    parents[owner] += 1
+                    used_secs.append((zona, secao, owner))
+                    for (cargo, turno), votos in owners[owner].items():
+                        for votavel, q in votos.items():
+                            por_pai[owner][cargo][turno][votavel] += q
+                if not por_pai:
+                    catalog.append([year, uf, cd, nome, cd_ibge, info['ano'],
+                                    'AUSENTE_SO_AMBIGUAS', 0])
+                    continue
+                # total da cidade (soma dos pais) por cargo/turno
+                resultados = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+                for owner, cgs in por_pai.items():
+                    for cargo, turnos in cgs.items():
+                        for turno, vv in turnos.items():
+                            for votavel, q in vv.items():
+                                resultados[cargo][turno][votavel] += q
+                catalog.append([year, uf, cd, nome, cd_ibge, info['ano'],
+                                'REATRIBUIDO', len(used_secs)])
+                parents_sorted = [p for p, _ in parents.most_common()]
+                entry = {
+                    'cd_tse': cd, 'nome': nome, 'cd_ibge': cd_ibge,
+                    'parents': parents_sorted,
+                    'revisar': len(parents_sorted) > 1,
+                    'identidade_ano': info['ano'],
+                    'n_secoes': len(used_secs),
+                    'n_secoes_ambiguas': ambiguous,
+                    'secoes': sorted([[z, s] for z, s, _ in used_secs]),
+                    'resultados': {cg: {t: dict(v) for t, v in turnos.items()}
+                                   for cg, turnos in resultados.items()},
+                    'por_pai': {ow: {cg: {t: dict(v) for t, v in turnos.items()}
+                                     for cg, turnos in cgs.items()}
+                                for ow, cgs in por_pai.items()},
+                }
+                out['anos'].setdefault(year, {}).setdefault(uf, []).append(entry)
+                pres = entry['resultados'].get('presidente', {}).get('1', {})
+                csv_rows.append([year, uf, nome, cd, cd_ibge,
+                                 ';'.join(parents_sorted), len(used_secs),
+                                 sum(pres.values()), info['ano'],
+                                 'SIM' if entry['revisar'] else ''])
+            print(f'  {year} {uf}: {len(out["anos"].get(year, {}).get(uf, []))} cidades')
+    return out, csv_rows, catalog
+
+
+def fill_national_presidente(out, year):
+    """Preenche o PRESIDENTE de 2002/2006/2010 (arquivo nacional BR, presidente-only)
+    nas cidades detectadas, com UMA varredura dirigida apenas as secoes alvo.
+    (1998 tem presidente em arquivo proprio por UF; nao precisa disto.)"""
+    per = out['anos'].get(year)
+    if not per:
+        return
+    br = _first_existing(os.path.join(EXT_DIR, f'votacao_secao_{year}_BR.csv'),
+                         os.path.join(EXT_DIR, f'votacao_secao_{year}_BR.zip'))
+    if not br:
+        br = _ensure_tse(year, 'BR')  # ~700-800MB; ultimo recurso
+    if not br:
+        print(f'  [AVISO] presidente {year} indisponivel (sem arquivo BR).')
+        return
+    want = defaultdict(lambda: defaultdict(list))  # uf -> (zona,secao) -> [entries]
+    secset = defaultdict(set)
+    for uf, cs in per.items():
+        for c in cs:
+            for z, s in c['secoes']:
+                want[uf][(z, s)].append(c)
+                secset[uf].add((z, s))
+    import csv as _csv
+    import io as _io
+    if br.endswith('.csv'):
+        fh = open(br, encoding='latin-1')
+        rows = _csv.reader(fh, delimiter=';')
+    else:
+        z = zipfile.ZipFile(br); m = [n for n in z.namelist() if n.lower().endswith(('.csv', '.txt'))][0]
+        rows = _csv.reader(_io.StringIO(z.read(m).decode('latin-1')), delimiter=';')
+    h = [x.strip().lower() for x in next(rows)]
+    I = {n: i for i, n in enumerate(h)}
+    for r in rows:
+        uf = r[I['sg_uf']]
+        if uf not in secset:
+            continue
+        try:
+            z = int(r[I['nr_zona']]); s = int(r[I['nr_secao']])
+        except (ValueError, KeyError):
+            continue
+        if (z, s) not in secset[uf]:
+            continue
+        cd = r[I['cd_municipio']].strip(); turno = str(r[I['nr_turno']]).strip()
+        votavel = str(r[I['nr_votavel']]).strip(); votos = int(r[I['qt_votos']] or 0)
+        for c in want[uf][(z, s)]:
+            if cd in c['por_pai']:
+                pp = c['por_pai'][cd].setdefault('presidente', {}).setdefault(turno, {})
+                pp[votavel] = pp.get(votavel, 0) + votos
+    # reconstroi resultados.presidente (soma dos pais)
+    for uf, cs in per.items():
+        for c in cs:
+            agg = defaultdict(lambda: defaultdict(int))
+            for p, cgs in c['por_pai'].items():
+                for t, vv in cgs.get('presidente', {}).items():
+                    for v, q in vv.items():
+                        agg[t][v] += q
+            if agg:
+                c['resultados']['presidente'] = {t: dict(v) for t, v in agg.items()}
+    print(f'  presidente {year} preenchido (varredura dirigida do arquivo BR).')
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--years', help='ex.: 1998,2006,2010')
-    ap.add_argument('--ufs', help='ex.: SC,PA')
+    ap.add_argument('--years')
+    ap.add_argument('--ufs')
+    ap.add_argument('--idyears', help='anos de identidade (default 2000,2004,2008,2012)')
+    ap.add_argument('--merge', action='store_true',
+                    help='preserva anos nao rodados do JSON existente')
     args = ap.parse_args()
     years = [y.strip() for y in args.years.split(',')] if args.years else list(TARGET_YEARS)
     ufs = [u.strip().upper() for u in args.ufs.split(',')] if args.ufs else list(ALL_UFS)
+    global IDENTITY_YEARS
+    if args.idyears:
+        IDENTITY_YEARS = [y.strip() for y in args.idyears.split(',')]
 
-    out, csv_rows = detect(years, ufs)
-
+    ap_merge = args.merge
+    out, csv_rows, catalog = detect(years, ufs)
+    for y in ('2002', '2006', '2010'):
+        if y in years:
+            fill_national_presidente(out, y)
+    if ap_merge and os.path.exists(OUT_JSON):
+        # Preserva (ano, UF) que NAO foram rodados agora (ex.: rodar so PA,SC sem
+        # refazer os demais estados nem 1998 dos ja existentes).
+        prev = json.load(open(OUT_JSON, encoding='utf-8'))
+        run_ufs = set(ufs)
+        kept = 0
+        for y, per in (prev.get('anos') or {}).items():
+            dst = out['anos'].setdefault(y, {})
+            for uf, cs in per.items():
+                if (y not in years or uf not in run_ufs) and uf not in dst:
+                    dst[uf] = cs
+                    kept += 1
+        print(f'  (merge) {kept} blocos (ano,UF) preservados do JSON anterior')
     with open(OUT_JSON, 'w', encoding='utf-8') as f:
-        json.dump(out, f, ensure_ascii=False, indent=1)
+        json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
     with open(OUT_CSV, 'w', encoding='utf-8-sig', newline='') as f:
         w = csv.writer(f)
-        w.writerow(['Ano', 'UF', 'Cidade', 'CD_TSE', 'CD_IBGE', 'Parent_TSE',
-                    'Parent_Nome', 'Zona', 'Local', 'Nome_Local', 'Censo_Fonte',
-                    'Revisar'])
+        w.writerow(['Ano', 'UF', 'Cidade', 'CD_TSE', 'CD_IBGE', 'Parents',
+                    'N_Secoes', 'Votos_Pres_1T', 'Identidade_Ano', 'Revisar'])
         w.writerows(sorted(csv_rows))
-
-    # resumo
-    n_city = sum(len(v) for yr in out['anos'].values() for v in yr.values())
-    print(f'OK -> {OUT_JSON}')
-    print(f'     {OUT_CSV} ({len(csv_rows)} locais)')
-    for year in sorted(out['anos']):
-        per = out['anos'][year]
-        nc = sum(len(v) for v in per.values())
-        nl = sum(len(c['locais']) for v in per.values() for c in v)
-        print(f'  {year}: {nc} cidades reatribuidas em {len(per)} UFs, {nl} locais')
+    cat_path = os.path.join(GEO_DIR, 'cidades_ausentes_por_ano.csv')
+    with open(cat_path, 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(['Ano', 'UF', 'CD_TSE', 'Cidade', 'CD_IBGE', 'Identidade_Ano',
+                    'Status', 'N_Secoes'])
+        w.writerows(sorted(catalog))
+    nc = sum(len(v) for yr in out['anos'].values() for v in yr.values())
+    print(f'\nOK -> {OUT_JSON}  ({nc} cidades-ano, {len(csv_rows)} linhas CSV)')
+    print(f'     {cat_path}  ({len(catalog)} cidades ausentes catalogadas)')
 
 
 if __name__ == '__main__':
