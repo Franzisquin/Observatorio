@@ -273,7 +273,9 @@ async function loadGeneralStateBaseFromSupGpkg2014(uf) {
     };
 
     try {
-      const censusJson = await loadCensoJson2014(ufNorm);
+      // Os locais da suplementar de 2017 vem da base de 2016; o censo 2016
+      // cobre 100% deles (o censo 2014 cobre so ~68%).
+      const censusJson = await loadCensoJson2016(ufNorm);
       mergeGeneralCensoJson2014(baseGeo, censusJson, true);
     } catch (error) {
       console.warn(`[2014] Censo nao carregado para suplementar ${ufNorm}:`, error);
