@@ -15,6 +15,7 @@ let GPKG_2006_DB_PROMISE = null;
 let GPKG_2010_DB_PROMISE = null;
 let GPKG_2008_DB_PROMISE = null;
 let GPKG_2014_DB_PROMISE = null;
+let GPKG_2014_SUP_DB_PROMISE = null;
 let GPKG_2018_DB_PROMISE = null;
 let GPKG_2012_DB_PROMISE = null;
 let GPKG_2016_DB_PROMISE = null;
@@ -29,6 +30,7 @@ let CENSO_2006_CACHE = new Map();
 let GENERAL_2010_BASE_CACHE = new Map();
 let CENSO_2010_CACHE = new Map();
 let GENERAL_2014_BASE_CACHE = new Map();
+let GENERAL_2014_SUP_BASE_CACHE = new Map();
 let CENSO_2014_CACHE = new Map();
 let GENERAL_2018_BASE_CACHE = new Map();
 let CENSO_2018_CACHE = new Map();
@@ -220,6 +222,7 @@ function clearZipCache() {
   GENERAL_2010_BASE_CACHE.clear();
   CENSO_2010_CACHE.clear();
   GENERAL_2014_BASE_CACHE.clear();
+  GENERAL_2014_SUP_BASE_CACHE.clear();
   CENSO_2014_CACHE.clear();
   GENERAL_2018_BASE_CACHE.clear();
   CENSO_2018_CACHE.clear();
@@ -288,6 +291,15 @@ function clearZipCache() {
       }
     }).catch(() => { });
     GPKG_2014_DB_PROMISE = null;
+  }
+
+  if (GPKG_2014_SUP_DB_PROMISE) {
+    GPKG_2014_SUP_DB_PROMISE.then((db) => {
+      if (db && typeof db.close === 'function') {
+        try { db.close(); } catch (e) { console.warn("Erro ao fechar DB 2014 suplementar:", e); }
+      }
+    }).catch(() => { });
+    GPKG_2014_SUP_DB_PROMISE = null;
   }
 
   if (GPKG_2012_DB_PROMISE) {

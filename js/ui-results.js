@@ -422,6 +422,9 @@ function updateElectionTypeUI() {
   if (!isMunicipal) {
     dom.cargoChipsMunicipal.innerHTML = '';
     dom.cargoBoxMunicipal.classList.add('section-hidden');
+  } else if (dom.cargoBoxGeneral) {
+    dom.cargoChipsGeneralSubtype.innerHTML = '';
+    dom.cargoBoxGeneral.classList.add('section-hidden');
   }
 
   // --- MUNICIPAL UI REFINEMENTS ---
@@ -436,7 +439,10 @@ function updateElectionTypeUI() {
       dom.neighborhoodProfile.style.display = shouldShowProfile ? '' : 'none';
   }
 
-  if (!isMunicipal) return;
+  if (!isMunicipal) {
+    updateGeneralSubtypeChips();
+    return;
+  }
 
   if (!hasMunicipalSelection) {
     dom.cargoChipsMunicipal.innerHTML = '';
@@ -479,4 +485,40 @@ function updateElectionTypeUI() {
       currentCargo = `${currentOffice}_ord`;
     }
   }
+}
+
+// Rotulo do chip suplementar nas gerais, por ano do ciclo (a suplementar do
+// governador do AM do ciclo 2014 ocorreu em 2017).
+const GENERAL_SUP_CHIP_LABELS = { '2014': 'Suplementar (2017)' };
+
+function updateGeneralSubtypeChips() {
+  if (!dom.cargoBoxGeneral || !dom.cargoChipsGeneralSubtype) return;
+
+  dom.cargoChipsGeneralSubtype.innerHTML = '';
+
+  const hasSup = currentOffice !== 'deputado' && !!currentDataCollection[`${currentOffice}_sup`];
+  if (!hasSup) {
+    dom.cargoBoxGeneral.classList.add('section-hidden');
+    if (currentSubType === 'sup' && currentOffice !== 'deputado') {
+      currentSubType = 'ord';
+      currentCargo = `${currentOffice}_ord`;
+    }
+    return;
+  }
+
+  if (currentDataCollection[`${currentOffice}_ord`]) {
+    const btnOrd = document.createElement('button');
+    btnOrd.className = 'chip-button' + (currentSubType === 'ord' ? ' active' : '');
+    btnOrd.dataset.type = 'ord';
+    btnOrd.textContent = 'Ordinária';
+    dom.cargoChipsGeneralSubtype.appendChild(btnOrd);
+  }
+
+  const btnSup = document.createElement('button');
+  btnSup.className = 'chip-button' + (currentSubType === 'sup' ? ' active' : '');
+  btnSup.dataset.type = 'sup';
+  btnSup.textContent = GENERAL_SUP_CHIP_LABELS[String(STATE.currentElectionYear)] || 'Suplementar';
+  dom.cargoChipsGeneralSubtype.appendChild(btnSup);
+
+  dom.cargoBoxGeneral.classList.remove('section-hidden');
 }

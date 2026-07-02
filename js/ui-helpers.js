@@ -279,6 +279,8 @@ async function init() {
   dom.electionContextBox = document.getElementById('electionContextBox');
   dom.officeBoxGeneral = document.getElementById('officeBoxGeneral');
   dom.cargoChipsGeneral = document.getElementById('cargoChipsGeneral');
+  dom.cargoBoxGeneral = document.getElementById('cargoBoxGeneral'); // Ord/Sup (gerais)
+  dom.cargoChipsGeneralSubtype = document.getElementById('cargoChipsGeneralSubtype');
   dom.selectUFGeneral = document.getElementById('selectUFGeneral');
 
   dom.selectUFMunicipal = document.getElementById('selectUFMunicipal');

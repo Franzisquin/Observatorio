@@ -916,6 +916,25 @@ function setupControls() {
     if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
   });
 
+  // Listener para Chips de TIPO DE ELEIÇÃO nas gerais (Ordinária / Suplementar)
+  if (dom.cargoChipsGeneralSubtype) {
+    dom.cargoChipsGeneralSubtype.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip-button');
+      if (!btn || btn.classList.contains('active')) return;
+      currentTurno = 1;
+      currentSubType = btn.dataset.type; // 'ord' ou 'sup'
+      currentCargo = `${currentOffice}_${currentSubType}`;
+
+      dom.cargoChipsGeneralSubtype.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (currentCidadeFilter !== 'all') populateBairroDropdown();
+      updateConditionalUI();
+      applyFiltersAndRedraw();
+      if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
+    });
+  }
+
   // Listener para Chips de CARGO MUNICIPAL (Prefeito / Vereador)
   if (dom.officeChipsMunicipal) {
     dom.officeChipsMunicipal.addEventListener('click', (e) => {

@@ -52,6 +52,63 @@ async function getGeneral2014Database() {
   return GPKG_2014_DB_PROMISE;
 }
 
+async function getGeneral2014SupDatabase() {
+  if (GPKG_2014_SUP_DB_PROMISE) return GPKG_2014_SUP_DB_PROMISE;
+
+  GPKG_2014_SUP_DB_PROMISE = (async () => {
+    const SQL = await ensureSqlJsReady();
+    const { blob } = await fetchBlobFromZipEntry(
+      `${DATA_BASE_URL}locais_votacao_2014_am_suplementar_gkpg.zip`,
+      null,
+      (entryName) => entryName.toLowerCase().endsWith('.gpkg')
+    );
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    return new SQL.Database(bytes);
+  })();
+
+  return GPKG_2014_SUP_DB_PROMISE;
+}
+
+function buildGeneral2014SupFeature(row) {
+  const uf = String(row.sg_uf || '').toUpperCase();
+  const zona = parseInt(row.nr_zona, 10);
+  const local = parseInt(row.nr_locvot, 10);
+  const cdLocalidadeTse = parseInt(row.cd_localidade_tse, 10);
+  const longitude = Number(row.long);
+  const latitude = Number(row.lat);
+  const zoneLocalKey = `${zona}_${local}`;
+  // Chave no mesmo formato dos RESULTS suplementares: {zona}_{cd_localidade_tse}_{locvot}
+  const localKey = `${zona}_${cdLocalidadeTse}_${local}`;
+
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Point',
+      coordinates: [longitude, latitude]
+    },
+    properties: {
+      local_id: zoneLocalKey,
+      id_unico: localKey,
+      ID_UNICO: localKey,
+      local_key: localKey,
+      ano: 2014,
+      sg_uf: uf,
+      cd_localidade_tse: cdLocalidadeTse,
+      cod_localidade_ibge: row.cod_localidade_ibge ? Number(row.cod_localidade_ibge) : null,
+      nr_zona: zona,
+      nr_locvot: local,
+      nm_localidade: row.nm_localidade,
+      nm_locvot: row.nm_locvot,
+      ds_endereco: row.ds_endereco,
+      ds_enderec: row.ds_endereco,
+      ds_bairro: row.ds_bairro,
+      long: longitude,
+      lat: latitude,
+      tipo_match: null
+    }
+  };
+}
+
 async function loadCensoJson2014(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!ufNorm) return null;
@@ -68,8 +125,12 @@ async function loadCensoJson2014(uf) {
   return promise;
 }
 
-function mergeGeneralCensoJson2014(baseGeo, censusJson) {
+function mergeGeneralCensoJson2014(baseGeo, censusJson, preserveKeys = false) {
   if (!baseGeo?.features?.length || !censusJson?.RESULTS) return;
+
+  // Campos de identidade/posicao que nao podem ser sobrescritos quando a base
+  // ja traz a chave correta do GPKG (caso suplementar).
+  const PRESERVED_KEYS = new Set(['id_unico', 'ID_UNICO', 'local_key', 'local_id', 'cd_localidade_tse', 'long', 'lat']);
 
   const censusByCityZoneLocal = new Map();
   const censusByNameBairro = new Map();
@@ -108,7 +169,9 @@ function mergeGeneralCensoJson2014(baseGeo, censusJson) {
     if (!censusProps) return;
 
     Object.entries(censusProps).forEach(([key, value]) => {
-      if (value !== undefined) props[key] = value;
+      if (value === undefined) return;
+      if (preserveKeys && PRESERVED_KEYS.has(key)) return;
+      props[key] = value;
     });
     if (props.local_key && !props.id_unico) props.id_unico = props.local_key;
     if (props.id_unico && !props.ID_UNICO) props.ID_UNICO = props.id_unico;
@@ -172,6 +235,57 @@ async function loadGeneralStateBaseFromGpkg2014(uf) {
   return promise;
 }
 
+async function loadGeneralStateBaseFromSupGpkg2014(uf) {
+  const ufNorm = String(uf || '').toUpperCase();
+  if (ufNorm !== 'AM') throw new Error(`Suplementar 2014 disponivel apenas para AM (recebido: ${ufNorm}).`);
+  if (GENERAL_2014_SUP_BASE_CACHE.has(ufNorm)) {
+    return GENERAL_2014_SUP_BASE_CACHE.get(ufNorm);
+  }
+
+  const promise = (async () => {
+    const db = await getGeneral2014SupDatabase();
+    const stmt = db.prepare(`
+      SELECT sg_uf, cd_localidade_tse, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
+             ds_endereco, ds_bairro, long, lat
+      FROM locais_votacao_2014_am_suplementar
+      WHERE sg_uf = ?
+    `);
+
+    const rows = [];
+    stmt.bind([ufNorm]);
+    while (stmt.step()) {
+      const row = stmt.getAsObject();
+      if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
+      rows.push(row);
+    }
+    stmt.free();
+
+    rows.sort((a, b) => {
+      const cidadeDiff = String(a.nm_localidade || '').localeCompare(String(b.nm_localidade || ''), 'pt-BR');
+      if (cidadeDiff !== 0) return cidadeDiff;
+      const zonaDiff = parseInt(a.nr_zona, 10) - parseInt(b.nr_zona, 10);
+      return zonaDiff || (parseInt(a.nr_locvot, 10) - parseInt(b.nr_locvot, 10));
+    });
+
+    const baseGeo = {
+      type: 'FeatureCollection',
+      features: rows.map((row) => buildGeneral2014SupFeature(row))
+    };
+
+    try {
+      const censusJson = await loadCensoJson2014(ufNorm);
+      mergeGeneralCensoJson2014(baseGeo, censusJson, true);
+    } catch (error) {
+      console.warn(`[2014] Censo nao carregado para suplementar ${ufNorm}:`, error);
+    }
+
+    return baseGeo;
+  })();
+
+  GENERAL_2014_SUP_BASE_CACHE.set(ufNorm, promise);
+  return promise;
+}
+
 function filterGeneralFeatures2014(baseGeo, resultKeys) {
   const keys = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
   return {
@@ -195,9 +309,12 @@ function filterGeneralFeatures2014(baseGeo, resultKeys) {
   };
 }
 
-async function loadGeneralScopeBase2014(ufs, resultKeys) {
+async function loadGeneralScopeBase2014(ufs, resultKeys, subtype = 'ord') {
+  const loadStateBase = (subtype === 'sup')
+    ? loadGeneralStateBaseFromSupGpkg2014
+    : loadGeneralStateBaseFromGpkg2014;
   const collections = await Promise.all((ufs || []).map(async (sigla) => {
-    const baseGeo = await loadGeneralStateBaseFromGpkg2014(sigla);
+    const baseGeo = await loadStateBase(sigla);
     return filterGeneralFeatures2014(baseGeo, resultKeys);
   }));
 
@@ -310,7 +427,7 @@ async function loadMajoritariaCargo2014(cargo, uf, subtype = 'ord') {
     }
   }
 
-  const geojson = await loadGeneralScopeBase2014(ufs, resultKeys);
+  const geojson = await loadGeneralScopeBase2014(ufs, resultKeys, subtype);
   applyGeneralMajoritariaJsonToGeojson2014(geojson, mergedTurno1, '1T');
   if (mergedTurno2) {
     applyGeneralMajoritariaJsonToGeojson2014(geojson, mergedTurno2, '2T');
