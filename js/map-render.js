@@ -2020,6 +2020,11 @@ function renderDeputySearchResults(results, container, query) {
 let moveEndListener = null;
 
 function applyFiltersAndRedraw() {
+  // Resumo estadual municipal: mapa e painel sao geridos por
+  // showMunicipalStatewideOverview; redesenhar aqui derrubaria o choropleth
+  // e renderizaria locais residuais do ultimo municipio carregado.
+  if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) return;
+
   // Limpeza PROFUNDA das camadas
   if (currentLayer) {
     try {
@@ -3046,6 +3051,11 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
   })();
 
   MUNICIPAL_POLYGON_CACHE.set(ufNorm, promise);
+  // Nao deixa uma promise rejeitada envenenar o cache: sem isto, uma unica
+  // falha de rede quebraria o resumo estadual da UF pela sessao inteira.
+  promise.catch(() => {
+    if (MUNICIPAL_POLYGON_CACHE.get(ufNorm) === promise) MUNICIPAL_POLYGON_CACHE.delete(ufNorm);
+  });
   return promise;
 }
 
@@ -3402,10 +3412,40 @@ async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
 async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
   if (!map || !uf || STATE.currentElectionType !== 'municipal') return;
 
+  const viewGen = ++MUNICIPAL_VIEW_GENERATION;
+
+  // Um load municipal em andamento esta mutando currentLayer/currentMapMode;
+  // adia o overview ate ele terminar, desistindo se algo mais novo chegar.
+  if (STATE.isLoadingDataset) {
+    let tries = 0;
+    const retry = () => {
+      if (viewGen !== MUNICIPAL_VIEW_GENERATION) return;
+      if (STATE.isLoadingDataset && ++tries < 40) { setTimeout(retry, 150); return; }
+      if (!STATE.isLoadingDataset) showMunicipalStatewideOverview(uf, year, subtype);
+    };
+    setTimeout(retry, 150);
+    return;
+  }
+
   showMapLoading(`Carregando resumo estadual de ${uf} (${year})...`);
-  clearSelection(true);
 
   try {
+    // Busca os dados ANTES de mexer em qualquer camada/estado: se a busca
+    // falhar, a visao anterior permanece intacta.
+    const [geojson, summary] = await Promise.all([
+      fetchMunicipalPolygonGeoJSON(uf),
+      (typeof window.loadMunicipalOverviewSummary === 'function'
+        ? window.loadMunicipalOverviewSummary(uf, year, subtype)
+        : Promise.resolve({}))
+    ]);
+
+    // Overview superado por um load municipal ou outro overview mais novo.
+    if (viewGen !== MUNICIPAL_VIEW_GENERATION) return;
+
+    clearSelection(true);
+    // Ao voltar ao resumo estadual, filtros demograficos ativos sao descartados
+    // (eles so operam sobre um municipio selecionado).
+    if (typeof window.resetAllCensusFilters === 'function') window.resetAllCensusFilters();
     STATE.pendingMunicipalFocusBounds = null;
     STATE.currentMapMode = 'municipios';
     STATE.currentMapMuniUF = uf;
@@ -3413,13 +3453,6 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     if (currentLayer && map.hasLayer(currentLayer)) {
       map.removeLayer(currentLayer);
     }
-
-    const [geojson, summary] = await Promise.all([
-      fetchMunicipalPolygonGeoJSON(uf),
-      (typeof window.loadMunicipalOverviewSummary === 'function'
-        ? window.loadMunicipalOverviewSummary(uf, year, subtype)
-        : Promise.resolve({}))
-    ]);
 
     STATE.currentMapMuniSummaryByTurn = summary || { '1T': {}, '2T': {} };
     STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(STATE.currentMapMuniSummaryByTurn);

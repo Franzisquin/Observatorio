@@ -51,6 +51,12 @@ let TURNOUT_REFERENCE_INDEX_CACHE = new Map();
 let FEATURE_TURNOUT_CACHE = new WeakMap();
 let CURRENT_VISIBLE_FEATURES_CACHE = [];
 let CURRENT_VISIBLE_PROPS_CACHE = [];
+// Chave "<anoGpkg>" do ultimo load municipal (2000/2004 mapeiam para '2006').
+// Enquanto a chave nao muda, a troca de municipio usa clearVolatileCaches()
+// e mantem o banco GPKG nacional aberto no sql.js.
+let LAST_MUNICIPAL_GPKG_KEY = null;
+// Token de geracao para serializar overview estadual x load municipal.
+let MUNICIPAL_VIEW_GENERATION = 0;
 
 function getCacheSize(cacheLike) {
   if (!cacheLike) return 0;
@@ -67,6 +73,10 @@ function forEachCacheEntry(cacheLike, callback) {
   if (cacheLike.cache && typeof cacheLike.cache.forEach === 'function') {
     cacheLike.cache.forEach(callback);
   }
+}
+
+function trimCacheIfLarge(cache, max) {
+  if (cache && typeof cache.clear === 'function' && getCacheSize(cache) > max) cache.clear();
 }
 
 // ====== LOADING HELPERS ======
@@ -226,6 +236,7 @@ function clearZipCache() {
   CENSO_2014_CACHE.clear();
   GENERAL_2018_BASE_CACHE.clear();
   CENSO_2018_CACHE.clear();
+  MUNICIPAL_2006_BASE_CACHE.clear();
   MUNICIPAL_2008_BASE_CACHE.clear();
   CENSO_2008_CACHE.clear();
   MUNICIPAL_2012_BASE_CACHE.clear();
@@ -347,8 +358,35 @@ function clearZipCache() {
     GPKG_2022_DB_PROMISE = null;
   }
 
+  // Qualquer limpeza completa invalida o rastreio do GPKG municipal:
+  // o proximo load municipal fara full clear e reabrira o banco.
+  LAST_MUNICIPAL_GPKG_KEY = null;
+
   // Força coleta de lixo se possível (indireto)
   console.log("Memory cleanup executed.");
+}
+
+// Limpeza leve usada na troca de municipio DENTRO do mesmo ano municipal:
+// descarta os caches volateis por load, limita os caches por municipio e
+// mantem abertos os bancos GPKG (sql.js), leitores de ZIP e censos — reabrir
+// o GPKG nacional a cada troca infla o heap WASM ate o WebGL perder contexto.
+function clearVolatileCaches() {
+  resetTurnoutReferenceIndexes();
+  FEATURE_TURNOUT_CACHE = new WeakMap();
+  CURRENT_VISIBLE_FEATURES_CACHE = [];
+  CURRENT_VISIBLE_PROPS_CACHE = [];
+
+  trimCacheIfLarge(MUNICIPAL_2006_BASE_CACHE, 15);
+  trimCacheIfLarge(MUNICIPAL_2008_BASE_CACHE, 15);
+  trimCacheIfLarge(MUNICIPAL_2012_BASE_CACHE, 15);
+  trimCacheIfLarge(MUNICIPAL_2016_BASE_CACHE, 15);
+  trimCacheIfLarge(MUNICIPAL_2020_BASE_CACHE, 15);
+  trimCacheIfLarge(MUNICIPAL_2024_BASE_CACHE, 15);
+  trimCacheIfLarge(CENSO_2008_CACHE, 40);
+  trimCacheIfLarge(CENSO_2012_CACHE, 40);
+  trimCacheIfLarge(CENSO_2016_CACHE, 40);
+  trimCacheIfLarge(CENSO_2020_CACHE, 40);
+  trimCacheIfLarge(CENSO_2024_CACHE, 40);
 }
 let MUNICIPAL_DATA_INDEX = {};
 let CANDIDATE_DETAILS = null; // Cache dos detalhes (JSON)

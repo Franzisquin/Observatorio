@@ -415,6 +415,8 @@ function setupControls() {
     if (!hasMunis && uf) {
       dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
     }
+    // Troca de UF: o proximo load municipal deve fazer full clear.
+    LAST_MUNICIPAL_GPKG_KEY = null;
     updateLoadButtonState();
 
     if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
@@ -1189,6 +1191,9 @@ function setupTabs() {
 
 // ====== SLIDERS LOGIC ======
 function setupSliders() {
+  // Resets visuais registrados por cada filtro (usados por resetAllCensusFilters).
+  const CENSUS_FILTER_RESETTERS = [];
+
   // Definimos a função de redesenho PRIMEIRO para evitar erros de referência
   const debouncedMarkDirty = debounce(() => {
     clearSelection(false);
@@ -1279,6 +1284,12 @@ function setupSliders() {
   initDrag(thumbMax, false);
   updateDualVisuals();
 
+  CENSUS_FILTER_RESETTERS.push(() => {
+    valMin = 0;
+    valMax = MAX_VAL;
+    updateDualVisuals();
+  });
+
   // 2. SIMPLE SLIDERS (DYNAMIC)
   // Helper para configurar o par Slider + Select
   function setupDynamicFilter(idSlider, idInput, idSelect, idDisp, idValDisp, stateKeyVal, stateKeyMode) {
@@ -1328,6 +1339,13 @@ function setupSliders() {
       });
     }
 
+    CENSUS_FILTER_RESETTERS.push(() => {
+      slider.value = 0;
+      if (input) input.value = 0;
+      if (disp) disp.textContent = '0%';
+      if (valDisp) valDisp.textContent = '0%';
+    });
+
     // Atualiza Estado e UI quando o select muda
     select.addEventListener('change', () => {
       const mode = select.value;
@@ -1358,6 +1376,19 @@ function setupSliders() {
   setupDynamicFilter('sliderEscolaridade', 'inputEscolaridade', 'selectEscolaridade', 'dispEscolaridade', 'valDispEscolaridade', 'escolaridadeVal', 'escolaridadeMode');
   setupDynamicFilter('sliderEstadoCivil', 'inputEstadoCivil', 'selectEstadoCivil', 'dispEstadoCivil', 'valDispEstadoCivil', 'estadoCivilVal', 'estadoCivilMode');
   setupDynamicFilter('sliderSaneamento', 'inputSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
+
+  // Zera os valores dos filtros demograficos (mantendo os modos) e restaura o
+  // visual dos sliders. Usado ao voltar para o resumo estadual municipal.
+  window.resetAllCensusFilters = function () {
+    const f = STATE.censusFilters;
+    f.rendaMin = null; f.rendaMax = null;
+    f.racaVal = null; f.idadeVal = null; f.generoVal = null;
+    f.escolaridadeVal = null; f.estadoCivilVal = null; f.saneamentoVal = null;
+    CENSUS_FILTER_RESETTERS.forEach((reset) => { try { reset(); } catch (e) { } });
+    if (typeof clearPendingFilterChanges === 'function') clearPendingFilterChanges();
+    updateApplyButtonText();
+  };
+
   updateCargoChipsVisibility();
 }
 

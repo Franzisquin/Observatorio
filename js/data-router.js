@@ -228,6 +228,9 @@ window.onClickLoadData_Deputies = async function (uf, year) {
 };
 
 window.onClickLoadData_Municipal = async function () {
+  // Invalida qualquer overview estadual em voo (guarda de concorrencia).
+  MUNICIPAL_VIEW_GENERATION++;
+
   const uf = dom.selectUFMunicipal.value;
   const municipio = dom.selectMunicipio.value;
   const ano = STATE.currentElectionYear;
@@ -242,7 +245,16 @@ window.onClickLoadData_Municipal = async function () {
   dom.mapLoader.textContent = `Carregando ${municipio}/${uf} (${ano})...`;
   dom.mapLoader.classList.add('visible');
 
-  clearZipCache();
+  // Troca de municipio dentro do mesmo ano: limpeza leve, mantendo o banco
+  // GPKG nacional aberto (reabri-lo a cada troca infla o heap WASM ate o
+  // WebGL perder contexto). Ano diferente (ou vindo do fluxo geral): full clear.
+  const gpkgKey = ({ '2000': '2006', '2004': '2006' })[String(ano)] || String(ano); // 2000/2004 compartilham o GPKG 2006
+  if (LAST_MUNICIPAL_GPKG_KEY === gpkgKey) {
+    clearVolatileCaches();
+  } else {
+    clearZipCache();
+  }
+  LAST_MUNICIPAL_GPKG_KEY = gpkgKey;
   CANDIDATES_CACHE.clear();
   clearSelection(true);
   currentDataCollection = {};
@@ -277,6 +289,19 @@ window.onClickLoadData_Municipal = async function () {
   } catch (error) {
     console.error(`[Municipal ${ano}] Falha ao carregar ${ano}:`, error);
     showToast(`Erro ao carregar os dados de ${ano}: ${error.message}`, 'error');
+    // A colecao ja foi zerada e a camada removida; volta ao resumo estadual
+    // para nao deixar a tela em branco. Nao aguarda: isLoadingDataset so zera
+    // no finally, e o overview se adia sozinho ate la.
+    try {
+      if (dom.selectMunicipio) dom.selectMunicipio.value = '';
+      STATE.currentMuniCode = null;
+      STATE.pendingMunicipalFocusBounds = null;
+      if (typeof window.showMunicipalStatewideOverview === 'function') {
+        void window.showMunicipalStatewideOverview(uf, ano, currentSubType || 'ord');
+      }
+    } catch (recoveryError) {
+      console.warn('[Municipal] Recuperacao para o resumo estadual falhou:', recoveryError);
+    }
   } finally {
     dom.mapLoader.classList.remove('visible');
     setButtonLoading(dom.btnLoadData, false);

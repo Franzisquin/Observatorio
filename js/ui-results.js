@@ -433,6 +433,11 @@ function updateElectionTypeUI() {
       dom.layerToggleGroup.style.display = isMunicipal ? 'none' : '';
   }
 
+  // Filtros demograficos so fazem sentido com um municipio selecionado;
+  // no resumo estadual eles operariam sobre dados residuais do ultimo municipio.
+  const demoBox = document.getElementById('demographicFilters');
+  if (demoBox) demoBox.classList.toggle('section-hidden', isMunicipal && !hasMunicipalSelection);
+
   // Hide neighborhood profile in statewide overview (if isMunicipal and no city selected)
   if (dom.neighborhoodProfile) {
       const shouldShowProfile = !isMunicipal || hasMunicipalSelection;

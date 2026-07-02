@@ -453,6 +453,20 @@ async function loadMunicipalOverviewSummary(uf, year, subtype = 'ord') {
   })();
 
   MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.set(cacheKey, promise);
+  // Auto-cura do cache: nao retem rejeicoes nem resumos totalmente vazios
+  // (ex.: zips indisponiveis por falha de rede) — senao a UF/ano ficaria sem
+  // resumo estadual pela sessao inteira.
+  promise.then((stateSummary) => {
+    const isEmpty = !Object.keys(stateSummary?.['1T'] || {}).length
+      && !Object.keys(stateSummary?.['2T'] || {}).length;
+    if (isEmpty && MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.get(cacheKey) === promise) {
+      MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.delete(cacheKey);
+    }
+  }).catch(() => {
+    if (MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.get(cacheKey) === promise) {
+      MUNICIPAL_STATEWIDE_OVERVIEW_CACHE.delete(cacheKey);
+    }
+  });
   return promise;
 }
 
