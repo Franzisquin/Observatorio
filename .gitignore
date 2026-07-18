@@ -5,3 +5,8 @@ scratch/munzona_clean/
 # Bytecode Python
 __pycache__/
 *.pyc
+
+# Dados brutos de 1994 (muito grandes para o Git)
+1994/**/*.csv
+1994/*.zip
+

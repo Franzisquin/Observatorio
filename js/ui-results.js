@@ -427,20 +427,25 @@ function updateElectionTypeUI() {
     dom.cargoBoxGeneral.classList.add('section-hidden');
   }
 
+  // 1994 (geral) nao tem locais de votacao nem censo: o mapa e sempre o
+  // coropletico municipal e os filtros demograficos ficam ocultos.
+  const is1994Geral = !isMunicipal && String(STATE.currentElectionYear) === '1994';
+
   // --- MUNICIPAL UI REFINEMENTS ---
   // Hide map mode toggle group in municipal elections
   if (dom.layerToggleGroup) {
-      dom.layerToggleGroup.style.display = isMunicipal ? 'none' : '';
+      dom.layerToggleGroup.style.display = (isMunicipal || is1994Geral) ? 'none' : '';
   }
 
   // Filtros demograficos so fazem sentido com um municipio selecionado;
   // no resumo estadual eles operariam sobre dados residuais do ultimo municipio.
   const demoBox = document.getElementById('demographicFilters');
-  if (demoBox) demoBox.classList.toggle('section-hidden', isMunicipal && !hasMunicipalSelection);
+  if (demoBox) demoBox.classList.toggle('section-hidden', (isMunicipal && !hasMunicipalSelection) || is1994Geral);
 
   // Hide neighborhood profile in statewide overview (if isMunicipal and no city selected)
+  // e em 1994 (sem censo, o perfil ficaria todo zerado)
   if (dom.neighborhoodProfile) {
-      const shouldShowProfile = !isMunicipal || hasMunicipalSelection;
+      const shouldShowProfile = (!isMunicipal || hasMunicipalSelection) && !is1994Geral;
       dom.neighborhoodProfile.style.display = shouldShowProfile ? '' : 'none';
   }
 

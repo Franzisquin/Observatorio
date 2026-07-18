@@ -13,7 +13,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
   <script src="https://d3js.org/d3.v7.min.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -21,6 +22,7 @@
 <body data-theme="dark">
   <!-- TOP TOOLBAR -->
   <div class="app-toolbar">
+
     <div class="toolbar-center">
       <a href="index.html" class="toolbar-logo">Observatório</a>
       <span class="toolbar-page">Visualizador Eleitoral</span>
@@ -43,7 +45,10 @@
         <span>Guia</span>
       </button>
       <button id="themeToggle" class="toolbar-link" title="Mudar tema">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-icon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" class="theme-icon">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
       </button>
     </div>
   </div>
@@ -81,6 +86,7 @@
                 <option value="2006">2006</option>
                 <option value="2002">2002</option>
                 <option value="1998">1998</option>
+                <option value="1994">1994</option>
               </select>
             </div>
           </div>
@@ -105,7 +111,7 @@
                 <option value="2000">2000</option>
               </select>
             </div>
-            
+
             <div class="ctrl">
               <label for="selectMunicipio">Município</label>
               <select id="selectMunicipio" class="select" disabled>
@@ -124,7 +130,7 @@
 
         <div class="section section-hidden" id="filterBox">
 
-          
+
           <div class="ctrl">
             <label for="filterRGINT">Região Intermediária</label>
             <select id="filterRGINT" class="select" disabled>
@@ -243,15 +249,16 @@
             <div class="tab-content hidden" id="tab-escolaridade">
               <div class="slider-box">
                 <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
-                  <select id="selectEscolaridade" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
+                  <select id="selectEscolaridade" class="select"
+                    style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
                     <option value="Superior" selected>Superior Completo</option>
                     <option value="Médio">Médio Completo</option>
                     <option value="Fundamental">Fundamental Completo</option>
                     <option value="Sem escolaridade">Sem Escolaridade</option>
                   </select>
                   <div class="slider-input-group">
-                    <input id="inputEscolaridade" type="number" class="exact-input exact-input-sm" min="0" max="100" step="1"
-                      placeholder="%">
+                    <input id="inputEscolaridade" type="number" class="exact-input exact-input-sm" min="0" max="100"
+                      step="1" placeholder="%">
                     <span class="slider-value" id="dispEscolaridade">0%</span>
                   </div>
                 </div>
@@ -331,8 +338,9 @@
     <!-- CENTER: Map -->
     <div class="panel side side-res">
       <div id="map"></div>
-      <button id="btnClearSelection" class="btn-clear-selection hidden" title="Voltar para visualização geral">✕</button>
-      
+      <button id="btnClearSelection" class="btn-clear-selection hidden"
+        title="Voltar para visualização geral">✕</button>
+
       <!-- MAP OVERLAY CONTROLS -->
       <div class="map-overlay-controls">
         <div class="layer-toggle-group">
@@ -344,18 +352,21 @@
           </button>
 
           <div class="toggle-divider"></div>
-          
+
           <button id="btnToggle3D" class="toggle-btn" title="Alternar Modo 3D (Perspectiva)">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
               <polyline points="2 17 12 22 22 17"></polyline>
               <polyline points="2 12 12 17 22 12"></polyline>
             </svg>
             <span>Modo 3D</span>
           </button>
-          
-          <button id="btnToggleExtrusion" class="toggle-btn" title="Alternar Extrusão de Altura (Municípios)" style="display: none;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+
+          <button id="btnToggleExtrusion" class="toggle-btn" title="Alternar Extrusão de Altura (Municípios)"
+            style="display: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
               <polyline points="17 2 22 7 17 12"></polyline>
               <polyline points="2 17 7 22 12 17"></polyline>
@@ -371,41 +382,41 @@
 
     <!-- RIGHT PANEL: Results -->
     <div class="panel side side-right">
-        <div class="section" id="electionContextBox">
-          <div class="results-context">
-            <div class="results-context-block" id="officeBoxGeneral">
-              <div class="chip-group" id="cargoChipsGeneral">
-                <button class="chip-button active" data-value="presidente">Presidente</button>
-                <button class="chip-button" data-value="governador">Governador</button>
-                <button class="chip-button" data-value="senador">Senador</button>
-                <button class="chip-button" data-value="deputado_federal">Dep. Federal</button>
-                <button class="chip-button" data-value="deputado_estadual">Dep. Estadual</button>
-              </div>
-            </div>
-
-            <div class="results-context-block section-hidden" id="cargoBoxGeneral">
-              <label>Tipo de Eleição</label>
-              <div class="chip-group" id="cargoChipsGeneralSubtype">
-              </div>
-            </div>
-
-            <div class="results-context-block section-hidden" id="officeBoxMunicipal">
-              <div class="chip-group" id="officeChipsMunicipal">
-                <button class="chip-button active" data-value="prefeito">Prefeito</button>
-                <button class="chip-button" data-value="vereador">Vereador</button>
-              </div>
-            </div>
-
-            <div class="results-context-block section-hidden" id="cargoBoxMunicipal">
-              <label>Tipo de Eleição</label>
-              <div class="chip-group" id="cargoChipsMunicipal">
-              </div>
-            </div>
-
+      <div class="section" id="electionContextBox">
+        <div class="results-context">
+          <div class="results-context-block" id="officeBoxGeneral">
+            <div class="chip-group" id="cargoChipsGeneral">
+              <button class="chip-button active" data-value="presidente">Presidente</button>
+              <button class="chip-button" data-value="governador">Governador</button>
+              <button class="chip-button" data-value="senador">Senador</button>
+              <button class="chip-button" data-value="deputado_federal">Dep. Federal</button>
+              <button class="chip-button" data-value="deputado_estadual">Dep. Estadual</button>
             </div>
           </div>
 
-        <div class="body">
+          <div class="results-context-block section-hidden" id="cargoBoxGeneral">
+            <label>Tipo de Eleição</label>
+            <div class="chip-group" id="cargoChipsGeneralSubtype">
+            </div>
+          </div>
+
+          <div class="results-context-block section-hidden" id="officeBoxMunicipal">
+            <div class="chip-group" id="officeChipsMunicipal">
+              <button class="chip-button active" data-value="prefeito">Prefeito</button>
+              <button class="chip-button" data-value="vereador">Vereador</button>
+            </div>
+          </div>
+
+          <div class="results-context-block section-hidden" id="cargoBoxMunicipal">
+            <label>Tipo de Eleição</label>
+            <div class="chip-group" id="cargoChipsMunicipal">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="body">
 
         <div class="section section-hidden" id="summaryBoxContainer">
           <h3 style="margin:0; font-size: 1rem; line-height: 1.3;">Comparativo</h3>
@@ -425,10 +436,13 @@
             <button id="btnToggleInaptos" class="btn-toggle-inaptos" title="Filtrar candidatos inaptos" disabled>
               Filtrar Inaptos
             </button>
-            <button id="btnToggleRules" class="btn-toggle-inaptos" title="Mostrar regras e detalhes de cada candidato" style="display:none;">
+            <button id="btnToggleRules" class="btn-toggle-inaptos" title="Mostrar regras e detalhes de cada candidato"
+              style="display:none;">
               Mostrar Regras
             </button>
-            <button id="btnExplainRules" class="btn-toggle-inaptos" title="Entenda o sistema de regras proporcionais com diagramas e exemplos" style="display:none;" onclick="openProportionalRulesModal()">
+            <button id="btnExplainRules" class="btn-toggle-inaptos"
+              title="Entenda o sistema de regras proporcionais com diagramas e exemplos" style="display:none;"
+              onclick="openProportionalRulesModal()">
               Como funciona
             </button>
             <div id="turnTabs" class="tabs"></div>
@@ -440,9 +454,11 @@
             <!-- ELECTION RESULTS -->
             <div id="resultsContent">
               <div style="text-align:center; padding: 20px; color:var(--muted);">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin: 0 auto 8px auto; display: block;">
-                  <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/>
-                  <path d="M13 13l6 6"/>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  style="opacity: 0.5; margin: 0 auto 8px auto; display: block;">
+                  <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                  <path d="M13 13l6 6" />
                 </svg>
                 Clique no mapa ou use filtros para ver resultados.
               </div>
@@ -457,7 +473,9 @@
               <div class="profile-header">
                 <h3>Perfil Demográfico</h3>
                 <button id="btnInfoCensus" class="info-button" title="Informações sobre os dados">
-                  <svg class="info-icon"><use href="#svg-info"></use></svg>
+                  <svg class="info-icon">
+                    <use href="#svg-info"></use>
+                  </svg>
                 </button>
               </div>
 
@@ -515,15 +533,21 @@
   <!-- BARRA DE NAVEGAÇÃO INFERIOR PARA DISPOSITIVOS MÓVEIS -->
   <div class="mobile-nav">
     <button class="mobile-nav-btn active" data-tab="mapa">
-      <svg class="mobile-nav-icon"><use href="#svg-map"></use></svg>
+      <svg class="mobile-nav-icon">
+        <use href="#svg-map"></use>
+      </svg>
       <span>Mapa</span>
     </button>
     <button class="mobile-nav-btn" data-tab="filtros">
-      <svg class="mobile-nav-icon"><use href="#svg-sliders"></use></svg>
+      <svg class="mobile-nav-icon">
+        <use href="#svg-sliders"></use>
+      </svg>
       <span>Filtros</span>
     </button>
     <button class="mobile-nav-btn" id="btnMobileNavResultados" data-tab="resultados">
-      <svg class="mobile-nav-icon"><use href="#svg-bar-chart"></use></svg>
+      <svg class="mobile-nav-icon">
+        <use href="#svg-bar-chart"></use>
+      </svg>
       <span>Resultados</span>
     </button>
   </div>
@@ -548,25 +572,35 @@
       <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" />
     </symbol>
     <symbol id="svg-map" viewBox="0 0 24 24">
-      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="9" y1="3" x2="9" y2="18" stroke="currentColor" stroke-width="2"/>
-      <line x1="15" y1="6" x2="15" y2="21" stroke="currentColor" stroke-width="2"/>
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" />
+      <line x1="9" y1="3" x2="9" y2="18" stroke="currentColor" stroke-width="2" />
+      <line x1="15" y1="6" x2="15" y2="21" stroke="currentColor" stroke-width="2" />
     </symbol>
     <symbol id="svg-sliders" viewBox="0 0 24 24">
-      <line x1="4" y1="21" x2="4" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="4" y1="10" x2="4" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="12" y1="21" x2="12" y2="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="12" y1="8" x2="12" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="20" y1="21" x2="20" y2="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="20" y1="12" x2="20" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="1" y1="14" x2="7" y2="14" stroke="currentColor" stroke-width="2"/>
-      <line x1="9" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="2"/>
-      <line x1="17" y1="16" x2="23" y2="16" stroke="currentColor" stroke-width="2"/>
+      <line x1="4" y1="21" x2="4" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="4" y1="10" x2="4" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="21" x2="12" y2="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="8" x2="12" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="20" y1="21" x2="20" y2="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="20" y1="12" x2="20" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="1" y1="14" x2="7" y2="14" stroke="currentColor" stroke-width="2" />
+      <line x1="9" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="2" />
+      <line x1="17" y1="16" x2="23" y2="16" stroke="currentColor" stroke-width="2" />
     </symbol>
     <symbol id="svg-bar-chart" viewBox="0 0 24 24">
-      <line x1="18" y1="20" x2="18" y2="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="12" y1="20" x2="12" y2="4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      <line x1="6" y1="20" x2="6" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="18" y1="20" x2="18" y2="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="20" x2="12" y2="4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="6" y1="20" x2="6" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
     </symbol>
   </svg>
 
@@ -688,6 +722,21 @@
           O mesmo se aplica a eleições municipais suplementares decorrentes de cassações de prefeitos.
         </p>
 
+        <h4>Eleições de 1994: resultados por município</h4>
+        <p>
+          Para as eleições gerais de 1994 o TSE não disponibiliza dados por local de votação — os resultados
+          existem apenas por município. Por isso, em 1994 o visualizador exibe somente o mapa coroplético
+          municipal (com a malha municipal da época, anterior às emancipações de 1997), sem o modo "Locais de
+          Votação" e sem filtros demográficos do Censo. Votos em branco, nulos, comparecimento e eleitores
+          aptos são os oficiais do TSE, por município. Estão disponíveis Presidente, Governador, Senador e
+          Deputados Federal e Estadual. Para deputados, os votos de legenda (por partido) já estão somados aos
+          votos válidos — o TSE não registrou essa parcela nos arquivos de 1994, mas o total por estado e
+          partido foi obtido em fonte complementar e distribuído pelos municípios proporcionalmente aos votos
+          nominais de cada partido. A composição das coligações proporcionais não foi digitalizada pelo TSE
+          para 1994 (as listas aparecem por partido, exceto governador, cuja coligação é conhecida), e o
+          Quociente Eleitoral exibido é estimado a partir dos votos válidos; as vagas em jogo são as oficiais.
+        </p>
+
         <h4>Ferramentas de Interação e Filtros</h4>
         <ul>
           <li><strong>Soma de Votos:</strong> O usuário pode somar os votos de múltiplas seções interativamente. Utilize
@@ -766,7 +815,8 @@
     <div class="info-modal wide-modal" style="max-height: 90vh; overflow-y: auto;">
       <button class="info-close" id="btnCloseRulesExplain" onclick="closeProportionalRulesModal()">✕</button>
       <h3 style="display: flex; align-items: center; gap: 8px; margin-top: 0;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn); flex-shrink: 0;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" style="color: var(--warn); flex-shrink: 0;">
           <circle cx="12" cy="12" r="10"></circle>
           <line x1="12" y1="16" x2="12" y2="12"></line>
           <line x1="12" y1="8" x2="12.01" y2="8"></line>
@@ -774,13 +824,88 @@
         Regras do Sistema Proporcional
       </h3>
       <p class="rules-intro">
-        As vagas para Deputados (Federais, Estaduais/Distritais) e Vereadores são distribuídas pelo sistema proporcional. Ao longo dos anos, a legislação eleitoral mudou no Brasil. Escolha um período abaixo para entender as regras daquela eleição:
+        As vagas para Deputados (Federais, Estaduais/Distritais) e Vereadores são distribuídas pelo sistema
+        proporcional. Ao longo dos anos, a legislação eleitoral mudou no Brasil. Escolha um período abaixo para entender
+        as regras daquela eleição:
       </p>
 
       <div class="rules-tab-bar">
-        <button class="rules-tab-btn" data-target="panel-epoch1" onclick="selectRulesTab(this)">2006 a 2016 <span style="font-size:0.7rem; display:block; opacity:0.6;">(Sem Barreiras)</span></button>
-        <button class="rules-tab-btn" data-target="panel-epoch2" onclick="selectRulesTab(this)">2018 e 2020 <span style="font-size:0.7rem; display:block; opacity:0.6;">(Restrição Total)</span></button>
-        <button class="rules-tab-btn active" data-target="panel-epoch3" onclick="selectRulesTab(this)">2022 em Diante <span style="font-size:0.7rem; display:block; opacity:0.6;">(Regra 80/20 & STF)</span></button>
+        <button class="rules-tab-btn" data-target="panel-epoch1994" onclick="selectRulesTab(this)">1994 <span
+            style="font-size:0.7rem; display:block; opacity:0.6;">(Brancos Válidos & Barreira de QE)</span></button>
+        <button class="rules-tab-btn" data-target="panel-epoch1" onclick="selectRulesTab(this)">2006 a 2016 <span
+            style="font-size:0.7rem; display:block; opacity:0.6;">(Sem Barreiras)</span></button>
+        <button class="rules-tab-btn" data-target="panel-epoch2" onclick="selectRulesTab(this)">2018 e 2020 <span
+            style="font-size:0.7rem; display:block; opacity:0.6;">(Restrição Total)</span></button>
+        <button class="rules-tab-btn active" data-target="panel-epoch3" onclick="selectRulesTab(this)">2022 em Diante
+          <span style="font-size:0.7rem; display:block; opacity:0.6;">(Regra 80/20 & STF)</span></button>
+      </div>
+
+      <!-- EPOCH 1994 PANEL -->
+      <div class="rules-tab-panel" id="panel-epoch1994">
+        <div class="rules-phases-container">
+          <!-- Phase 1 -->
+          <div class="rules-phase-card phase-1">
+            <h4 class="rules-phase-title">
+              <span>1ª Fase: Vagas Regulares (Quociente Partidário)</span>
+              <span class="diagram-pill success">Brancos Válidos</span>
+            </h4>
+            <p class="rules-phase-desc">
+              <strong>Base Legal:</strong> Código Eleitoral de 1965 (redação anterior à Lei nº 9.504/1997).
+            </p>
+            <p class="rules-phase-desc" style="margin-top: 4px;">
+              Os votos em branco contavam como válidos para o cálculo do <strong>Quociente Eleitoral (QE)</strong>. A votação do partido/coligação é dividida pelo QE para definir o <strong>Quociente Partidário (QP)</strong>, que representa o número de vagas diretas. Não havia barreira nominal individual para os candidatos (efeito "puxador de votos").
+            </p>
+            <div class="rules-diagram-box">
+              <div class="diagram-row">
+                <span class="diagram-pill neutral">Votos Válidos (Nominais + Legenda + Brancos)</span>
+                <span class="diagram-arrow">÷</span>
+                <span class="diagram-pill neutral">Total de Vagas</span>
+                <span class="diagram-arrow">=</span>
+                <span class="diagram-pill neutral">QE</span>
+              </div>
+              <div class="diagram-row" style="margin-top: 4px;">
+                <span class="diagram-pill neutral">Votos do Partido/Coligação</span>
+                <span class="diagram-arrow">÷</span>
+                <span class="diagram-pill neutral">QE</span>
+                <span class="diagram-arrow">=</span>
+                <span class="diagram-pill success">Vagas Diretas (QP)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 2 -->
+          <div class="rules-phase-card phase-3">
+            <h4 class="rules-phase-title">
+              <span>2ª Fase: Sobras de Vagas (Barreira de QE)</span>
+              <span class="diagram-pill danger">Exige QP ≥ 1</span>
+            </h4>
+            <p class="rules-phase-desc">
+              <strong>Base Legal:</strong> Código Eleitoral de 1965 (redação anterior à Lei nº 9.504/1997).
+            </p>
+            <p class="rules-phase-desc" style="margin-top: 4px;">
+              As sobras de vagas são distribuídas por médias sucessivas (D'Hondt). No entanto, sob a regra de 1994, apenas os partidos/coligações que obtiveram pelo menos uma vaga direta na 1ª fase (QP ≥ 1) podem concorrer às sobras. Quem não atingiu o QE é eliminado da disputa.
+            </p>
+            <div class="rules-diagram-box">
+              <div class="diagram-row">
+                <span class="diagram-pill neutral">Média do Partido/Coligação</span>
+                <span class="diagram-arrow">=</span>
+                <span class="diagram-pill neutral">Votos da Legenda</span>
+                <span class="diagram-arrow">÷</span>
+                <span class="diagram-pill neutral">(Vagas já conquistadas + 1)</span>
+              </div>
+              <div class="diagram-row" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-sec); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                ✗ <strong>Barreira de QE:</strong> Apenas partidos/coligações com <strong>QP ≥ 1</strong> disputam as sobras. A agremiação com QP = 0 está eliminada e não concorre às médias.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rules-example-box">
+          <h5 class="rules-example-title" style="color: var(--warn); font-size: 0.85rem; font-weight: 600;">Exemplo Prático de 1994</h5>
+          <p class="rules-example-body">
+            Se uma coligação obtivesse 8.000 votos e o Quociente Eleitoral fosse de 10.000 votos (calculado incluindo os votos em branco), ela não atingiria o QE (QP = 0). Na distribuição das sobras por médias, ela estaria <strong>eliminada</strong> da disputa (não disputava sobras), mesmo que sua média teórica <code>8.000 / 1 = 8.000</code> fosse maior que as médias dos partidos concorrentes.
+          </p>
+        </div>
       </div>
 
       <!-- EPOCH 1 PANEL -->
@@ -793,10 +918,14 @@
               <span class="diagram-pill success">Sem Barreira Nominal</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigos 106, 107 e 108 da redação original do Código Eleitoral (Lei nº 4.737/1965).
+              <strong>Base Legal:</strong> Artigos 106, 107 e 108 da redação original do Código Eleitoral (Lei nº
+              4.737/1965).
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              O total de vagas a preencher é distribuído inicialmente dividindo-se os votos válidos totais pelo número de cadeiras da circunscrição para obter o <strong>Quociente Eleitoral (QE)</strong>. A votação do partido é dividida pelo QE para definir o seu <strong>Quociente Partidário (QP)</strong>, que representa o número de cadeiras diretas.
+              O total de vagas a preencher é distribuído inicialmente dividindo-se os votos válidos totais pelo número
+              de cadeiras da circunscrição para obter o <strong>Quociente Eleitoral (QE)</strong>. A votação do partido
+              é dividida pelo QE para definir o seu <strong>Quociente Partidário (QP)</strong>, que representa o número
+              de cadeiras diretas.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row">
@@ -813,8 +942,11 @@
                 <span class="diagram-arrow">=</span>
                 <span class="diagram-pill success">Vagas Diretas (QP)</span>
               </div>
-              <div class="diagram-row" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-sec); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
-                ✓ <strong>Cláusula de Desempenho:</strong> Inexistente na época. O preenchimento ocorria estritamente pela ordem de votação dos candidatos da chapa, de modo que o mais votado assumia a cadeira, mesmo que tivesse obtido apenas alguns poucos votos nominais (ex. eleito sob o efeito "puxador de votos").
+              <div class="diagram-row"
+                style="margin-top: 8px; font-size: 0.8rem; color: var(--text-sec); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                ✓ <strong>Cláusula de Desempenho:</strong> Inexistente na época. O preenchimento ocorria estritamente
+                pela ordem de votação dos candidatos da chapa, de modo que o mais votado assumia a cadeira, mesmo que
+                tivesse obtido apenas alguns poucos votos nominais (ex. eleito sob o efeito "puxador de votos").
               </div>
             </div>
           </div>
@@ -829,7 +961,9 @@
               <strong>Base Legal:</strong> Artigo 109, inciso I, da redação original do Código Eleitoral.
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              As cadeiras que não fossem preenchidas na 1ª fase (sobras) eram distribuídas por médias sucessivas. O cálculo dividia a votação de cada partido pelo número de vagas já conquistadas mais 1. O partido com a maior média obtinha a vaga.
+              As cadeiras que não fossem preenchidas na 1ª fase (sobras) eram distribuídas por médias sucessivas. O
+              cálculo dividia a votação de cada partido pelo número de vagas já conquistadas mais 1. O partido com a
+              maior média obtinha a vaga.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row">
@@ -839,17 +973,25 @@
                 <span class="diagram-arrow">÷</span>
                 <span class="diagram-pill neutral">(Vagas já conquistadas + 1)</span>
               </div>
-              <div class="diagram-row" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-sec); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
-                ✓ <strong>Livre de Barreiras:</strong> <strong>Qualquer partido político</strong> que participou do pleito tinha direito a concorrer a essa distribuição de sobras por média, independentemente de ter alcançado ou não o Quociente Eleitoral na 1ª Fase (mesmo se o partido tivesse QP = 0).
+              <div class="diagram-row"
+                style="margin-top: 8px; font-size: 0.8rem; color: var(--text-sec); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 6px;">
+                ✓ <strong>Livre de Barreiras:</strong> <strong>Qualquer partido político</strong> que participou do
+                pleito tinha direito a concorrer a essa distribuição de sobras por média, independentemente de ter
+                alcançado ou não o Quociente Eleitoral na 1ª Fase (mesmo se o partido tivesse QP = 0).
               </div>
             </div>
           </div>
         </div>
 
         <div class="rules-example-box">
-          <h5 class="rules-example-title" style="color: var(--warn); font-size: 0.85rem; font-weight: 600;">Exemplo Prático da Época</h5>
+          <h5 class="rules-example-title" style="color: var(--warn); font-size: 0.85rem; font-weight: 600;">Exemplo
+            Prático da Época</h5>
           <p class="rules-example-body">
-            Se uma coligação obtivesse apenas 2.500 votos em um estado onde o Quociente Eleitoral fosse de 10.000 votos, ela não ganharia vagas na 1ª fase (QP = 0). No entanto, na 2ª fase (sobras), a sua média seria calculada como <code>2.500 / (0 + 1) = 2.500</code>. Caso essa fosse a maior média, a coligação obteria a cadeira de sobra e o seu candidato mais votado seria eleito, mesmo tendo recebido, por exemplo, menos de 50 votos individuais.
+            Se uma coligação obtivesse apenas 2.500 votos em um estado onde o Quociente Eleitoral fosse de 10.000 votos,
+            ela não ganharia vagas na 1ª fase (QP = 0). No entanto, na 2ª fase (sobras), a sua média seria calculada
+            como <code>2.500 / (0 + 1) = 2.500</code>. Caso essa fosse a maior média, a coligação obteria a cadeira de
+            sobra e o seu candidato mais votado seria eleito, mesmo tendo recebido, por exemplo, menos de 50 votos
+            individuais.
           </p>
         </div>
       </div>
@@ -864,14 +1006,17 @@
               <span class="diagram-pill danger">Candidato ≥ 10% QE</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigo 108 do Código Eleitoral, alterado pela Minirreforma Eleitoral de 2015 (Lei nº 13.165/2015).
+              <strong>Base Legal:</strong> Artigo 108 do Código Eleitoral, alterado pela Minirreforma Eleitoral de 2015
+              (Lei nº 13.165/2015).
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              Distribuição primária baseada em QP inteiros. Introduziu-se a cláusula de barreira nominal individual: o candidato, para assumir a cadeira do partido, necessita de votação nominal igual ou superior a 10% do QE.
+              Distribuição primária baseada em QP inteiros. Introduziu-se a cláusula de barreira nominal individual: o
+              candidato, para assumir a cadeira do partido, necessita de votação nominal igual ou superior a 10% do QE.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row" style="margin-top: 8px; width: 100%;">
-                <span class="example-metric-label" style="display:block; margin-bottom: 2px;">Exigência Nominal Individual (Art. 108):</span>
+                <span class="example-metric-label" style="display:block; margin-bottom: 2px;">Exigência Nominal
+                  Individual (Art. 108):</span>
                 <div class="diagram-bar-container">
                   <div class="diagram-bar-fill" style="width: 10%;"></div>
                   <div class="diagram-bar-marker" style="left: 10%;"></div>
@@ -890,17 +1035,21 @@
               <span class="diagram-pill danger">Partido 100% QE / Cand 10% QE</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigo 109, inciso I e § 2º do Código Eleitoral, com redação dada pela Lei nº 13.488/2017.
+              <strong>Base Legal:</strong> Artigo 109, inciso I e § 2º do Código Eleitoral, com redação dada pela Lei nº
+              13.488/2017.
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              Etapa inicial de partilha de sobras pela maior média. Limitou-se severamente o acesso às vagas de sobra para tentar conter a fragmentação de siglas na Câmara.
+              Etapa inicial de partilha de sobras pela maior média. Limitou-se severamente o acesso às vagas de sobra
+              para tentar conter a fragmentação de siglas na Câmara.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row" style="color: var(--err); font-weight: 500;">
-                ✗ <strong>Restrição do Partido (Art. 109, § 2º):</strong> Apenas partidos políticos que obtiveram o quociente eleitoral (ou seja, alcançaram 100% do QE na 1ª fase) podiam disputar sobras nessa fase.
+                ✗ <strong>Restrição do Partido (Art. 109, § 2º):</strong> Apenas partidos políticos que obtiveram o
+                quociente eleitoral (ou seja, alcançaram 100% do QE na 1ª fase) podiam disputar sobras nessa fase.
               </div>
               <div class="diagram-row" style="color: var(--err); font-weight: 500; margin-top: 4px;">
-                ✗ <strong>Restrição do Candidato (Art. 109, I):</strong> O candidato preenchendo a vaga na chapa precisava cumprir o desempenho nominal individual mínimo de 10% do QE.
+                ✗ <strong>Restrição do Candidato (Art. 109, I):</strong> O candidato preenchendo a vaga na chapa
+                precisava cumprir o desempenho nominal individual mínimo de 10% do QE.
               </div>
             </div>
           </div>
@@ -915,23 +1064,32 @@
               <strong>Base Legal:</strong> Artigo 109, inciso III do Código Eleitoral (Redação da Lei nº 13.488/2017).
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              Caso restassem sobras remanescentes de vagas que não puderam ser preenchidas pelos partidos habilitados na 2ª fase (por falta de quociente de legenda ou por falta de candidatos com ≥ 10% QE), acionava-se a repescagem geral.
+              Caso restassem sobras remanescentes de vagas que não puderam ser preenchidas pelos partidos habilitados na
+              2ª fase (por falta de quociente de legenda ou por falta de candidatos com ≥ 10% QE), acionava-se a
+              repescagem geral.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row" style="color: var(--ok); font-weight: 500;">
-                ✓ <strong>Acesso Partidário:</strong> A barreira partidária caía: todas as agremiações voltavam a disputar a sobra pela maior média geral.
+                ✓ <strong>Acesso Partidário:</strong> A barreira partidária caía: todas as agremiações voltavam a
+                disputar a sobra pela maior média geral.
               </div>
               <div class="diagram-row" style="color: var(--err); font-weight: 500; margin-top: 4px;">
-                ✗ <strong>Barreira do Candidato Mantida:</strong> Mesmo na repescagem final, mantinha-se a exigência de votação nominal individual de no mínimo 10% do QE para o candidato. Candidatos abaixo deste limite não podiam assumir.
+                ✗ <strong>Barreira do Candidato Mantida:</strong> Mesmo na repescagem final, mantinha-se a exigência de
+                votação nominal individual de no mínimo 10% do QE para o candidato. Candidatos abaixo deste limite não
+                podiam assumir.
               </div>
             </div>
           </div>
         </div>
 
         <div class="rules-example-box">
-          <h5 class="rules-example-title" style="color: var(--warn); font-size: 0.85rem; font-weight: 600;">Exemplo Prático da Época</h5>
+          <h5 class="rules-example-title" style="color: var(--warn); font-size: 0.85rem; font-weight: 600;">Exemplo
+            Prático da Época</h5>
           <p class="rules-example-body">
-            Nas eleições de 2018, se um partido tivesse a maior média geral na 3ª Fase (repescagem), mas o candidato mais votado remanescente da sua chapa tivesse obtido 9,8% do QE (por exemplo, 980 votos em uma circunscrição com QE de 10.000), ele era considerado <strong>Inapto</strong>. A vaga era repassada para a próxima chapa com a maior média seguinte cujo candidato cumprisse a barreira dos 10% do QE.
+            Nas eleições de 2018, se um partido tivesse a maior média geral na 3ª Fase (repescagem), mas o candidato
+            mais votado remanescente da sua chapa tivesse obtido 9,8% do QE (por exemplo, 980 votos em uma circunscrição
+            com QE de 10.000), ele era considerado <strong>Inapto</strong>. A vaga era repassada para a próxima chapa
+            com a maior média seguinte cujo candidato cumprisse a barreira dos 10% do QE.
           </p>
         </div>
       </div>
@@ -946,14 +1104,19 @@
               <span class="diagram-pill danger">Candidato ≥ 10% QE</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigos 106, 107 e 108 do Código Eleitoral, alterados pela Lei nº 14.211/2021.
+              <strong>Base Legal:</strong> Artigos 106, 107 e 108 do Código Eleitoral, alterados pela Lei nº
+              14.211/2021.
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              Selecionam-se os partidos que alcançaram o QE (Quociente Eleitoral). Faz-se a divisão dos votos válidos do partido pelo QE para obter o número de vagas diretas da legenda (Quociente Partidário - QP). Para que um candidato ocupe uma dessas vagas por direito, ele precisa ter obtido votação nominal individual de pelo menos 10% do QE.
+              Selecionam-se os partidos que alcançaram o QE (Quociente Eleitoral). Faz-se a divisão dos votos válidos do
+              partido pelo QE para obter o número de vagas diretas da legenda (Quociente Partidário - QP). Para que um
+              candidato ocupe uma dessas vagas por direito, ele precisa ter obtido votação nominal individual de pelo
+              menos 10% do QE.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row" style="margin-top: 8px; width: 100%;">
-                <span class="example-metric-label" style="display:block; margin-bottom: 2px;">Votação Nominal Mínima do Candidato (Art. 108):</span>
+                <span class="example-metric-label" style="display:block; margin-bottom: 2px;">Votação Nominal Mínima do
+                  Candidato (Art. 108):</span>
                 <div class="diagram-bar-container">
                   <div class="diagram-bar-fill" style="width: 10%;"></div>
                   <div class="diagram-bar-marker" style="left: 10%;"></div>
@@ -972,14 +1135,19 @@
               <span class="diagram-pill danger">Partido 80% / Cand 20%</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigo 109, § 2º do Código Eleitoral, com redação dada pela Lei nº 14.211/2021.
+              <strong>Base Legal:</strong> Artigo 109, § 2º do Código Eleitoral, com redação dada pela Lei nº
+              14.211/2021.
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              As vagas que restaram (sobras) são distribuídas por médias sucessivas. Podem disputar todos os partidos (inclusive os que já obtiveram vagas por QP na Fase 1) que alcançaram pelo menos 80% do QE em sua votação total. Para que um candidato seja eleito por média nesta fase, ele precisa ter alcançado votação nominal individual de pelo menos 20% do QE.
+              As vagas que restaram (sobras) são distribuídas por médias sucessivas. Podem disputar todos os partidos
+              (inclusive os que já obtiveram vagas por QP na Fase 1) que alcançaram pelo menos 80% do QE em sua votação
+              total. Para que um candidato seja eleito por média nesta fase, ele precisa ter alcançado votação nominal
+              individual de pelo menos 20% do QE.
             </p>
             <div class="rules-diagram-box">
               <div class="diagram-row" style="margin-bottom: 6px; width: 100%;">
-                <span class="example-metric-label" style="width: 140px; flex-shrink:0;">1. Exigência do Partido (80% do QE):</span>
+                <span class="example-metric-label" style="width: 140px; flex-shrink:0;">1. Exigência do Partido (80% do
+                  QE):</span>
                 <div class="diagram-bar-container" style="flex:1;">
                   <div class="diagram-bar-fill" style="width: 80%; background: rgba(59, 130, 246, 0.25);"></div>
                   <div class="diagram-bar-marker" style="left: 80%;"></div>
@@ -988,7 +1156,8 @@
                 </div>
               </div>
               <div class="diagram-row" style="width: 100%;">
-                <span class="example-metric-label" style="width: 140px; flex-shrink:0;">2. Exigência do Candidato (20% do QE):</span>
+                <span class="example-metric-label" style="width: 140px; flex-shrink:0;">2. Exigência do Candidato (20%
+                  do QE):</span>
                 <div class="diagram-bar-container" style="flex:1;">
                   <div class="diagram-bar-fill" style="width: 20%; background: rgba(239, 68, 68, 0.25);"></div>
                   <div class="diagram-bar-marker" style="left: 20%;"></div>
@@ -1006,63 +1175,98 @@
               <span class="diagram-pill success">Sem Barreira 80/20</span>
             </h4>
             <p class="rules-phase-desc">
-              <strong>Base Legal:</strong> Artigo 109, inciso III do Código Eleitoral, conforme a decisão do STF no julgamento conjunto das <strong>ADIs 7228, 7263 e 7325</strong> em fevereiro de 2024.
+              <strong>Base Legal:</strong> Artigo 109, inciso III do Código Eleitoral, conforme a decisão do STF no
+              julgamento conjunto das <strong>ADIs 7228, 7263 e 7325</strong> em fevereiro de 2024.
             </p>
             <p class="rules-phase-desc" style="margin-top: 4px;">
-              O plenário do STF declarou inconstitucional limitar a disputa da 3ª fase (sobras das sobras) apenas a partidos que fizessem 80% do QE. O tribunal definiu que as barreiras partidária e individual nominal deixam de existir nessa fase de repescagem final.
+              O plenário do STF declarou inconstitucional limitar a disputa da 3ª fase (sobras das sobras) apenas a
+              partidos que fizessem 80% do QE. O tribunal definiu que as barreiras partidária e individual nominal
+              deixam de existir nessa fase de repescagem final.
             </p>
-            
-            <div class="rules-formula-box" style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px; margin-top: 10px;">
-              <span style="font-size: 0.72rem; color: var(--warn); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Como é calculada a Média de Sobras? (Art. 109, I)</span>
-              <div style="font-size: 1.05rem; font-weight: 700; color: var(--text); text-align: center; margin: 8px 0; font-family: monospace; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 3px;">
+
+            <div class="rules-formula-box"
+              style="background: rgba(30, 41, 59, 0.4); border: 1px solid var(--border-color); padding: 12px; border-radius: 4px; margin-top: 10px;">
+              <span
+                style="font-size: 0.72rem; color: var(--warn); text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; display: block; margin-bottom: 6px;">Como
+                é calculada a Média de Sobras? (Art. 109, I)</span>
+              <div
+                style="font-size: 1.05rem; font-weight: 700; color: var(--text); text-align: center; margin: 8px 0; font-family: monospace; padding: 6px; background: rgba(0,0,0,0.2); border-radius: 3px;">
                 Média = Votos Válidos do Partido / (Vagas Conquistadas + 1)
               </div>
               <ul style="font-size: 0.78rem; color: var(--text-sec); margin: 0; padding-left: 18px; line-height: 1.4;">
-                <li><strong>Votos Válidos do Partido:</strong> Soma de todos os votos nominais de seus candidatos mais os votos de legenda (na sigla).</li>
-                <li><strong>Vagas Conquistadas:</strong> Cadeiras que o partido já obteve nas fases anteriores (tanto diretas na 1ª fase quanto em rodadas anteriores de sobras).</li>
-                <li><strong>O "+ 1" no denominador:</strong> Serve para recalcular proporcionalmente a força restante do partido após cada conquista. Divisores maiores reduzem a média de quem já ganhou vagas, permitindo que partidos menores concorram.</li>
+                <li><strong>Votos Válidos do Partido:</strong> Soma de todos os votos nominais de seus candidatos mais
+                  os votos de legenda (na sigla).</li>
+                <li><strong>Vagas Conquistadas:</strong> Cadeiras que o partido já obteve nas fases anteriores (tanto
+                  diretas na 1ª fase quanto em rodadas anteriores de sobras).</li>
+                <li><strong>O "+ 1" no denominador:</strong> Serve para recalcular proporcionalmente a força restante do
+                  partido após cada conquista. Divisores maiores reduzem a média de quem já ganhou vagas, permitindo que
+                  partidos menores concorram.</li>
               </ul>
             </div>
 
-            <div class="rules-diagram-box" style="background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.3); margin-top: 10px;">
+            <div class="rules-diagram-box"
+              style="background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.3); margin-top: 10px;">
               <div class="diagram-row" style="color: var(--ok); font-weight: 500;">
-                ✓ <strong>Concorrência Ampla:</strong> Participam da distribuição de médias todos os partidos que concorreram nas eleições.
+                ✓ <strong>Concorrência Ampla:</strong> Participam da distribuição de médias todos os partidos que
+                concorreram nas eleições.
               </div>
               <div class="diagram-row" style="color: var(--ok); font-weight: 500;">
-                ✓ <strong>Livre de Cláusula Individual:</strong> O candidato mais votado remanescente da chapa assume a cadeira vaga, independentemente de ter ou não atingido 20% (ou 10%) do QE em votos nominais.
+                ✓ <strong>Livre de Cláusula Individual:</strong> O candidato mais votado remanescente da chapa assume a
+                cadeira vaga, independentemente de ter ou não atingido 20% (ou 10%) do QE em votos nominais.
               </div>
             </div>
           </div>
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px;" class="split-examples">
-          <div class="rules-example-box" style="margin-top:0; background: rgba(34, 197, 94, 0.02); border-color: rgba(34, 197, 94, 0.15);">
-            <h5 class="rules-example-title" style="color: var(--ok);">✓ Caso Prático: Amapá 2022 (A Origem da Decisão do STF)</h5>
+          <div class="rules-example-box"
+            style="margin-top:0; background: rgba(34, 197, 94, 0.02); border-color: rgba(34, 197, 94, 0.15);">
+            <h5 class="rules-example-title" style="color: var(--ok);">✓ Caso Prático: Amapá 2022 (A Origem da Decisão do
+              STF)</h5>
             <p class="rules-example-body" style="font-size: 0.78rem; line-height: 1.5;">
-              O Amapá tinha <strong>8 vagas</strong> de Deputado Federal em disputa. O QE foi de <strong>52.877</strong> votos (20% = 10.575).<br>
-              <strong>1. Na 1ª Fase (QP):</strong> Apenas o PDT (64.888 votos) atingiu o QE, elegendo Dorinaldo Malafaia (42.697 votos). Sobraram 7 vagas.<br>
-              <strong>2. Na 2ª Fase (Sobras 80/20):</strong> Apenas PDT, PL e MDB tinham &ge; 80% do QE (42.302) e candidatos aptos com &ge; 20% do QE (10.575). Levaram 1 vaga cada na rodada por média:
-              <span style="display:block; margin: 4px 0 4px 12px; font-family: monospace; font-size: 0.74rem; color: var(--warn); line-height: 1.3;">
+              O Amapá tinha <strong>8 vagas</strong> de Deputado Federal em disputa. O QE foi de <strong>52.877</strong>
+              votos (20% = 10.575).<br>
+              <strong>1. Na 1ª Fase (QP):</strong> Apenas o PDT (64.888 votos) atingiu o QE, elegendo Dorinaldo Malafaia
+              (42.697 votos). Sobraram 7 vagas.<br>
+              <strong>2. Na 2ª Fase (Sobras 80/20):</strong> Apenas PDT, PL e MDB tinham &ge; 80% do QE (42.302) e
+              candidatos aptos com &ge; 20% do QE (10.575). Levaram 1 vaga cada na rodada por média:
+              <span
+                style="display:block; margin: 4px 0 4px 12px; font-family: monospace; font-size: 0.74rem; color: var(--warn); line-height: 1.3;">
                 • Média do PL: 48.841 / (0 + 1) = 48.841 &rarr; Elegeu Vinicius Gurgel (13.253 votos)<br>
                 • Média do MDB: 45.697 / (0 + 1) = 45.697 &rarr; Elegeu Acácio Favacho (32.553 votos)<br>
                 • Média do PDT: 64.888 / (1 + 1) = 32.444 &rarr; Elegeu Josenildo (27.112 votos)
               </span>
               Como nenhum partido tinha mais candidatos com &ge; 20% do QE, a 2ª Fase encerrou restando 4 vagas.<br>
-              <strong>3. Na 3ª Fase (STF / Repescagem):</strong> As barreiras individuais de 20% do QE caíram para preencher as vagas. Pela regra antiga de 2022, as sobras foram divididas apenas entre as legendas com &ge; 80% do QE (PDT, PL e MDB):
-              <span style="display:block; margin: 4px 0 4px 12px; font-family: monospace; font-size: 0.74rem; color: var(--ok); line-height: 1.3;">
+              <strong>3. Na 3ª Fase (STF / Repescagem):</strong> As barreiras individuais de 20% do QE caíram para
+              preencher as vagas. Pela regra antiga de 2022, as sobras foram divididas apenas entre as legendas com &ge;
+              80% do QE (PDT, PL e MDB):
+              <span
+                style="display:block; margin: 4px 0 4px 12px; font-family: monospace; font-size: 0.74rem; color: var(--ok); line-height: 1.3;">
                 • 4ª Vaga: Média do PL = 48.841 / (1 + 1) = 24.420 &rarr; Elegeu Sonize Barbosa (9.204 votos)<br>
                 • 5ª Vaga: Média do MDB = 45.697 / (1 + 1) = 22.848 &rarr; Elegeu Dr. Pupio (5.711 votos)<br>
                 • 6ª Vaga: Média do PDT = 64.888 / (2 + 1) = 21.629 &rarr; Elegeu Prof. Goreth (11.082 votos)<br>
                 • 7ª Vaga: Média do PL = 48.841 / (2 + 1) = 16.280 &rarr; Elegeu Silvia Waiãpi (5.435 votos)
               </span>
-              <strong>A Distorção e a Decisão do STF:</strong> Partidos como o Republicanos (39.171 votos) e o PP (39.086 votos) tinham votos de sobra que superavam em muito a média final do PL (16.280), mas foram excluídos da 3ª fase por não terem 80% do QE partidário. O STF julgou isso inconstitucional em 2024: doravante, <strong>todos os partidos</strong> disputam a 3ª fase sem barreiras, prevalecendo a média absoluta!
+              <strong>A Distorção e a Decisão do STF:</strong> Partidos como o Republicanos (39.171 votos) e o PP
+              (39.086 votos) tinham votos de sobra que superavam em muito a média final do PL (16.280), mas foram
+              excluídos da 3ª fase por não terem 80% do QE partidário. O STF julgou isso inconstitucional em 2024:
+              doravante, <strong>todos os partidos</strong> disputam a 3ª fase sem barreiras, prevalecendo a média
+              absoluta!
               <br><br>
-              <strong>O Desfecho Prático (Consequências e Retotalização):</strong> Embora o STF inicialmente tenha modulado os efeitos para que valessem apenas a partir de 2024, em recurso posterior o tribunal determinou a aplicação retroativa ao pleito de 2022. Em <strong>setembro de 2024</strong>, o TRE-AP realizou a retotalização oficial de votos:
-              <span style="display:block; margin: 4px 0 4px 12px; font-size: 0.74rem; color: var(--err); line-height: 1.3;">
-                • <strong>Perda de Mandato:</strong> Sílvia Waiãpi (PL), Sonize Barbosa (PL), Maria Goreth (PDT) e José Augusto Pupio (MDB) tiveram seus mandatos cancelados.
+              <strong>O Desfecho Prático (Consequências e Retotalização):</strong> Embora o STF inicialmente tenha
+              modulado os efeitos para que valessem apenas a partir de 2024, em recurso posterior o tribunal determinou
+              a aplicação retroativa ao pleito de 2022. Em <strong>setembro de 2024</strong>, o TRE-AP realizou a
+              retotalização oficial de votos:
+              <span
+                style="display:block; margin: 4px 0 4px 12px; font-size: 0.74rem; color: var(--err); line-height: 1.3;">
+                • <strong>Perda de Mandato:</strong> Sílvia Waiãpi (PL), Sonize Barbosa (PL), Maria Goreth (PDT) e José
+                Augusto Pupio (MDB) tiveram seus mandatos cancelados.
               </span>
-              <span style="display:block; margin: 4px 0 4px 12px; font-size: 0.74rem; color: var(--ok); line-height: 1.3;">
-                • <strong>Novos Eleitos (Pela Média Geral):</strong> André Abdon (PP – média 39.086), Aline Gurgel (Republicanos – média 38.346), Marcivânia Flexa (FE Brasil – média 36.416) e Paulo Lemos (PSOL-REDE – média 36.225) assumiram as vagas.
+              <span
+                style="display:block; margin: 4px 0 4px 12px; font-size: 0.74rem; color: var(--ok); line-height: 1.3;">
+                • <strong>Novos Eleitos (Pela Média Geral):</strong> André Abdon (PP – média 39.086), Aline Gurgel
+                (Republicanos – média 38.346), Marcivânia Flexa (FE Brasil – média 36.416) e Paulo Lemos (PSOL-REDE –
+                média 36.225) assumiram as vagas.
               </span>
             </p>
             <div class="rules-example-card" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
@@ -1081,12 +1285,20 @@
             </div>
           </div>
 
-          <div class="rules-example-box" style="margin-top:0; background: rgba(239, 68, 68, 0.04); border-color: rgba(239, 68, 68, 0.15);">
-            <h5 class="rules-example-title" style="color: var(--err);">✗ Caso Prático: Lucas Gonzalez (Impedimento na 2ª Fase)</h5>
+          <div class="rules-example-box"
+            style="margin-top:0; background: rgba(239, 68, 68, 0.04); border-color: rgba(239, 68, 68, 0.15);">
+            <h5 class="rules-example-title" style="color: var(--err);">✗ Caso Prático: Lucas Gonzalez (Impedimento na 2ª
+              Fase)</h5>
             <p class="rules-example-body" style="font-size: 0.78rem; line-height: 1.5;">
-              <strong>Minas Gerais (2022):</strong> O QE foi de <strong>210.965</strong> votos (20% = 42.193). O NOVO obteve 185.505 votos totais, ultrapassando os 80% do QE (168.772) para participar da 2ª Fase.<br>
-              <strong>O Impedimento:</strong> A média do NOVO era apta a disputar as vagas da 2ª Fase. No entanto, seu candidato mais votado, Lucas Gonzalez, obteve <strong>41.833</strong> votos. Como ele não atingiu a barreira individual nominal de 20% do QE (faltando apenas 360 votos para 42.193), o partido foi considerado inapto para levar essa vaga por média.<br>
-              <strong>A Distribuição:</strong> A vaga de sobra ficou com o Solidariedade, que por mais que tivesse menos votos totais que o NOVO (181.577 votos), tinha um candidato apto, Zé Silva, que obteve <strong>86.042</strong> votos e atendeu à barreira nominal individual de 20% do QE.
+              <strong>Minas Gerais (2022):</strong> O QE foi de <strong>210.965</strong> votos (20% = 42.193). O NOVO
+              obteve 185.505 votos totais, ultrapassando os 80% do QE (168.772) para participar da 2ª Fase.<br>
+              <strong>O Impedimento:</strong> A média do NOVO era apta a disputar as vagas da 2ª Fase. No entanto, seu
+              candidato mais votado, Lucas Gonzalez, obteve <strong>41.833</strong> votos. Como ele não atingiu a
+              barreira individual nominal de 20% do QE (faltando apenas 360 votos para 42.193), o partido foi
+              considerado inapto para levar essa vaga por média.<br>
+              <strong>A Distribuição:</strong> A vaga de sobra ficou com o Solidariedade, que por mais que tivesse menos
+              votos totais que o NOVO (181.577 votos), tinha um candidato apto, Zé Silva, que obteve
+              <strong>86.042</strong> votos e atendeu à barreira nominal individual de 20% do QE.
             </p>
             <div class="rules-example-card" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
               <div class="example-metric">
@@ -1112,28 +1324,29 @@
   <!-- NOVOS SCRIPTS MODULARES -->
   <script src="js/globals.js?v=20260702a"></script>
   <script src="js/maplibre-compat.js?v=20260619c"></script>
-  <script src="js/utils.js?v=20260620a"></script>
-  <script src="js/data-zip.js?v=20260619c"></script>
+  <script src="js/utils.js?v=20260702c"></script>
+  <script src="js/data-zip.js?v=20260703a"></script>
   <script src="js/data-process.js?v=20260619c"></script>
   <script src="js/emancipacoes-pre2014.js?v=20260621b"></script>
-  <script src="js/data-geral-2022.js?v=20260619c"></script>
+  <script src="js/data-geral-2022.js?v=20260702c"></script>
   <script src="js/data-geral-2018.js?v=20260619c"></script>
   <script src="js/data-geral-2014.js?v=20260702a"></script>
   <script src="js/data-geral-2010.js?v=20260621b"></script>
   <script src="js/data-geral-2006.js?v=20260621b"></script>
   <script src="js/data-geral-2002.js?v=20260621b"></script>
   <script src="js/data-geral-1998.js?v=20260621b"></script>
+  <script src="js/data-geral-1994.js?v=20260703b"></script>
   <script src="js/data-municipal.js?v=20260702a"></script>
   <script src="js/municipal-aliases-2000-2004.js?v=20260619c"></script>
   <script src="js/data-municipal-2000-2004.js?v=20260619c"></script>
   <script src="js/data-loader.js?v=20260619c"></script>
-  <script src="js/data-router.js?v=20260702a"></script>
-  <script src="js/map-render.js?v=20260702b"></script>
-  <script src="js/ui-helpers.js?v=20260702a"></script>
-  <script src="js/ui-results.js?v=20260702b"></script>
+  <script src="js/data-router.js?v=20260702c"></script>
+  <script src="js/map-render.js?v=20260703b"></script>
+  <script src="js/ui-helpers.js?v=20260703c"></script>
+  <script src="js/ui-results.js?v=20260702c"></script>
   <script src="js/historico-presidente.js?v=20260619c"></script>
-  <script src="js/results-panel.js?v=20260619c"></script>
-  <script src="js/ui-controls.js?v=20260702b"></script>
+  <script src="js/results-panel.js?v=20260704a"></script>
+  <script src="js/ui-controls.js?v=20260704a"></script>
 </body>
 
 </html>

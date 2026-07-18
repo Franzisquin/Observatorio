@@ -518,6 +518,15 @@ function getReferencePropsForTurnout(props, cargo) {
 function getDeputyVotesMapForCargo(props, cargo) {
   if (!props || !cargo || !String(cargo).startsWith('deputado')) return null;
 
+  const typeKey = String(cargo).includes('estadual') ? 'e' : 'f';
+
+  // Chave direta: quando o id da feature JA e a chave de deputyResults
+  // (features sinteticas de 1994 e dots cujo id tem o mesmo formato).
+  const directKey = String(getProp(props, 'id_unico') || getProp(props, 'local_key') || '');
+  if (directKey && STATE.deputyResults?.[directKey]) {
+    return STATE.deputyResults[directKey][typeKey] || null;
+  }
+
   const z = getProp(props, 'nr_zona');
   const l = getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao');
   const m = getProp(props, 'cd_localidade_tse') || getProp(props, 'CD_MUNICIPIO');
@@ -527,7 +536,7 @@ function getDeputyVotesMapForCargo(props, cargo) {
   const allRes = STATE.deputyResults?.[resultKey];
   if (!allRes) return null;
 
-  return allRes[String(cargo).includes('estadual') ? 'e' : 'f'] || null;
+  return allRes[typeKey] || null;
 }
 
 function getFeatureComparecimentoCount(props, cargo, turnoKey, options = {}) {

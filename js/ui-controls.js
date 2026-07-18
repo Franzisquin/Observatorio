@@ -918,6 +918,19 @@ function setupControls() {
     if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
   });
 
+  // Expansao de detalhes do candidato (vice/coligacao) nas linhas majoritarias.
+  // Delegado no container (a tabela e re-renderizada a cada redraw).
+  if (dom.resultsContent) {
+    dom.resultsContent.addEventListener('click', (e) => {
+      if (e.target.closest('.swatch-button') || e.target.closest('.cand-details-panel')) return;
+      const row = e.target.closest('.cand-table tbody tr[data-cand-nome]');
+      if (!row || typeof toggleCandidateDetails !== 'function') return;
+      const cell = row.querySelector('td.align-left');
+      if (!cell) return;
+      toggleCandidateDetails(cell, row.dataset.candNome, row.dataset.candPartido, row.dataset.status || '');
+    });
+  }
+
   // Listener para Chips de TIPO DE ELEIÇÃO nas gerais (Ordinária / Suplementar)
   if (dom.cargoChipsGeneralSubtype) {
     dom.cargoChipsGeneralSubtype.addEventListener('click', (e) => {
@@ -1430,7 +1443,9 @@ window.openProportionalRulesModal = function() {
   // Pre-select correct tab based on current election year
   const year = parseInt(window.STATE?.currentElectionYear) || 2022;
   let activeTarget = 'panel-epoch3'; // Default: 2022 em Diante
-  if (year <= 2016) {
+  if (year === 1994) {
+    activeTarget = 'panel-epoch1994';
+  } else if (year <= 2016) {
     activeTarget = 'panel-epoch1';
   } else if (year === 2018 || year === 2020) {
     activeTarget = 'panel-epoch2';

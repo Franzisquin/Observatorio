@@ -249,6 +249,12 @@ const GENERAL_SECOND_TURN_AVAILABILITY = {
     presidente: { ord: [] },
     governador: { ord: ['AP', 'DF', 'GO', 'MG', 'MS', 'PA', 'PI', 'RJ', 'RO', 'RR', 'RS', 'SE', 'SP'] },
     senador: { ord: [] }
+  },
+  '1994': {
+    // Presidente 1994: FHC eleito em 1o turno -> sem 2o turno.
+    presidente: { ord: [] },
+    governador: { ord: ['AC', 'AP', 'BA', 'DF', 'ES', 'GO', 'MA', 'MG', 'PA', 'PB', 'PI', 'RJ', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
+    senador: { ord: [] }
   }
 };
 

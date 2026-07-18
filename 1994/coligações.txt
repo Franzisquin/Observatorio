@@ -1,0 +1,1134 @@
+ACRE:
+andidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Orleir Cameli
+PPR	Labib Murad
+PPR	
+111
+Frente Progressista do Acre
+(PPR, PP, PFL)
+79.331
+46,80%
+Flaviano Melo
+PMDB	Ilson Ribeiro
+PSDB	
+151
+Frente de Libertação do Acre
+(PMDB, PSDB, PDT)
+46.280
+27,30%
+Tião Viana
+PT	Eduardo Farias
+PCdoB	
+131
+Frente Popular do Acre
+(PT, PCdoB, PSB, PPS, PMN, PV, PSTU)
+41.830
+24,67%
+Duarte José do Couto Neto
+PRONA	Fábio Aurélio Rangel
+PRONA	
+561
+PRONA (sem coligação)
+2.077
+1,23%
+
+ALAGOAS:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Divaldo Suruagy
+PMDB	Manuel Gomes de Barros
+PTB	
+151
+Alagoas é a nossa vontade do povo
+(PMDB, PTB, PSDB, PFL, PL, PSD, PCdoB)
+495.646
+79,39%
+Pedro Vieira da Silva
+PP	Daniel Houly de Almeida
+PP	
+391
+União por Alagoas
+(PP, PPR, PSC, PRN, PMN)
+62.248
+9,97%
+Marcos Antônio da Rocha Vieira
+PSB	Tutmés Airan Albuquerque Melo
+PT	
+401
+Alagoas para todos
+(PSB, PT, PPS, PV, PRP)
+50.159
+8,04%
+Ângela Canuto
+PDT	Heth César de Oliveira
+PDT	
+121
+PDT (sem coligação)
+16.254
+2,60%
+
+AMAPA:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+João Capiberibe
+PSB	Hildegardo Alencar
+PT	
+40
+Tudo Por Nossa Terra
+(PSB, PT, PDT, PCdoB, PV)
+60.272
+48,20%
+Jonas Borges
+PTB	Murilo Pinheiro
+PFL	
+14
+Frente Democrática Cabralzinho
+(PTB, PFL, PSDB, PSD)
+35.811
+28,64%
+Salomão Alcolumbre
+PMDB	Fernando Batista
+PPR	
+15
+Um Amapá de Trabalho
+(PMDB, PPR, PP, PPS)
+27.214
+21,76%
+Ailton de Oliveira
+PL	Fernando Santos
+PRP	
+22
+Frente Progressista Liberal
+(PL, PRP)
+1.753
+1,40%
+
+AMAZONAS:
+
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Amazonino Mendes
+PPR	Alfredo Nascimento
+PPR	
+111
+Aliança do Povo
+(PPR, PP, PFL, PTB, PSDB, PMDB, PRN)
+406.060
+62,26%
+Nonato Oliveira
+PL	Lúcia Antony
+PCdoB	
+221
+Frente de Oposição do Amazonas
+(PL, PCdoB, PPS, PSB, PMN, PRONA)
+196.456
+30,12%
+Aloysio Nogueira de Melo
+PT	Paulo Araújo
+PT	
+131
+PT, PSTU, PV, PTdoB
+49.654
+7,62%
+
+BAHIA:
+
+N°	Governador	Vice-governador	Coligação
+Partido(s)
+
+Ref.
+Candidato	Partido	Cargos relevantes	Candidato	Partido	Cargos relevantes
+151		Nilo Coelho
+Nilo Augusto de Moraes Coelho	PMDB	
+Prefeito de Guanambi (1983-1986);
+Vice-governador da Bahia (1987-1989);
+Governador da Bahia (1989-1991).
+	Sebastião Castro
+Sebastião Rodrigues Castro	PMDB	
+Deputado Estadual pela Bahia (1987-1994);
+Secretário Municipal de Saúde de Vitória da Conquista (1973-1975).
+Partido Isolado	
+251		Paulo Souto
+Paulo Ganem Souto	PFL	
+Secretário Estadual de Minas e Energia da Bahia (1979-1986);
+Vice-governador da Bahia (1991-1994).
+	César Borges
+César Augusto Rabello Borges	PFL	
+Deputado Estadual pela Bahia (1987-1994);
+Secretário Estadual de Recursos Hídricos da Bahia (1991-1994).
+Vontade Do Povo
+(PFL, PPR, PTB, PP, PL e PSC)
+[2]
+331		João Durval Carneiro
+João Durval Carneiro	PMN	
+Vereador de Feira de Santana (1955-1962);
+Prefeito de Feira de Santana (1967-1971; 1993-1994);
+Deputado Federal pela Bahia (1975-1983);
+Secretário Estadual de Saneamento e Recursos Hídricos da Bahia (1979-1982);
+Governador da Bahia (1983-1986).
+	Germano Tabacoff
+Germano Tabacoff	PDT	
+Reitor da Universidade Federal da Bahia (1984-1988).
+Experiência, Democracia E Progresso
+(PMN e PDT)
+[3]
+361		Álvaro Martins
+Álvaro Martins Santos	PRN	Sem cargo político anterior			Ricardo Penalva
+Ricardo Penalva	PRN	Sem cargo político anterior	
+PRN/PSD/PTdoB
+(PRN, PSD e PTdoB)
+451		Jutahy Júnior
+Jutahy Magalhães Júnior	PSDB	
+Deputado Estadual pela Bahia (1979-1983);
+Secretário Estadual da Justiça e Direitos Humanos da Bahia (1988-1989);
+Ministro do Bem-Estar Social do Brasil (1992-1993);
+Deputado Federal pela Bahia (1983-1994).
+	Sergio Gaudenzi
+Sergio Maurício Brito Gaudenzi	PSDB	
+Deputado Estadual pela Bahia (1987-1991);
+Deputado Federal pela Bahia (1991-1994).
+Frente Bahia Popular
+(PSDB, PT, PSB, PPS, PCdoB e PV)
+
+CEARA:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Tasso Jereissati
+PSDB	Moroni Torgan
+PSDB	
+45
+Luta, Mudança e Trabalho
+(PSDB, PDT, PTB)
+1.368.757
+55,32%
+Juraci Magalhães
+PMDB	Antônio Câmara
+PMDB	
+15
+Ceará Novo Tempo
+(PMDB, PFL, PPR, PP, PSD)
+930.407
+37,61%
+Joaquim Cartaxo Filho
+PT	Valton Miranda
+PSB	
+13
+Frente pela Cidadania (PT, PSB, PPS, PCdoB)
+75.753
+3,06%
+Rosa Maria da Fonseca
+PSTU	Acrísio Sena
+PSTU	
+16
+Frente de Esquerda - Oposição Prá Valer
+(PSTU, PCB)
+72.395
+2,93%
+José Evaldo Lins
+PRONA	Maria Edilene Lins
+PRONA	
+56
+PRONA (sem coligação)
+26.819
+1,08%
+
+DF:
+
+Nº	Governador (a)	Vice-governador (a)	Coligação
+Partido(s)
+
+Ref.
+Candidato (a)	Partido	Cargos relevantes	Candidato (a)	Partido	Cargos relevantes
+121		Paulo César Timm
+Paulo César Timm	PDT	Sem cargo político anterior			Boanerges Araújo
+Boanerges Araújo	PDT	Sem cargo político anterior	Partido Isolado	
+131		Cristovam Buarque
+Cristovam Ricardo Cavalcanti Buarque	PT	
+Reitor da Universidade de Brasília (1985-1989).
+	Arlete Sampaio
+Arlete Avelar Sampaio	PT	Sem cargo político anterior	
+Frente Popular Brasília
+(PT, PSB, PPS, PCdoB, PCB e PSTU)
+141		Valmir Campelo
+Antônio Valmir Campelo Bezerra	PTB	
+Administrador Regional de Taguatinga (1981-1985);
+Deputado Federal pelo Distrito Federal (1987-1991);
+Senador pelo Distrito Federal (1991-1994).
+	Newton de Castro
+Newton de Castro	PP	Sem cargo político anterior	
+Frente Progressista
+(PTB, PP, PMDB e PFL)
+201		João Ferreira
+João Ferreira da Silva	PSC	Sem cargo político anterior			Paulo Florentino
+Paulo Florentino da Silveira	PSC	Sem cargo político anterior	
+Força Alternativa
+(PSC e PSD)
+451		Maria Abadia
+Maria de Lourdes Abadia	PSDB	
+Administradora Regional de Ceilândia (1975-1985);
+Deputada Federal pelo Distrito Federal (1987-1991);
+Deputada Distrital pelo Distrito Federal (1991-1994).
+	Wanderley Vallim
+Wanderley Vallim da Silva	PPR	
+Vice governador do Distrito Federal (1988-1990);
+Governador do Distrito Federal (1990).
+Brasília De Mãos Dadas
+(PSDB, PPR e PMN)
+561		Ildeu Alves
+Ildeu Alves de Araújo	PRONA	Sem cargo político anterior			José Uchôa de Aquino
+José Uchôa de Aquino	PRONA	Sem cargo político anterior	Partido Isolado	
+
+ESPIRITO SANTO:
+
+Candidatos a governador do estado	Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Vitor Buaiz
+PT	Renato Casagrande
+PSB	
+13
+Frente de Unidade Popular pela Cidadania
+(PT, PSB, PCdoB)
+495.948
+46,63%
+Cabo Camata
+PSD	Délio Parrini Iglesias
+PRN	
+41
+União Social Trabalhista
+(PSD, PRN, PTB, PTRB, PTdoB)
+290.677
+27,33%
+Max Mauro
+PMN	Manuel Lobo
+PL	
+33
+Resistência Popular
+(PMN, PL, PPS, PRP, PSC)
+139.262
+13,10%
+Rose de Freitas
+PSDB	Patrick Fraga
+PDT	
+45
+Frente Ética Capixaba
+(PSDB, PDT, PFL, PPR, PP, PV)
+137.666
+12,94%
+
+
+GOIAS:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Maguito Vilela
+PMDB	Naphtali Alves de Souza
+PMDB	
+15
+Progresso em Dobro
+(PMDB, PL, PRN, PRP)
+669.286
+42,54%
+Lúcia Vânia
+PP	Walter Rodrigues
+PSDB	
+39
+Goiás para Todos
+(PP, PSDB, PTB)
+401.512
+25,52%
+Ronaldo Caiado
+PFL	Nerivaldo Costa
+PPR	
+25
+Vamos Mudar Goiás
+(PFL, PPR)
+364.767
+23,18%
+Luiz Antônio de Carvalho
+PT	Carlos Grand
+PCdoB	
+13
+Frente Goiás Popular
+(PT, PCdoB, PPS, PMN, PV, PSTU)
+137.731
+8,75%
+
+MARANHÃO:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Roseana Sarney
+PFL	José Reinaldo Tavares
+PFL	
+25
+Frente Popular do Maranhão
+(PFL, PMDB, PL, PTB, PSD, PP, PSC, PRP, PCdoB)
+541.005
+47,18%
+Epitácio Cafeteira
+PPR	Juarez Medeiros
+PSB	
+11
+União pelo Maranhão
+(PPR, PSB, PSDB)
+353.032
+30,79%
+Jackson Lago
+PDT	Jomar Fernandes
+PT	
+12
+Frente ética do Maranhão
+(PDT, PT, PPS, PMN, PV)
+231.528
+20,19%
+Francisco Nascimento
+PSTU	Francisco Alves da Cruz Filho
+PSTU	
+16
+PSTU (sem coligação)
+21.061
+1,84%
+Ricardo Murad
+PSD	Não disponível
+PSD	
+41
+PSD (candidatura avulsa)
+0
+0%
+
+MATO GROSSO:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Dante de Oliveira
+PDT	Márcio Lacerda
+PMDB	
+121
+Frente Cidadania e Desenvolvimento
+(PDT, PMDB, PSDB, PT, PSB, PCdoB, PPS, PV, PMN)
+471.104
+71,27%
+Osvaldo Sobrinho
+PTB	Filinto Correia da Costa
+PFL	
+141
+União por Mato Grosso
+(PTB, PFL,PPR, PP, PL, PRN, PSC, PRP, PTdoB)
+167.072
+25,27%
+Ivanildo Oliveira
+PSD	Norberto Ferreira
+PSD	
+411
+PSD (sem coligação)
+22.850
+3,46%
+
+MATO GROSSO DO SUL:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Wilson Martins
+PMDB	Braz Melo
+PSDB	
+151
+Frente Popular
+(PMDB, PSDB, PSB, PL, PCdoB, PSD, PV)
+392.365
+53,70%
+Levy Dias
+PPR	Ricardo Bernal
+PDT	
+111
+União e Trabalho
+(PPR, PDT, PFL, PTB, PP, PSC)
+243.366
+33,31%
+Pedro Teruel
+PT	Mariza Rocha
+PPS	
+131
+Frente Brasil Popular
+(PT, PPS, PMN, PSTU)
+73.164
+10,01%
+Rita de Cássia
+PRONA	Luiz Carlos Santilli
+PRONA	
+561
+PRONA (sem coligação)
+21.773
+2,98%
+
+MINAS GERAIS:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Hélio Costa
+PP	Vitor Penido
+PFL	
+39
+Movimento Popular Progressista
+(PP, PFL, PPR)
+2.893.594
+48,30%
+Eduardo Azeredo
+PSDB	Walfrido Mares Guia
+PTB	
+45
+Todos por Minas
+(PSDB, PTB, PL)
+1.629.711
+27,20%
+José Alencar
+PMDB	Alfredo Campos
+PMDB	
+15
+PMDB (sem coligação)
+641.877
+10,71%
+Antônio Carlos Pereira
+PT	Raul Messias
+PSB	
+13
+Frente Minas Popular
+(PT, PSB, PPS, PCdoB, PCB, PSTU)
+585.173
+9,77%
+Ércio Quaresma
+PSD	Reinaldo Miranda
+PSD	
+41
+PSD (sem coligação)
+101.310
+1,69%
+Cleuber Cunha
+PRONA	Ernesto Martins Jr
+PRONA	
+56
+PRONA (sem coligação)
+70.329
+1,17%
+Hebert Ribeiro
+PSC	Ricardo Rommel
+PSC	
+20
+PSC (sem coligação)
+39.929
+0,67%
+Monico Gomes
+PRN	Elizabeth Almeida
+PRN	
+36
+PRN (sem coligação)
+29.065
+0,49%
+
+PARÁ
+Candidatos a governador do estado	Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Jarbas Passarinho
+PPR	Manoel Ribeiro
+PMDB	
+11
+Trabalho e Desenvolvimento
+(PPR, PMDB, PP)
+471.165
+38,21%
+Almir Gabriel
+PSDB	Hélio Gueiros Júnior
+PFL	
+45
+União Pelo Pará
+(PSDB, PFL, PDT, PTB, PSB, PPS, PCdoB, PCB)
+458.000
+37,21%
+Valdir Ganzer
+PT	Egídio Sales Filho
+PT	
+13
+Frente Pará Popular
+(PT, PV, PSTU)
+226.049
+18,33%
+Fernando Moraes
+PRN	Leonardo Peres
+PRN	
+36
+PRN (sem coligação)
+46.890
+3,80%
+Everaldo Araújo
+PRONA	Alexandre Machado
+PRONA	
+56
+PRONA (sem coligação)
+30.208
+2,45%
+
+PARAIBA:
+Candidatos a governador do estado	Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Antônio Mariz
+PMDB	José Maranhão
+PMDB	
+151
+Frente Paraíba Unida
+(PMDB, PPS, PSD, PP, PRP, PSC)
+525.396
+46,59%
+Lúcia Braga
+PDT	Evaldo Gonçalves
+PFL	
+121
+União das Oposições Paraíbanas
+(PDT, PFL, PSDB, PRN, PTB, PL)
+489.066
+43,37%
+Avenzoar Arruda
+PT	Antônio Cariri
+PCdoB	
+131
+Frente Paraíba Popular
+(PT, PCdoB, PSB, PV, PSTU)
+73.989
+6,56%
+Francisco Evangelista
+PPR	Salomão Gadelha
+PPR	
+111
+PPR (sem coligação)
+24.541
+2,18%
+Djacy Lima
+PMN	Paulo Valle
+PMN	
+331
+PMN (sem coligação)
+14.611
+1,30%
+
+PARANÁ
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Jaime Lerner
+PDT	Emília Belinati
+PDT	
+12
+Movimento Paraná Novos Caminhos
+(PDT, PTB, PSDB, PFL, PV)
+2.070.970
+54,85%
+Alvaro Dias
+PP	Maurício Fruet
+PMDB	
+39
+Movimento Democrático Popular
+(PP, PMDB, PPR, PMN)
+1.455.648
+38,55%
+Jorge Samek
+PT	Haroldo Ferreira
+PSB	
+13
+Frente Brasil Popular Paranaense
+(PT, PSB, PCdoB, PPS, PSTU)
+159.221
+4,22%
+Rosemeri Kredens
+PRN	Carlos Andrade
+PRN	
+36
+PRN (sem coligação)
+37.437
+0,99%
+Jaime Kreusch
+PRONA	Isaul de Camargo
+PRONA	
+56
+PRONA (sem coligação)
+20.222
+0,54%
+José Antonio Cardoso
+PL	Sale Wolokita
+PL	
+22
+PL (sem coligação)
+17.522
+0,46%
+Orlando Kulkamp
+PSD	Eliseu Siebert
+PSD	
+41
+PSD (sem coligação)
+14.809
+0,39%
+
+PERNAMBUCO:
+Candidatos a governador do estado	Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Miguel Arraes
+PSB	Jorge Gomes
+PSB	
+40
+Frente Popular de Pernambuco
+(PSB, PT, PDT, PPS, PV, PCdoB, PMN)
+1.262.417
+54,12%
+Gustavo Krause
+PFL	Guilherme Coelho
+PP	
+25
+União por Pernambuco
+(PFL, PP, PSDB)
+759.786
+32,57%
+Cid Sampaio
+PMDB	Jacilda Urquisa
+PL	
+15
+Muda Pernambuco
+(PMDB, PL, PSC)
+169.706
+7,27%
+Joaquim Magalhães
+PSTU	Ana Lins
+PSTU	
+16
+PSTU (sem coligação)
+67.304
+2,89%
+Homero Lacerda
+PTB	Nivaldo Andrade
+PTB	
+14
+PTB (sem coligação)
+39.924
+1,71%
+Fernando Carvalho
+PRN	Amaury Cavalcanti
+PSD	
+36
+Frente de Reconstrução de Pernambuco
+(PRN, PSD)
+33.647
+1,44%
+
+PIAUI:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Átila Lira
+PFL	Marcelo Coelho
+PPR	
+25
+Vontade do Povo
+(PFL, PPR, PP, PL, PTB, PSC)
+378.947
+44,86%
+Mão Santa
+PMDB	Osmar Araújo
+PSDB	
+15
+Resistência Popular
+(PMDB, PSDB, PCdoB, PDT, PPS, PMN)
+316.200
+37,43%
+Nazareno Fonteles
+PT	Francisco de Assis Negreiros
+PSB	
+13
+Frente Piauí Popular
+(PT, PSB)
+128.054
+15,16%
+Marciano Silveira
+PRN	Aníbal Magalhães Feitosa
+PRN	
+36
+PRN (sem coligação)
+21.590
+2,55%
+
+RIO DE JANEIRO:
+Candidatos a governador do estado	Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Marcello Alencar
+PSDB	Luiz Paulo
+PSDB	
+45
+Rio Unido
+(PSDB, PFL, PP, PL)
+2.292.406
+37,15%
+Anthony Garotinho
+PDT	Noel de Carvalho
+PDT	
+12
+Força do Povo
+(PDT, PTB, PMN)
+1.874.435
+30,38%
+Newton Cruz
+PSD	Saramago Pinheiro
+PPR	
+41
+Segurança, Educação e Desenvolvimento
+(PSD, PPR)
+873.925
+14,16%
+Jorge Bittar
+PT	Roberto Chabo
+PSB	
+13
+Frente Brasil Popular Rio
+(PT, PSB, PPS, PCdoB, PV, PSTU)
+662.144
+10,73%
+Milton Gonçalves
+PMDB	Hamilton Barros
+PMDB	
+15
+PMDB (sem coligação)
+278.612
+4,52%
+Paulo Roberto Santoro
+PRONA	Cesar Pinto
+PRONA	
+56
+PRONA (sem coligação)
+103.570
+1,68%
+Ronald Azaro
+PSC	José Salema Guimarães
+PSC	
+20
+Frente Alternativa
+(PSC, PRP, PTRB)
+43.830
+0,71%
+Mauro Cesar
+PRN	Julio Cesar Pitombo
+PRN	
+36
+PRN (sem coligação)
+41.705
+0,68%
+
+RIO GRANDE DO NORTE:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Garibaldi Alves Filho
+PMDB	Fernando Freire
+PPR	
+15
+Unidade Popular
+(PMDB, PPR, PSDB)
+489.765
+52,67%
+Lavoisier Maia
+PDT	Rosalba Ciarlini
+PFL	
+12
+Vontade do Povo
+(PDT, PFL, PTB, PP, PL)
+359.870
+38,70%
+Fernando Mineiro
+PT	José Bezerra
+PT	
+13
+Frente Popular Potiguar
+(PT, PSTU)
+44.596
+4,80%
+Wilma de Faria
+PSB	Binha Torres
+PSB	
+40
+Frente Popular Pela Cidadania
+(PSB, PCdoB, PCB, PPS, PMN, PV, PSC)
+35.591
+3,83%
+
+RIO GRANDE DO SUL:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Antônio Britto
+PMDB	Vicente Bogo
+PSDB	
+15
+Rio Grande Unido e Forte
+(PMDB, PSDB, PL)
+2.211.270
+49,20%
+Olívio Dutra
+PT	Éden Pedroso
+PT	
+13
+Frente Popular
+(PT, PSB, PPS, PV, PCdoB, PCB, PSTU)
+1.560.992
+34,73%
+Celso Bernardi
+PPR	Érico Ribeiro
+PPR	
+11
+Muda Rio Grande
+(PPR, PFL)
+393.514
+8,76%
+Sereno Chaise
+PDT	Geraldo Gama
+PDT	
+12
+Frente Trabalhista Riograndense
+(PDT, PP, PMN)
+252.915
+5,63%
+Irapuan Teixeira
+PRONA	Fernando Gegler
+PRONA	
+56
+PRONA (sem coligação)
+48.576
+1,08%
+José Luiz Gomes
+PRN	Elizabete Costa
+PRN	
+36
+PRN (sem coligação)
+27.003
+0,60%
+
+RONDONIA:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Valdir Raupp
+PMDB	Aparício Carvalho
+PSDB	
+15
+União por Rondônia
+(PMDB, PSDB, PSB)
+159.847
+42,50%
+Chiquilito Erse
+PDT	Edison Fidélis
+PTB	
+12
+Rondônia segue em Frente
+(PDT, PTB, PP, PL)
+146.259
+38,89%
+Jorge Streit
+PT	Antônio Miguel Arrabal
+PT	
+13
+Frente Popular
+(PT, PPS, PSC, PRP, PCdoB)
+32.766
+8,71%
+Odacir Soares
+PFL	Sônia Balau
+PFL	
+25
+PFL, PSD
+20.624
+5,48%
+Jerônimo Santana
+PPR	Adegildo Ferreira
+PPR	
+11
+PPR, PV
+11.281
+3,00%
+Edgard Azevedo
+PRONA	Amaro Silva Jr
+PRONA	
+56
+PRONA (sem coligação)
+5.343
+1,42%
+
+RORAIMA:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Neudo Campos
+PTB	Airton Cascavel
+PTB	
+14
+Luta Roraima
+(PTB, PSC, PRN)
+35.805
+44,63%
+Getúlio Cruz
+PSDB	Sérgio Ferreira
+PPR	
+45
+União por Roraima
+(PSDB, PPR, PL, PRP)
+24.972
+31,13%
+César Dias
+PMDB	Flávio Chaves
+PFL	
+15
+Muda Roraima
+(PMDB, PFL, PP)
+12.798
+15,95%
+Airton Dias
+PDT	Ritler Lucena
+PDT	
+12
+Força do Povo Roraima
+(PDT, PMN)
+3.350
+4,17%
+Elvira Alzira da Fonseca e Silva
+PT	Clidenor Andrade
+PT	
+13
+Frente Popular Roraima
+(PT, PV, PCdoB)
+3.305
+4,12%
+
+SANTA CATARINA:
+
+Partidos Nome Cargos
+PPR-PTB-PSC-PL-PFL União por Santa Catarina 
+PDT-PT-PCB-PPS-PSB-PSDB-PCdoB Frente Popular de Santa Catarina
+PMDB-PTRB-PMN-PSD-PV-PRP Viva Santa Catarina 
+
+SÃO PAULO:
+
+Nº	Governador	Vice-governador	Coligação
+Partido(s)
+
+Ref.
+Candidato	Partido	Cargos relevantes	Candidato	Partido	Cargos relevantes
+121		Francisco Rossi
+Francisco Rossi de Almeida	PDT	
+Prefeito de Osasco (1973-1977, 1989-1992);
+Deputado Federal por São Paulo (1979-1983, 1987-1988);
+Secretário Estadual de Educação e Turismo de São Paulo (1980-1981).
+	Junqueira de Azevedo
+Antonio Junqueira de Azevedo	PDT	Sem cargo político anterior	
+Aliança Trabalhista
+(PDT, PV e PRP)
+131		José Dirceu
+José Dirceu de Oliveira e Silva	PT	
+Deputado Estadual por São Paulo (1987-1991).
+	Antônio Galdino
+Antônio Galdino	PSB	
+Vereador de Jundiaí (1960-1963).
+Frente Brasil Popular SP
+(PT, PSB, PPS, PCdoB, PCB, PMN e PSTU)
+151		Barros Munhoz
+José Antonio Barros Munhoz	PMDB	
+Prefeito de Itapira (1977-1983);
+Deputado Estadual por São Paulo (1987-1994);
+Secretário Estadual de Agricultura e Abastecimento de São Paulo (1991-1993);
+Ministro da Agricultura, Pecuária e Abastecimento do Brasil (1993).
+	Arnaldo Jardim
+Arnaldo Calil Pereira Jardim	PMDB	
+Deputado Estadual por São Paulo (1987-1994).
+São Paulo De Todos Nós
+(PMDB, PL e PSD)
+201		Eduardo Resstom
+Eduardo Antonio Romanini Resstom	PSC	Sem cargo político anterior			Hilton Mundin
+Hilton Alberto de Campos Mundin	PSC	Sem cargo político anterior	Partido Isolado	
+361		Ciro Moura
+Ciro Tiziani Moura	PRN	Sem cargo político anterior			Francisco Chagas
+Francisco Chagas	PRN	Sem cargo político anterior	Partido Isolado	
+391		Luiz de Medeiros
+Luiz Antonio de Medeiros Neto	PP	Sem cargo político anterior			Antônio Salim Curiati
+Antônio Salim Curiati	PPR	
+Deputado Estadual por São Paulo (1967-1981);
+Secretário Estadual de Promoção Social de São Paulo (1979-1982);
+Prefeito de São Paulo (1982-1983);
+Deputado Federal por São Paulo (1987-1991).
+Força São Paulo
+(PP e PPR)
+451		Mário Covas
+Mário Covas Júnior	PSDB	
+Secretário Municipal de Obras de Santos (1956-1963);
+Deputado Federal por São Paulo (193-1969, 1983);
+Secretário Estadual dos Transportes de São Paulo (1983);
+Prefeito de São Paulo (1983-1986);
+Senador por São Paulo (1987-1994).
+	Geraldo Alckmin
+Geraldo José Rodrigues Alckmin Filho	PSDB	
+Vereador de Pindamonhangaba (1973-1977);
+Prefeito de Pindamonhangaba (1977-1982);
+Deputado Estadual por São Paulo (1983-1987);
+Deputado Federal por São Paulo (1987-1994).
+Compromisso Com São Paulo
+(PSDB e PFL)
+[10]
+561		Álvaro Soares Dutra
+Álvaro Brandão Soares Dutra	PRONA	Sem cargo político anterior			Rosiris Cônsolo
+Rosiris Margarida Cônsolo Gomes da Silva	PRONA	Sem cargo político anterior	Partido Isolado	
+
+SERGIPE:
+
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Jackson Barreto
+PDT	Francisco Rollemberg
+PMN	
+121
+O Povo na Frente
+(PDT, PMN, PP, PT, PSB, PCdoB)
+282.214
+47,61%
+Albano Franco
+PSDB	José Carlos Machado
+PFL	
+451
+Sergipe tem Futuro
+(PSDB, PFL, PMDB, PPR, PTB, PPS, PL, PSD, PSC, PRP, PTdoB)
+280.926
+47,40%
+José Araújo Filho
+PV	Marlene Soares da Costa
+PCB	
+431
+Frente Libertária
+(PV, PCB, PSTU)
+20.751
+3,50%
+Vera Lúcia Sampaio Tourinho
+PRN	José Soares Pinto
+PTRB	
+361
+PRN, PTRB
+8.852
+1,49%
+
+TOCANTINS:
+Candidatos a governador do estado
+Candidatos a vice-governador	Número	Coligação	Votação	Percentual
+Siqueira Campos
+PPR	Raimundo Boi
+PFL	
+111
+União do Tocantins
+(PPR, PFL, PP, PTB, PV, PMN)
+202.575
+58,73%
+João da Cruz
+PMDB	Edmundo Galdino
+PSDB	
+151
+Movimento de Salvação do Tocantins
+(PMDB, PSDB, PDT, PL, PSC, PSD, PRN, PSB, PCdoB)
+126.138
+36,57%
+Neilton Araújo de Oliveira
+PT	Eduardo Carvalho
+PT	
+131
+PT
+(sem coligação)
+12.227
+3,55%
+Carlos Augusto Solino de Sousa
+PRONA	Márcio Fortes
+PRONA	
+561
+PRONA
+(sem coligação)
+3.982
+1,15%

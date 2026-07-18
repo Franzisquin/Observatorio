@@ -186,7 +186,9 @@ function toggleCandidateDetails(element, nome, partido, status) {
 
   ensureCandidateDetails().then(data => {
     if (!data) {
-      detailsPanel.innerHTML = '<small style="color:var(--err)">Erro ao carregar detalhes.</small>';
+      // Sem arquivo de detalhes para este ano: fecha silenciosamente.
+      detailsPanel.remove();
+      element.classList.remove('details-open');
       return;
     }
 
@@ -202,7 +204,9 @@ function toggleCandidateDetails(element, nome, partido, status) {
     const candData = data[ue] ? data[ue][nomeKey] : null;
 
     if (!candData) {
-      detailsPanel.innerHTML = '<small style="color:var(--muted)">Detalhes não disponíveis.</small>';
+      // Candidato sem detalhes cadastrados: fecha silenciosamente.
+      detailsPanel.remove();
+      element.classList.remove('details-open');
       return;
     }
 
@@ -222,7 +226,7 @@ function toggleCandidateDetails(element, nome, partido, status) {
     // Coligação
     if (candData.coligacao && candData.coligacao !== '#NULO#') {
       html += `<div style="margin-top:4px;"><strong>Coligação:</strong> ${toTitleCase(candData.coligacao)}</div>`;
-      html += `<div style="color:var(--muted); font-size: 0.75rem; line-height:1.2;">${toTitleCase(candData.composicao)}</div>`;
+      html += `<div style="color:var(--muted); font-size: 0.75rem; line-height:1.2;">${candData.composicao}</div>`;
     }
 
     html += '</div>';

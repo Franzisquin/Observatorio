@@ -853,7 +853,7 @@ function renderResultsPanel(props, cargo) {
     const safePartido = escapeAttribute(r.partido || '');
 
     tableHtml += `
-      <tr class="${cleanStatus ? 'prop-cand-' + cleanStatus.toLowerCase().replace(/º/g, '').replace(/°/g, '').replace(/\s+/g, '-') : ''}" data-status="${r.status}">
+      <tr class="${cleanStatus ? 'prop-cand-' + cleanStatus.toLowerCase().replace(/º/g, '').replace(/°/g, '').replace(/\s+/g, '-') : ''}" data-status="${r.status}" data-cand-nome="${safeNome}" data-cand-partido="${safePartido}" style="cursor: pointer;">
         <td class="color-bar-td">
           <button type="button" class="swatch-button cand-color-bar"
                style="background-color: ${sw};"
@@ -1574,11 +1574,16 @@ function ensureDeputyLookupForCargo(cargo) {
   geojson?.features?.forEach((feature) => {
     const props = feature.properties;
     const id = getFeatureSelectionId(props);
+    if (!id) return;
     const z = getProp(props, 'nr_zona');
     const l = getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao');
     const m = getProp(props, 'cd_localidade_tse') || getProp(props, 'CD_MUNICIPIO');
-    if (id && z && l && m) {
+    if (z && l && m) {
       STATE.deputyLookup.set(id, `${parseInt(z, 10)}_${parseInt(m, 10)}_${parseInt(l, 10)}`);
+    } else if (STATE.deputyResults?.[id]) {
+      // Features sinteticas por municipio (1994): o id da feature JA e a
+      // chave de deputyResults — sem zona/local para reconstruir.
+      STATE.deputyLookup.set(id, id);
     }
   });
 }
@@ -1947,7 +1952,14 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     let propStatusHtml = '';
     if (showRules && qeValue > 0) {
       const electionYearNum = parseInt(year_prop) || 2022;
-      if (electionYearNum <= 2016) {
+      if (electionYearNum === 1994) {
+        // Epoch 1994: Barreiras de QE para Sobras e Brancos Válidos
+        if (groupQP > 0) {
+          propStatusHtml = `<span style="font-size: 0.65rem; color: var(--accent, #ffbd21); font-weight: 600; display: block; margin-top: 2px;">QP: ${groupQP} direta(s) &bull; Apto p/ Sobra (bateu o Quociente Eleitoral)</span>`;
+        } else {
+          propStatusHtml = `<span style="font-size: 0.65rem; color: #ff5252; font-weight: 500; display: block; margin-top: 2px;">Eliminado(a): não atingiu o Quociente Eleitoral (regra de 1994) — não disputa sobras</span>`;
+        }
+      } else if (electionYearNum <= 2016) {
         // Epoch 1 (Até 2016): Modelo Tradicional sem regra 80/20 ou restrições de QE
         if (groupQP > 0) {
           propStatusHtml = `<span style="font-size: 0.65rem; color: var(--accent, #ffbd21); font-weight: 600; display: block; margin-top: 2px;">QP: ${groupQP} direta(s) &bull; Apto p/ Sobra (Legislação Histórica)</span>`;
@@ -2086,7 +2098,25 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         
         const votesSuffix = typeof currentCargo === 'string' && currentCargo.startsWith('vereador') ? 'votos' : 'votos estaduais';
         
-        if (electionYearNum <= 2016) {
+        if (electionYearNum === 1994) {
+          // --- EPOCH 1994: REGRAS DE 1994 (BRANCOS VÁLIDOS E BARREIRA DE QE PARA SOBRAS) ---
+          const isPartyQPGe1 = groupQP >= 1;
+          if (candLabel === 'ELEITO POR QP') {
+            ruleExplanation = `Eleito(a) por QP: O partido/coligação conquistou vaga direta ao atingir o Quociente Eleitoral (obteve ${fmtInt(partyStatewideVotes)} votos estaduais; QE de 1994 com brancos era ${fmtInt(qeValue)}).`;
+          } else if (candLabel === 'ELEITO POR MÉDIA') {
+            ruleExplanation = `Eleito(a) por Média: Vaga de sobra obtida porque o partido atingiu o QE na 1ª fase (QP >= 1) e obteve a maior média na distribuição (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+          } else if (candLabel === 'ELEITO') {
+            ruleExplanation = `Eleito(a): Conquistou a vaga com base na votação nominal da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+          } else if (candLabel === 'SUPLENTE') {
+            ruleExplanation = `Suplente: Posicionado na lista de suplentes da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+          } else {
+            if (!isPartyQPGe1) {
+              ruleExplanation = `Não eleito(a): Partido/coligação eliminado da disputa de sobras por não ter atingido o Quociente Eleitoral na 1ª fase (QP < 1) sob a regra de 1994.`;
+            } else {
+              ruleExplanation = `Não eleito(a): Atingiu os mínimos legais, mas a legenda não obteve médias suficientes para conquistar mais vagas.`;
+            }
+          }
+        } else if (electionYearNum <= 2016) {
           // --- EPOCH 1 (ATÉ 2016): MODELO TRADICIONAL SEM BARREIRAS INDIVIDUAIS (SÓ 10% EM 2016) ---
           const has10PercentRule = (electionYearNum === 2016);
           if (candLabel === 'ELEITO POR QP') {
@@ -3571,7 +3601,26 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       
       const votesSuffix = isVereador ? 'votos' : 'votos estaduais';
       
-      if (electionYearNum <= 2016) {
+      if (electionYearNum === 1994) {
+        // --- EPOCH 1994: REGRAS DE 1994 (BRANCOS VÁLIDOS E BARREIRA DE QE PARA SOBRAS) ---
+        const partyQP = qeValue > 0 ? Math.floor(totalPartyStatewideVotes / qeValue) : 0;
+        const isPartyQPGe1 = partyQP >= 1;
+        if (label === 'ELEITO POR QP') {
+          ruleExplanation = `Eleito(a) por QP: O partido/coligação conquistou vaga direta ao atingir o Quociente Eleitoral (obteve ${fmtInt(totalPartyStatewideVotes)} votos estaduais; QE de 1994 com brancos era ${fmtInt(qeValue)}).`;
+        } else if (label === 'ELEITO POR MÉDIA') {
+          ruleExplanation = `Eleito(a) por Média: Vaga de sobra obtida porque o partido atingiu o QE na 1ª fase (QP >= 1) e obteve a maior média na distribuição (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+        } else if (label === 'ELEITO') {
+          ruleExplanation = `Eleito(a): Conquistou a vaga com base na votação nominal da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+        } else if (label === 'SUPLENTE') {
+          ruleExplanation = `Suplente: Posicionado na lista de suplentes da legenda (obteve ${fmtInt(candStatewideVotes)} ${votesSuffix}).`;
+        } else {
+          if (!isPartyQPGe1) {
+            ruleExplanation = `Não eleito(a): Partido/coligação eliminado da distribuição de sobras por não ter atingido o Quociente Eleitoral na 1ª fase (QP < 1) sob a regra de 1994.`;
+          } else {
+            ruleExplanation = `Não eleito(a): Atingiu os mínimos legais, mas a legenda não obteve médias suficientes para conquistar mais vagas.`;
+          }
+        }
+      } else if (electionYearNum <= 2016) {
         // --- EPOCH 1 (ATÉ 2016): MODELO TRADICIONAL ---
         const has10PercentRule = (electionYearNum === 2016);
         if (label === 'ELEITO POR QP') {

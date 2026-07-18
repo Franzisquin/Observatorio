@@ -1417,6 +1417,13 @@ function getMunicipalSummaryEntryForFeature(props, summary) {
   const directCode = getMunicipalityFeatureCode(props);
   if (directCode && summary[directCode]) return summary[directCode];
 
+  // Match por codigo IBGE embutido no resumo (entry.muniCode) — cobre grafias
+  // divergentes entre a malha e os dados (essencial na malha 1994).
+  if (directCode) {
+    const byCode = Object.values(summary).find((entry) => entry && String(entry.muniCode || '') === directCode);
+    if (byCode) return byCode;
+  }
+
   const nome = getMunicipalityFeatureName(props);
   const aliases = typeof getMunicipioAliasSlugs === 'function'
     ? getMunicipioAliasSlugs(nome)
@@ -1571,16 +1578,17 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
     return precomputedSummary;
   }
 
-  // For 2002/2006, use JSON-based official city totals (dot coverage is too sparse)
+  // For 2002/2006 (and 1994, que so tem dados por municipio), use JSON-based
+  // official city totals (dot coverage is too sparse / inexistente)
   const year = String(STATE.currentElectionYear);
-  if (year === '2002' || year === '2006') {
+  if (year === '2002' || year === '2006' || year === '1994') {
     const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
     const officialCityTotals = STATE.generalOfficialTotalsByCity?.[cargoKey]?.[turnoKey];
     if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
       return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
     }
-    // For deputado 2002: use pre-built raw city totals resolved to groups at render time
-    if (year === '2002' && cargoKey.startsWith('deputado')) {
+    // For deputado 2002/1994: use pre-built raw city totals resolved to groups at render time
+    if ((year === '2002' || year === '1994') && cargoKey.startsWith('deputado')) {
       if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
       const rawCityTotals = STATE.deputyCityTotals?.[cargoKey];
       if (rawCityTotals?.size > 0) {
@@ -1803,11 +1811,14 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
 
 function shouldRenderGeneralMunicipalityOverview() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+  const is1994 = String(STATE.currentElectionYear) === '1994';
   if (STATE.currentElectionType !== 'geral') return false;
   if (!uf || uf === 'BR') return false;
   // if (String(currentCargo || '').startsWith('deputado')) return false; // REMOVED: Allow deputies
-  if (STATE.currentMapMode === 'locais') return false;
-  if (currentCidadeFilter !== 'all') return false;
+  if (STATE.currentMapMode === 'locais' && !is1994) return false;
+  // 1994 nao tem locais: o coropletico permanece mesmo com municipio filtrado
+  // (o selecionado fica destacado).
+  if (currentCidadeFilter !== 'all' && !is1994) return false;
   if (currentBairroFilter !== 'all') return false;
   if (currentLocalFilter.trim().length > 2) return false;
   return true;
@@ -1862,12 +1873,14 @@ async function showGeneralMunicipalityOverview(uf) {
     STATE.municipiosLayer = createMunicipiosGeoLayer(geojson, (feature) => {
       const nome = getMunicipalityFeatureName(feature.properties);
       const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
+      const is1994 = String(STATE.currentElectionYear) === '1994';
       currentCidadeFilter = matchedCity;
       currentBairroFilter = 'all';
       currentLocalFilter = '';
       selectedLocationIDs.clear();
       STATE.isFilterAggregationActive = false;
-      STATE.currentMapMode = 'locais';
+      // 1994 nao tem locais: permanece no coropletico com o municipio destacado.
+      if (!is1994) STATE.currentMapMode = 'locais';
       if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
       if (bairroCombobox) bairroCombobox.setValue('');
       if (dom.searchLocal) dom.searchLocal.value = '';
@@ -2060,8 +2073,12 @@ function applyFiltersAndRedraw() {
   }
 
   if (shouldRenderGeneralMunicipalityOverview()) {
-    CURRENT_VISIBLE_FEATURES_CACHE = [];
-    CURRENT_VISIBLE_PROPS_CACHE = [];
+    // Mesmo sem desenhar os pontos, os caches de features visiveis precisam
+    // refletir o filtro atual: getTurnoutStatsForSelection (comparecimento/aptos)
+    // e afins leem daqui — sem isto cairiam no fallback de UMA unica feature.
+    const overviewVisible = geojson.features.filter((feature) => filterFeature(feature));
+    CURRENT_VISIBLE_FEATURES_CACHE = overviewVisible;
+    CURRENT_VISIBLE_PROPS_CACHE = overviewVisible.map((feature) => feature.properties);
     void showGeneralMunicipalityOverview(dom.selectUFGeneral?.value);
     if (STATE.isLoadingDataset) {
       clearPendingFilterChanges();
@@ -2302,9 +2319,12 @@ function filterFeature(feature) {
           const z = parseInt(getProp(props, 'nr_zona'));
           const l = parseInt(getProp(props, 'nr_locvot') || getProp(props, 'nr_local_votacao'));
           const m = parseInt(getProp(props, 'cd_localidade_tse') || getProp(props, 'CD_MUNICIPIO'));
-          const hasValidKey = !isNaN(z) && !isNaN(l) && (isVereador || !isNaN(m));
+          // Chave direta primeiro: features sinteticas (1994) tem id_unico = chave.
+          const directKey = String(getProp(props, 'id_unico') || getProp(props, 'local_key') || '');
+          const hasDirectKey = !isVereador && directKey && STATE.deputyResults?.[directKey];
+          const hasValidKey = hasDirectKey || (!isNaN(z) && !isNaN(l) && (isVereador || !isNaN(m)));
           if (hasValidKey) {
-            const resultKey = isVereador ? `${z}_${l}` : `${z}_${m}_${l}`;
+            const resultKey = hasDirectKey ? directKey : (isVereador ? `${z}_${l}` : `${z}_${m}_${l}`);
             const resultStore = isVereador ? STATE.vereadorResults : STATE.deputyResults;
             const allRes = resultStore[resultKey];
             const votes = allRes?.[typeKey];
@@ -3027,15 +3047,21 @@ function clearSelection(updateMap = true) {
 async function fetchMunicipalPolygonGeoJSON(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!ufNorm) return null;
-  if (MUNICIPAL_POLYGON_CACHE.has(ufNorm)) {
-    return MUNICIPAL_POLYGON_CACHE.get(ufNorm);
+  // 1994 (geral) usa a malha municipal historica de 1994 (convertida do SVG);
+  // demais anos usam a malha atual.
+  const is1994 = STATE.currentElectionType === 'geral' && String(STATE.currentElectionYear) === '1994';
+  const cacheKey = is1994 ? `1994|${ufNorm}` : ufNorm;
+  if (MUNICIPAL_POLYGON_CACHE.has(cacheKey)) {
+    return MUNICIPAL_POLYGON_CACHE.get(cacheKey);
   }
 
   const promise = (async () => {
-    const urls = [
-      `${DATA_BASE_URL}municipios_hd/municipios_${ufNorm}.geojson`,
-      `${DATA_BASE_URL}municipios/municipios_${ufNorm}.geojson`
-    ];
+    const urls = is1994
+      ? [`${DATA_BASE_URL}municipios_1994/municipios_1994_${ufNorm}.geojson`]
+      : [
+        `${DATA_BASE_URL}municipios_hd/municipios_${ufNorm}.geojson`,
+        `${DATA_BASE_URL}municipios/municipios_${ufNorm}.geojson`
+      ];
 
     for (const url of urls) {
       try {
@@ -3050,11 +3076,11 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
     throw new Error(`Geometria municipal não encontrada para ${ufNorm}.`);
   })();
 
-  MUNICIPAL_POLYGON_CACHE.set(ufNorm, promise);
+  MUNICIPAL_POLYGON_CACHE.set(cacheKey, promise);
   // Nao deixa uma promise rejeitada envenenar o cache: sem isto, uma unica
   // falha de rede quebraria o resumo estadual da UF pela sessao inteira.
   promise.catch(() => {
-    if (MUNICIPAL_POLYGON_CACHE.get(ufNorm) === promise) MUNICIPAL_POLYGON_CACHE.delete(ufNorm);
+    if (MUNICIPAL_POLYGON_CACHE.get(cacheKey) === promise) MUNICIPAL_POLYGON_CACHE.delete(cacheKey);
   });
   return promise;
 }
