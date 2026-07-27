@@ -1,0 +1,348 @@
+{
+ "quant": 255,
+ "nBuckets": 41,
+ "bucketKeys": [
+  "sexo|M",
+  "sexo|F",
+  "idade|16-17",
+  "idade|18-24",
+  "idade|25-34",
+  "idade|35-44",
+  "idade|45-59",
+  "idade|60-69",
+  "idade|70+",
+  "escolaridade|analfabeto",
+  "escolaridade|le_escreve",
+  "escolaridade|fund_inc",
+  "escolaridade|fund_comp",
+  "escolaridade|medio_inc",
+  "escolaridade|medio_comp",
+  "escolaridade|sup_inc",
+  "escolaridade|sup_comp",
+  "estado_civil|solteiro",
+  "estado_civil|casado",
+  "estado_civil|separado",
+  "estado_civil|viuvo",
+  "deficiencia|com",
+  "deficiencia|sem",
+  "raca|branca",
+  "raca|preta",
+  "raca|parda",
+  "raca|amarela",
+  "raca|indigena",
+  "renda|ate1k",
+  "renda|1k2k",
+  "renda|2k3k",
+  "renda|3k5k",
+  "renda|5k+",
+  "religiao|catolica",
+  "religiao|evangelica",
+  "religiao|outras",
+  "religiao|sem",
+  "voto2022|lula",
+  "voto2022|bolsonaro",
+  "voto2022|nulo_branco",
+  "voto2022|abstencao"
+ ],
+ "dimensions": [
+  {
+   "key": "sexo",
+   "label": "Sexo",
+   "base": "elec",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "M",
+     "label": "Homens"
+    },
+    {
+     "key": "F",
+     "label": "Mulheres"
+    }
+   ]
+  },
+  {
+   "key": "idade",
+   "label": "Faixa etaria",
+   "base": "elec",
+   "ordinal": true,
+   "buckets": [
+    {
+     "key": "16-17",
+     "label": "16 a 17"
+    },
+    {
+     "key": "18-24",
+     "label": "18 a 24"
+    },
+    {
+     "key": "25-34",
+     "label": "25 a 34"
+    },
+    {
+     "key": "35-44",
+     "label": "35 a 44"
+    },
+    {
+     "key": "45-59",
+     "label": "45 a 59"
+    },
+    {
+     "key": "60-69",
+     "label": "60 a 69"
+    },
+    {
+     "key": "70+",
+     "label": "70 ou mais"
+    }
+   ]
+  },
+  {
+   "key": "escolaridade",
+   "label": "Grau de instrucao",
+   "base": "elec",
+   "ordinal": true,
+   "buckets": [
+    {
+     "key": "analfabeto",
+     "label": "Analfabeto"
+    },
+    {
+     "key": "le_escreve",
+     "label": "Le e escreve"
+    },
+    {
+     "key": "fund_inc",
+     "label": "Fundamental incompleto"
+    },
+    {
+     "key": "fund_comp",
+     "label": "Fundamental completo"
+    },
+    {
+     "key": "medio_inc",
+     "label": "Medio incompleto"
+    },
+    {
+     "key": "medio_comp",
+     "label": "Medio completo"
+    },
+    {
+     "key": "sup_inc",
+     "label": "Superior incompleto"
+    },
+    {
+     "key": "sup_comp",
+     "label": "Superior completo"
+    }
+   ]
+  },
+  {
+   "key": "estado_civil",
+   "label": "Estado civil",
+   "base": "elec",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "solteiro",
+     "label": "Solteiro"
+    },
+    {
+     "key": "casado",
+     "label": "Casado"
+    },
+    {
+     "key": "separado",
+     "label": "Separado ou divorciado"
+    },
+    {
+     "key": "viuvo",
+     "label": "Viuvo"
+    }
+   ]
+  },
+  {
+   "key": "deficiencia",
+   "label": "Deficiencia",
+   "base": "elec",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "com",
+     "label": "Com deficiencia"
+    },
+    {
+     "key": "sem",
+     "label": "Sem deficiencia"
+    }
+   ]
+  },
+  {
+   "key": "raca",
+   "label": "Cor ou raca (Censo)",
+   "base": "pop",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "branca",
+     "label": "Branca"
+    },
+    {
+     "key": "preta",
+     "label": "Preta"
+    },
+    {
+     "key": "parda",
+     "label": "Parda"
+    },
+    {
+     "key": "amarela",
+     "label": "Amarela"
+    },
+    {
+     "key": "indigena",
+     "label": "Indigena"
+    }
+   ]
+  },
+  {
+   "key": "renda",
+   "label": "Renda media do entorno",
+   "base": "pop",
+   "ordinal": true,
+   "buckets": [
+    {
+     "key": "ate1k",
+     "label": "Ate R$ 1.000"
+    },
+    {
+     "key": "1k2k",
+     "label": "R$ 1.000 a 2.000"
+    },
+    {
+     "key": "2k3k",
+     "label": "R$ 2.000 a 3.000"
+    },
+    {
+     "key": "3k5k",
+     "label": "R$ 3.000 a 5.000"
+    },
+    {
+     "key": "5k+",
+     "label": "Acima de R$ 5.000"
+    }
+   ]
+  },
+  {
+   "key": "religiao",
+   "label": "Religiao (Censo, municipal)",
+   "base": "pop",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "catolica",
+     "label": "Catolica"
+    },
+    {
+     "key": "evangelica",
+     "label": "Evangelica"
+    },
+    {
+     "key": "outras",
+     "label": "Outras"
+    },
+    {
+     "key": "sem",
+     "label": "Sem religiao"
+    }
+   ]
+  },
+  {
+   "key": "voto2022",
+   "label": "Voto em 2022 (2o turno)",
+   "base": "elec",
+   "ordinal": false,
+   "buckets": [
+    {
+     "key": "lula",
+     "label": "Lula (PT)"
+    },
+    {
+     "key": "bolsonaro",
+     "label": "Bolsonaro (PL)"
+    },
+    {
+     "key": "nulo_branco",
+     "label": "Nulo ou branco"
+    },
+    {
+     "key": "abstencao",
+     "label": "Abstencao"
+    }
+   ]
+  }
+ ],
+ "headerBytes": 18,
+ "recordBytes": 59,
+ "header": [
+  {
+   "name": "cd_municipio",
+   "type": "<u4",
+   "offset": 0
+  },
+  {
+   "name": "cod_ibge",
+   "type": "<u4",
+   "offset": 4
+  },
+  {
+   "name": "nr_zona",
+   "type": "<u2",
+   "offset": 8
+  },
+  {
+   "name": "nr_locvot",
+   "type": "<u2",
+   "offset": 10
+  },
+  {
+   "name": "aptos",
+   "type": "<u4",
+   "offset": 12
+  },
+  {
+   "name": "flags",
+   "type": "|u1",
+   "offset": 16
+  }
+ ],
+ "ufs": {
+  "AC": 679,
+  "AL": 1085,
+  "AM": 1650,
+  "AP": 382,
+  "BA": 9324,
+  "CE": 6783,
+  "DF": 614,
+  "ES": 1768,
+  "GO": 2494,
+  "MA": 5886,
+  "MG": 10251,
+  "MS": 1033,
+  "MT": 1519,
+  "PA": 5919,
+  "PB": 1843,
+  "PE": 3374,
+  "PI": 3500,
+  "PR": 4841,
+  "RJ": 5050,
+  "RN": 1583,
+  "RO": 674,
+  "RR": 386,
+  "RS": 7819,
+  "SC": 3473,
+  "SE": 1209,
+  "SP": 11022,
+  "TO": 935
+ }
+}

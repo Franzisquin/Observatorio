@@ -1,0 +1,982 @@
+{
+ "AC": {
+  "mae_trivial": 0.04606,
+  "sexo": {
+   "mae": 0.04557,
+   "ganho": 0.0107
+  },
+  "idade": {
+   "mae": 0.04375,
+   "ganho": 0.05
+  },
+  "escolaridade": {
+   "mae": 0.03817,
+   "ganho": 0.1713
+  },
+  "estado_civil": {
+   "mae": 0.04356,
+   "ganho": 0.0542
+  },
+  "deficiencia": {
+   "mae": 0.04605,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.04432,
+   "ganho": 0.0377
+  },
+  "renda": {
+   "mae": 0.04502,
+   "ganho": 0.0224
+  },
+  "religiao": {
+   "mae": 0.04142,
+   "ganho": 0.1007
+  }
+ },
+ "AL": {
+  "mae_trivial": 0.05978,
+  "sexo": {
+   "mae": 0.05932,
+   "ganho": 0.0076
+  },
+  "idade": {
+   "mae": 0.05859,
+   "ganho": 0.0199
+  },
+  "escolaridade": {
+   "mae": 0.04136,
+   "ganho": 0.3081
+  },
+  "estado_civil": {
+   "mae": 0.05902,
+   "ganho": 0.0126
+  },
+  "deficiencia": {
+   "mae": 0.05977,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.05428,
+   "ganho": 0.092
+  },
+  "renda": {
+   "mae": 0.05584,
+   "ganho": 0.0658
+  },
+  "religiao": {
+   "mae": 0.04495,
+   "ganho": 0.248
+  }
+ },
+ "AM": {
+  "mae_trivial": 0.0745,
+  "sexo": {
+   "mae": 0.07349,
+   "ganho": 0.0135
+  },
+  "idade": {
+   "mae": 0.07037,
+   "ganho": 0.0554
+  },
+  "escolaridade": {
+   "mae": 0.05245,
+   "ganho": 0.296
+  },
+  "estado_civil": {
+   "mae": 0.06658,
+   "ganho": 0.1063
+  },
+  "deficiencia": {
+   "mae": 0.0745,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.06384,
+   "ganho": 0.1431
+  },
+  "renda": {
+   "mae": 0.07144,
+   "ganho": 0.041
+  },
+  "religiao": {
+   "mae": 0.06996,
+   "ganho": 0.061
+  }
+ },
+ "AP": {
+  "mae_trivial": 0.0443,
+  "sexo": {
+   "mae": 0.04368,
+   "ganho": 0.014
+  },
+  "idade": {
+   "mae": 0.04281,
+   "ganho": 0.0336
+  },
+  "escolaridade": {
+   "mae": 0.03458,
+   "ganho": 0.2194
+  },
+  "estado_civil": {
+   "mae": 0.04425,
+   "ganho": 0.0011
+  },
+  "deficiencia": {
+   "mae": 0.0443,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.04073,
+   "ganho": 0.0806
+  },
+  "renda": {
+   "mae": 0.03751,
+   "ganho": 0.1533
+  },
+  "religiao": {
+   "mae": 0.04224,
+   "ganho": 0.0464
+  }
+ },
+ "BA": {
+  "mae_trivial": 0.04815,
+  "sexo": {
+   "mae": 0.04789,
+   "ganho": 0.0054
+  },
+  "idade": {
+   "mae": 0.04784,
+   "ganho": 0.0065
+  },
+  "escolaridade": {
+   "mae": 0.0412,
+   "ganho": 0.1443
+  },
+  "estado_civil": {
+   "mae": 0.04724,
+   "ganho": 0.0189
+  },
+  "deficiencia": {
+   "mae": 0.04815,
+   "ganho": -0.0
+  },
+  "raca": {
+   "mae": 0.04555,
+   "ganho": 0.0539
+  },
+  "renda": {
+   "mae": 0.0454,
+   "ganho": 0.0571
+  },
+  "religiao": {
+   "mae": 0.04426,
+   "ganho": 0.0808
+  }
+ },
+ "CE": {
+  "mae_trivial": 0.05052,
+  "sexo": {
+   "mae": 0.05008,
+   "ganho": 0.0088
+  },
+  "idade": {
+   "mae": 0.04968,
+   "ganho": 0.0165
+  },
+  "escolaridade": {
+   "mae": 0.03827,
+   "ganho": 0.2425
+  },
+  "estado_civil": {
+   "mae": 0.05011,
+   "ganho": 0.0081
+  },
+  "deficiencia": {
+   "mae": 0.05051,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.04902,
+   "ganho": 0.0297
+  },
+  "renda": {
+   "mae": 0.04839,
+   "ganho": 0.0421
+  },
+  "religiao": {
+   "mae": 0.04329,
+   "ganho": 0.143
+  }
+ },
+ "DF": {
+  "mae_trivial": 0.0211,
+  "sexo": {
+   "mae": 0.02109,
+   "ganho": 0.0004
+  },
+  "idade": {
+   "mae": 0.0205,
+   "ganho": 0.0283
+  },
+  "escolaridade": {
+   "mae": 0.01931,
+   "ganho": 0.0848
+  },
+  "estado_civil": {
+   "mae": 0.02038,
+   "ganho": 0.0343
+  },
+  "deficiencia": {
+   "mae": 0.0211,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.02029,
+   "ganho": 0.0385
+  },
+  "renda": {
+   "mae": 0.02008,
+   "ganho": 0.0485
+  },
+  "religiao": {
+   "mae": 0.0211,
+   "ganho": 0.0
+  }
+ },
+ "ES": {
+  "mae_trivial": 0.03971,
+  "sexo": {
+   "mae": 0.0397,
+   "ganho": 0.0003
+  },
+  "idade": {
+   "mae": 0.03899,
+   "ganho": 0.0182
+  },
+  "escolaridade": {
+   "mae": 0.03674,
+   "ganho": 0.0749
+  },
+  "estado_civil": {
+   "mae": 0.03714,
+   "ganho": 0.0648
+  },
+  "deficiencia": {
+   "mae": 0.03971,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.03345,
+   "ganho": 0.1578
+  },
+  "renda": {
+   "mae": 0.03777,
+   "ganho": 0.0489
+  },
+  "religiao": {
+   "mae": 0.03943,
+   "ganho": 0.0071
+  }
+ },
+ "GO": {
+  "mae_trivial": 0.03581,
+  "sexo": {
+   "mae": 0.03573,
+   "ganho": 0.0023
+  },
+  "idade": {
+   "mae": 0.03546,
+   "ganho": 0.0096
+  },
+  "escolaridade": {
+   "mae": 0.02987,
+   "ganho": 0.1659
+  },
+  "estado_civil": {
+   "mae": 0.03452,
+   "ganho": 0.0359
+  },
+  "deficiencia": {
+   "mae": 0.03581,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.03229,
+   "ganho": 0.0981
+  },
+  "renda": {
+   "mae": 0.03307,
+   "ganho": 0.0764
+  },
+  "religiao": {
+   "mae": 0.03528,
+   "ganho": 0.0149
+  }
+ },
+ "MA": {
+  "mae_trivial": 0.05505,
+  "sexo": {
+   "mae": 0.05461,
+   "ganho": 0.008
+  },
+  "idade": {
+   "mae": 0.0542,
+   "ganho": 0.0154
+  },
+  "escolaridade": {
+   "mae": 0.04216,
+   "ganho": 0.2342
+  },
+  "estado_civil": {
+   "mae": 0.0527,
+   "ganho": 0.0427
+  },
+  "deficiencia": {
+   "mae": 0.05505,
+   "ganho": -0.0
+  },
+  "raca": {
+   "mae": 0.04993,
+   "ganho": 0.093
+  },
+  "renda": {
+   "mae": 0.05153,
+   "ganho": 0.064
+  },
+  "religiao": {
+   "mae": 0.05055,
+   "ganho": 0.0817
+  }
+ },
+ "MG": {
+  "mae_trivial": 0.04717,
+  "sexo": {
+   "mae": 0.04708,
+   "ganho": 0.0019
+  },
+  "idade": {
+   "mae": 0.04653,
+   "ganho": 0.0137
+  },
+  "escolaridade": {
+   "mae": 0.04166,
+   "ganho": 0.1168
+  },
+  "estado_civil": {
+   "mae": 0.04663,
+   "ganho": 0.0114
+  },
+  "deficiencia": {
+   "mae": 0.04716,
+   "ganho": 0.0002
+  },
+  "raca": {
+   "mae": 0.04327,
+   "ganho": 0.0827
+  },
+  "renda": {
+   "mae": 0.04382,
+   "ganho": 0.071
+  },
+  "religiao": {
+   "mae": 0.04581,
+   "ganho": 0.0288
+  }
+ },
+ "MS": {
+  "mae_trivial": 0.04369,
+  "sexo": {
+   "mae": 0.04361,
+   "ganho": 0.0019
+  },
+  "idade": {
+   "mae": 0.04258,
+   "ganho": 0.0253
+  },
+  "escolaridade": {
+   "mae": 0.03154,
+   "ganho": 0.2782
+  },
+  "estado_civil": {
+   "mae": 0.03995,
+   "ganho": 0.0857
+  },
+  "deficiencia": {
+   "mae": 0.04369,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.03441,
+   "ganho": 0.2125
+  },
+  "renda": {
+   "mae": 0.0377,
+   "ganho": 0.1371
+  },
+  "religiao": {
+   "mae": 0.04296,
+   "ganho": 0.0167
+  }
+ },
+ "MT": {
+  "mae_trivial": 0.0491,
+  "sexo": {
+   "mae": 0.04893,
+   "ganho": 0.0036
+  },
+  "idade": {
+   "mae": 0.04888,
+   "ganho": 0.0046
+  },
+  "escolaridade": {
+   "mae": 0.04422,
+   "ganho": 0.0994
+  },
+  "estado_civil": {
+   "mae": 0.04688,
+   "ganho": 0.0453
+  },
+  "deficiencia": {
+   "mae": 0.0491,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.03678,
+   "ganho": 0.2509
+  },
+  "renda": {
+   "mae": 0.04453,
+   "ganho": 0.0932
+  },
+  "religiao": {
+   "mae": 0.04899,
+   "ganho": 0.0022
+  }
+ },
+ "PA": {
+  "mae_trivial": 0.06029,
+  "sexo": {
+   "mae": 0.05995,
+   "ganho": 0.0056
+  },
+  "idade": {
+   "mae": 0.05924,
+   "ganho": 0.0173
+  },
+  "escolaridade": {
+   "mae": 0.05181,
+   "ganho": 0.1405
+  },
+  "estado_civil": {
+   "mae": 0.05603,
+   "ganho": 0.0706
+  },
+  "deficiencia": {
+   "mae": 0.06029,
+   "ganho": -0.0001
+  },
+  "raca": {
+   "mae": 0.05648,
+   "ganho": 0.0632
+  },
+  "renda": {
+   "mae": 0.05681,
+   "ganho": 0.0577
+  },
+  "religiao": {
+   "mae": 0.05765,
+   "ganho": 0.0437
+  }
+ },
+ "PB": {
+  "mae_trivial": 0.0543,
+  "sexo": {
+   "mae": 0.05371,
+   "ganho": 0.0109
+  },
+  "idade": {
+   "mae": 0.05374,
+   "ganho": 0.0103
+  },
+  "escolaridade": {
+   "mae": 0.03613,
+   "ganho": 0.3346
+  },
+  "estado_civil": {
+   "mae": 0.05393,
+   "ganho": 0.0068
+  },
+  "deficiencia": {
+   "mae": 0.0543,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.05102,
+   "ganho": 0.0603
+  },
+  "renda": {
+   "mae": 0.04872,
+   "ganho": 0.1028
+  },
+  "religiao": {
+   "mae": 0.04093,
+   "ganho": 0.2462
+  }
+ },
+ "PE": {
+  "mae_trivial": 0.04976,
+  "sexo": {
+   "mae": 0.04943,
+   "ganho": 0.0067
+  },
+  "idade": {
+   "mae": 0.04858,
+   "ganho": 0.0238
+  },
+  "escolaridade": {
+   "mae": 0.03726,
+   "ganho": 0.2512
+  },
+  "estado_civil": {
+   "mae": 0.04949,
+   "ganho": 0.0054
+  },
+  "deficiencia": {
+   "mae": 0.04975,
+   "ganho": 0.0002
+  },
+  "raca": {
+   "mae": 0.04659,
+   "ganho": 0.0637
+  },
+  "renda": {
+   "mae": 0.04745,
+   "ganho": 0.0463
+  },
+  "religiao": {
+   "mae": 0.04027,
+   "ganho": 0.1907
+  }
+ },
+ "PI": {
+  "mae_trivial": 0.04554,
+  "sexo": {
+   "mae": 0.0449,
+   "ganho": 0.0141
+  },
+  "idade": {
+   "mae": 0.04521,
+   "ganho": 0.0073
+  },
+  "escolaridade": {
+   "mae": 0.0329,
+   "ganho": 0.2775
+  },
+  "estado_civil": {
+   "mae": 0.04524,
+   "ganho": 0.0066
+  },
+  "deficiencia": {
+   "mae": 0.04554,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.04362,
+   "ganho": 0.0422
+  },
+  "renda": {
+   "mae": 0.04217,
+   "ganho": 0.0741
+  },
+  "religiao": {
+   "mae": 0.04425,
+   "ganho": 0.0283
+  }
+ },
+ "PR": {
+  "mae_trivial": 0.03905,
+  "sexo": {
+   "mae": 0.03898,
+   "ganho": 0.0017
+  },
+  "idade": {
+   "mae": 0.03831,
+   "ganho": 0.0189
+  },
+  "escolaridade": {
+   "mae": 0.03339,
+   "ganho": 0.1448
+  },
+  "estado_civil": {
+   "mae": 0.03749,
+   "ganho": 0.04
+  },
+  "deficiencia": {
+   "mae": 0.03904,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.03539,
+   "ganho": 0.0938
+  },
+  "renda": {
+   "mae": 0.03539,
+   "ganho": 0.0937
+  },
+  "religiao": {
+   "mae": 0.03834,
+   "ganho": 0.0182
+  }
+ },
+ "RJ": {
+  "mae_trivial": 0.03443,
+  "sexo": {
+   "mae": 0.03439,
+   "ganho": 0.0011
+  },
+  "idade": {
+   "mae": 0.03246,
+   "ganho": 0.0574
+  },
+  "escolaridade": {
+   "mae": 0.03307,
+   "ganho": 0.0397
+  },
+  "estado_civil": {
+   "mae": 0.0343,
+   "ganho": 0.0039
+  },
+  "deficiencia": {
+   "mae": 0.03443,
+   "ganho": -0.0
+  },
+  "raca": {
+   "mae": 0.0329,
+   "ganho": 0.0445
+  },
+  "renda": {
+   "mae": 0.03287,
+   "ganho": 0.0454
+  },
+  "religiao": {
+   "mae": 0.0324,
+   "ganho": 0.0591
+  }
+ },
+ "RN": {
+  "mae_trivial": 0.04689,
+  "sexo": {
+   "mae": 0.0465,
+   "ganho": 0.0082
+  },
+  "idade": {
+   "mae": 0.04647,
+   "ganho": 0.0088
+  },
+  "escolaridade": {
+   "mae": 0.0344,
+   "ganho": 0.2662
+  },
+  "estado_civil": {
+   "mae": 0.0461,
+   "ganho": 0.0167
+  },
+  "deficiencia": {
+   "mae": 0.04689,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.04549,
+   "ganho": 0.0298
+  },
+  "renda": {
+   "mae": 0.04192,
+   "ganho": 0.106
+  },
+  "religiao": {
+   "mae": 0.04179,
+   "ganho": 0.1086
+  }
+ },
+ "RO": {
+  "mae_trivial": 0.03537,
+  "sexo": {
+   "mae": 0.03533,
+   "ganho": 0.0011
+  },
+  "idade": {
+   "mae": 0.03508,
+   "ganho": 0.0082
+  },
+  "escolaridade": {
+   "mae": 0.03337,
+   "ganho": 0.0566
+  },
+  "estado_civil": {
+   "mae": 0.03338,
+   "ganho": 0.0562
+  },
+  "deficiencia": {
+   "mae": 0.03537,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.03155,
+   "ganho": 0.108
+  },
+  "renda": {
+   "mae": 0.03417,
+   "ganho": 0.034
+  },
+  "religiao": {
+   "mae": 0.03479,
+   "ganho": 0.0163
+  }
+ },
+ "RR": {
+  "mae_trivial": 0.03972,
+  "sexo": {
+   "mae": 0.03929,
+   "ganho": 0.0109
+  },
+  "idade": {
+   "mae": 0.03875,
+   "ganho": 0.0245
+  },
+  "escolaridade": {
+   "mae": 0.03459,
+   "ganho": 0.1291
+  },
+  "estado_civil": {
+   "mae": 0.03994,
+   "ganho": -0.0055
+  },
+  "deficiencia": {
+   "mae": 0.03973,
+   "ganho": -0.0003
+  },
+  "raca": {
+   "mae": 0.03323,
+   "ganho": 0.1634
+  },
+  "renda": {
+   "mae": 0.03791,
+   "ganho": 0.0456
+  },
+  "religiao": {
+   "mae": 0.03822,
+   "ganho": 0.0378
+  }
+ },
+ "RS": {
+  "mae_trivial": 0.05172,
+  "sexo": {
+   "mae": 0.05162,
+   "ganho": 0.0018
+  },
+  "idade": {
+   "mae": 0.05139,
+   "ganho": 0.0064
+  },
+  "escolaridade": {
+   "mae": 0.05029,
+   "ganho": 0.0277
+  },
+  "estado_civil": {
+   "mae": 0.04616,
+   "ganho": 0.1075
+  },
+  "deficiencia": {
+   "mae": 0.05172,
+   "ganho": -0.0
+  },
+  "raca": {
+   "mae": 0.04986,
+   "ganho": 0.0359
+  },
+  "renda": {
+   "mae": 0.05015,
+   "ganho": 0.0304
+  },
+  "religiao": {
+   "mae": 0.04631,
+   "ganho": 0.1046
+  }
+ },
+ "SC": {
+  "mae_trivial": 0.04215,
+  "sexo": {
+   "mae": 0.04213,
+   "ganho": 0.0004
+  },
+  "idade": {
+   "mae": 0.04188,
+   "ganho": 0.0064
+  },
+  "escolaridade": {
+   "mae": 0.04149,
+   "ganho": 0.0157
+  },
+  "estado_civil": {
+   "mae": 0.03899,
+   "ganho": 0.0749
+  },
+  "deficiencia": {
+   "mae": 0.04214,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.04023,
+   "ganho": 0.0454
+  },
+  "renda": {
+   "mae": 0.04113,
+   "ganho": 0.0242
+  },
+  "religiao": {
+   "mae": 0.04066,
+   "ganho": 0.0352
+  }
+ },
+ "SE": {
+  "mae_trivial": 0.04207,
+  "sexo": {
+   "mae": 0.04165,
+   "ganho": 0.0101
+  },
+  "idade": {
+   "mae": 0.0414,
+   "ganho": 0.0161
+  },
+  "escolaridade": {
+   "mae": 0.03093,
+   "ganho": 0.2648
+  },
+  "estado_civil": {
+   "mae": 0.04051,
+   "ganho": 0.0373
+  },
+  "deficiencia": {
+   "mae": 0.04208,
+   "ganho": -0.0001
+  },
+  "raca": {
+   "mae": 0.03943,
+   "ganho": 0.0629
+  },
+  "renda": {
+   "mae": 0.03814,
+   "ganho": 0.0935
+  },
+  "religiao": {
+   "mae": 0.03954,
+   "ganho": 0.0602
+  }
+ },
+ "SP": {
+  "mae_trivial": 0.04307,
+  "sexo": {
+   "mae": 0.04302,
+   "ganho": 0.001
+  },
+  "idade": {
+   "mae": 0.04097,
+   "ganho": 0.0488
+  },
+  "escolaridade": {
+   "mae": 0.04021,
+   "ganho": 0.0663
+  },
+  "estado_civil": {
+   "mae": 0.03658,
+   "ganho": 0.1507
+  },
+  "deficiencia": {
+   "mae": 0.04306,
+   "ganho": 0.0001
+  },
+  "raca": {
+   "mae": 0.03569,
+   "ganho": 0.1712
+  },
+  "renda": {
+   "mae": 0.04026,
+   "ganho": 0.0651
+  },
+  "religiao": {
+   "mae": 0.04135,
+   "ganho": 0.0397
+  }
+ },
+ "TO": {
+  "mae_trivial": 0.05199,
+  "sexo": {
+   "mae": 0.05128,
+   "ganho": 0.0136
+  },
+  "idade": {
+   "mae": 0.05095,
+   "ganho": 0.0201
+  },
+  "escolaridade": {
+   "mae": 0.03515,
+   "ganho": 0.3239
+  },
+  "estado_civil": {
+   "mae": 0.04888,
+   "ganho": 0.06
+  },
+  "deficiencia": {
+   "mae": 0.05199,
+   "ganho": -0.0
+  },
+  "raca": {
+   "mae": 0.04093,
+   "ganho": 0.2128
+  },
+  "renda": {
+   "mae": 0.04559,
+   "ganho": 0.1231
+  },
+  "religiao": {
+   "mae": 0.04453,
+   "ganho": 0.1435
+  }
+ },
+ "BR": {
+  "mae_trivial": 0.06605,
+  "sexo": {
+   "mae": 0.066,
+   "ganho": 0.0008
+  },
+  "idade": {
+   "mae": 0.06461,
+   "ganho": 0.0218
+  },
+  "escolaridade": {
+   "mae": 0.05827,
+   "ganho": 0.1177
+  },
+  "estado_civil": {
+   "mae": 0.06087,
+   "ganho": 0.0784
+  },
+  "deficiencia": {
+   "mae": 0.06604,
+   "ganho": 0.0
+  },
+  "raca": {
+   "mae": 0.0554,
+   "ganho": 0.1611
+  },
+  "renda": {
+   "mae": 0.05961,
+   "ganho": 0.0975
+  },
+  "religiao": {
+   "mae": 0.0623,
+   "ganho": 0.0566
+  }
+ }
+}

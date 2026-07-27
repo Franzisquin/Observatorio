@@ -10,3 +10,8 @@ __pycache__/
 1994/**/*.csv
 1994/*.zip
 
+# Perfil do eleitorado 2026 baixado do CDN do TSE (~2,5 GB, regeneravel por
+# scripts/baixar_perfil_eleitorado_2026.py). So os agregados por local de votacao
+# em resultados_geo/eleitorado_2026/ entram no repo.
+scratch/eleitorado/2026/
+
