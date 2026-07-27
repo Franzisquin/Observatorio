@@ -160,6 +160,8 @@ const SIM = {
   regioesIBGE: null,
   // Sliders regionais: { [código_região]: { cand_1: 50, outros: 20, ... } }
   regionSliders: {},
+  // Resultado real de 2022 por região intermediária (base dos sliders regionais)
+  base2022Regioes: null,
   // Sliders de macrorregião (presidencial): { '1': { cand_1: 50, ... }, ... }
   macroSliders: {},
   // Seções expandidas (IDs das seções)
@@ -449,6 +451,7 @@ async function initSimulador() {
     simAddCandidato('Renan Santos', 'MISSÃO');
     simAddCandidato('Romeu Zema', 'NOVO');
     simAddCandidato('Ronaldo Caiado', 'PSD');
+    simAplicarBase2022PorMacrorregiao();
   }
 
   // Populate party datalist
@@ -541,12 +544,20 @@ async function loadSimuladorData() {
             });
           }
           
-          const govMap = new Map();
+          // O par NR_ZONA + NR_LOCAL_VOTACAO se repete em ~19% dos locais (a mesma numeração
+          // aparece em zonas/municípios diferentes), então o join é feito por local_id — único
+          // e presente nos 27 estados. A chave zona+local fica só como reserva, e é descartada
+          // quando ambígua para não colar votos no local errado.
+          const govPorLocalId = new Map();
+          const govPorZonaLocal = new Map();
           if (govData && govData.features) {
              govData.features.forEach(f => {
-                 // Try match NR_LOCAL_VOTACAO and NR_ZONA
                  const p = f.properties;
-                 govMap.set(`${p.NR_ZONA}_${p.NR_LOCAL_VOTACAO}`, p);
+                 if (p.local_id !== undefined && p.local_id !== null && p.local_id !== '') {
+                   govPorLocalId.set(String(p.local_id), p);
+                 }
+                 const zl = `${p.NR_ZONA}_${p.NR_LOCAL_VOTACAO}`;
+                 govPorZonaLocal.set(zl, govPorZonaLocal.has(zl) ? null : p);
              });
           }
 
@@ -558,7 +569,11 @@ async function loadSimuladorData() {
               f.properties = { ...f.properties, ...demoProps };
             }
             
-            let govProps = govMap.get(`${f.properties.NR_ZONA}_${f.properties.NR_LOCAL_VOTACAO}`);
+            const localId = f.properties.local_id;
+            let govProps = (localId !== undefined && localId !== null && localId !== '')
+              ? govPorLocalId.get(String(localId))
+              : null;
+            if (!govProps) govProps = govPorZonaLocal.get(`${f.properties.NR_ZONA}_${f.properties.NR_LOCAL_VOTACAO}`) || null;
             if (govProps) {
                 // Prefix gov properties to avoid overlaps except 1T keys which are candidates
                 const filteredGovProps = {};
@@ -614,7 +629,18 @@ function simGetKeysForCat(cat) {
 
 function simRemoveCandidato(id) {
   SIM.candidatos = SIM.candidatos.filter(c => c.id !== id);
-  for (const cat in SIM.sliders) for (const sub in SIM.sliders[cat]) delete SIM.sliders[cat][sub][`cand_${id}`];
+  const candKey = `cand_${id}`;
+  for (const cat in SIM.sliders) for (const sub in SIM.sliders[cat]) delete SIM.sliders[cat][sub][candKey];
+
+  // A fatia do candidato removido é liberada nas regiões (não vai para "Outros"):
+  // o total cai abaixo de 100% e essa folga fica disponível para redistribuir
+  // entre os candidatos que ficaram ou os que forem adicionados no lugar.
+  [SIM.regionSliders, SIM.macroSliders].forEach(store => {
+    for (const code in store) {
+      const sl = store[code];
+      if (sl) delete sl[candKey];
+    }
+  });
 }
 
 function simInitDefaultSliders() {
@@ -665,6 +691,7 @@ function simRenderAlvoSelector() {
     // Reset regional sliders on target change
     SIM.regionSliders = {};
     SIM.macroSliders = {};
+    SIM.base2022Regioes = null;
     
     // Reset overriding maps
     SIM.overridesPorUF = {};
@@ -687,6 +714,7 @@ function simRenderAlvoSelector() {
          simAddCandidato('Renan Santos', 'MISSÃO');
          simAddCandidato('Romeu Zema', 'NOVO');
          simAddCandidato('Ronaldo Caiado', 'PSD');
+         simAplicarBase2022PorMacrorregiao();
       } else {
          SIM.modo = 'governador';
          SIM.estadoAlvo = val;
@@ -734,17 +762,22 @@ function simRenderAlvoSelector() {
                  
                  name = name.split(' ').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
                  subgrupos[k] = name;
-                 
+
                  // Add this candidate to the Left Panel (output candidates)
-                 simAddCandidato(name, party);
+                 const cand = simAddCandidato(name, party);
+                 // Guarda a propriedade de origem para poder recuperar os votos de 2022 deste candidato
+                 cand.chave2022 = k;
              }
          });
-         
+
          subgrupos['outros'] = 'Outros (Gov < 1%)';
          subgrupos['nuloBranco'] = 'Nulo/Branco';
          subgrupos['abstencao'] = 'Abstenção';
-         
+
          DEMO_GROUPS.voto2022.subgrupos = subgrupos;
+
+         // Preenche os sliders regionais com o resultado real de 2022 (1T) por região
+         simAplicarBase2022PorRegiao();
       }
       simRenderCandidatos();
       simRenderDemoGroup();
@@ -933,6 +966,165 @@ function simUpdateSubTotal(container, cat, sub) {
   }
 }
 
+// ====== BASE 2022 POR REGIÃO INTERMEDIÁRIA ======
+// Agrega os votos de governador de 2022 (1T) dos locais de votação por região
+// intermediária — com a capital contabilizada à parte, do mesmo modo que a
+// projeção faz — e devolve a distribuição percentual sobre os votos válidos.
+function simCalcularBase2022PorRegiao() {
+  if (SIM.modo !== 'governador' || !SIM.estadoAlvo || !SIM.regioesIBGE) return null;
+
+  const geo = SIM.locaisCache[SIM.estadoAlvo];
+  if (!geo || !geo.features) return null;
+
+  const candidatos2022 = SIM.candidatos.filter(c => c.chave2022);
+  if (!candidatos2022.length) return null;
+
+  const capitalCode = CAPITAIS_IBGE[SIM.estadoAlvo] ? String(CAPITAIS_IBGE[SIM.estadoAlvo]) : null;
+  const agg = {}; // { [código da região]: { _validos, cand_X: votos, outros: votos } }
+
+  geo.features.forEach(f => {
+    const p = f.properties;
+    const codM = String(p.cod_localidade_ibge || p.CD_MUN || '');
+    if (!codM) return;
+
+    // A capital é a sua própria "região" e sai da RI a que pertence
+    const code = (capitalCode && codM === capitalCode)
+      ? capitalCode
+      : (SIM.regioesIBGE.muni_to_region[codM]?.ri || null);
+    if (!code) return;
+
+    const validos = ensureNumber(p['Gov_Total_Votos_Validos 1T']);
+    if (validos <= 0) return; // local sem dado de governador
+
+    let bucket = agg[code];
+    if (!bucket) bucket = agg[code] = { _validos: 0, outros: 0 };
+    bucket._validos += validos;
+
+    let somaCandidatos = 0;
+    candidatos2022.forEach(c => {
+      const v = ensureNumber(p[c.chave2022]);
+      somaCandidatos += v;
+      const key = `cand_${c.id}`;
+      bucket[key] = (bucket[key] || 0) + v;
+    });
+    // O que sobra dos válidos são as candidaturas abaixo de 1% (agrupadas em "Outros")
+    bucket.outros += Math.max(0, validos - somaCandidatos);
+  });
+
+  const keys = candidatos2022.map(c => `cand_${c.id}`).concat(['outros']);
+  const base = {};
+
+  Object.keys(agg).forEach(code => {
+    const b = agg[code];
+    if (b._validos <= 0) return;
+
+    const pcts = {};
+    keys.forEach(k => { pcts[k] = Math.round(((b[k] || 0) / b._validos) * 10000) / 100; });
+
+    // Joga o resíduo do arredondamento na maior fatia para o total fechar em 100%
+    const soma = keys.reduce((s, k) => s + pcts[k], 0);
+    if (soma > 0) {
+      const maior = keys.reduce((a, k) => (pcts[k] > pcts[a] ? k : a), keys[0]);
+      pcts[maior] = Math.round((pcts[maior] + 100 - soma) * 100) / 100;
+    }
+
+    base[code] = pcts;
+  });
+
+  return Object.keys(base).length ? base : null;
+}
+
+// Escreve a base de 2022 nos sliders regionais (substitui o preenchimento zerado).
+function simAplicarBase2022PorRegiao() {
+  const base = simCalcularBase2022PorRegiao();
+  SIM.base2022Regioes = base;
+  if (!base) return false;
+  Object.keys(base).forEach(code => { SIM.regionSliders[code] = { ...base[code] }; });
+  return true;
+}
+
+// ====== BASE 2022 POR MACRORREGIÃO (PRESIDENCIAL) ======
+function simCalcularBase2022PorMacrorregiao() {
+  if (SIM.modo !== 'presidencial' || !SIM.regioesIBGE) return null;
+
+  const candLula = SIM.candidatos.find(c => {
+    const n = normalizePartyKey(c.nome);
+    return n.includes('LULA') || normalizePartyKey(c.partido) === 'PT';
+  });
+
+  const candBolso = SIM.candidatos.find(c => {
+    const n = normalizePartyKey(c.nome);
+    return n.includes('BOLSONARO') || n.includes('FLAVIO') || normalizePartyKey(c.partido) === 'PL';
+  });
+
+  if (!candLula && !candBolso) return null;
+
+  const agg = {}; // { [mr]: { _validos: 0, lula: 0, bolsonaro: 0 } }
+
+  const cacheKeys = Object.keys(SIM.locaisCache);
+  cacheKeys.forEach(uf => {
+    const geo = SIM.locaisCache[uf];
+    if (!geo || !geo.features) return;
+
+    geo.features.forEach(f => {
+      const p = f.properties;
+      const codM = String(p.cod_localidade_ibge || p.CD_MUN || '');
+      if (!codM) return;
+
+      const mapping = SIM.regioesIBGE.muni_to_region[codM];
+      if (!mapping || !mapping.mr) return;
+      const mr = String(mapping.mr);
+
+      const validos = ensureNumber(p['Total_Votos_Validos 1T']) || ensureNumber(p['Gov_Total_Votos_Validos 1T']);
+      if (validos <= 0) return;
+
+      let vLula = 0;
+      let vBolso = 0;
+
+      for (let k in p) {
+        if (k.includes('LULA') && k.includes('1T')) {
+          vLula = ensureNumber(p[k]);
+        }
+        if (k.includes('BOLSONARO') && k.includes('1T')) {
+          vBolso = ensureNumber(p[k]);
+        }
+      }
+
+      if (!agg[mr]) agg[mr] = { _validos: 0, lula: 0, bolsonaro: 0 };
+      agg[mr]._validos += validos;
+      agg[mr].lula += vLula;
+      agg[mr].bolsonaro += vBolso;
+    });
+  });
+
+  const base = {};
+  Object.keys(agg).forEach(mr => {
+    const b = agg[mr];
+    if (b._validos <= 0) return;
+
+    const pcts = {};
+    if (candLula) {
+      pcts[`cand_${candLula.id}`] = Math.round((b.lula / b._validos) * 10000) / 100;
+    }
+    if (candBolso) {
+      pcts[`cand_${candBolso.id}`] = Math.round((b.bolsonaro / b._validos) * 10000) / 100;
+    }
+    base[mr] = pcts;
+  });
+
+  return Object.keys(base).length ? base : null;
+}
+
+function simAplicarBase2022PorMacrorregiao() {
+  const base = simCalcularBase2022PorMacrorregiao();
+  if (!base) return false;
+  Object.keys(base).forEach(mr => {
+    if (!SIM.macroSliders[mr]) SIM.macroSliders[mr] = {};
+    Object.assign(SIM.macroSliders[mr], base[mr]);
+  });
+  return true;
+}
+
 // ====== REGIONAL SLIDERS (Build HTML + Bind) ======
 function simBuildRegionSlidersHTML() {
   if (!SIM.regioesIBGE) return '';
@@ -1033,6 +1225,10 @@ function simBuildRegionSlidersHTML() {
           const feat = ufCache.features.find(f => String(f.properties.cod_localidade_ibge || f.properties.CD_MUN) === String(capitalCode));
           if (feat) capitalNome = feat.properties.NM_MUN || feat.properties.nome_municipio || feat.properties.NM_MUNICIP || capitalNome;
         }
+        if (capitalNome === "Capital") {
+          // Fallback: o nome do município já vem no mapeamento de regiões do IBGE
+          capitalNome = SIM.regioesIBGE.muni_to_region[String(capitalCode)]?.nome || capitalNome;
+        }
 
         const sl = SIM.regionSliders[capitalCode] || {};
         const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
@@ -1073,6 +1269,10 @@ function simBuildRegionSlidersHTML() {
       // --- END CAPITAL SEPARATION ---
 
       ufRegions.forEach(r => {
+        // Região sem eleitorado próprio em 2022 (ex.: a única RI do DF, toda absorvida
+        // pela capital) não entra: o alvo digitado ali não teria onde ser aplicado.
+        if (SIM.base2022Regioes && !SIM.base2022Regioes[r.cd]) return;
+
         const sl = SIM.regionSliders[r.cd] || {};
         const hasVals = catEntries.some(e => (sl[e.key] || 0) > 0);
         const total = catEntries.reduce((s, e) => s + (sl[e.key] || 0), 0);
@@ -1471,14 +1671,31 @@ function simCalcularProjecao() {
           else if (SIM.macroSliders[rc]) targetSliders = SIM.macroSliders[rc];
           
           if (targetSliders) {
-              const sliderTotal = validKeys.reduce((s, k) => s + (targetSliders[k] || 0), 0);
-              if (sliderTotal > 0) {
+              const keysWithTarget = validKeys.filter(k => (targetSliders[k] || 0) > 0);
+              const targetSum = keysWithTarget.reduce((s, k) => s + (targetSliders[k] || 0), 0) / 100;
+              
+              if (targetSum > 0) {
                   const factors = {};
+                  const clampedTargetSum = Math.min(1.0, targetSum);
+                  const remainingPct = Math.max(0, 1.0 - clampedTargetSum);
+                  
+                  const unsetKeys = validKeys.filter(k => (targetSliders[k] || 0) <= 0);
+                  const rawUnsetSum = unsetKeys.reduce((s, k) => s + ((agg[k] / agg._totalValidWeight) || 0), 0);
+                  
                   validKeys.forEach(k => {
-                      const rawPct = (agg[k] / agg._totalValidWeight); // 0..1
-                      const targetPct = (targetSliders[k] || 0) / 100; // 0..1
-                      // Factor = Target / Raw. (Protect against div by zero)
-                      factors[k] = rawPct > 0 ? (targetPct / rawPct) : 0;
+                      const rawPct = (agg[k] / agg._totalValidWeight) || 0;
+                      const isTarget = (targetSliders[k] || 0) > 0;
+                      if (isTarget) {
+                          const targetPct = (targetSliders[k] || 0) / 100;
+                          factors[k] = rawPct > 0 ? (targetPct / rawPct) : 0;
+                      } else {
+                          if (remainingPct > 0 && rawUnsetSum > 0) {
+                              const targetPct = remainingPct * (rawPct / rawUnsetSum);
+                              factors[k] = rawPct > 0 ? (targetPct / rawPct) : 0;
+                          } else {
+                              factors[k] = 0;
+                          }
+                      }
                   });
                   regionScalingFactors[rc] = factors;
               }
