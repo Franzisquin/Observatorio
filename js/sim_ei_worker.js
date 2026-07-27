@@ -36,8 +36,10 @@ let NB = 0;                  // total de buckets
 let NP = 0;                  // colunas do vetor de voto (candidatos + outros + nulo + abst)
 let N = 0;                   // total de locais
 
+let NR = 0;                  // colunas de reduto (votacao de governador 2022)
 let aptosArr = null;         // Float64Array(N)
 let fracs = null;            // Uint8Array(N * NB), quantizado 0..QUANT
+let redutoArr = null;        // Uint8Array(N * NR), fracao dos aptos
 let codIbge = null;          // Int32Array(N)
 let cdMunicipio = null;      // Int32Array(N)
 let nrZona = null;           // Int32Array(N)
@@ -83,8 +85,17 @@ function hamilton(valores, total, saida, np) {
 
 // ---------------------------------------------------------------- carga
 
+/* Busca com erro legivel. Sem checar `ok`, um 404 devolve a pagina de erro em
+   HTML e o estouro aparece como "Unexpected token '<'" — que nao diz nada sobre
+   o arquivo que faltou. */
+async function buscar(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`${url} — HTTP ${r.status}`);
+  return r;
+}
+
 async function carregar(baseDir) {
-  IDX = await (await fetch(baseDir + 'index.json')).json();
+  IDX = await (await buscar(baseDir + 'index.json')).json();
   NB = IDX.nBuckets;
   QUANT = IDX.quant || 255;
 
@@ -102,8 +113,10 @@ async function carregar(baseDir) {
   const ufs = Object.keys(IDX.ufs);
   N = ufs.reduce((s, uf) => s + IDX.ufs[uf], 0);
 
+  NR = (IDX.redutos || []).length;
   aptosArr = new Float64Array(N);
   fracs = new Uint8Array(N * NB);
+  redutoArr = new Uint8Array(N * Math.max(NR, 1));
   codIbge = new Int32Array(N);
   cdMunicipio = new Int32Array(N);
   nrZona = new Int32Array(N);
@@ -115,7 +128,7 @@ async function carregar(baseDir) {
   let i = 0;
   for (let u = 0; u < ufs.length; u++) {
     const uf = ufs[u];
-    const buf = await (await fetch(baseDir + `locais_${uf}.bin`)).arrayBuffer();
+    const buf = await (await buscar(baseDir + `locais_${uf}.bin`)).arrayBuffer();
     const dv = new DataView(buf);
     const bytes = new Uint8Array(buf);
     const qtd = IDX.ufs[uf];
@@ -130,6 +143,7 @@ async function carregar(baseDir) {
       flags[i] = bytes[o + 16];
       ufDeIdx[i] = uf;
       fracs.set(bytes.subarray(o + HB, o + HB + NB), i * NB);
+      if (NR) redutoArr.set(bytes.subarray(o + IDX.redutosOffset, o + IDX.redutosOffset + NR), i * NR);
     }
     progresso(0.05 + 0.9 * (u + 1) / ufs.length, `Carregando ${uf}`);
   }
@@ -401,17 +415,28 @@ function apoioDemografico(idx, cur, np, alvoDims) {
 
 // ---------------------------------------------------- aplicacao de uma op
 
-/* Ordem importa: o CONTROLE GERAL (IPF) entra primeiro, definindo o ponto de
-   partida do escopo; as edicoes demograficas entram por cima. Se o geral
-   viesse por ultimo ele reimporia o agregado exato e anularia o efeito dos
-   sliders demograficos.
+/* Ordem importa: o CONTROLE GERAL entra primeiro, definindo o ponto de partida
+   do escopo; as edicoes demograficas entram por cima. Se o geral viesse por
+   ultimo ele reimporia o agregado exato e anularia o efeito dos sliders.
+
+   O controle geral tem tres alvos INDEPENDENTES:
+
+     abstencao  — fracao dos aptos que nao comparece
+     nuloBranco — fracao dos aptos que anula ou vota em branco
+     validos    — divisao do que sobra entre os candidatos, somando 1
+
+   Abstencao e nulos sao ajustados por ESCALA MULTIPLICATIVA, nunca por
+   atribuicao direta: multiplicar preserva a variacao interna (um municipio que
+   abstem 30% num estado de 20% continua acima da media depois do ajuste),
+   enquanto atribuir o alvo a todo local homogeneizaria o mapa. So depois disso
+   o que sobrou e dividido entre os candidatos.
 
    As edicoes demograficas sao uma REALOCACAO ADITIVA CALIBRADA:
        voto_p += aptos * frac_bucket * (alvo_p - apoioObservado_bucket_p)
    ancorada no apoio OBSERVADO (reestimado agora, pos-geral), nao num baseline
    estatico. A versao multiplicativa (alvo/base) explodia grupos concentrados e
    roubava votos das outras dimensoes. */
-function aplicarOp(cur, op, np) {
+function aplicarOp(cur, op, np, iNulo, iAbst) {
   const idx = afetados(op.scope);
   if (idx !== null && !idx.length) return;
 
@@ -426,28 +451,78 @@ function aplicarOp(cur, op, np) {
       demo.push({ g: dim.offset + b, dim: dk, alvos: op.demo[chave] });
     }
   }
-  const geral = op.general || null;
 
   const fv = new Float64Array(np);
   const saida = new Int32Array(np);
 
-  // --- 1) controle geral: IPF biproporcional ate bater o agregado do escopo
-  const K = new Float64Array(np).fill(1);
-  if (geral) {
-    let totalUnidade = 0;
-    iterar(idx, i => { totalUnidade += aptosArr[i]; });
+  // --- 1a) abstencao e nulos: escala multiplicativa ate o agregado do escopo
+  const escalarColuna = (col, alvo) => {
+    if (alvo == null) return;
+    let totalAptos = 0;
+    iterar(idx, i => { totalAptos += aptosArr[i]; });
+    if (totalAptos <= 0) return;
+    const quer = alvo * totalAptos;
+    for (let iter = 0; iter < 30; iter++) {
+      let atual = 0;
+      iterar(idx, i => { atual += cur[i * np + col]; });
+      if (atual <= 1e-9) {
+        // Coluna zerada no escopo: nao ha variacao para preservar, distribui
+        // o alvo proporcionalmente ao eleitorado.
+        iterar(idx, i => { cur[i * np + col] = alvo * aptosArr[i]; });
+        return;
+      }
+      if (Math.abs(atual - quer) / Math.max(quer, 1) < 1e-5) break;
+      const k = quer / atual;
+      // Teto de 98% dos aptos por local: sem isso um alvo alto empurraria
+      // locais ja extremos acima do proprio eleitorado.
+      iterar(idx, i => {
+        cur[i * np + col] = Math.min(0.98 * aptosArr[i], cur[i * np + col] * k);
+      });
+    }
+  };
+  escalarColuna(iAbst, op.abstencao);
+  escalarColuna(iNulo, op.nuloBranco);
+
+  // --- 1b) recompoe o bolo valido preservando a divisao atual entre candidatos
+  if (op.abstencao != null || op.nuloBranco != null || op.validos) {
+    iterar(idx, i => {
+      const vb = i * np;
+      const pool = Math.max(0, aptosArr[i] - cur[vb + iAbst] - cur[vb + iNulo]);
+      let s = 0;
+      for (let p = 0; p < np; p++) if (p !== iAbst && p !== iNulo) s += cur[vb + p];
+      for (let p = 0; p < np; p++) {
+        if (p === iAbst || p === iNulo) continue;
+        cur[vb + p] = s > 0 ? cur[vb + p] / s * pool : pool / (np - 2);
+      }
+    });
+  }
+
+  // --- 1c) divisao entre candidatos: IPF sobre o bolo valido
+  if (op.validos) {
+    const K = new Float64Array(np).fill(1);
     for (let iter = 0; iter < 40; iter++) {
       const agg = new Float64Array(np);
+      let poolTotal = 0;
       iterar(idx, i => {
+        const vb = i * np;
+        const pool = Math.max(0, aptosArr[i] - cur[vb + iAbst] - cur[vb + iNulo]);
+        poolTotal += pool;
         let s = 0;
-        for (let p = 0; p < np; p++) { fv[p] = cur[i * np + p] * K[p]; s += fv[p]; }
-        const inv = s > 0 ? aptosArr[i] / s : 0;   // escala de linha: aptos fixos
-        for (let p = 0; p < np; p++) agg[p] += fv[p] * inv;
+        for (let p = 0; p < np; p++) {
+          if (p === iAbst || p === iNulo) continue;
+          fv[p] = cur[vb + p] * K[p];
+          s += fv[p];
+        }
+        const inv = s > 0 ? pool / s : 0;
+        for (let p = 0; p < np; p++) {
+          if (p === iAbst || p === iNulo) continue;
+          agg[p] += fv[p] * inv;
+        }
       });
       let erro = 0;
       for (let p = 0; p < np; p++) {
-        if (geral[p] == null) continue;
-        const quer = geral[p] * totalUnidade;
+        if (p === iAbst || p === iNulo || op.validos[p] == null) continue;
+        const quer = op.validos[p] * poolTotal;
         if (agg[p] > 1e-9) {
           const r = quer / agg[p];
           K[p] *= r;
@@ -457,12 +532,22 @@ function aplicarOp(cur, op, np) {
       if (erro < 1e-4) break;
     }
     iterar(idx, i => {
+      const vb = i * np;
+      const pool = Math.max(0, aptosArr[i] - cur[vb + iAbst] - cur[vb + iNulo]);
       let s = 0;
-      for (let p = 0; p < np; p++) { fv[p] = cur[i * np + p] * K[p]; s += fv[p]; }
-      const inv = s > 0 ? aptosArr[i] / s : 0;
-      for (let p = 0; p < np; p++) cur[i * np + p] = fv[p] * inv;
+      for (let p = 0; p < np; p++) {
+        if (p === iAbst || p === iNulo) continue;
+        fv[p] = cur[vb + p] * K[p];
+        s += fv[p];
+      }
+      const inv = s > 0 ? pool / s : 0;
+      for (let p = 0; p < np; p++) {
+        if (p === iAbst || p === iNulo) continue;
+        cur[vb + p] = fv[p] * inv;
+      }
     });
   }
+  const geral = op.validos || op.abstencao != null || op.nuloBranco != null;
 
   // --- 2) edicoes demograficas sobre o resultado do geral
   if (demo.length) {
@@ -495,12 +580,91 @@ function aplicarOp(cur, op, np) {
       for (let p = 0; p < np; p++) cur[vb + p] = saida[p];
     });
   } else if (geral) {
+    // Sem edicao demografica os alvos gerais ja deixaram os valores em ponto
+    // flutuante; so falta reinteirar preservando o total de aptos.
     iterar(idx, i => {
       const vb = i * np, tot = aptosArr[i];
       for (let p = 0; p < np; p++) fv[p] = cur[vb + p];
       hamilton(fv, Math.round(tot), saida, np);
       for (let p = 0; p < np; p++) cur[vb + p] = saida[p];
     });
+  }
+}
+
+// -------------------------------------------------------------- redutos
+
+/* Concentra o voto de um candidato onde ele foi forte para governador em 2022.
+
+   Sem isto, a migracao presidencial distribui Zema e Caiado de forma quase
+   uniforme pelo estado — o que subestima o reduto pessoal e superestima o
+   desempenho fora dele. Aqui o TOTAL do candidato na UF e preservado; o que
+   muda e como ele se reparte entre os locais, seguindo a votacao de governador.
+
+   O delta sai (ou entra) proporcionalmente nos DEMAIS CANDIDATOS do mesmo
+   local, nunca da abstencao ou dos nulos — o comparecimento de cada municipio
+   e uma nuance que o usuario pediu para preservar. */
+function aplicarRedutos(cur, np, vinculos, iNulo, iAbst) {
+  if (!vinculos || !vinculos.length || !IDX.redutos) return;
+  const OFF = IDX.redutosOffset, RB = IDX.recordBytes;
+  const nR = IDX.redutos.length;
+  if (!nR) return;
+
+  for (const v of vinculos) {
+    const r = IDX.redutos.findIndex(x => x.key === v.reduto);
+    if (r < 0) continue;
+    const col = v.coluna;
+    const fatia = fatiaUf[IDX.redutos[r].uf];
+    if (fatia == null || col == null || col < 0) continue;
+    const [ini, qtd] = fatia;
+    const forca = Math.max(0, Math.min(1, v.forca == null ? 1 : v.forca));
+
+    let total = 0, somaW = 0;
+    const w = new Float64Array(qtd);
+    for (let a = 0; a < qtd; a++) {
+      const i = ini + a;
+      total += cur[i * np + col];
+      // Votos de governador do politico naquele local.
+      w[a] = (redutoArr[i * nR + r] / QUANT) * aptosArr[i];
+      somaW += w[a];
+    }
+    if (total <= 0 || somaW <= 0) continue;
+
+    for (let a = 0; a < qtd; a++) {
+      const i = ini + a, vb = i * np;
+      const atual = cur[vb + col];
+      const desejado = total * w[a] / somaW;
+      let delta = forca * (desejado - atual);
+      if (!delta) continue;
+
+      let outros = 0;
+      for (let p = 0; p < np; p++) {
+        if (p === col || p === iNulo || p === iAbst) continue;
+        outros += cur[vb + p];
+      }
+      if (delta > 0) delta = Math.min(delta, outros);        // nao pode zerar o resto
+      else delta = Math.max(delta, -atual);                  // nem ficar negativo
+      if (!delta) continue;
+
+      cur[vb + col] = atual + delta;
+      if (outros > 0) {
+        const fator = (outros - delta) / outros;
+        for (let p = 0; p < np; p++) {
+          if (p === col || p === iNulo || p === iAbst) continue;
+          cur[vb + p] *= fator;
+        }
+      }
+    }
+
+    // Reinteira: a redistribuicao trabalha em ponto flutuante e sem isto o
+    // total do estado nao fecha exatamente com os aptos.
+    const fv = new Float64Array(np);
+    const saida = new Int32Array(np);
+    for (let a = 0; a < qtd; a++) {
+      const i = ini + a, vb = i * np;
+      for (let p = 0; p < np; p++) fv[p] = Math.max(0, cur[vb + p]);
+      hamilton(fv, Math.round(aptosArr[i]), saida, np);
+      for (let p = 0; p < np; p++) cur[vb + p] = saida[p];
+    }
   }
 }
 
@@ -531,7 +695,7 @@ function agregar(cur, np, detalheUfs) {
     }
   }
 
-  const paraArr = o => ({ aptos: o.aptos, votos: Array.from(o.votos) });
+  const paraArr = o => ({ aptos: o.aptos, votos: Array.from(o.votos), uf: o.uf });
   const saida = {
     brasil: { aptos: aptosBR, votos: Array.from(brasil) },
     ufs: Object.fromEntries(Object.entries(porUf).map(([k, v]) => [k, paraArr(v)])),
@@ -672,14 +836,28 @@ function turno2(msg) {
 function calcular(msg) {
   const np = msg.parties;
   NP = np;
-  const cur = montarBase(msg.transfer, np);
+  const iNulo = msg.iNulo != null ? msg.iNulo : np - 2;
+  const iAbst = msg.iAbst != null ? msg.iAbst : np - 1;
 
-  // Replay determinista: nacional -> UF -> municipio, do estado pristino.
-  const rank = { nacional: 0, uf: 1, regiao: 2, municipio: 3 };
-  const ops = (msg.ops || []).slice().sort(
-    (a, b) => (rank[a.scope?.level] ?? 9) - (rank[b.scope?.level] ?? 9));
+  // 1) migracao de 2022 -> superficie base
+  const cur = montarBase(msg.transfer, np);
+  // 2) redutos pessoais de governador, ainda antes de qualquer meta
+  aplicarRedutos(cur, np, msg.redutos, iNulo, iAbst);
+
+  /* 3) Replay determinista, na ordem em que a simulacao e construida:
+        nacional -> macrorregiao -> UF -> regiao intermediaria -> municipio.
+     A macrorregiao vem antes porque e o input obrigatorio que define a
+     projecao base; RGINT e municipio sao refinamentos posteriores e por isso
+     tem prioridade sobre ela. */
+  const rank = { nacional: 0, mr: 1, uf: 2, ri: 3, municipio: 4 };
+  const rankDe = (o) => {
+    const s = o.scope || {};
+    if (s.level === 'regiao') return rank[s.nivel === 'ri' ? 'ri' : 'mr'];
+    return rank[s.level] != null ? rank[s.level] : 9;
+  };
+  const ops = (msg.ops || []).slice().sort((a, b) => rankDe(a) - rankDe(b));
   for (let o = 0; o < ops.length; o++) {
-    aplicarOp(cur, ops[o], np);
+    aplicarOp(cur, ops[o], np, iNulo, iAbst);
     progresso(0.2 + 0.6 * (o + 1) / ops.length, 'Aplicando ajustes');
   }
 

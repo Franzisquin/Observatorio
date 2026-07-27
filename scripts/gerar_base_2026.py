@@ -165,7 +165,13 @@ def coords_2026(uf: str) -> dict[tuple[int, int, int], tuple[float, float]]:
 
 
 def dados_2022(uf: str) -> tuple[dict, dict]:
-    """(por chave natural: composicao voto2022) e (por chave natural: censo)."""
+    """(por chave natural: composicao voto2022 de 1o turno) e (idem: censo).
+
+    A composicao e do PRIMEIRO turno — [lula, bolsonaro, outros, nulo_branco,
+    abstencao] em votos absolutos. "outros" sao todos os demais candidatos
+    presidenciais somados (Ciro, Tebet, ...), que sao o eleitorado mais
+    disputado em 2026 e desaparecem se usarmos o 2o turno.
+    """
     pres = ler_geojson(f"presidente_por_estado2022/presidente_{uf}_2022.geojson")
     locs = ler_geojson(f"locais_votacao_2022/locais_votacao_2022_{uf}.geojson")
 
@@ -178,29 +184,22 @@ def dados_2022(uf: str) -> tuple[dict, dict]:
                          int(p["NR_LOCAL_VOTACAO"]))
             except (KeyError, TypeError, ValueError):
                 continue
-            aptos = num(p.get("Eleitores_Aptos 2T")) or num(p.get("Eleitores_Aptos 1T"))
+            aptos = num(p.get("Eleitores_Aptos 1T")) or num(p.get("Eleitores_Aptos 2T"))
             if aptos <= 0:
                 continue
-            k_lula = achar_chave(p, "LULA (PT)", " 2T")
-            k_bolso = achar_chave(p, "JAIR BOLSONARO (PL)", " 2T")
-            k_abs = achar_chave(p, "Absten", " 2T")
-            k_br = achar_chave(p, "Votos_Brancos", " 2T")
-            k_nu = achar_chave(p, "Votos_Nulos", " 2T")
-            if not (k_lula and k_bolso):  # sem 2o turno gravado, cai para o 1o
-                k_lula = achar_chave(p, "LULA (PT)", " 1T")
-                k_bolso = achar_chave(p, "JAIR BOLSONARO (PL)", " 1T")
-                k_abs = achar_chave(p, "Absten", " 1T")
-                k_br = achar_chave(p, "Votos_Brancos", " 1T")
-                k_nu = achar_chave(p, "Votos_Nulos", " 1T")
-                aptos = num(p.get("Eleitores_Aptos 1T")) or aptos
+            k_lula = achar_chave(p, "LULA (PT)", " 1T")
+            k_bolso = achar_chave(p, "JAIR BOLSONARO (PL)", " 1T")
             if not (k_lula and k_bolso):
                 continue
             lula, bolso = num(p.get(k_lula)), num(p.get(k_bolso))
-            nulo_branco = num(p.get(k_br)) + num(p.get(k_nu))
-            abstencao = num(p.get(k_abs))
+            validos = num(p.get(achar_chave(p, "Total_Votos_Validos", " 1T") or ""))
+            outros = max(0.0, validos - lula - bolso)
+            nulo_branco = (num(p.get(achar_chave(p, "Votos_Brancos", " 1T") or ""))
+                           + num(p.get(achar_chave(p, "Votos_Nulos", " 1T") or "")))
+            abstencao = num(p.get(achar_chave(p, "Absten", " 1T") or ""))
             if abstencao <= 0:
-                abstencao = max(0.0, aptos - lula - bolso - nulo_branco)
-            voto[chave] = [lula, bolso, nulo_branco, abstencao]
+                abstencao = max(0.0, aptos - validos - nulo_branco)
+            voto[chave] = [lula, bolso, outros, nulo_branco, abstencao]
 
     censo: dict[tuple[int, int, int], dict] = {}
     if locs:
@@ -220,6 +219,46 @@ def dados_2022(uf: str) -> tuple[dict, dict]:
                 "lonlat": (num(p.get("long")), num(p.get("lat"))),
             }
     return voto, censo
+
+
+def redutos_da_uf(uf: str) -> dict[str, dict[tuple[int, int, int], float]]:
+    """Votacao de governador 2022 (1o turno) dos politicos configurados em
+    esq.REDUTOS, por local, como fracao dos eleitores aptos.
+
+    E isso que permite ao simulador concentrar Zema em MG e Caiado em GO nos
+    municipios onde cada um foi forte para o governo, em vez de espalha-los
+    uniformemente pelo estado como faria a migracao presidencial sozinha.
+    """
+    alvos = [r for r in esq.REDUTOS if r["uf"] == uf]
+    if not alvos:
+        return {}
+    gov = ler_geojson(f"governador2022/governador_{uf}_2022.geojson")
+    if not gov:
+        print(f"  ! {uf}: governador2022 nao encontrado — redutos ficam vazios")
+        return {}
+
+    fora = {r["chave"]: {} for r in alvos}
+    achou = {r["chave"]: 0 for r in alvos}
+    for f in gov["features"]:
+        p = f["properties"]
+        try:
+            chave = (int(p["CD_MUNICIPIO"]), int(float(p["NR_ZONA"])),
+                     int(p["NR_LOCAL_VOTACAO"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        aptos = num(p.get("Eleitores_Aptos 1T"))
+        if aptos <= 0:
+            continue
+        for r in alvos:
+            k = achar_chave(p, r["prefixo"], " 1T")
+            if not k:
+                continue
+            fora[r["chave"]][chave] = num(p.get(k)) / aptos
+            achou[r["chave"]] += 1
+    for r in alvos:
+        if not achou[r["chave"]]:
+            print(f"  ! {uf}: nenhuma coluna casou com '{r['prefixo']}' no governador de 2022")
+    return fora
 
 
 # ------------------------------------------------------------- normalizacao
@@ -262,7 +301,9 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
     df = pd.read_parquet(AGREGADO / f"eleitorado_2026_{uf}.parquet")
     n = len(df)
     voto22, censo22 = dados_2022(uf)
+    redutos22 = redutos_da_uf(uf)
     coords = coords_2026(uf)
+    n_orig = len(next(d for d in esq.DIMENSOES if d["chave"] == "voto2022")["buckets"])
 
     chaves = list(zip(df["cd_municipio"].astype(int), df["nr_zona"].astype(int),
                       df["nr_locvot"].astype(int)))
@@ -285,10 +326,12 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
 
     # --- casamento com 2022 ---
     casado = np.zeros(n, dtype=bool)
-    voto = np.zeros((n, 4), dtype=np.float64)
+    voto = np.zeros((n, n_orig), dtype=np.float64)
     raca = np.zeros((n, 5), dtype=np.float64)
     renda_media = np.zeros(n, dtype=np.float64)
+    reduto = np.zeros((n, esq.n_redutos()), dtype=np.float64)
     lonlat: list[tuple[float, float] | None] = [None] * n
+    ordem_redutos = [r["chave"] for r in esq.REDUTOS]
 
     for i, chave in enumerate(chaves):
         v = voto22.get(chave)
@@ -303,6 +346,9 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
                 lonlat[i] = c["lonlat"]
         if chave in coords:
             lonlat[i] = coords[chave]
+        for j, rk in enumerate(ordem_redutos):
+            if rk in redutos22:
+                reduto[i, j] = redutos22[rk].get(chave, 0.0)
 
     # --- imputacao dos locais novos por donor matching demografico ---
     # Espaco de busca: as fracoes do TSE (disponiveis para TODO local de 2026)
@@ -334,6 +380,10 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
                 raca[i] = raca[viz].T @ w
             if renda_media[i] <= 0:
                 renda_media[i] = float(renda_media[viz] @ w)
+            # O reduto tambem e herdado: um local novo dentro de um municipio
+            # forte do Zema deve continuar forte para ele.
+            if esq.n_redutos() and reduto[i].sum() <= 0:
+                reduto[i] = reduto[viz].T @ w
             if lonlat[i] is None:
                 cand = [j for j in viz if lonlat[j] is not None]
                 if cand:
@@ -364,6 +414,11 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
     fracs = np.hstack([quantizar(blocos[d["chave"]]) for d in esq.DIMENSOES])
     assert fracs.shape[1] == esq.n_buckets(), (fracs.shape, esq.n_buckets())
 
+    # Redutos: fracao dos aptos, quantizada independentemente (nao e uma
+    # composicao, entao nao passa por `quantizar`, que normaliza a linha).
+    reduto_q = np.clip(np.round(reduto * esq.QUANT), 0, 255).astype(np.uint8) \
+        if esq.n_redutos() else np.zeros((n, 0), dtype=np.uint8)
+
     cab = np.zeros(n, dtype=CABECALHO)
     cab["cd_municipio"] = [m for m, _, _ in chaves]
     cab["cod_ibge"] = np.maximum(ibge, 0)
@@ -374,7 +429,7 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
 
     saida.mkdir(parents=True, exist_ok=True)
     with open(saida / f"locais_{uf}.bin", "wb") as f:
-        f.write(np.hstack([cab.view(np.uint8).reshape(n, -1), fracs]).tobytes())
+        f.write(np.hstack([cab.view(np.uint8).reshape(n, -1), fracs, reduto_q]).tobytes())
 
     # --- geojson leve so para desenhar o mapa ---
     feicoes = []
@@ -409,12 +464,93 @@ def processar_uf(uf: str, religiao: dict, saida: Path) -> dict:
         print(f"  ! {uf}: {sem_ibge} locais sem codigo IBGE "
               f"({int(aptos[ibge <= 0].sum()):,} eleitores fora da agregacao municipal)")
 
+    for j, rk in enumerate(ordem_redutos):
+        if reduto[:, j].sum() > 0:
+            top = np.argsort(-reduto[:, j])[:1]
+            print(f"    reduto '{rk}': {(reduto[:, j] > 0).sum():,} locais, "
+                  f"maximo {100 * reduto[top, j][0]:.1f}% dos aptos")
+
     return {
         "uf": uf, "locais": n, "aptos": int(aptos.sum()),
         "casados": int(casado.sum()), "imputados": imputados,
         "sem_geometria": sem_geo, "sem_religiao": sem_religiao, "sem_ibge": sem_ibge,
         "locais_2022_nao_reencontrados": len(voto22) - int(casado.sum()),
+        # Composicao de 2022 (1T) agregada, para preencher os pesos regionais.
+        "_voto2022": (blocos["voto2022"] * aptos[:, None]).sum(axis=0).tolist(),
+        "_ibge": ibge, "_aptos": aptos, "_voto_abs": blocos["voto2022"] * aptos[:, None],
     }
+
+
+def gerar_regioes(relatorio: list[dict], saida: Path) -> None:
+    """Agrega a composicao de 2022 (1T) por macrorregiao e por regiao
+    intermediaria, ja em percentuais — e o que o painel de pesos regionais
+    carrega automaticamente para Lula, Bolsonaro, abstencao e nulos/brancos.
+
+    Acumula rodada a rodada, como o manifesto, para que rodar uma UF isolada
+    nao apague as demais.
+    """
+    caminho_reg = RAIZ / "resultados_geo" / "regioes_ibge.json"
+    if not caminho_reg.exists():
+        print("  ! regioes_ibge.json ausente — agregados regionais nao gerados")
+        return
+    with open(caminho_reg, encoding="utf-8") as f:
+        mapa = json.load(f).get("muni_to_region", {})
+
+    origens = [b[0] for b in next(d for d in esq.DIMENSOES if d["chave"] == "voto2022")["buckets"]]
+    arq = saida / "baselines" / "regioes.json"
+
+    # Guardado como bruto[regiao][UF]: uma macrorregiao cruza varias UFs, entao
+    # reprocessar uma delas precisa SUBSTITUIR a fatia dela, nao somar de novo.
+    bruto: dict[str, dict] = {}
+    if arq.exists():
+        with open(arq, encoding="utf-8") as f:
+            bruto = json.load(f).get("_bruto", {})
+
+    for r in relatorio:
+        ibge, aptos, votos = r.get("_ibge"), r.get("_aptos"), r.get("_voto_abs")
+        if ibge is None:
+            continue
+        uf = r["uf"]
+        for chave in bruto:            # zera a contribuicao anterior desta UF
+            bruto[chave].pop(uf, None)
+        for i in range(len(ibge)):
+            info = mapa.get(str(int(ibge[i])))
+            if not info:
+                continue
+            for nivel, cod in (("mr", info.get("mr")), ("ri", info.get("ri"))):
+                if cod is None:
+                    continue
+                chave = f"{nivel}:{cod}"
+                e = bruto.setdefault(chave, {}).setdefault(
+                    uf, {"aptos": 0.0, "votos": [0.0] * len(origens)})
+                e["aptos"] += float(aptos[i])
+                for p in range(len(origens)):
+                    e["votos"][p] += float(votos[i, p])
+
+    fora = {"origens": origens, "regioes": {}, "_bruto": bruto}
+    for chave, porUf in bruto.items():
+        nivel, cod = chave.split(":", 1)
+        ap_ = sum(e["aptos"] for e in porUf.values())
+        if ap_ <= 0:
+            continue
+        votos = [sum(e["votos"][p] for e in porUf.values()) for p in range(len(origens))]
+        pct = [100 * v / ap_ for v in votos]
+        validos = sum(pct[:3])  # lula + bolsonaro + outros
+        ufs = sorted(porUf)
+        fora["regioes"][chave] = {
+            "nivel": nivel, "codigo": cod, "uf": ufs[0] if len(ufs) == 1 else "",
+            "ufs": ufs, "aptos": int(ap_),
+            # pct_aptos: fracao do eleitorado. pct_validos: divisao entre candidatos.
+            "pct_aptos": {o: round(pct[p], 4) for p, o in enumerate(origens)},
+            "pct_validos": {o: round(100 * pct[p] / validos, 4) if validos > 0 else 0.0
+                            for p, o in enumerate(origens[:3])},
+        }
+    (saida / "baselines").mkdir(parents=True, exist_ok=True)
+    with open(arq, "w", encoding="utf-8") as f:
+        json.dump(fora, f, ensure_ascii=False)
+    nmr = sum(1 for k in fora["regioes"] if k.startswith("mr:"))
+    nri = sum(1 for k in fora["regioes"] if k.startswith("ri:"))
+    print(f"\n  regioes.json: {nmr} macrorregioes, {nri} regioes intermediarias")
 
 
 def main() -> int:
@@ -434,6 +570,11 @@ def main() -> int:
     print(f"Religiao: {len(religiao):,} municipios\nMontando {len(ufs)} UFs:\n")
 
     relatorio = [processar_uf(uf, religiao, args.saida) for uf in ufs]
+    gerar_regioes(relatorio, args.saida)
+    # Os arrays auxiliares so servem para o agregado regional acima.
+    for r in relatorio:
+        for k in ("_ibge", "_aptos", "_voto_abs", "_voto2022"):
+            r.pop(k, None)
 
     # O manifesto acumula as UFs de rodadas anteriores; rodar --uf AC nao pode
     # apagar as outras 26 nem do manifesto nem do index.json.
@@ -456,7 +597,8 @@ def main() -> int:
 
     indice = esq.para_json()
     indice["headerBytes"] = CABECALHO.itemsize
-    indice["recordBytes"] = CABECALHO.itemsize + esq.n_buckets()
+    indice["recordBytes"] = CABECALHO.itemsize + esq.n_buckets() + esq.n_redutos()
+    indice["redutosOffset"] = CABECALHO.itemsize + esq.n_buckets()
     indice["header"] = [{"name": nome, "type": CABECALHO.fields[nome][0].str,
                          "offset": CABECALHO.fields[nome][1]}
                         for nome in CABECALHO.names if not nome.startswith("_")]

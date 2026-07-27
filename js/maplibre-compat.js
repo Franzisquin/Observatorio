@@ -329,6 +329,11 @@
         if (isPoint) {
           p.__opacity = s.fillOpacity != null ? s.fillOpacity : 0.8;
           p.__radius = this.radiusFn ? this.radiusFn(f) : (s.radius != null ? s.radius : 6);
+          // Contorno opcional (ver circle-stroke-* em _doAdd): sem weight no
+          // styleFn o padrão é 0, mantendo o comportamento anterior.
+          p.__weight = s.weight != null ? s.weight : 0;
+          p.__line = resolveCssColor(s.color != null ? s.color : '#ffffff');
+          p.__lineOpacity = s.opacity != null ? s.opacity : 1;
         } else {
           p.__fillOpacity = s.fillOpacity != null ? s.fillOpacity : 0.7;
           p.__line = resolveCssColor(s.color != null ? s.color : '#ffffff');
@@ -384,7 +389,11 @@
             'circle-radius': ['coalesce', ['get', '__radius'], 6],
             'circle-color': ['coalesce', ['get', '__fill'], '#888888'],
             'circle-opacity': ['coalesce', ['get', '__opacity'], 0.8],
-            'circle-stroke-width': 0
+            // Contorno opcional: styleFn pode devolver weight/color em pontos.
+            // O padrão continua 0, então camadas existentes não mudam.
+            'circle-stroke-width': ['coalesce', ['get', '__weight'], 0],
+            'circle-stroke-color': ['coalesce', ['get', '__line'], '#ffffff'],
+            'circle-stroke-opacity': ['coalesce', ['get', '__lineOpacity'], 1]
           }
         });
         this.layerIds = [lid];

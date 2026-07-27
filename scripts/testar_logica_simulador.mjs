@@ -26,7 +26,13 @@ const elemento = () => ({
   classList: { add: noop, remove: noop, toggle: noop, contains: () => false },
   style: {}, dataset: {}, appendChild: noop, textContent: '', innerHTML: '', hidden: false
 });
-const janela = { addEventListener: noop, localStorage: { getItem: () => null, setItem: noop, removeItem: noop } };
+const armazem = new Map();
+const localStorageFalso = {
+  getItem: (k) => (armazem.has(k) ? armazem.get(k) : null),
+  setItem: (k, v) => armazem.set(k, String(v)),
+  removeItem: (k) => armazem.delete(k),
+};
+const janela = { addEventListener: noop, localStorage: localStorageFalso };
 const documento = {
   body: { dataset: {} }, getElementById: elemento, querySelectorAll: () => [],
   querySelector: () => null, createElement: elemento, addEventListener: noop
@@ -39,16 +45,21 @@ const criar = new Function(
   ;return { SIM, simAddCandidato, simTransferPadrao, simTransferMatriz, simTransferTotal,
             simColunas, simColunasValidas, idxColuna, entradasDe, vencedorDe, margemDe,
             simMatriz2TPadrao, transformar2T, simFinalistas, simPrecisaSegundoTurno,
-            simCalcular2T, getPartyColor, getPartyPos, origensLista };`
+            simCalcular2T, getPartyColor, getPartyPos, origensLista,
+            restaurarLocal, cenarioSerializado, CENARIO_VERSAO,
+            pesosDaRegiao, sincronizarPesosRegionais, assinaturaMigracao };`
 );
-const M = criar(janela, documento, janela.localStorage, {}, {}, function () { }, () => { });
+const M = criar(janela, documento, localStorageFalso, {}, {}, function () { }, () => { });
 
 // O indice normalmente vem de sim2026/index.json; aqui so precisamos das origens.
 M.SIM.indice = {
   ufs: { AC: 679 },
+  redutos: [{ key: 'zema', uf: 'MG', nome: 'Romeu Zema' },
+    { key: 'caiado', uf: 'GO', nome: 'Ronaldo Caiado' }],
   dimensions: [{
-    key: 'voto2022', label: 'Voto 2022', base: 'elec',
-    buckets: [{ key: 'lula' }, { key: 'bolsonaro' }, { key: 'nulo_branco' }, { key: 'abstencao' }]
+    key: 'voto2022', label: 'Voto 2022 (1o turno)', base: 'elec',
+    buckets: [{ key: 'lula' }, { key: 'bolsonaro' }, { key: 'outros' },
+      { key: 'nulo_branco' }, { key: 'abstencao' }]
   }]
 };
 
@@ -58,6 +69,14 @@ console.log('Partidos e eixo ideologico');
   ok(M.getPartyColor('UNIÃO') === M.getPartyColor('UNIAO'), 'acento nao muda o partido');
   ok(M.getPartyPos('PT') < -0.5 && M.getPartyPos('PL') > 0.5, 'PT a esquerda, PL a direita',
     `PT ${M.getPartyPos('PT')}, PL ${M.getPartyPos('PL')}`);
+
+  // A ordem pedida entre os partidos em disputa. Nao ha controle manual de
+  // posicao: e o partido que posiciona o candidato.
+  const ordem = ['PT', 'PSD', 'NOVO', 'MISSÃO', 'PL'];
+  const pos = ordem.map((p) => M.getPartyPos(p));
+  ok(pos.every((v, i) => i === 0 || v > pos[i - 1]),
+    'ordem ideologica dos partidos: ' + ordem.join(' < '),
+    pos.map((v, i) => `${ordem[i]} ${v > 0 ? '+' : ''}${v.toFixed(2)}`).join('  '));
 }
 
 console.log('\nCandidatos e colunas');
@@ -91,8 +110,15 @@ M.SIM.transfer = M.simTransferPadrao();
   ok(t.abstencao.abstencao > 80, 'quem nao compareceu tende a nao comparecer de novo',
     `${t.abstencao.abstencao.toFixed(1)}%`);
 
+  ok(t.outros && t.outros[lulaId] > 0 && t.outros[flavioId] > 0,
+    'a origem "outros" (Ciro/Tebet) distribui de fato entre os candidatos',
+    `${t.outros[lulaId].toFixed(1)}% / ${t.outros[flavioId].toFixed(1)}%`);
+  ok(t.outros.abstencao < 20,
+    'eleitor de outro candidato nao vira abstencao em massa',
+    `${t.outros.abstencao.toFixed(1)}%`);
+
   const m = M.simTransferMatriz();
-  ok(m.length === 4 && m[0].length === 6, 'matriz no formato do worker',
+  ok(m.length === 5 && m[0].length === 6, 'matriz no formato do worker (5 origens x 6 colunas)',
     `${m.length}x${m[0].length}`);
   ok(m.every(l => perto(l.reduce((a, b) => a + b, 0), 1, 1e-6)), 'linhas em fracao somam 1');
 }

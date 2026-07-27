@@ -91,7 +91,8 @@
               <path d="M12 20V10" /><path d="M18 20V4" /><path d="M6 20v-4" />
             </svg>
           </div>
-          <p>Carregando o eleitorado de 2026 e a base de 2022…</p>
+          <p id="simEmptyMsg">Carregando o eleitorado de 2026 e a base de 2022…</p>
+          <button class="sim-btn sim-btn-apply" id="btnEmptyConfig" hidden>Configurar simulação</button>
         </div>
 
         <div id="simPanelResults" hidden>
@@ -140,6 +141,7 @@
 
       <div class="sim-modal-body">
         <nav class="sim-modal-nav" id="simModalNav">
+          <div class="sim-nav-grupo">Projeção base</div>
           <button class="sim-nav-item active" data-pane="candidatos">
             <span class="sim-nav-num">1</span>
             <span>
@@ -154,22 +156,31 @@
               <em>Para onde vai cada voto</em>
             </span>
           </button>
-          <button class="sim-nav-item" data-pane="demografia">
+          <button class="sim-nav-item" data-pane="regioes">
             <span class="sim-nav-num">3</span>
+            <span>
+              <strong>Macrorregiões</strong>
+              <em>Peso de cada região</em>
+            </span>
+          </button>
+
+          <div class="sim-nav-grupo">Refinamentos</div>
+          <button class="sim-nav-item" data-pane="rgint">
+            <span class="sim-nav-num">4</span>
+            <span>
+              <strong>Regiões interm.</strong>
+              <em>Ajuste fino territorial</em>
+            </span>
+          </button>
+          <button class="sim-nav-item" data-pane="demografia">
+            <span class="sim-nav-num">5</span>
             <span>
               <strong>Demografia</strong>
               <em>Voto por grupo</em>
             </span>
           </button>
-          <button class="sim-nav-item" data-pane="regioes">
-            <span class="sim-nav-num">4</span>
-            <span>
-              <strong>Regiões</strong>
-              <em>Metas territoriais</em>
-            </span>
-          </button>
           <button class="sim-nav-item" data-pane="turno2">
-            <span class="sim-nav-num">5</span>
+            <span class="sim-nav-num">6</span>
             <span>
               <strong>Segundo turno</strong>
               <em>Transferência de votos</em>
@@ -182,8 +193,9 @@
         <div class="sim-modal-pane-wrap">
           <section class="sim-pane" id="simPaneCandidatos"></section>
           <section class="sim-pane" id="simPaneCenario" hidden></section>
-          <section class="sim-pane" id="simPaneDemografia" hidden></section>
           <section class="sim-pane" id="simPaneRegioes" hidden></section>
+          <section class="sim-pane" id="simPaneRgint" hidden></section>
+          <section class="sim-pane" id="simPaneDemografia" hidden></section>
           <section class="sim-pane" id="simPaneTurno2" hidden></section>
         </div>
       </div>

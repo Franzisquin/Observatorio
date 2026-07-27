@@ -42,10 +42,42 @@ preserva as UFs que não foram reprocessadas.
 | `sim2026/baselines/uf/<UF>.json` | Idem, por estado |
 | `sim2026/baselines/muni/<UF>.json` | Só a composição, por município (o `support` é herdado da UF) |
 | `sim2026/baselines/qualidade.json` | MAE do ajuste e ganho sobre o modelo trivial, por dimensão |
+| `sim2026/baselines/regioes.json` | Resultado real do 1º turno de 2022 por macrorregião e por RGINT — é o que o painel de pesos regionais carrega automaticamente |
 
-O registro binário tem 59 bytes: cabeçalho de 18 (`cd_municipio u32`,
-`cod_ibge u32`, `nr_zona u16`, `nr_locvot u16`, `aptos u32`, `flags u8`, pad)
-seguido de 41 frações `u8`. `flags & 1` marca um local imputado.
+O registro binário tem 62 bytes: cabeçalho de 18 (`cd_municipio u32`,
+`cod_ibge u32`, `nr_zona u16`, `nr_locvot u16`, `aptos u32`, `flags u8`, pad),
+seguido de 42 frações `u8` e de 2 colunas `u8` de reduto (a partir de
+`redutosOffset`). `flags & 1` marca um local imputado.
+
+## Como a simulação é construída
+
+A ordem importa e está codificada tanto no worker quanto na interface:
+
+1. **Migração de 2022** (obrigatória) — a matriz leva cada comportamento do 1º
+   turno (Lula, Bolsonaro, outros, nulo/branco, abstenção) para os candidatos de
+   2026. É o que gera a superfície inicial de votos.
+2. **Redutos pessoais** — Zema e Caiado têm sua votação redistribuída *dentro*
+   do estado seguindo o mapa de onde foram bem para governador em 2022. O total
+   no estado não muda; muda de onde vem.
+3. **Pesos por macrorregião** (obrigatória) — metas agregadas, já pré-carregadas
+   com o resultado real de 2022 de cada região.
+4. **Regiões intermediárias**, ajustes por UF/município e **edições
+   demográficas** — refinamentos, só liberados depois que a projeção base
+   existe. Um ajuste mais específico sempre vence o mais geral.
+
+Sem os passos 1 e 3 não há simulação: a interface não gera projeção nenhuma
+antes de os dois estarem configurados.
+
+**Candidatos somam 100% entre si; abstenção e nulos são independentes.** Os
+alvos de abstenção e nulo/branco são percentuais do eleitorado apto e definem
+quanto do eleitorado chega a ser distribuído. Eles são aplicados por *escala
+multiplicativa*, nunca por atribuição direta — é isso que preserva a nuance
+municipal (um município que abstém 30% num estado de 20% continua acima da
+média depois do ajuste, em vez de todos virarem 20%).
+
+**A posição ideológica vem só do partido** (`POS_PARTIDO` em `simulador.js`).
+Não há controle manual: trocar o partido do candidato é o que o reposiciona.
+Entre os partidos em disputa a ordem é PT < PSD < NOVO < MISSÃO < PL.
 
 ## Decisões que valem lembrar
 
@@ -58,6 +90,17 @@ isso o município entra na chave.
 só é coletada em realistamentos recentes, o que enviesa a subamostra para
 eleitores jovens. A raça vem do Censo, já agregada por local nos GeoJSON de
 `locais_votacao_2022`, com cobertura completa.
+
+**A migração usa o PRIMEIRO turno de 2022, não o segundo.** O 1º turno tem a
+categoria "outros" (Ciro, Tebet e demais), que é justamente o eleitorado mais
+disputado em 2026; no 2º turno ele já está diluído em Lula/Bolsonaro e a
+informação se perde. É também o 1º turno que alimenta o preenchimento
+automático dos pesos regionais.
+
+**Redutos são uma lista curada** (`REDUTOS` em `schema_sim2026.py`): governadores
+de 2022 que disputam 2026. Para acrescentar alguém basta uma linha ali e
+reprocessar `gerar_base_2026.py`. Guardamos a votação de 1º turno do político
+para governador como fração dos aptos de cada local.
 
 **A regressão ecológica é regularizada (ridge, α = 0,15).** Sem encolhimento
 para a média do escopo ela devolve soluções de canto 0%/100% — a composição dos

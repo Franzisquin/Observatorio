@@ -6,6 +6,13 @@
    que vem dos dados.
    =========================================================================== */
 
+/* O atributo `hidden` só vale como `display: none` por regra do user-agent, de
+   especificidade zero — qualquer `display: flex/grid` nosso o anula. Como a UI
+   alterna visibilidade por `el.hidden`, isto precisa vir antes e ganhar. */
+[hidden] {
+  display: none !important;
+}
+
 .sim-app {
   grid-template-columns: 1fr 400px;
 }
@@ -1389,4 +1396,161 @@
   font-size: 0.68rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+
+/* ---------------------------------- assistente: etapas e travas ---------- */
+
+.sim-nav-grupo {
+  margin: 10px 0 4px;
+  padding: 0 10px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sim-nav-grupo:first-child {
+  margin-top: 0;
+}
+
+.sim-nav-item.travado {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+.sim-nav-item.travado:hover {
+  background: transparent;
+}
+
+.sim-nav-item.feito .sim-nav-num {
+  background: var(--ok);
+  color: #fff;
+}
+
+.sim-req {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+}
+
+.sim-check-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+  font-size: 0.73rem;
+  color: var(--muted);
+}
+
+.sim-check-item i {
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--chip-b);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-style: normal;
+  flex-shrink: 0;
+}
+
+.sim-check-item.ok {
+  color: var(--text-sec);
+}
+
+.sim-check-item.ok i {
+  background: var(--ok);
+  color: #fff;
+}
+
+/* ------------------------------------- candidatos: ordem e reduto -------- */
+
+.sim-cand-ord {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.sim-ord-btn {
+  width: 18px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--card);
+  color: var(--muted);
+  font-size: 0.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sim-ord-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.sim-ord-btn:disabled {
+  opacity: .3;
+  cursor: default;
+}
+
+.sim-cand-reduto {
+  flex-shrink: 0;
+  max-width: 118px;
+  padding: 5px 7px;
+  background: var(--card);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-sec);
+  font-family: inherit;
+  font-size: 0.72rem;
+}
+
+.sim-cand-sub {
+  font-size: 0.65rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* -------------------------- separador de turnout dentro de um bloco ------ */
+
+.sim-sep {
+  margin: 12px 0 8px;
+  padding-top: 9px;
+  border-top: 1px dashed var(--border-color);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+}
+
+.sim-tot-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* A tabela de resultado usa as classes do visualizador (style.css); aqui só
+   garantimos que ela respire dentro da sidebar do simulador. */
+.sim-app .cand-table {
+  width: 100%;
 }

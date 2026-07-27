@@ -101,15 +101,39 @@ DIMENSOES: list[dict] = [
         ],
     },
     {
+        # PRIMEIRO turno, nao segundo: e a base da migracao e do preenchimento
+        # automatico dos pesos regionais. O 1o turno tem "outros" (Ciro, Tebet,
+        # etc.), que e justamente o eleitorado mais disputado em 2026 — no 2o
+        # turno ele ja esta diluido em Lula/Bolsonaro e a informacao se perde.
         "chave": "voto2022",
-        "rotulo": "Voto em 2022 (2o turno)",
+        "rotulo": "Voto em 2022 (1o turno)",
         "base": "elec",
         "buckets": [
             ("lula", "Lula (PT)"), ("bolsonaro", "Bolsonaro (PL)"),
+            ("outros", "Outros candidatos"),
             ("nulo_branco", "Nulo ou branco"), ("abstencao", "Abstencao"),
         ],
     },
 ]
+
+# Redutos pessoais: candidatos a presidente em 2026 que foram governador em
+# 2022 tem base eleitoral propria, concentrada nos municipios onde foram bem
+# para o governo. Sem isso a migracao presidencial os espalha uniformemente
+# pelo estado, o que subestima o reduto e superestima o resto.
+#
+# Guardamos, por local de votacao, a votacao de 1o turno do politico para
+# governador como fracao dos aptos. O simulador usa isso para redistribuir os
+# votos dele DENTRO do estado, preservando o total.
+#
+# Lista curada: para acrescentar alguem, basta uma linha aqui e reprocessar.
+REDUTOS = [
+    {"chave": "zema", "uf": "MG", "prefixo": "ZEMA (NOVO)", "nome": "Romeu Zema"},
+    {"chave": "caiado", "uf": "GO", "prefixo": "RONALDO CAIADO", "nome": "Ronaldo Caiado"},
+]
+
+
+def n_redutos() -> int:
+    return len(REDUTOS)
 
 QUANT = 255  # fracoes quantizadas em u8, normalizadas dentro de cada dimensao
 
@@ -138,6 +162,7 @@ def para_json() -> dict:
         "quant": QUANT,
         "nBuckets": n_buckets(),
         "bucketKeys": chaves_buckets(),
+        "redutos": [{"key": r["chave"], "uf": r["uf"], "nome": r["nome"]} for r in REDUTOS],
         "dimensions": [
             {
                 "key": d["chave"],

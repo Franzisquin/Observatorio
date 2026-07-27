@@ -1,6 +1,6 @@
 {
  "quant": 255,
- "nBuckets": 41,
+ "nBuckets": 42,
  "bucketKeys": [
   "sexo|M",
   "sexo|F",
@@ -41,8 +41,21 @@
   "religiao|sem",
   "voto2022|lula",
   "voto2022|bolsonaro",
+  "voto2022|outros",
   "voto2022|nulo_branco",
   "voto2022|abstencao"
+ ],
+ "redutos": [
+  {
+   "key": "zema",
+   "uf": "MG",
+   "nome": "Romeu Zema"
+  },
+  {
+   "key": "caiado",
+   "uf": "GO",
+   "nome": "Ronaldo Caiado"
+  }
  ],
  "dimensions": [
   {
@@ -259,7 +272,7 @@
   },
   {
    "key": "voto2022",
-   "label": "Voto em 2022 (2o turno)",
+   "label": "Voto em 2022 (1o turno)",
    "base": "elec",
    "ordinal": false,
    "buckets": [
@@ -270,6 +283,10 @@
     {
      "key": "bolsonaro",
      "label": "Bolsonaro (PL)"
+    },
+    {
+     "key": "outros",
+     "label": "Outros candidatos"
     },
     {
      "key": "nulo_branco",
@@ -283,7 +300,8 @@
   }
  ],
  "headerBytes": 18,
- "recordBytes": 59,
+ "recordBytes": 62,
+ "redutosOffset": 60,
  "header": [
   {
    "name": "cd_municipio",
