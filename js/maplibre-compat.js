@@ -379,7 +379,13 @@
     _addSourceAndLayers() {
       const m = this.map;
       if (!m || m.getSource(this.sourceId)) return; // já adicionado
-      m.addSource(this.sourceId, { type: 'geojson', data: this.fc, promoteId: '__id' });
+      m.addSource(this.sourceId, {
+        type: 'geojson',
+        data: this.fc,
+        promoteId: '__id',
+        tolerance: 0.1,
+        buffer: 256
+      });
 
       if (this.type === 'point') {
         const lid = this.id + '-circle';
@@ -409,7 +415,9 @@
           },
           paint: {
             'fill-color': ['coalesce', ['get', '__fill'], '#888888'],
-            'fill-opacity': ['coalesce', ['get', '__fillOpacity'], 0.7]
+            'fill-opacity': ['coalesce', ['get', '__fillOpacity'], 0.7],
+            'fill-outline-color': 'rgba(0,0,0,0)',
+            'fill-antialias': true
           }
         });
         m.addLayer({

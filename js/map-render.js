@@ -3099,7 +3099,7 @@ function getMunicipalPolygonStyle(feature, summary) {
         fillColor: DEFAULT_SWATCH,
         fillOpacity: 0.02,
         color: '#ffffff',
-        weight: 0.3,
+        weight: 0.12,
         opacity: 0.3,
         height: 0
       };
@@ -3115,7 +3115,7 @@ function getMunicipalPolygonStyle(feature, summary) {
       fillColor: DEFAULT_SWATCH,
       fillOpacity: 0.25,
       color: '#ffffff',
-      weight: 0.6,
+      weight: 0.12,
       opacity: 0.8
     };
 
@@ -3127,7 +3127,7 @@ function getMunicipalPolygonStyle(feature, summary) {
         ...emptyStyle,
         fillOpacity: 0.06,
         color: 'rgba(255, 255, 255, 0.92)',
-        weight: 2.2,
+        weight: 0.8,
         opacity: 1
       };
     }
@@ -3226,7 +3226,7 @@ function getMunicipalPolygonStyle(feature, summary) {
     fillColor: fillColor,
     fillOpacity: fillOpacity,
     color: '#ffffff',
-    weight: 0.6,
+    weight: 0.12,
     opacity: 0.8,
     height: height
   };
@@ -3240,7 +3240,7 @@ function getMunicipalPolygonStyle(feature, summary) {
       return {
         ...baseStyle,
         color: 'rgba(255, 255, 255, 0.96)',
-        weight: 2.4,
+        weight: 0.8,
         opacity: 1
       };
     }
@@ -3248,7 +3248,7 @@ function getMunicipalPolygonStyle(feature, summary) {
       ...baseStyle,
       fillOpacity: 0.02,
       color: 'rgba(255, 255, 255, 0.96)',
-      weight: 2.4,
+      weight: 0.8,
       opacity: 1,
       height: height
     };

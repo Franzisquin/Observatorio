@@ -716,25 +716,39 @@ function getMarginAdjustedColor(baseColorHex, marginPct, winnerPct) {
   return getUniversalGradientColor(baseColorHex, safeMargin);
 }
 
-// Gradiente baseado na porcentagem absoluta do vencedor (lógica do Simulador Parlamentar)
-// Faixas: >=70% cor pura, 60-70% pastel médio-escuro, 50-60% pastel intermediário, <50% pastel claro
+// Gradiente baseado na porcentagem absoluta do vencedor
+// Passos de 10% em 10%: de <30% a >=80%, com cor base aos 50% (50-60%)
 function getWinnerPctGradientColor(baseColorHex, winnerPct) {
+  if (!baseColorHex) return '#888888';
   const hsl = hexToHSL(baseColorHex);
   const pct = Number.isFinite(winnerPct) ? winnerPct : 50;
 
-  if (pct >= 70) {
-    return baseColorHex;
-  } else if (pct >= 60) {
-    const targetS = Math.max(50, hsl.s * 0.9);
-    const targetL = 68;
+  if (pct >= 80) {
+    const targetL = Math.max(10, hsl.l - 24);
+    const targetS = Math.min(100, hsl.s * 1.12);
     return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 70) {
+    const targetL = Math.max(16, hsl.l - 16);
+    const targetS = Math.min(100, hsl.s * 1.06);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 60) {
+    const targetL = Math.max(22, hsl.l - 8);
+    return hslToHex(hsl.h, hsl.s, targetL);
   } else if (pct >= 50) {
-    const targetS = Math.max(45, hsl.s * 0.825);
-    const targetL = 76;
+    // Nível dos 50% (50% a 60%): Cor base predefinida
+    return baseColorHex;
+  } else if (pct >= 40) {
+    const targetS = Math.max(44, hsl.s * 0.9);
+    const targetL = Math.min(78, hsl.l + 8);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 30) {
+    const targetS = Math.max(35, hsl.s * 0.8);
+    const targetL = Math.min(86, hsl.l + 16);
     return hslToHex(hsl.h, targetS, targetL);
   } else {
-    const targetS = Math.max(40, hsl.s * 0.75);
-    const targetL = 84;
+    // Piso de porcentagem (< 30%)
+    const targetS = Math.max(25, hsl.s * 0.7);
+    const targetL = Math.min(92, hsl.l + 24);
     return hslToHex(hsl.h, targetS, targetL);
   }
 }

@@ -14,7 +14,45 @@
 }
 
 .sim-app {
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 400px 1fr 400px;
+}
+
+/* --------------------------------------------------- sidebar esquerda */
+
+.sim-app .side-left {
+  border-right: 1px solid var(--border-color);
+  border-left: none;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.sim-app .side-left .head {
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sim-app .side-left .body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sim-ctrl-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sim-ctrl-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+  margin-bottom: 2px;
 }
 
 .sim-app .head {
@@ -162,12 +200,20 @@
   opacity: .6;
 }
 
+.sim-mode-switch,
 .sim-turno-switch {
+  pointer-events: auto;
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
   display: flex;
   padding: 3px;
   gap: 2px;
 }
 
+.sim-mode-btn,
 .sim-turno-btn {
   background: none;
   border: none;
@@ -176,29 +222,33 @@
   font-size: 0.75rem;
   font-weight: 500;
   padding: 4px 12px;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
+.sim-mode-btn.active,
 .sim-turno-btn.active {
   background: var(--accent);
   color: #fff;
+  font-weight: 600;
 }
 
 .sim-map-legend {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: 30px;
+  right: 12px;
+  left: auto;
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  max-width: 60%;
-  padding: 7px 11px;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(840px, calc(100% - 24px));
+  padding: 8px 12px;
   font-size: 0.73rem;
   background: color-mix(in srgb, var(--card) 88%, transparent);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   backdrop-filter: blur(8px);
 }
 
@@ -212,8 +262,65 @@
 .sim-leg i {
   width: 9px;
   height: 9px;
-  border-radius: 2px;
+  border-radius: 0;
   flex-shrink: 0;
+}
+
+/* NYT-style choropleth legend for % do Vencedor */
+.sim-nyt-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 18px;
+  width: 100%;
+}
+
+.sim-nyt-cand-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sim-nyt-cand-head {
+  display: flex;
+  align-items: center;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.sim-nyt-ramp-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-nyt-blocks {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1.5px;
+  height: 11px;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.sim-nyt-block {
+  height: 100%;
+  border-radius: 0;
+}
+
+.sim-nyt-ticks {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  font-size: 0.6rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  margin-top: 1px;
+}
+
+.sim-nyt-ticks span {
+  text-align: center;
+  white-space: nowrap;
 }
 
 .sim-load-fail {
@@ -1069,6 +1176,27 @@
   border-top: 1px solid var(--border-color);
 }
 
+/* Barra de acoes da dimensao: aplica de uma vez todos os grupos editados dela. */
+.sim-dim-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sim-dim-actions small {
+  font-size: 0.66rem;
+  color: var(--muted);
+  flex: 1 1 100%;
+}
+
+.sim-dim-actions .sim-btn:disabled {
+  opacity: .4;
+  cursor: default;
+}
+
 .sim-bucket {
   padding: 10px 0;
   border-bottom: 1px dashed var(--border-color);
@@ -1396,6 +1524,17 @@
   font-size: 0.68rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+/* Soma dos quatro destinos da linha do grupo. Dois deles — nulos e abstencao —
+   sao herdados da linha global e nao tem slider aqui, entao sem este badge o
+   teto da trava de 100% ficaria invisivel. Precisa ser mais especifico que
+   `.sim-grupo-head span`, que dimensiona o rotulo do grupo. */
+.sim-grupo-head .sim-total {
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 1px 7px;
 }
 
 
@@ -1527,6 +1666,8 @@
   margin-top: 2px;
 }
 
+
+
 /* -------------------------- separador de turnout dentro de um bloco ------ */
 
 .sim-sep {
@@ -1553,4 +1694,58 @@
    garantimos que ela respire dentro da sidebar do simulador. */
 .sim-app .cand-table {
   width: 100%;
+}
+
+/* -------------------------- modo de colorização do mapa ------------------- */
+
+.sim-color-mode-ctrl {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.sim-color-mode-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.sim-color-mode-switch {
+  display: flex;
+  background: var(--chip-b, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 8px);
+  padding: 3px;
+  gap: 3px;
+}
+
+.sim-color-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease-in-out;
+}
+
+.sim-color-btn:hover:not(.active) {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.sim-color-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }

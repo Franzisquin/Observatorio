@@ -47,7 +47,9 @@ const criar = new Function(
             simMatriz2TPadrao, transformar2T, simFinalistas, simPrecisaSegundoTurno,
             simCalcular2T, getPartyColor, getPartyPos, origensLista,
             restaurarLocal, cenarioSerializado, CENARIO_VERSAO,
-            pesosDaRegiao, sincronizarPesosRegionais, assinaturaMigracao };`
+            pesosDaRegiao, sincronizarPesosRegionais, assinaturaMigracao,
+            travar100, vetorParaEditor, editorParaVetor, simAplicarSupport,
+            bucketsFixados, opDoEscopo, pesosSimuladosDaRegiao, resultadoDoEscopo };`
 );
 const M = criar(janela, documento, localStorageFalso, {}, {}, function () { }, () => { });
 
@@ -95,32 +97,12 @@ console.log('\nMatriz de migracao 2022');
 M.SIM.transfer = M.simTransferPadrao();
 {
   for (const o of M.origensLista()) {
-    ok(perto(M.simTransferTotal(o), 100, 0.01), `linha "${o}" soma 100%`,
+    ok(perto(M.simTransferTotal(o), 0, 0.01), `linha "${o}" inicia zerada (0%)`,
       M.simTransferTotal(o).toFixed(3) + '%');
   }
-  const t = M.SIM.transfer;
-  const lulaId = 'cand_' + M.SIM.candidatos[0].id;
-  const flavioId = 'cand_' + M.SIM.candidatos[1].id;
-  ok(t.lula[lulaId] > t.lula[flavioId],
-    'quem votou Lula vai mais para o candidato de esquerda',
-    `${t.lula[lulaId].toFixed(1)}% vs ${t.lula[flavioId].toFixed(1)}%`);
-  ok(t.bolsonaro[flavioId] > t.bolsonaro[lulaId],
-    'quem votou Bolsonaro vai mais para o candidato de direita',
-    `${t.bolsonaro[flavioId].toFixed(1)}% vs ${t.bolsonaro[lulaId].toFixed(1)}%`);
-  ok(t.abstencao.abstencao > 80, 'quem nao compareceu tende a nao comparecer de novo',
-    `${t.abstencao.abstencao.toFixed(1)}%`);
-
-  ok(t.outros && t.outros[lulaId] > 0 && t.outros[flavioId] > 0,
-    'a origem "outros" (Ciro/Tebet) distribui de fato entre os candidatos',
-    `${t.outros[lulaId].toFixed(1)}% / ${t.outros[flavioId].toFixed(1)}%`);
-  ok(t.outros.abstencao < 20,
-    'eleitor de outro candidato nao vira abstencao em massa',
-    `${t.outros.abstencao.toFixed(1)}%`);
-
   const m = M.simTransferMatriz();
   ok(m.length === 5 && m[0].length === 6, 'matriz no formato do worker (5 origens x 6 colunas)',
     `${m.length}x${m[0].length}`);
-  ok(m.every(l => perto(l.reduce((a, b) => a + b, 0), 1, 1e-6)), 'linhas em fracao somam 1');
 }
 
 console.log('\nApuracao');
@@ -186,6 +168,127 @@ console.log('\nVitoria no primeiro turno');
 {
   M.SIM.agregado = { brasil: { aptos: 100, votos: [55, 15, 5, 5, 5, 15] }, ufs: {}, municipios: {} };
   ok(M.simPrecisaSegundoTurno() === false, 'lider acima de 50% dos validos nao vai a 2o turno');
+}
+
+console.log('\nTrava de 100%');
+{
+  ok(M.travar100(80, 70) === 30, 'o slider para no que sobra dos outros',
+    String(M.travar100(80, 70)));
+  ok(M.travar100(50, 120) === 0, 'teto negativo vira 0 em vez de valor negativo');
+  ok(M.travar100(40, 30) === 40, 'dentro da folga o valor passa intacto');
+  ok(M.travar100(-5, 0) === 0, 'nao aceita negativo');
+
+  // Linha de 2o turno ja em 100%: subir um destino nao pode passar de 100.
+  const linha = { cand_1: 40, cand_2: 30, nuloBranco: 12, abstencao: 18 };
+  const destinos = ['cand_1', 'cand_2', 'nuloBranco', 'abstencao'];
+  const novo = M.travar100(90, destinos.filter(d => d !== 'cand_1')
+    .reduce((s, d) => s + linha[d], 0));
+  linha.cand_1 = novo;
+  const soma = destinos.reduce((s, d) => s + linha[d], 0);
+  ok(perto(soma, 100, 1e-9), 'linha de 2o turno em 100% nao ultrapassa 100',
+    `cand_1 travou em ${novo}, soma ${soma}`);
+}
+
+console.log('\nDemografia: vetor do worker <-> editor');
+{
+  // 6 colunas: cand_1, cand_2, cand_3, outros, nuloBranco, abstencao.
+  const vet = [0.30, 0.25, 0.10, 0.05, 0.06, 0.24];   // soma 1 sobre os aptos
+  const ed = M.vetorParaEditor(vet);
+
+  const somaValidos = M.simColunasValidas().reduce((s, c) => s + ed.validos[c.key], 0);
+  ok(perto(somaValidos, 100, 1e-9), 'no editor os validos somam 100% entre si',
+    somaValidos.toFixed(4) + '%');
+  ok(perto(ed.abstencao, 24, 1e-9), 'abstencao sobrevive como % dos aptos',
+    ed.abstencao.toFixed(2) + '%');
+  ok(perto(ed.nuloBranco, 6, 1e-9), 'nulos sobrevivem como % dos aptos');
+  ok(perto(ed.validos.cand_1, 100 * 0.30 / 0.70, 1e-9),
+    'candidato vira % dos validos do grupo', ed.validos.cand_1.toFixed(2) + '%');
+
+  const volta = M.editorParaVetor(ed);
+  ok(vet.every((v, i) => perto(volta[i], v, 1e-9)), 'ida e volta preserva o vetor',
+    volta.map(x => x.toFixed(4)).join(' '));
+
+  // Com o bloco de validos em 92% (usuario ainda ajustando), o vetor exportado
+  // continua somando 1 — a normalizacao acontece na exportacao, como em
+  // opsRegionais.
+  const parcial = {
+    validos: { cand_1: 40, cand_2: 30, cand_3: 12, outros: 10 },  // 92%
+    abstencao: 24, nuloBranco: 6
+  };
+  const vp = M.editorParaVetor(parcial);
+  ok(perto(vp.reduce((a, b) => a + b, 0), 1, 1e-9),
+    'bloco de validos em 92% ainda exporta vetor somando 1',
+    vp.reduce((a, b) => a + b, 0).toFixed(6));
+  ok(perto(vp[M.idxColuna('abstencao')], 0.24, 1e-9),
+    'a normalizacao dos validos nao mexe no comparecimento');
+  ok(perto(vp[M.idxColuna('cand_1')] / vp[M.idxColuna('cand_2')], 40 / 30, 1e-9),
+    'a proporcao entre candidatos e preservada');
+
+  // Comparecimento no limite: 95% fora dos validos deixa 5% de pool.
+  const semPool = M.editorParaVetor({
+    validos: { cand_1: 50, cand_2: 50 }, abstencao: 70, nuloBranco: 30
+  });
+  ok(semPool.every(x => x >= 0) && perto(semPool.reduce((a, b) => a + b, 0), 1, 1e-9),
+    'abstencao + nulos em 100% nao produz voto valido negativo',
+    semPool.map(x => x.toFixed(3)).join(' '));
+}
+
+console.log('\nDemografia: o que fica fixo e o que se reestima');
+{
+  M.SIM.escopo = { level: 'nacional' };
+  M.SIM.ops.clear();
+  M.SIM.support = { religiao: [[0.3, 0.2, 0.1, 0.05, 0.05, 0.3], [0.1, 0.4, 0.1, 0.05, 0.05, 0.3]] };
+
+  ok(M.bucketsFixados().size === 0, 'sem ops nenhum bucket esta fixo');
+
+  const op = M.opDoEscopo(M.SIM.escopo, true);
+  op.demo['religiao|0'] = [0.3, 0.2, 0.1, 0.05, 0.05, 0.3];
+  ok(M.bucketsFixados().has('religiao|0'), 'bucket com meta em op.demo conta como fixo');
+
+  // A reestimativa do worker chega e so pode mexer no bucket sem meta.
+  M.simAplicarSupport({ religiao: [[9, 9, 9, 9, 9, 9], [8, 8, 8, 8, 8, 8]] });
+  ok(M.SIM.support.religiao[0][0] === 0.3, 'bucket com meta nao e sobrescrito');
+  ok(M.SIM.support.religiao[1][0] === 8, 'bucket sem meta acompanha a reestimativa');
+
+  // O conjunto e por escopo: em SP nao ha meta nenhuma, entao tudo se reestima.
+  M.SIM.escopo = { level: 'uf', uf: 'SP' };
+  ok(M.bucketsFixados().size === 0, 'meta nacional nao vaza para o escopo da UF');
+  M.simAplicarSupport({ religiao: [[7, 7, 7, 7, 7, 7], [7, 7, 7, 7, 7, 7]] });
+  ok(M.SIM.support.religiao[0][0] === 7, 'no escopo sem meta o bucket volta a se reestimar');
+  M.SIM.escopo = { level: 'nacional' };
+  M.SIM.ops.clear();
+}
+
+console.log('\nRegioes intermediarias saem da simulacao, nao de 2022');
+{
+  // Dois municipios da regiao, com resultados bem diferentes de 2022.
+  M.SIM.agregado = {
+    brasil: res1, ufs: {},
+    municipios: {
+      '1100015': { aptos: 100, votos: [40, 20, 10, 5, 5, 20] },
+      '1100023': { aptos: 100, votos: [20, 40, 10, 5, 5, 20] }
+    }
+  };
+  const p = M.pesosSimuladosDaRegiao({ codigo: '1101', munis: [1100015, 1100023] });
+  const validos = 60 + 60 + 20 + 10;   // soma dos validos das duas cidades
+  ok(p != null, 'a regiao tem pesos derivados da simulacao');
+  ok(perto(p.validos.cand_1, 100 * 60 / validos, 1e-9),
+    'candidato vem do agregado simulado da regiao', p.validos.cand_1.toFixed(2) + '%');
+  ok(perto(p.validos.cand_1, p.validos.cand_2, 1e-9),
+    'os dois municipios se compensam, como manda a agregacao');
+  ok(perto(p.abstencao, 20, 1e-9), 'abstencao em % dos aptos da regiao');
+  ok(perto(p.nuloBranco, 5, 1e-9), 'nulos em % dos aptos da regiao');
+  ok(p.aptos === 200, 'eleitorado da regiao e a soma dos municipios');
+
+  const somaV = M.simColunasValidas().reduce((s, c) => s + p.validos[c.key], 0);
+  ok(perto(somaV, 100, 1e-9), 'os validos da regiao somam 100%', somaV.toFixed(4) + '%');
+
+  // Nenhum candidato e zerado por nao ser do PT nem do PL — era o que a leitura
+  // de 2022 fazia com todo mundo fora esses dois.
+  ok(p.validos.cand_3 > 0, 'candidato fora de PT/PL nao e zerado');
+
+  ok(M.pesosSimuladosDaRegiao({ codigo: '9999', munis: [999999] }) === null,
+    'regiao sem municipio na simulacao devolve null em vez de zeros');
 }
 
 console.log(falhas === 0 ? '\nTUDO OK' : `\n${falhas} FALHA(S)`);

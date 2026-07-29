@@ -99,9 +99,12 @@ const SIM = {
 
   agregado: null,          // ultimo resultado do worker (1T)
   agregado2T: null,
-  support: null,           // apoio demografico do escopo ativo
+  support: null,           // apoio demografico do escopo ativo (estimativa do worker)
   shares: null,            // composicao do escopo ativo
-  tocados: new Set(),      // 'dim|bucket' editados pelo usuario nesta sessao
+  // Edicoes demograficas do usuario, POR ESCOPO — mesma chave de SIM.ops, para
+  // que os dois nunca divirjam:
+  //   chaveEscopo -> { 'dim|bucket': { validos:{colKey:pct}, abstencao, nuloBranco } }
+  demoEdit: {},
 
   turno: 1,
   t2: { finalistas: null, matriz: null, comparecimento: 0 },
@@ -136,8 +139,16 @@ function escapeHtml(t) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 function fmtInt(n) { return Math.round(n || 0).toLocaleString('pt-BR'); }
-function fmtPct(p, d = 1) { return isFinite(p) ? p.toFixed(d).replace('.', ',') + '%' : '–'; }
+function fmtPct(p, d = 2) { return isFinite(p) ? p.toFixed(d).replace('.', ',') + '%' : '–'; }
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+/* Trava de 100%: um slider nunca passa do que sobra dos outros da mesma soma.
+   Para dar mais a alguem e preciso liberar de outro antes — sem renormalizacao
+   automatica pelas costas do usuario. Usada nos cinco editores (migracao,
+   macrorregiao, regiao intermediaria, demografia e 2o turno). */
+function travar100(v, somaDosOutros) {
+  return clamp(v || 0, 0, Math.max(0, 100 - (somaDosOutros || 0)));
+}
 
 function normalizePartyKey(p) {
   return String(p || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toUpperCase();
@@ -179,14 +190,64 @@ function hslToHex(h, s, l) {
   const f = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
   return '#' + f(r) + f(g) + f(b);
 }
-/* Margem 0..50pp -> clareia a cor do vencedor. Mesma rampa do visualizador. */
-function getUniversalGradientColor(base, margemPct) {
-  if (!base) return '#3a3a3a';
-  const { h, s } = hexToHSL(base);
-  const t = Math.pow(clamp(margemPct / 40, 0, 1), 1.35);
-  const claro = document.body.dataset.theme === 'light';
-  const lMax = claro ? 92 : 78, lMin = claro ? 46 : 30;
-  return hslToHex(h, Math.max(18, s * (0.45 + 0.55 * t)), lMax - (lMax - lMin) * t);
+function getUniversalGradientColor(baseColorHex, marginPct) {
+  if (!baseColorHex) return '#888888';
+  const BASE_MARGIN = 20;
+  const MIN_MARGIN = 0;
+  const MAX_MARGIN = 60;
+  const MAX_LIGHTEN = 14;
+  const MAX_DARKEN = 18;
+  const EASING_EXPONENT = 1.35;
+
+  const numericMargin = Number.isFinite(marginPct) ? marginPct : BASE_MARGIN;
+  const clampedMargin = Math.max(MIN_MARGIN, Math.min(MAX_MARGIN, numericMargin));
+  const hsl = hexToHSL(baseColorHex);
+  let targetL = hsl.l;
+
+  if (clampedMargin < BASE_MARGIN) {
+    const progress = Math.pow((BASE_MARGIN - clampedMargin) / (BASE_MARGIN - MIN_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l + (MAX_LIGHTEN * progress);
+  } else if (clampedMargin > BASE_MARGIN) {
+    const progress = Math.pow((clampedMargin - BASE_MARGIN) / (MAX_MARGIN - BASE_MARGIN), EASING_EXPONENT);
+    targetL = hsl.l - (MAX_DARKEN * progress);
+  }
+
+  return hslToHex(hsl.h, hsl.s, Math.max(8, Math.min(92, targetL)));
+}
+
+function getWinnerPctGradientColor(baseColorHex, winnerPct) {
+  if (!baseColorHex) return '#888888';
+  const hsl = hexToHSL(baseColorHex);
+  const pct = Number.isFinite(winnerPct) ? winnerPct : 50;
+
+  if (pct >= 80) {
+    const targetL = Math.max(10, hsl.l - 24);
+    const targetS = Math.min(100, hsl.s * 1.12);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 70) {
+    const targetL = Math.max(16, hsl.l - 16);
+    const targetS = Math.min(100, hsl.s * 1.06);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 60) {
+    const targetL = Math.max(22, hsl.l - 8);
+    return hslToHex(hsl.h, hsl.s, targetL);
+  } else if (pct >= 50) {
+    // Nível dos 50% (50% a 60%): Cor base predefinida
+    return baseColorHex;
+  } else if (pct >= 40) {
+    const targetS = Math.max(44, hsl.s * 0.9);
+    const targetL = Math.min(78, hsl.l + 8);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else if (pct >= 30) {
+    const targetS = Math.max(35, hsl.s * 0.8);
+    const targetL = Math.min(86, hsl.l + 16);
+    return hslToHex(hsl.h, targetS, targetL);
+  } else {
+    // Piso de porcentagem (< 30%)
+    const targetS = Math.max(25, hsl.s * 0.7);
+    const targetL = Math.min(92, hsl.l + 24);
+    return hslToHex(hsl.h, targetS, targetL);
+  }
 }
 
 // -------------------------------------------------------- refresh do mapa
@@ -240,6 +301,54 @@ function simColunasValidas() {
 }
 function idxColuna(key) { return simColunas().findIndex(c => c.key === key); }
 
+/* Duas leituras do mesmo bucket demografico.
+
+   O worker consome um VETOR POSICIONAL sobre o eleitorado APTO do grupo, com
+   todas as colunas somando 1 — abstencao e nulos sao colunas como qualquer
+   outra (js/sim_ei_worker.js, cabecalho).
+
+   O editor mostra a mesma coisa separada em duas grandezas independentes, como
+   renderRegioes ja faz por territorio: candidatos como % dos VALIDOS daquele
+   grupo (somando 100 entre si) e abstencao/nulos como % dos aptos, fora dessa
+   soma. Sem a separacao, subir um candidato exigiria antes baixar a abstencao. */
+function vetorParaEditor(vet) {
+  const v = vet || [];
+  const validas = simColunasValidas();
+  const soma = validas.reduce((s, c) => s + (v[idxColuna(c.key)] || 0), 0);
+  const validos = {};
+  validas.forEach(c => {
+    validos[c.key] = soma > 0 ? 100 * (v[idxColuna(c.key)] || 0) / soma : 0;
+  });
+  return {
+    validos,
+    abstencao: 100 * (v[idxColuna('abstencao')] || 0),
+    nuloBranco: 100 * (v[idxColuna('nuloBranco')] || 0)
+  };
+}
+
+/* Volta para o vetor do worker. Os validos sao renormalizados dentro do pool
+   que sobra do comparecimento (pool = 1 - abstencao - nulos), reproduzindo a
+   recomposicao que o worker faz em aplicarOp — e o que garante que o vetor
+   sempre soma 1, mesmo quando o bloco de validos na tela esta em 92%. Mesma
+   divisao de trabalho de opsRegionais: a UI trava, a exportacao normaliza. */
+function editorParaVetor(ed) {
+  const vet = new Array(simColunas().length).fill(0);
+  if (!ed) return vet;
+  const abst = clamp(ed.abstencao || 0, 0, 100) / 100;
+  const nulo = clamp(ed.nuloBranco || 0, 0, 100) / 100;
+  const pool = Math.max(0, 1 - abst - nulo);
+  const validas = simColunasValidas();
+  const soma = validas.reduce((s, c) => s + ((ed.validos || {})[c.key] || 0), 0);
+  if (soma > 0) {
+    validas.forEach(c => {
+      vet[idxColuna(c.key)] = pool * ((ed.validos || {})[c.key] || 0) / soma;
+    });
+  }
+  vet[idxColuna('abstencao')] = abst;
+  vet[idxColuna('nuloBranco')] = nulo;
+  return vet;
+}
+
 function origensLista() {
   const d = SIM.indice && SIM.indice.dimensions.find(x => x.key === 'voto2022');
   return d ? d.buckets.map(b => b.key) : Object.keys(ORIGENS_2022);
@@ -254,16 +363,26 @@ function simAddCandidato(nome = '', partido = '') {
     pos: getPartyPos(partido)
   };
   SIM.candidatos.push(c);
+  // Um candidato novo entra ANTES de 'outros', deslocando todos os indices
+  // seguintes: os vetores posicionais ja guardados passariam a significar outra
+  // coisa. Descartar e a unica leitura honesta — mesma razao de simRemoveCandidato.
+  esquecerEdicoesPosicionais();
   return c;
 }
 function simRemoveCandidato(id) {
   SIM.candidatos = SIM.candidatos.filter(c => c.id !== id);
   const k = 'cand_' + id;
   for (const o in SIM.transfer) delete SIM.transfer[o][k];
-  // As ops guardam vetores posicionais; ao mudar o numero de colunas elas
-  // deixam de fazer sentido e sao descartadas em vez de reindexadas errado.
-  SIM.ops.clear();
+  esquecerEdicoesPosicionais();
   SIM.t2.finalistas = null;
+}
+
+/* As ops guardam vetores posicionais; ao mudar o numero de colunas elas deixam
+   de fazer sentido e sao descartadas em vez de reindexadas errado. As edicoes
+   demograficas em aberto vao junto: sao a origem dessas mesmas ops. */
+function esquecerEdicoesPosicionais() {
+  SIM.ops.clear();
+  SIM.demoEdit = {};
 }
 
 // ------------------------------------------------- matriz de transferencia
@@ -279,16 +398,14 @@ function pesosKernel(pos, candidatos) {
 
 function simTransferPadrao() {
   const t = {};
-  for (const origem of origensLista()) {
-    const cfg = ORIGENS_2022[origem] || ORIGENS_2022.abstencao;
+  const origens = origensLista();
+  const cols = simColunas();
+
+  origens.forEach(origem => {
     const linha = {};
-    const w = pesosKernel(cfg.pos, SIM.candidatos);
-    SIM.candidatos.forEach((c, i) => { linha['cand_' + c.id] = 100 * cfg.paraCand * w[i]; });
-    linha.outros = 100 * cfg.outros;
-    linha.nuloBranco = 100 * cfg.nulo;
-    linha.abstencao = 100 * cfg.abst;
+    cols.forEach(c => { linha[c.key] = 0; });
     t[origem] = linha;
-  }
+  });
   return t;
 }
 
@@ -350,14 +467,14 @@ function vinculosReduto() {
 
 /* A simulacao so pode rodar depois dos dois inputs obrigatorios. */
 function prontoParaBase() {
-  const migOk = origensLista().every(o => Math.abs(simTransferTotal(o) - 100) < 0.5);
+  const migOk = origensLista().every(o => simTransferTotal(o) >= 0 && simTransferTotal(o) <= 100.5);
   const regs = listaRegioes('mr');
   regs.forEach(r => pesosDaRegiao(`mr:${r.codigo}`));   // recalcula se a migracao mudou
   const regOk = regs.length > 0 && regs.every(r => {
     const p = SIM.pesosRegiao[`mr:${r.codigo}`];
     if (!p) return false;
     const s = simColunasValidas().reduce((a, c) => a + (p.validos[c.key] || 0), 0);
-    return Math.abs(s - 100) < 0.5;
+    return s > 0;
   });
   return { migOk, regOk, ok: migOk && regOk };
 }
@@ -453,17 +570,63 @@ async function simCalcular() {
   }
 }
 
-/* As dimensoes NAO editadas passam a refletir o apoio observado depois da
-   redistribuicao (editar religiao move os sliders de escolaridade, etc.).
-   Buckets que o usuario tocou nesta sessao ficam intactos. */
+/* Buckets com meta aplicada NO ESCOPO ATIVO. Derivado das ops em vez de
+   guardado a parte: SIM.support e por escopo, e um conjunto global de "tocados"
+   divergia dele — um bucket fixado no Brasil aparecia fixado tambem em SP, onde
+   nao ha meta nenhuma. */
+function bucketsFixados(escopo) {
+  const op = opDoEscopo(escopo || SIM.escopo);
+  return new Set(op && op.demo ? Object.keys(op.demo) : []);
+}
+
+/* As dimensoes NAO fixadas passam a refletir o apoio observado depois da
+   redistribuicao (editar religiao move os sliders de escolaridade, etc.), e e o
+   que faz os sliders acompanharem migracao, macrorregioes e ajustes por
+   UF/municipio. Buckets com meta ficam intactos. */
 function simAplicarSupport(novo) {
-  if (!SIM.support) { SIM.support = novo; return; }
+  if (!novo) return;
+  if (!SIM.support) SIM.support = {};
+  const op = opDoEscopo(SIM.escopo);
+  const metas = (op && op.demo) || {};
   for (const dim in novo) {
-    if (!SIM.support[dim]) { SIM.support[dim] = novo[dim]; continue; }
-    novo[dim].forEach((linha, i) => {
-      if (!SIM.tocados.has(dim + '|' + i)) SIM.support[dim][i] = linha;
+    // Onde ha meta, o valor exibido e a propria meta e nao a reestimativa: a
+    // realocacao aditiva, o corte de negativos e o arredondamento do worker
+    // devolvem algo proximo mas nao identico, e o usuario nao deve ver o numero
+    // que digitou derivar sozinho.
+    SIM.support[dim] = novo[dim].map((linha, i) => {
+      const meta = metas[dim + '|' + i];
+      return meta ? meta.slice() : linha;
     });
   }
+}
+
+/* Edicoes demograficas em aberto no escopo ativo. */
+function demoEditsDoEscopo(criar = false, escopo) {
+  const k = chaveEscopo(escopo || SIM.escopo);
+  if (!SIM.demoEdit[k] && criar) SIM.demoEdit[k] = {};
+  return SIM.demoEdit[k] || null;
+}
+
+/* Leitura de um bucket na forma do editor: a edicao do usuario quando existe,
+   senao a estimativa mais recente do worker. */
+function edicaoDoBucket(dim, bi, criar = false) {
+  const chave = dim + '|' + bi;
+  const eds = demoEditsDoEscopo(criar);
+  if (eds && eds[chave]) return eds[chave];
+  const base = vetorParaEditor(SIM.support && SIM.support[dim] ? SIM.support[dim][bi] : null);
+  if (criar) eds[chave] = base;
+  return base;
+}
+
+/* SIM.support com as edicoes em aberto por cima — o que a previa instantanea e
+   o badge precisam ler para refletir o que esta na tela. */
+function supportEfetivo(dim) {
+  if (!SIM.support || !SIM.support[dim]) return null;
+  const eds = demoEditsDoEscopo() || {};
+  return SIM.support[dim].map((linha, i) => {
+    const ed = eds[dim + '|' + i];
+    return ed ? editorParaVetor(ed) : linha;
+  });
 }
 
 // ------------------------------------------------------------------ dados
@@ -981,7 +1144,7 @@ function renderPaneCenario() {
     ${origensLista().map(origem => {
     const cfg = ORIGENS_2022[origem] || { rotulo: origem };
     const total = simTransferTotal(origem);
-    const ok = Math.abs(total - 100) < 0.5;
+    const ok = total >= 0 && total <= 100.5;
     const linha = SIM.transfer[origem] || {};
     const peso = SIM.shares && SIM.shares.voto2022
       ? SIM.shares.voto2022[origensLista().indexOf(origem)] : null;
@@ -1010,15 +1173,13 @@ function renderPaneCenario() {
   }).join('')}
     <button class="sim-btn sim-btn-ghost" id="btnResetTransfer">Restaurar valores sugeridos</button>`;
 
-  /* Trava de 100% por linha: um destino nunca passa do que sobra dos outros.
-     Para dar mais a alguem e preciso liberar de outro antes — sem
-     renormalizacao automatica pelas costas do usuario. */
+  // Trava de 100% por linha (travar100): um destino nunca passa do que sobra
+  // dos outros.
   const atualiza = (origem, col, v) => {
     SIM.transfer[origem] = SIM.transfer[origem] || {};
     const linha = SIM.transfer[origem];
-    const outros = simColunas().filter(c => c.key !== col)
-      .reduce((s, c) => s + (linha[c.key] || 0), 0);
-    v = clamp(v, 0, Math.max(0, 100 - outros));
+    v = travar100(v, simColunas().filter(c => c.key !== col)
+      .reduce((s, c) => s + (linha[c.key] || 0), 0));
     linha[col] = v;
     SIM.migracaoTocada = true;
     SIM.baseGerada = false;
@@ -1026,8 +1187,8 @@ function renderPaneCenario() {
     const total = simTransferTotal(origem);
     const badge = bloco.querySelector('.sim-total');
     badge.textContent = fmtPct(total);
-    badge.classList.toggle('ok', Math.abs(total - 100) < 0.5);
-    badge.classList.toggle('bad', Math.abs(total - 100) >= 0.5);
+    badge.classList.toggle('ok', total >= 0 && total <= 100.5);
+    badge.classList.toggle('bad', total < 0 || total > 100.5);
     const r = bloco.querySelector(`.sim-slider[data-col="${col}"]`);
     const n = bloco.querySelector(`.sim-slider-val[data-col="${col}"]`);
     if (r) r.value = v;
@@ -1052,9 +1213,11 @@ function projecaoDemografica(dimKey) {
   if (!SIM.shares || !SIM.support || !SIM.support[dimKey]) return null;
   const share = SIM.shares[dimKey];
   if (!share) return null;
+  const linhas = supportEfetivo(dimKey);
+  if (!linhas) return null;
   const nCol = simColunas().length;
   const fora = new Array(nCol).fill(0);
-  SIM.support[dimKey].forEach((linha, i) => {
+  linhas.forEach((linha, i) => {
     for (let p = 0; p < nCol; p++) fora[p] += (share[i] || 0) * (linha[p] || 0);
   });
   return fora;
@@ -1072,6 +1235,18 @@ function seloQualidade(dimKey) {
   return `<small class="sim-selo" title="Redução do erro em relação a usar a média do escopo para todos os locais.">explica ${fmtPct(100 * g, 0)} da variação</small>`;
 }
 
+/* Editor de voto por grupo demografico.
+
+   Mesmo contrato de renderRegioes, so que o recorte e demografico em vez de
+   territorial: os candidatos somam 100% ENTRE SI (divisao dos validos daquele
+   grupo) e abstencao/nulos ficam fora dessa soma, cada um como percentual do
+   eleitorado apto do grupo. O vetor que o worker consome — todas as colunas
+   somando 1 sobre os aptos — e reconstruido por editorParaVetor na aplicacao.
+
+   Os valores exibidos sao sempre a estimativa mais recente da regressao, com as
+   edicoes em aberto do escopo por cima; entao mexer em migracao, macrorregiao,
+   UF/municipio ou em outra dimensao move estes sliders sozinho. So os buckets
+   com meta aplicada (op.demo) ficam fixos. */
 function renderPaneDemografia() {
   const el = document.getElementById('simPaneDemografia');
   if (!SIM.support) {
@@ -1080,7 +1255,12 @@ function renderPaneDemografia() {
     return;
   }
   const cols = simColunas();
+  const validas = simColunasValidas();
   const dims = SIM.indice.dimensions.filter(d => d.key !== 'voto2022' && SIM.support[d.key]);
+  const fixados = bucketsFixados();
+  const emAberto = demoEditsDoEscopo() || {};
+  const temEdicao = (dimKey) => Object.keys(emAberto).some(k => k.startsWith(dimKey + '|'));
+  const temMeta = (dimKey) => Array.from(fixados).some(k => k.startsWith(dimKey + '|'));
 
   el.innerHTML = `
     <header class="sim-pane-head">
@@ -1088,8 +1268,10 @@ function renderPaneDemografia() {
       <p>Os valores partem de uma <strong>regressão ecológica</strong> sobre os
          ${fmtInt(SIM.indice ? Object.values(SIM.indice.ufs).reduce((a, b) => a + b, 0) : 0)}
          locais de votação: o quanto cada grupo explica a variação do voto entre
-         locais. Ao mover um grupo, os demais são reestimados sobre o novo
-         resultado — só os que você editar ficam fixos.
+         locais. Os candidatos dividem 100% dos válidos do grupo; abstenção e
+         nulos são definidos à parte, sobre o eleitorado apto. Ao aplicar uma
+         dimensão, as demais são reestimadas sobre o novo resultado — só o que
+         você aplicar fica fixo.
          Escopo atual: <strong>${escapeHtml(rotuloEscopo(SIM.escopo))}</strong>.</p>
     </header>
     <div class="sim-previa" id="simPreviaDemo"></div>
@@ -1101,35 +1283,60 @@ function renderPaneDemografia() {
           <span>${escapeHtml(d.label)}</span>
           ${seloQualidade(d.key)}
           <small>${d.base === 'pop' ? 'estimado pelo Censo' : 'eleitorado TSE 2026'}</small>
+          ${temMeta(d.key) ? '<small class="sim-selo">com metas</small>' : ''}
           <i class="sim-chev"></i>
         </button>
         <div class="sim-dim-body">
+          <div class="sim-dim-actions">
+            <button class="sim-btn sim-btn-apply sim-btn-mini" data-aplicar-dim="${d.key}"
+                    ${temEdicao(d.key) ? '' : 'disabled'}>Aplicar ${escapeHtml(d.label)}</button>
+            <button class="sim-btn sim-btn-mini sim-btn-ghost" data-soltar-dim="${d.key}"
+                    ${temMeta(d.key) || temEdicao(d.key) ? '' : 'disabled'}>Soltar todos</button>
+            <small>Aplica de uma vez todos os grupos editados desta dimensão.</small>
+          </div>
           ${d.buckets.map((b, bi) => {
-      const sup = SIM.support[d.key][bi] || [];
+      const ed = edicaoDoBucket(d.key, bi);
       const share = SIM.shares && SIM.shares[d.key] ? SIM.shares[d.key][bi] : null;
-      const tocado = SIM.tocados.has(d.key + '|' + bi);
+      const fixado = fixados.has(d.key + '|' + bi);
+      const editado = !!emAberto[d.key + '|' + bi];
+      const total = validas.reduce((s, c) => s + (ed.validos[c.key] || 0), 0);
       return `
-            <div class="sim-bucket ${tocado ? 'tocado' : ''}" data-dim="${d.key}" data-bi="${bi}">
+            <div class="sim-bucket ${fixado || editado ? 'tocado' : ''}" data-dim="${d.key}" data-bi="${bi}">
               <div class="sim-bucket-head">
                 <span class="sim-bucket-name">${escapeHtml(b.label)}</span>
                 <span class="sim-bucket-share">${share != null ? fmtPct(100 * share) + ' do eleitorado' : ''}</span>
               </div>
-              ${cols.map((c, p) => `
+              ${validas.map(c => `
                 <div class="sim-slider-row">
                   <i class="sim-chip" style="background:${c.cor}"></i>
                   <span class="sim-slider-label" title="${escapeHtml(c.label)}">${escapeHtml(c.label)}</span>
                   <input type="range" class="sim-slider" min="0" max="100" step="0.5"
-                         value="${(100 * (sup[p] || 0)).toFixed(1)}"
-                         data-dim="${d.key}" data-bi="${bi}" data-p="${p}">
+                         value="${(ed.validos[c.key] || 0).toFixed(1)}"
+                         data-dim="${d.key}" data-bi="${bi}" data-col="${c.key}">
                   <input type="number" class="sim-slider-val" min="0" max="100" step="0.1"
-                         value="${(100 * (sup[p] || 0)).toFixed(1)}"
-                         data-dim="${d.key}" data-bi="${bi}" data-p="${p}">
+                         value="${(ed.validos[c.key] || 0).toFixed(1)}"
+                         data-dim="${d.key}" data-bi="${bi}" data-col="${c.key}">
+                  <span class="sim-unit">%</span>
+                </div>`).join('')}
+              <div class="sim-sep">do eleitorado apto — independente da divisão acima</div>
+              ${[['abstencao', 'Abstenção', COR_ABST], ['nuloBranco', 'Nulos e brancos', COR_NULO]].map(([k, rot, cor]) => `
+                <div class="sim-slider-row">
+                  <i class="sim-chip" style="background:${cor}"></i>
+                  <span class="sim-slider-label">${rot}</span>
+                  <input type="range" class="sim-slider" min="0" max="70" step="0.1"
+                         value="${(ed[k] || 0).toFixed(1)}"
+                         data-dim="${d.key}" data-bi="${bi}" data-tn="${k}">
+                  <input type="number" class="sim-slider-val" min="0" max="70" step="0.1"
+                         value="${(ed[k] || 0).toFixed(1)}"
+                         data-dim="${d.key}" data-bi="${bi}" data-tn="${k}">
                   <span class="sim-unit">%</span>
                 </div>`).join('')}
               <div class="sim-bucket-foot">
-                <span class="sim-total ok" data-total="${d.key}|${bi}">100,0%</span>
-                <button class="sim-btn sim-btn-mini" data-aplicar="${d.key}|${bi}">Aplicar este grupo</button>
-                ${tocado ? `<button class="sim-btn sim-btn-mini sim-btn-ghost" data-soltar="${d.key}|${bi}">Soltar</button>` : ''}
+                <span class="sim-total ${Math.abs(total - 100) < 0.5 ? 'ok' : 'bad'}"
+                      data-total="${d.key}|${bi}">${fmtPct(total)}</span>
+                <small data-comp="${d.key}|${bi}">Comparecimento projetado: ${fmtPct(100 - (ed.abstencao || 0))}</small>
+                <button class="sim-btn sim-btn-mini sim-btn-ghost" data-soltar="${d.key}|${bi}"
+                        ${fixado || editado ? '' : 'disabled'}>Soltar</button>
               </div>
             </div>`;
     }).join('')}
@@ -1143,22 +1350,23 @@ function renderPaneDemografia() {
     renderPaneDemografia();
   }));
 
-  const totalBucket = (dim, bi) => {
-    const sup = SIM.support[dim][bi] || [];
-    return 100 * sup.reduce((a, b) => a + (b || 0), 0);
-  };
+  const caixa = (dim, bi) => el.querySelector(`.sim-bucket[data-dim="${dim}"][data-bi="${bi}"]`);
   const repinta = (dim, bi) => {
+    const ed = edicaoDoBucket(dim, bi);
     const badge = el.querySelector(`[data-total="${dim}|${bi}"]`);
-    if (!badge) return;
-    const t = totalBucket(dim, bi);
-    badge.textContent = fmtPct(t);
-    badge.classList.toggle('ok', Math.abs(t - 100) < 0.5);
-    badge.classList.toggle('bad', Math.abs(t - 100) >= 0.5);
+    if (badge) {
+      const t = validas.reduce((s, c) => s + (ed.validos[c.key] || 0), 0);
+      badge.textContent = fmtPct(t);
+      badge.classList.toggle('ok', Math.abs(t - 100) < 0.5);
+      badge.classList.toggle('bad', Math.abs(t - 100) >= 0.5);
+    }
+    const comp = el.querySelector(`[data-comp="${dim}|${bi}"]`);
+    if (comp) comp.textContent = `Comparecimento projetado: ${fmtPct(100 - (ed.abstencao || 0))}`;
   };
   /* Previa instantanea: produto escalar entre a composicao do escopo e o apoio
      configurado, na thread principal. Da a leitura imediata do agregado
      implicado pela dimensao aberta, sem esperar o worker — que so entra quando
-     o usuario clica em "Aplicar este grupo". */
+     o usuario aplica a dimensao. */
   const previa = (dim) => {
     const box = document.getElementById('simPreviaDemo');
     if (!box) return;
@@ -1179,44 +1387,102 @@ function renderPaneDemografia() {
   };
   if (SIM._dimAberta) previa(SIM._dimAberta);
 
-  const setar = (dim, bi, p, v) => {
-    v = clamp(v, 0, 100) / 100;
-    SIM.support[dim][bi][p] = v;
-    const cx = el.querySelector(`.sim-slider[data-dim="${dim}"][data-bi="${bi}"][data-p="${p}"]`);
-    const nx = el.querySelector(`.sim-slider-val[data-dim="${dim}"][data-bi="${bi}"][data-p="${p}"]`);
-    if (cx) cx.value = (100 * v).toFixed(1);
-    if (nx) nx.value = (100 * v).toFixed(1);
+  // Os botoes nascem desabilitados quando nao ha nada editado nem aplicado; a
+  // primeira mexida num bucket ja os libera, sem redesenhar o painel — se
+  // dependessem do proximo render, o usuario nao teria como desfazer o que
+  // acabou de mexer.
+  const liberarAplicar = (dim, bi) => {
+    [`[data-aplicar-dim="${dim}"]`, `[data-soltar-dim="${dim}"]`, `[data-soltar="${dim}|${bi}"]`]
+      .forEach(sel => {
+        const b = el.querySelector(sel);
+        if (b) b.disabled = false;
+      });
+  };
+
+  // Trava de 100% entre os candidatos, identica a das regioes: o slider nunca
+  // passa do que sobra dos outros.
+  const setarValido = (dim, bi, col, v) => {
+    const ed = edicaoDoBucket(dim, bi, true);
+    v = travar100(v, validas.filter(c => c.key !== col)
+      .reduce((s, c) => s + (ed.validos[c.key] || 0), 0));
+    ed.validos[col] = v;
+    const box = caixa(dim, bi);
+    if (box) {
+      const r = box.querySelector(`.sim-slider[data-col="${col}"]`);
+      const n = box.querySelector(`.sim-slider-val[data-col="${col}"]`);
+      if (r) r.value = v;
+      if (n) n.value = v.toFixed(1);
+      box.classList.add('tocado');
+    }
     repinta(dim, bi);
+    liberarAplicar(dim, bi);
     previa(dim);
   };
-  el.querySelectorAll('.sim-slider').forEach(s => s.addEventListener('input', e =>
-    setar(e.target.dataset.dim, +e.target.dataset.bi, +e.target.dataset.p, parseFloat(e.target.value))));
-  el.querySelectorAll('.sim-slider-val').forEach(s => s.addEventListener('change', e =>
-    setar(e.target.dataset.dim, +e.target.dataset.bi, +e.target.dataset.p, parseFloat(e.target.value) || 0)));
-  el.querySelectorAll('.sim-dim .sim-bucket').forEach(b => {
-    repinta(b.dataset.dim, +b.dataset.bi);
-  });
+  // Comparecimento: abstencao e nulos travam um contra o outro em 95% dos
+  // aptos, deixando sempre folga para voto valido.
+  const setarTurnout = (dim, bi, campo, v) => {
+    const ed = edicaoDoBucket(dim, bi, true);
+    const outro = campo === 'abstencao' ? (ed.nuloBranco || 0) : (ed.abstencao || 0);
+    ed[campo] = clamp(v || 0, 0, Math.max(0, 95 - outro));
+    const box = caixa(dim, bi);
+    if (box) {
+      const r = box.querySelector(`.sim-slider[data-tn="${campo}"]`);
+      const n = box.querySelector(`.sim-slider-val[data-tn="${campo}"]`);
+      if (r) r.value = ed[campo];
+      if (n) n.value = ed[campo].toFixed(1);
+      box.classList.add('tocado');
+    }
+    repinta(dim, bi);
+    liberarAplicar(dim, bi);
+    previa(dim);
+  };
 
-  el.querySelectorAll('[data-aplicar]').forEach(b => b.addEventListener('click', async e => {
-    const [dim, bi] = e.target.dataset.aplicar.split('|');
-    const sup = SIM.support[dim][+bi];
-    const soma = sup.reduce((a, v) => a + (v || 0), 0);
-    if (soma <= 0) return;
-    const alvos = sup.map(v => (v || 0) / soma);      // normaliza antes de virar alvo
+  el.querySelectorAll('.sim-slider[data-col], .sim-slider-val[data-col]').forEach(s =>
+    s.addEventListener(s.type === 'range' ? 'input' : 'change', e =>
+      setarValido(e.target.dataset.dim, +e.target.dataset.bi, e.target.dataset.col,
+        parseFloat(e.target.value) || 0)));
+  el.querySelectorAll('.sim-slider[data-tn], .sim-slider-val[data-tn]').forEach(s =>
+    s.addEventListener(s.type === 'range' ? 'input' : 'change', e =>
+      setarTurnout(e.target.dataset.dim, +e.target.dataset.bi, e.target.dataset.tn,
+        parseFloat(e.target.value) || 0)));
+
+  /* Aplica a dimensao inteira num unico recalculo. Cada bucket vira um alvo em
+     op.demo; as demais dimensoes sao reestimadas sobre o resultado e voltam
+     redesenhadas por simAplicarSupport. */
+  el.querySelectorAll('[data-aplicar-dim]').forEach(b => b.addEventListener('click', async e => {
+    const dim = e.currentTarget.dataset.aplicarDim;
+    const eds = demoEditsDoEscopo() || {};
+    const chaves = Object.keys(eds).filter(k => k.startsWith(dim + '|'));
+    if (!chaves.length) return;
     const op = opDoEscopo(SIM.escopo, true);
-    op.demo[dim + '|' + bi] = alvos;
-    SIM.tocados.add(dim + '|' + bi);
+    chaves.forEach(k => { op.demo[k] = editorParaVetor(eds[k]); });
     await simCalcular();
     renderPaneDemografia();
   }));
-  el.querySelectorAll('[data-soltar]').forEach(b => b.addEventListener('click', async e => {
-    const chave = e.target.dataset.soltar;
+  /* Solta os grupos: some a edicao em aberto e a meta. So vale a pena recalcular
+     se havia mesmo uma meta valendo — descartar edicao nao aplicada nao mudou
+     nada na simulacao. */
+  const soltar = async (chaves) => {
     const op = opDoEscopo(SIM.escopo);
-    if (op) delete op.demo[chave];
-    SIM.tocados.delete(chave);
-    await simCalcular();
+    const eds = demoEditsDoEscopo() || {};
+    let tinhaMeta = false;
+    chaves.forEach(k => {
+      delete eds[k];
+      if (op && op.demo && op.demo[k]) { delete op.demo[k]; tinhaMeta = true; }
+    });
+    if (tinhaMeta) await simCalcular();
     renderPaneDemografia();
+  };
+  el.querySelectorAll('[data-soltar-dim]').forEach(b => b.addEventListener('click', e => {
+    const dim = e.currentTarget.dataset.soltarDim;
+    const op = opDoEscopo(SIM.escopo);
+    const chaves = new Set(Object.keys(demoEditsDoEscopo() || {})
+      .concat(Object.keys((op && op.demo) || {}))
+      .filter(k => k.startsWith(dim + '|')));
+    soltar(Array.from(chaves));
   }));
+  el.querySelectorAll('[data-soltar]').forEach(b => b.addEventListener('click', e =>
+    soltar([e.currentTarget.dataset.soltar])));
 }
 
 // --------------------------------------------------------- pane: regioes
@@ -1267,27 +1533,30 @@ function listaRegioes(nivel) {
    Abstencao e nulos vem diretos de 2022, sem passar pela transferencia: sao
    grandezas independentes da divisao entre candidatos. */
 function pesosRegionaisPadrao(chaveRegiao) {
-  const reg = SIM.regioes2022 && SIM.regioes2022.regioes[chaveRegiao];
+  const reg = SIM.regioes2022 && SIM.regioes2022.regioes && SIM.regioes2022.regioes[chaveRegiao];
   if (!reg) return null;
-  const origens = SIM.regioes2022.origens;
   const cols = simColunas();
   const validas = simColunasValidas();
 
-  const porCand = {};
-  validas.forEach(c => { porCand[c.key] = 0; });
-  origens.forEach(o => {
-    const pesoOrigem = reg.pct_aptos[o] || 0;      // % dos aptos naquela origem
-    const linha = SIM.transfer[o] || {};
-    validas.forEach(c => { porCand[c.key] += pesoOrigem * (linha[c.key] || 0) / 100; });
-  });
-  const soma = validas.reduce((s, c) => s + porCand[c.key], 0);
   const alvos = {};
-  validas.forEach(c => { alvos[c.key] = soma > 0 ? 100 * porCand[c.key] / soma : 0; });
+  validas.forEach(c => { alvos[c.key] = 0; });
+
+  cols.forEach(c => {
+    if (c.cand) {
+      const nome = (c.cand.nome || '').trim();
+      const partido = (c.cand.partido || '').trim();
+      if (nome === 'Lula' || partido === 'PT') {
+        alvos[c.key] = reg.pct_validos ? (reg.pct_validos.lula || 0) : 0;
+      } else if (nome.includes('Bolsonaro') || partido === 'PL') {
+        alvos[c.key] = reg.pct_validos ? (reg.pct_validos.bolsonaro || 0) : 0;
+      }
+    }
+  });
 
   return {
-    validos: alvos,                                  // % entre os candidatos
-    abstencao: reg.pct_aptos.abstencao || 0,         // % dos aptos
-    nuloBranco: reg.pct_aptos.nulo_branco || 0
+    validos: alvos,
+    abstencao: reg.pct_aptos ? (reg.pct_aptos.abstencao || 0) : 0,
+    nuloBranco: reg.pct_aptos ? (reg.pct_aptos.nulo_branco || 0) : 0
   };
 }
 
@@ -1324,6 +1593,57 @@ function pesosDaRegiao(chaveRegiao) {
   return SIM.pesosRegiao[chaveRegiao];
 }
 
+/* Valores sugeridos de uma regiao intermediaria: o resultado JA SIMULADO
+   naquele recorte — migracao, macrorregioes, demografias, tudo que veio antes.
+
+   A macrorregiao e o caso oposto e por isso continua em pesosRegionaisPadrao:
+   ela e INPUT da base, e ler a simulacao ali seria circular. A RI e refinamento
+   POSTERIOR, entao partir de 2022 aqui mostraria numeros que a simulacao ja
+   abandonou — e, pior, zerava todo candidato que nao fosse do PT ou do PL.
+
+   Nao ha cache: recalcular a cada render e o que faz a RI acompanhar sozinha
+   qualquer mudanca nas camadas anteriores. Mesmo padrao de leitura que
+   renderAbaAjustar usa para UF e municipio. */
+function pesosSimuladosDaRegiao(regiao) {
+  if (!SIM.agregado || !regiao) return null;
+  const res = resultadoDoEscopo({ level: 'regiao', ibges: regiao.munis }, SIM.agregado);
+  if (!res || !res.aptos) return null;
+  const ent = entradasDe(res);
+  const validos = {};
+  simColunasValidas().forEach(c => {
+    const e = ent.find(x => x.key === c.key);
+    validos[c.key] = e ? e.pctValidos : 0;
+  });
+  return {
+    validos,
+    abstencao: (ent.find(x => x.key === 'abstencao') || {}).pctAptos || 0,
+    nuloBranco: (ent.find(x => x.key === 'nuloBranco') || {}).pctAptos || 0,
+    aptos: res.aptos
+  };
+}
+
+/* Pesos que o painel exibe. Editado pelo usuario sempre vence; senao, a
+   macrorregiao parte de 2022 e a regiao intermediaria parte da simulacao. */
+function pesosParaPainel(nivel, regiao) {
+  const chave = `${nivel}:${regiao.codigo}`;
+  if (nivel !== 'ri') return pesosDaRegiao(chave);
+  if (SIM.regiaoTocada[chave] && SIM.pesosRegiao[chave]) return SIM.pesosRegiao[chave];
+  return pesosSimuladosDaRegiao(regiao);
+}
+
+/* Materializa o derivado em SIM.pesosRegiao na primeira edicao — a partir dai a
+   regiao para de acompanhar a simulacao e passa a ser meta do usuario. */
+function pesosParaEdicao(nivel, regiao) {
+  const chave = `${nivel}:${regiao.codigo}`;
+  if (nivel !== 'ri') return pesosDaRegiao(chave);
+  if (!SIM.pesosRegiao[chave]) {
+    const p = pesosSimuladosDaRegiao(regiao);
+    if (!p) return null;
+    SIM.pesosRegiao[chave] = { validos: p.validos, abstencao: p.abstencao, nuloBranco: p.nuloBranco };
+  }
+  return SIM.pesosRegiao[chave];
+}
+
 function renderPaneRegioes() {
   return renderRegioes('simPaneRegioes', 'mr');
 }
@@ -1334,8 +1654,9 @@ function renderPaneRgint() {
 /* Painel de metas territoriais, usado nos dois niveis.
 
    'mr' (macrorregiao) e etapa OBRIGATORIA: e sobre ela que a projecao base e
-   construida, junto com a migracao. 'ri' (regiao intermediaria) e refinamento
-   posterior e so abre depois da base pronta.
+   construida, junto com a migracao — e por isso parte dos numeros de 2022.
+   'ri' (regiao intermediaria) e refinamento posterior, so abre depois da base
+   pronta e parte da simulacao corrente.
 
    Os candidatos somam 100% ENTRE SI (divisao dos votos validos). Abstencao e
    nulos ficam fora dessa soma, cada um como percentual do eleitorado apto —
@@ -1345,10 +1666,16 @@ function renderRegioes(idPane, nivel) {
   const todas = listaRegioes(nivel);
   const validas = simColunasValidas();
 
-  if (!todas.length || !SIM.regioes2022) {
+  if (!todas.length || (nivel === 'mr' && !SIM.regioes2022)) {
     el.innerHTML = `<header class="sim-pane-head"><h4>Regiões</h4></header>
       <div class="sim-note">Agregados regionais de 2022 indisponíveis
         (<code>baselines/regioes.json</code>). Rode <code>scripts/gerar_base_2026.py</code>.</div>`;
+    return;
+  }
+  if (nivel === 'ri' && !SIM.agregado) {
+    el.innerHTML = `<header class="sim-pane-head"><h4>Regiões intermediárias</h4></header>
+      <div class="sim-note">Gere a projeção base antes: os valores desta etapa saem
+        da simulação já calculada, não de 2022.</div>`;
     return;
   }
 
@@ -1365,8 +1692,11 @@ function renderRegioes(idPane, nivel) {
     </header>` : `
     <header class="sim-pane-head">
       <h4>Regiões intermediárias</h4>
-      <p>Refinamento opcional sobre a projeção já criada. Uma meta aqui tem
-         prioridade sobre a macrorregião que contém a região.</p>
+      <p>Refinamento opcional sobre a projeção já criada. Os valores mostrados são
+         os da <strong>simulação atual</strong> em cada região — migração,
+         macrorregiões e demografias já aplicadas — e acompanham sozinhos qualquer
+         mudança nessas etapas, até você editá-los. Uma meta aqui tem prioridade
+         sobre a macrorregião que contém a região.</p>
     </header>
     <div class="sim-final-pick">
       <label>Estado
@@ -1380,20 +1710,23 @@ function renderRegioes(idPane, nivel) {
 
   el.innerHTML = cabecalho + regs.map(r => {
     const chave = `${nivel}:${r.codigo}`;
-    const p = pesosDaRegiao(chave);
+    const p = pesosParaPainel(nivel, r);
     if (!p) return '';
     const total = validas.reduce((s, c) => s + (p.validos[c.key] || 0), 0);
     const tocado = !!SIM.regiaoTocada[chave];
-    const ref = SIM.regioes2022.regioes[chave];
+    const ref = SIM.regioes2022 && SIM.regioes2022.regioes[chave];
+    const aptos = p.aptos != null ? p.aptos : (ref ? ref.aptos : null);
+    const origem = tocado ? ' · ajustado'
+      : (nivel === 'ri' ? ' · valores da simulação' : ' · valores de 2022');
     return `
       <div class="sim-block ${tocado ? 'ativo' : ''}" data-reg="${chave}">
         <div class="sim-block-head">
           <div>
             <strong>${escapeHtml(r.nome)}</strong>
-            <small>${fmtInt(r.munis.length)} municípios · ${ref ? fmtInt(ref.aptos) : '–'} eleitores
-              ${tocado ? ' · ajustado' : ' · valores de 2022'}</small>
+            <small>${fmtInt(r.munis.length)} municípios · ${aptos != null ? fmtInt(aptos) : '–'} eleitores
+              ${origem}</small>
           </div>
-          <span class="sim-total ${Math.abs(total - 100) < 0.5 ? 'ok' : 'bad'}">${fmtPct(total)}</span>
+          <span class="sim-total ${total > 0 && total <= 100.5 ? 'ok' : 'bad'}">${fmtPct(total)}</span>
         </div>
         <div class="sim-block-body">
           ${validas.map(c => `
@@ -1419,20 +1752,21 @@ function renderRegioes(idPane, nivel) {
             </div>`).join('')}
           <div class="sim-bucket-foot">
             <small>Comparecimento projetado: ${fmtPct(100 - (p.abstencao || 0))}</small>
-            <button class="sim-btn sim-btn-mini sim-btn-ghost" data-reset-reg="${chave}">Voltar a 2022</button>
+            <button class="sim-btn sim-btn-mini sim-btn-ghost" data-reset-reg="${chave}">${nivel === 'ri' ? 'Voltar ao simulado' : 'Voltar a 2022'}</button>
           </div>
         </div>
       </div>`;
   }).join('');
 
-  /* Trava de 100%: o slider de um candidato nunca passa do que sobra dos
-     outros. Para dar mais a alguem e preciso liberar de outro antes — nao ha
-     renormalizacao automatica pelas costas do usuario. */
+  const porChave = new Map(regs.map(r => [`${nivel}:${r.codigo}`, r]));
+
+  // Trava de 100% (travar100): o slider de um candidato nunca passa do que sobra
+  // dos outros.
   const setarValido = (chave, col, v) => {
-    const p = pesosDaRegiao(chave);
-    const outros = validas.filter(c => c.key !== col)
-      .reduce((s, c) => s + (p.validos[c.key] || 0), 0);
-    v = clamp(v, 0, Math.max(0, 100 - outros));
+    const p = pesosParaEdicao(nivel, porChave.get(chave));
+    if (!p) return;
+    v = travar100(v, validas.filter(c => c.key !== col)
+      .reduce((s, c) => s + (p.validos[c.key] || 0), 0));
     p.validos[col] = v;
     SIM.regiaoTocada[chave] = true;
     SIM.baseGerada = false;
@@ -1449,7 +1783,8 @@ function renderRegioes(idPane, nivel) {
     box.classList.add('ativo');
   };
   const setarTurnout = (chave, campo, v) => {
-    const p = pesosDaRegiao(chave);
+    const p = pesosParaEdicao(nivel, porChave.get(chave));
+    if (!p) return;
     const outro = campo === 'abstencao' ? (p.nuloBranco || 0) : (p.abstencao || 0);
     p[campo] = clamp(v, 0, Math.max(0, 95 - outro));
     SIM.regiaoTocada[chave] = true;
@@ -1555,6 +1890,13 @@ function renderPaneTurno2() {
   });
   const grupoAtivo = SIM.t2.porGrupo ? SIM.t2.porGrupo.dim : '';
 
+  // Os quatro destinos de qualquer linha, global ou por grupo. Aqui nulos e
+  // abstencao NAO sao separados do resto: a linha inteira e uma unica soma de
+  // 100%, porque o que se reparte e o eleitorado de um eliminado, nao a divisao
+  // dos validos de um recorte.
+  const destinos2T = [finalistas[0], finalistas[1], 'nuloBranco', 'abstencao'];
+  const somaLinha = (linha) => destinos2T.reduce((s, d) => s + ((linha || {})[d] || 0), 0);
+
   el.innerHTML = `
     <header class="sim-pane-head">
       <h4>Segundo turno</h4>
@@ -1610,8 +1952,7 @@ function renderPaneTurno2() {
 
     ${cols.filter(c => !finalistas.includes(c.key)).map(c => {
       const linha = (SIM.t2.matriz && SIM.t2.matriz[c.key]) || {};
-      const destinos = [finalistas[0], finalistas[1], 'nuloBranco', 'abstencao'];
-      const total = destinos.reduce((s, d) => s + (linha[d] || 0), 0);
+      const total = somaLinha(linha);
       const origemVotos = (res1.find(x => x.key === c.key) || {}).votos
         || (entradasDe(SIM.agregado.brasil).find(x => x.key === c.key) || {}).votos || 0;
       const dimObj = grupoAtivo
@@ -1624,7 +1965,7 @@ function renderPaneTurno2() {
           <span class="sim-total ${Math.abs(total - 100) < 0.5 ? 'ok' : 'bad'}">${fmtPct(total)}</span>
         </div>
         <div class="sim-block-body sim-linha-global">
-          ${destinos.map(d => `
+          ${destinos2T.map(d => `
             <div class="sim-slider-row">
               <i class="sim-chip" style="background:${corDe(d)}"></i>
               <span class="sim-slider-label">${escapeHtml(nomeDe(d))}</span>
@@ -1646,6 +1987,9 @@ function renderPaneTurno2() {
             <div class="sim-grupo-head">
               <span>${escapeHtml(b.label)}</span>
               <small>${share != null ? fmtPct(100 * share) + ' do eleitorado' : ''}</small>
+              <span class="sim-total ${Math.abs(somaLinha(lg) - 100) < 0.5 ? 'ok' : 'bad'}"
+                    data-total-grupo="${c.key}|${bi}"
+                    title="Soma da linha, incluindo nulos e abstenção herdados da linha global">${fmtPct(somaLinha(lg))}</span>
             </div>
             ${[finalistas[0], finalistas[1]].map(d => `
               <div class="sim-slider-row">
@@ -1695,41 +2039,59 @@ function renderPaneTurno2() {
     recalcular();
   });
 
-  const setar = (origem, dest, v) => {
-    v = clamp(v, 0, 100);
-    SIM.t2.matriz[origem] = SIM.t2.matriz[origem] || {};
-    SIM.t2.matriz[origem][dest] = v;
-    const box = el.querySelector(`.sim-block[data-t2="${origem}"]`);
-    const r = box.querySelector(`.sim-slider[data-dest="${dest}"]`);
-    const n = box.querySelector(`.sim-slider-val[data-dest="${dest}"]`);
-    if (r) r.value = v;
-    if (n) n.value = v.toFixed(1);
-    const destinos = [finalistas[0], finalistas[1], 'nuloBranco', 'abstencao'];
-    const total = destinos.reduce((s, d) => s + (SIM.t2.matriz[origem][d] || 0), 0);
-    const badge = box.querySelector('.sim-total');
+  const repintaBadge = (badge, total) => {
+    if (!badge) return;
     badge.textContent = fmtPct(total);
     badge.classList.toggle('ok', Math.abs(total - 100) < 0.5);
     badge.classList.toggle('bad', Math.abs(total - 100) >= 0.5);
+  };
+
+  /* Trava de 100% por linha (travar100), como nos demais editores: um destino
+     nunca passa do que sobra dos outros tres. Sem isto uma linha somando 140%
+     era aceita e renormalizada duas vezes — em transformar2T e no norm() do
+     worker — pelas costas do usuario. */
+  const setar = (origem, dest, v) => {
+    SIM.t2.matriz[origem] = SIM.t2.matriz[origem] || {};
+    const linha = SIM.t2.matriz[origem];
+    v = travar100(v, destinos2T.filter(d => d !== dest)
+      .reduce((s, d) => s + (linha[d] || 0), 0));
+    linha[dest] = v;
+    const box = el.querySelector(`.sim-block[data-t2="${origem}"]`);
+    const r = box.querySelector(`.sim-linha-global .sim-slider[data-dest="${dest}"]`);
+    const n = box.querySelector(`.sim-linha-global .sim-slider-val[data-dest="${dest}"]`);
+    if (r) r.value = v;
+    if (n) n.value = v.toFixed(1);
+    repintaBadge(box.querySelector('.sim-block-head .sim-total'), somaLinha(linha));
     clearTimeout(SIM._t2Timer);
     SIM._t2Timer = setTimeout(recalcular, 260);
   };
 
-  // Linhas por grupo demografico: a transferencia de um eliminado pode variar
-  // conforme a composicao do local (evangelico vs sem religiao, por exemplo).
+  /* Linhas por grupo demografico: a transferencia de um eliminado pode variar
+     conforme a composicao do local (evangelico vs sem religiao, por exemplo).
+
+     So os dois finalistas sao editaveis aqui; nulos e abstencao vem clonados da
+     linha global. A trava e a mesma, contando os herdados: teto =
+     100 - outro finalista - nulos - abstencao. Por isso o badge da linha mostra
+     a soma dos QUATRO destinos — dois deles nao estao na tela, e sem o badge o
+     teto seria invisivel. */
   const setarGrupo = (origem, bi, dest, v) => {
-    v = clamp(v, 0, 100);
     const pg = SIM.t2.porGrupo;
     if (!pg) return;
     pg.linhas[bi] = pg.linhas[bi] || {};
     pg.linhas[bi][origem] = pg.linhas[bi][origem]
       || Object.assign({}, SIM.t2.matriz[origem]);
-    pg.linhas[bi][origem][dest] = v;
+    const linha = pg.linhas[bi][origem];
+    v = travar100(v, destinos2T.filter(d => d !== dest)
+      .reduce((s, d) => s + (linha[d] || 0), 0));
+    linha[dest] = v;
     const box = el.querySelector(`.sim-grupo-row[data-t2="${origem}"][data-bi="${bi}"]`);
     if (box) {
       const r = box.querySelector(`.sim-slider[data-dest="${dest}"]`);
       const n = box.querySelector(`.sim-slider-val[data-dest="${dest}"]`);
       if (r) r.value = v;
       if (n) n.value = v.toFixed(1);
+      box.classList.add('dif');
+      repintaBadge(box.querySelector('.sim-total'), somaLinha(linha));
     }
     clearTimeout(SIM._t2Timer);
     SIM._t2Timer = setTimeout(recalcular, 260);
@@ -1775,11 +2137,19 @@ function simRenderSidebar() {
         btn.hidden = false;
         btn.textContent = e.ok ? 'Gerar projeção base' : 'Configurar simulação';
       }
+      const btnImp = document.getElementById('btnEmptyImportJSON');
+      if (btnImp) btnImp.hidden = false;
     }
     return;
   }
   vazio.hidden = true;
   box.hidden = false;
+
+  // Sidebar esquerda: mostrar controles, ocultar placeholder
+  const leftEmpty    = document.getElementById('simLeftEmpty');
+  const leftControls = document.getElementById('simLeftControls');
+  if (leftEmpty)    leftEmpty.style.display    = 'none';
+  if (leftControls) leftControls.hidden = false;
 
   const res = resultadoDoEscopo(SIM.escopo, agregadoAtivo());
   document.getElementById('simPanelAreaTitle').textContent = rotuloEscopo(SIM.escopo);
@@ -1801,14 +2171,19 @@ function simRenderSidebar() {
   document.querySelectorAll('#simPanelResults .sim-tab').forEach(b => {
     b.classList.toggle('active', b.dataset.tab === SIM.abaSidebar);
   });
-  ['resultado', 'ajustar', 'demografia'].forEach(t => {
+  ['resultado', 'demografia'].forEach(t => {
     document.getElementById('simTab' + t.charAt(0).toUpperCase() + t.slice(1)).hidden =
       (t !== SIM.abaSidebar);
   });
 
   if (SIM.abaSidebar === 'resultado') renderAbaResultado(res);
-  if (SIM.abaSidebar === 'ajustar') renderAbaAjustar(res);
   if (SIM.abaSidebar === 'demografia') renderAbaDemografia();
+  // Ajustar agora fica fixo na sidebar esquerda, sempre renderizado
+  renderAbaAjustar(res);
+
+  document.querySelectorAll('#simGradientModeSwitch .sim-color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.value === (SIM.modoColorizacao || 'margin'));
+  });
 }
 
 function renderAbaResultado(res) {
@@ -1816,19 +2191,24 @@ function renderAbaResultado(res) {
   if (!res) { alvo.innerHTML = '<div class="sim-note">Sem dados neste recorte.</div>'; return; }
 
   const ent = entradasDe(res);
-  const validas = ent.filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao')
-    .sort((a, b) => b.votos - a.votos);
+  const comVotos = ent.filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao' && x.votos > 0);
+  const candsNormais = comVotos.filter(x => x.key !== 'outros').sort((a, b) => b.votos - a.votos);
+  const itemOutros = comVotos.find(x => x.key === 'outros');
+  const validas = itemOutros ? [...candsNormais, itemOutros] : candsNormais;
+
   if (!validas.length) {
-    alvo.innerHTML = '<div class="sim-note">Nenhum candidato configurado.</div>';
+    alvo.innerHTML = '<div class="sim-note">Nenhum candidato com votos neste recorte.</div>';
     document.getElementById('simMetricsContainer').innerHTML = '';
     document.getElementById('simRunoffCallout').innerHTML = '';
     return;
   }
-  const maior = validas[0] ? validas[0].pctValidos : 100;
+
   const eleito = new Set();
-  if (validas.length) {
-    eleito.add(validas[0].key);
-    if (SIM.turno === 1 && validas[0].pctValidos < 50 && validas[1]) eleito.add(validas[1].key);
+  if (candsNormais.length) {
+    eleito.add(candsNormais[0].key);
+    if (SIM.turno === 1 && candsNormais[0].pctValidos < 50 && candsNormais[1]) {
+      eleito.add(candsNormais[1].key);
+    }
   }
 
   const cols = simColunas();
@@ -1995,13 +2375,13 @@ function renderAbaAjustar(res) {
     totalEl.classList.toggle('ok', Math.abs(t - 100) < 0.5);
     totalEl.classList.toggle('bad', Math.abs(t - 100) >= 0.5);
   };
-  // Trava de 100%: para dar mais a um candidato e preciso liberar de outro.
+  // Trava de 100% (travar100): para dar mais a um candidato e preciso liberar
+  // de outro.
   const setar = (col, v) => {
-    const outros = validas.filter(c => c.key !== col).reduce((s, c) => {
+    v = travar100(v, validas.filter(c => c.key !== col).reduce((s, c) => {
       const n = el.querySelector(`.sim-slider-val[data-col="${c.key}"]`);
       return s + (parseFloat(n.value) || 0);
-    }, 0);
-    v = clamp(v, 0, Math.max(0, 100 - outros));
+    }, 0));
     el.querySelector(`.sim-slider[data-col="${col}"]`).value = v;
     el.querySelector(`.sim-slider-val[data-col="${col}"]`).value = v.toFixed(1);
     repinta();
@@ -2083,13 +2463,20 @@ function renderAbaDemografia() {
 
 function corDoResultado(res) {
   const v = vencedorDe(res);
-  if (!v || !res || !res.aptos) return '#3a3a3a';
+  if (!v || !res || !res.aptos || v.votos === 0) return '#888888';
+  const modo = SIM.modoColorizacao || 'margin';
+  if (modo === 'winnerPct') {
+    return getWinnerPctGradientColor(v.cor, v.pctValidos);
+  }
   return getUniversalGradientColor(v.cor, margemDe(res));
 }
 
 function tooltipResultado(titulo, res, rodape) {
-  const ent = entradasDe(res).filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao')
-    .sort((a, b) => b.votos - a.votos).filter(x => x.votos > 0);
+  const comVotos = entradasDe(res).filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao' && x.votos > 0);
+  const candsNormais = comVotos.filter(x => x.key !== 'outros').sort((a, b) => b.votos - a.votos);
+  const itemOutros = comVotos.find(x => x.key === 'outros');
+  const ent = itemOutros ? [...candsNormais, itemOutros] : candsNormais;
+
   const validos = ent.reduce((s, x) => s + x.votos, 0);
   const linhas = ent.length ? ent.map(e => `
       <tr>
@@ -2113,10 +2500,99 @@ function tooltipResultado(titulo, res, rodape) {
     </div>`;
 }
 
+const ALL_UFS = [
+  'AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG',
+  'PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'
+];
+
 function simRenderMapa() {
-  if (SIM.selectedMuni) return simRenderMapaLocais(SIM.selectedUF, SIM.selectedMuni);
+  const modo = SIM.modoMapa || 'estado';
+  document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === modo);
+  });
+
+  if (modo === 'municipio') {
+    if (SIM.selectedUF) return simRenderMapaMunicipios(SIM.selectedUF);
+    return simRenderMapaTodosMunicipios();
+  }
+
   if (SIM.selectedUF) return simRenderMapaMunicipios(SIM.selectedUF);
   return simRenderMapaEstados();
+}
+
+async function simRenderMapaTodosMunicipios() {
+  const ag = agregadoAtivo();
+  const loader = document.getElementById('mapLoader');
+  if (loader) {
+    loader.textContent = 'Carregando todos os municípios do Brasil...';
+    loader.classList.add('visible');
+  }
+
+  await Promise.all(ALL_UFS.map(async uf => {
+    if (!SIM.muniGeoCache[uf]) {
+      SIM.muniGeoCache[uf] = await fetchJSON(DATA_BASE_URL + `municipios_hd/municipios_${uf}.geojson`)
+        .catch(() => null);
+    }
+  }));
+
+  if (loader) loader.classList.remove('visible');
+
+  limparCamadas('municipiosLayer');
+  if (SIM.municipiosLayer) { simMap.removeLayer(SIM.municipiosLayer); SIM.municipiosLayer = null; }
+
+  const codDe = p => Number(p.CD_MUN || p.cod_ibge || p.codigo_ibge || p.CD_GEOCMU || p.GEOCODIGO);
+  const nomeDe = p => p.NM_MUN || p.nome || p.NM_MUNICIP || SIM.nomesMuni[codDe(p)] || '';
+
+  const ehLagoaOperacional = p => {
+    const cd = codDe(p);
+    return cd === 4300001 || cd === 4300002;
+  };
+
+  const todasFeatures = [];
+  ALL_UFS.forEach(uf => {
+    const geo = SIM.muniGeoCache[uf];
+    if (geo && geo.features) {
+      geo.features.forEach(f => {
+        if (!ehLagoaOperacional(f.properties)) {
+          f.properties._UF = uf;
+          todasFeatures.push(f);
+        }
+      });
+    }
+  });
+
+  SIM.municipiosLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-municipios-br', type: 'polygon', tooltipClass: 'district-nyt-tooltip',
+    styleFn: f => {
+      const cod = codDe(f.properties);
+      const res = ag && ag.municipios[String(cod)];
+      const sel = SIM.selectedMuni === cod;
+      const hasData = res && res.aptos > 0;
+      const exibirContorno = SIM.exibirContornoMuni !== false;
+      return {
+        fillColor: corDoResultado(res),
+        fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
+        color: '#ffffff',
+        weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
+        opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
+      };
+    },
+    tooltipFn: f => {
+      const uf = f.properties._UF || f.properties.SIGLA_UF || SIM.ufDeMuni[codDe(f.properties)];
+      const nm = nomeDe(f.properties);
+      const rot = uf ? `${nm} (${uf})` : nm;
+      return tooltipResultado(rot, ag && ag.municipios[String(codDe(f.properties))]);
+    },
+    onClick: f => {
+      const uf = f.properties._UF || f.properties.SIGLA_UF || SIM.ufDeMuni[codDe(f.properties)];
+      simSelecionarMuni(uf, codDe(f.properties));
+    }
+  });
+
+  SIM.municipiosLayer.setFeatures(todasFeatures);
+  SIM.municipiosLayer.addTo(simMap);
+  simRenderLegenda();
+  scheduleSimMapRefresh();
 }
 
 function limparCamadas(exceto) {
@@ -2136,9 +2612,13 @@ function simRenderMapaEstados() {
     styleFn: f => {
       const uf = f.properties.SIGLA_UF;
       const res = ag && ag.ufs[uf];
+      const hasData = res && res.aptos > 0;
       return {
-        fillColor: corDoResultado(res), fillOpacity: 0.88,
-        color: '#ffffff', weight: 0.8, opacity: 0.65
+        fillColor: corDoResultado(res),
+        fillOpacity: hasData ? 0.78 : 0.25,
+        color: '#ffffff',
+        weight: 0.12,
+        opacity: 0.8
       };
     },
     tooltipFn: f => tooltipResultado(f.properties.NM_UF || f.properties.SIGLA_UF,
@@ -2156,7 +2636,7 @@ function simRenderMapaEstados() {
 async function simRenderMapaMunicipios(uf) {
   const ag = agregadoAtivo();
   if (!SIM.muniGeoCache[uf]) {
-    SIM.muniGeoCache[uf] = await fetchJSON(DATA_BASE_URL + `municipios/municipios_${uf}.geojson`)
+    SIM.muniGeoCache[uf] = await fetchJSON(DATA_BASE_URL + `municipios_hd/municipios_${uf}.geojson`)
       .catch(() => null);
   }
   const geo = SIM.muniGeoCache[uf];
@@ -2167,21 +2647,34 @@ async function simRenderMapaMunicipios(uf) {
   const codDe = p => Number(p.CD_MUN || p.cod_ibge || p.codigo_ibge || p.CD_GEOCMU || p.GEOCODIGO);
   const nomeDe = p => p.NM_MUN || p.nome || p.NM_MUNICIP || SIM.nomesMuni[codDe(p)] || '';
 
+  const ehLagoaOperacional = p => {
+    const cd = codDe(p);
+    return cd === 4300001 || cd === 4300002;
+  };
+
+  const featuresValidas = (geo.features || []).filter(f => !ehLagoaOperacional(f.properties));
+
   SIM.municipiosLayer = new MLCompat.GeoLayer(simMap, {
     id: 'sim-municipios', type: 'polygon', tooltipClass: 'district-nyt-tooltip',
     styleFn: f => {
-      const res = ag && ag.municipios[String(codDe(f.properties))];
-      const sel = SIM.selectedMuni === codDe(f.properties);
+      const cod = codDe(f.properties);
+      const res = ag && ag.municipios[String(cod)];
+      const sel = SIM.selectedMuni === cod;
+      const hasData = res && res.aptos > 0;
+      const exibirContorno = SIM.exibirContornoMuni !== false;
       return {
-        fillColor: corDoResultado(res), fillOpacity: 0.9,
-        color: sel ? 'var(--accent)' : '#ffffff', weight: sel ? 2 : 0.4, opacity: 0.6
+        fillColor: corDoResultado(res),
+        fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
+        color: '#ffffff',
+        weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
+        opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
       };
     },
     tooltipFn: f => tooltipResultado(nomeDe(f.properties),
       ag && ag.municipios[String(codDe(f.properties))]),
     onClick: f => simSelecionarMuni(uf, codDe(f.properties))
   });
-  SIM.municipiosLayer.setFeatures(geo.features || []);
+  SIM.municipiosLayer.setFeatures(featuresValidas);
   SIM.municipiosLayer.addTo(simMap);
   const b = SIM.municipiosLayer.getBounds();
   if (b.isValid()) MLCompat.fitMapToBounds(simMap, b, { animate: false });
@@ -2224,7 +2717,7 @@ async function simRenderMapaLocais(uf, ibge) {
       return {
         fillColor: corDoResultado(res), fillOpacity: 0.9,
         color: f.properties.imp ? 'var(--warn)' : '#ffffff',
-        weight: f.properties.imp ? 1.6 : 0.7, opacity: 0.9
+        weight: f.properties.imp ? 0.8 : 0.12, opacity: 0.9
       };
     },
     tooltipFn: f => tooltipResultado(
@@ -2243,12 +2736,74 @@ async function simRenderMapaLocais(uf, ibge) {
 
 function simRenderLegenda() {
   const el = document.getElementById('simMapLegend');
+  if (!el) return;
   const res = resultadoDoEscopo({ level: 'nacional' }, agregadoAtivo());
   if (!res) { el.innerHTML = ''; return; }
-  const ent = entradasDe(res).filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao')
+
+  const ent = entradasDe(res).filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao' && x.key !== 'outros' && x.label.toLowerCase() !== 'outros')
     .sort((a, b) => b.votos - a.votos).filter(x => x.pctValidos > 0.5);
-  el.innerHTML = ent.map(e =>
-    `<span class="sim-leg"><i style="background:${e.cor}"></i>${escapeHtml(e.label)}</span>`).join('');
+
+  if (SIM.modoColorizacao === 'winnerPct') {
+    const passos = [
+      { label: '<30%', pct: 25 },
+      { label: '30%', pct: 35 },
+      { label: '40%', pct: 45 },
+      { label: '50%', pct: 55 },
+      { label: '60%', pct: 65 },
+      { label: '70%', pct: 75 },
+      { label: '≥80%', pct: 85 }
+    ];
+
+    el.innerHTML = `
+      <div class="sim-nyt-legend-grid">
+        ${ent.map(e => `
+          <div class="sim-nyt-cand-row">
+            <div class="sim-nyt-cand-head">
+              <span>${escapeHtml(e.label)}</span>
+            </div>
+            <div class="sim-nyt-ramp-wrap">
+              <div class="sim-nyt-blocks">
+                ${passos.map(p => `
+                  <div class="sim-nyt-block" style="background:${getWinnerPctGradientColor(e.cor, p.pct)};" title="${escapeHtml(e.label)}: ${p.label}"></div>
+                `).join('')}
+              </div>
+              <div class="sim-nyt-ticks">
+                <span>&lt;30</span>
+                <span>30</span>
+                <span>40</span>
+                <span>50%</span>
+                <span>60</span>
+                <span>70</span>
+                <span>80%+</span>
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    simAjustarZoomOffset();
+    return;
+  }
+
+  const candsHtml = `<div class="sim-leg-cands-row" style="display:flex; flex-wrap:wrap; gap:4px 12px; align-items:center;">` +
+    ent.map(e => `<span class="sim-leg"><i style="background:${e.cor}"></i>${escapeHtml(e.label)}</span>`).join('') +
+    `</div>`;
+  el.innerHTML = candsHtml;
+  simAjustarZoomOffset();
+}
+
+/* Mantém o controle de zoom justo acima da legenda de cores. */
+function simAjustarZoomOffset() {
+  const legend = document.getElementById('simMapLegend');
+  const ctrl   = document.querySelector('#map .maplibregl-ctrl-bottom-right');
+  if (!legend || !ctrl) return;
+  // Usa rAF para medir depois do paint (legend já tem altura real)
+  requestAnimationFrame(() => {
+    const legendH = legend.offsetHeight;
+    const legendBottom = 30; // valor CSS bottom da legenda
+    const gap = 8;
+    ctrl.style.bottom = (legendBottom + legendH + gap) + 'px';
+  });
 }
 
 function simRenderBreadcrumb() {
@@ -2269,7 +2824,9 @@ async function trocarEscopo(novo) {
   SIM.escopo = novo;
   await simAtualizarShares();
   const r = await simEnviar({ type: 'demoSupport', scope: novo });
-  if (r && r.support) { SIM.support = r.support; }
+  // simAplicarSupport e nao atribuicao direta: o novo escopo pode ter metas
+  // proprias em op.demo, e elas nao podem ser atropeladas pela reestimativa.
+  if (r && r.support) simAplicarSupport(r.support);
   simRenderTudo();
 }
 
@@ -2302,7 +2859,10 @@ function simVoltar() {
    silenciosamente errados: foi o que aconteceu quando a migracao passou do 2o
    para o 1o turno e a matriz salva ficou sem a linha "outros", desmontando
    tambem os pesos regionais, que derivam dela. */
-const CENARIO_VERSAO = 2;
+// v5: 'tocados' (Set global de buckets) deu lugar a 'demoEdit' (edicoes por
+// escopo). Restaurar um v4 aqui marcaria buckets como fixos sem valor nenhum
+// para exibir — descartar e o comportamento correto.
+const CENARIO_VERSAO = 5;
 
 function cenarioSerializado() {
   return {
@@ -2315,8 +2875,13 @@ function cenarioSerializado() {
     pesosRegiao: SIM.pesosRegiao,
     regiaoTocada: SIM.regiaoTocada,
     baseGerada: SIM.baseGerada,
-    tocados: Array.from(SIM.tocados),
-    t2: { finalistas: SIM.t2.finalistas, matriz: SIM.t2.matriz }
+    demoEdit: SIM.demoEdit,
+    // chaveMatriz vai junto: sem ela simCalcular2T ve a assinatura como mudada,
+    // regenera a matriz sugerida e descarta porGrupo logo na restauracao.
+    t2: {
+      finalistas: SIM.t2.finalistas, matriz: SIM.t2.matriz,
+      chaveMatriz: SIM.t2.chaveMatriz, porGrupo: SIM.t2.porGrupo
+    }
   };
 }
 function salvarLocal() {
@@ -2360,10 +2925,67 @@ function restaurarLocal() {
   SIM.pesosRegiao = c.pesosRegiao || {};
   SIM.regiaoTocada = c.regiaoTocada || {};
   SIM.baseGerada = !!c.baseGerada;
-  SIM.tocados = new Set(c.tocados || []);
-  if (c.t2) { SIM.t2.finalistas = c.t2.finalistas; SIM.t2.matriz = c.t2.matriz; }
+  SIM.demoEdit = c.demoEdit || {};
+  if (c.t2) {
+    SIM.t2.finalistas = c.t2.finalistas;
+    SIM.t2.matriz = c.t2.matriz;
+    SIM.t2.chaveMatriz = c.t2.chaveMatriz || null;
+    SIM.t2.porGrupo = c.t2.porGrupo || null;
+  }
   return true;
 }
+function carregarCenarioJSON(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const c = JSON.parse(e.target.result);
+      importarObjetoCenario(c);
+    } catch (err) {
+      simAvisar('Erro ao ler arquivo JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function importarObjetoCenario(c) {
+  if (!c || !c.candidatos || !Array.isArray(c.candidatos) || !c.candidatos.length) {
+    simAvisar('Arquivo JSON inválido: nenhum candidato encontrado.');
+    return false;
+  }
+  const origens = origensLista();
+  const salvas = c.origens || Object.keys(c.transfer || {});
+  if (salvas.length !== origens.length || !origens.every(o => salvas.includes(o))) {
+    simAvisar('Arquivo JSON incompatível: origens de migração divergentes.');
+    return false;
+  }
+
+  SIM.candidatos = c.candidatos;
+  SIM.proxId = c.proxId || (Math.max(...c.candidatos.map(x => x.id)) + 1);
+  SIM.transfer = c.transfer || simTransferPadrao();
+  if (!origens.every(o => SIM.transfer[o])) SIM.transfer = simTransferPadrao();
+
+  SIM.ops = new Map((c.ops || []).map(o => [chaveEscopo(o.scope), o]));
+  SIM.pesosRegiao = c.pesosRegiao || {};
+  SIM.regiaoTocada = c.regiaoTocada || {};
+  SIM.baseGerada = true;
+  SIM.demoEdit = c.demoEdit || {};
+  if (c.t2) {
+    SIM.t2.finalistas = c.t2.finalistas;
+    SIM.t2.matriz = c.t2.matriz;
+    SIM.t2.chaveMatriz = c.t2.chaveMatriz || null;
+    SIM.t2.porGrupo = c.t2.porGrupo || null;
+  }
+
+  salvarLocal();
+  simCalcular().then(() => {
+    simRenderTudo();
+    fecharModal();
+    simAvisar('Cenário JSON importado com sucesso!');
+  });
+  return true;
+}
+
 function baixarCenario() {
   const blob = new Blob([JSON.stringify(cenarioSerializado(), null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
@@ -2394,12 +3016,14 @@ async function initSimulador() {
   simMap = new maplibregl.Map({
     container: 'map',
     style: MLCompat.buildBasemapStyle(document.body.dataset.theme === 'light' ? 'light' : 'dark'),
-    center: [-52, -14], zoom: 3.6, minZoom: 3, dragRotate: false, pitchWithRotate: false
+    center: [-52, -14], zoom: 3.6, minZoom: 3, dragRotate: false, pitchWithRotate: false,
+    attributionControl: false
   });
   MLCompat.augmentMap(simMap);
   MLCompat.refreshThemeColors();
   if (simMap.touchZoomRotate) simMap.touchZoomRotate.disableRotation();
   simMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+  simMap.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-left');
   setupSimMapRefreshObservers();
   simMap.on('load', () => scheduleSimMapRefresh({ force: true }));
 
@@ -2443,12 +3067,41 @@ async function initSimulador() {
   listaRegioes('mr').forEach(r => pesosDaRegiao(`mr:${r.codigo}`));
 
   // Ligacoes de UI
-  document.getElementById('btnAbrirConfig').addEventListener('click', () => abrirModal());
-  document.getElementById('btnEditSimGlobal').addEventListener('click', () => abrirModal());
+  const btnAbrir = document.getElementById('btnAbrirConfig');
+  if (btnAbrir) btnAbrir.addEventListener('click', () => abrirModal());
+  document.getElementById('btnEditSimGlobal')?.addEventListener('click', () => abrirModal());
+  document.getElementById('btnEditSimGlobalLeft').addEventListener('click', () => abrirModal());
+  document.getElementById('btnEmptyConfigLeft').addEventListener('click', () => {
+    const e = prontoParaBase();
+    abrirModal(e.ok ? 'regioes' : (e.migOk ? 'regioes' : 'cenario'));
+  });
   document.getElementById('btnEmptyConfig').addEventListener('click', () => {
     const e = prontoParaBase();
     abrirModal(e.ok ? 'regioes' : (e.migOk ? 'regioes' : 'cenario'));
   });
+
+  // Sync left sidebar mode switches with the main (right-side) ones
+  function syncColorSwitch(fromId, toId) {
+    document.querySelectorAll(`#${fromId} .sim-color-btn`).forEach(b => b.addEventListener('click', () => {
+      const val = b.dataset.value;
+      document.querySelectorAll(`#${toId} .sim-color-btn`).forEach(x =>
+        x.classList.toggle('active', x.dataset.value === val));
+    }));
+  }
+  // Left -> Right sync
+  document.querySelectorAll('#simGradientModeSwitchLeft .sim-color-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.modoColorizacao = b.dataset.value;
+    document.querySelectorAll('#simGradientModeSwitchLeft .sim-color-btn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    simRenderMapa();
+    simRenderLegenda();
+  }));
+  document.querySelectorAll('#simBorderModeSwitchLeft .sim-color-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.exibirContornoMuni = b.dataset.value !== 'off';
+    document.querySelectorAll('#simBorderModeSwitchLeft .sim-color-btn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    simRenderMapa();
+  }));
   document.getElementById('btnCloseConfigModal').addEventListener('click', fecharModal);
   document.getElementById('simConfigOverlay').addEventListener('click', e => {
     if (e.target.id === 'simConfigOverlay') fecharModal();
@@ -2470,25 +3123,78 @@ async function initSimulador() {
     if (primeira) simRenderModal();
   });
   document.getElementById('btnSalvarCenario').addEventListener('click', baixarCenario);
+
+  const triggerImportJSON = () => {
+    const input = document.getElementById('simFileInputJSON');
+    if (input) { input.value = ''; input.click(); }
+  };
+  const btnImpModal = document.getElementById('btnCarregarCenario');
+  if (btnImpModal) btnImpModal.addEventListener('click', triggerImportJSON);
+  const btnImpEmpty = document.getElementById('btnEmptyImportJSON');
+  if (btnImpEmpty) btnImpEmpty.addEventListener('click', triggerImportJSON);
+
+  const fileInput = document.getElementById('simFileInputJSON');
+  if (fileInput) fileInput.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if (f) carregarCenarioJSON(f);
+  });
   document.getElementById('btnResetSim').addEventListener('click', async () => {
     SIM.candidatos = []; SIM.proxId = 1;
     candidatosPadrao();
+    SIM.candidatos.forEach(c => { if (c.reduto === undefined) c.reduto = redutoSugerido(c) || null; });
     SIM.transfer = simTransferPadrao();
-    SIM.ops.clear(); SIM.tocados.clear();
-    SIM.t2 = { finalistas: null, matriz: null, comparecimento: 0 };
+    SIM.migracaoTocada = false;
+    SIM.pesosRegiao = {};
+    SIM.regiaoTocada = {};
+    SIM._assinaturaMigracao = null;
+    SIM.ops.clear();
+    SIM.demoEdit = {};
+    SIM.baseGerada = false;
+    SIM.agregado = null;
+    SIM.agregado2T = null;
+    SIM.support = null;
+    SIM.shares = null;
+    SIM.t2 = { finalistas: null, matriz: null, porGrupo: null, comparecimento: 0, chaveMatriz: null };
+    SIM.escopo = { level: 'nacional' };
+    SIM.selectedUF = null;
+    SIM.selectedMuni = null;
+    SIM.paneAtivo = 'candidatos';
     try { localStorage.removeItem('sim2026_cenario'); } catch (e) { /* ok */ }
-    await simCalcular();
-    simRenderModal();
+    simRenderTudo();
+    simRenderBreadcrumb();
+    abrirModal('candidatos');
   });
 
   document.querySelectorAll('#simPanelResults .sim-tab').forEach(b =>
     b.addEventListener('click', () => { SIM.abaSidebar = b.dataset.tab; simRenderSidebar(); }));
   document.getElementById('btnVoltar').addEventListener('click', simVoltar);
-  document.querySelectorAll('.sim-turno-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.sim-turno-switch .sim-turno-btn').forEach(b => b.addEventListener('click', () => {
     SIM.turno = +b.dataset.turno;
-    document.querySelectorAll('.sim-turno-btn').forEach(x =>
+    document.querySelectorAll('.sim-turno-switch .sim-turno-btn').forEach(x =>
       x.classList.toggle('active', x === b));
     simRenderTudo();
+  }));
+
+  document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.modoMapa = b.dataset.mode;
+    document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    simRenderMapa();
+  }));
+
+  document.querySelectorAll('#simGradientModeSwitch .sim-color-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.modoColorizacao = b.dataset.value;
+    document.querySelectorAll('#simGradientModeSwitch .sim-color-btn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    simRenderMapa();
+    simRenderLegenda();
+  }));
+
+  document.querySelectorAll('#simBorderModeSwitch .sim-color-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.exibirContornoMuni = b.dataset.value !== 'off';
+    document.querySelectorAll('#simBorderModeSwitch .sim-color-btn').forEach(x =>
+      x.classList.toggle('active', x === b));
+    simRenderMapa();
   }));
 
   // Nada e simulado antes de o usuario configurar: se ja ha um cenario salvo

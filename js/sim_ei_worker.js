@@ -603,68 +603,180 @@ function aplicarOp(cur, op, np, iNulo, iAbst) {
    O delta sai (ou entra) proporcionalmente nos DEMAIS CANDIDATOS do mesmo
    local, nunca da abstencao ou dos nulos — o comparecimento de cada municipio
    e uma nuance que o usuario pediu para preservar. */
+function fatiaAptos(fat) {
+  if (!fat) return 0;
+  const [ini, qtd] = fat;
+  let s = 0;
+  for (let a = 0; a < qtd; a++) s += aptosArr[ini + a];
+  return s;
+}
+
+function fatiaVotos(fat, col, np, cur) {
+  if (!fat) return 0;
+  const [ini, qtd] = fat;
+  let s = 0;
+  for (let a = 0; a < qtd; a++) s += cur[(ini + a) * np + col];
+  return s;
+}
+
 function aplicarRedutos(cur, np, vinculos, iNulo, iAbst) {
   if (!vinculos || !vinculos.length || !IDX.redutos) return;
-  const OFF = IDX.redutosOffset, RB = IDX.recordBytes;
   const nR = IDX.redutos.length;
   if (!nR) return;
+
+  const MACRORREGIAO_UFS = {
+    '1': ['AC', 'AP', 'AM', 'PA', 'RO', 'RR', 'TO'],
+    '2': ['AL', 'BA', 'CE', 'MA', 'PB', 'PE', 'PI', 'RN', 'SE'],
+    '3': ['MG', 'SP', 'RJ', 'ES'],
+    '4': ['PR', 'RS', 'SC'],
+    '5': ['GO', 'MT', 'MS', 'DF']
+  };
+  const UF_MACRORREGIAO = {
+    AC: '1', AP: '1', AM: '1', PA: '1', RO: '1', RR: '1', TO: '1',
+    AL: '2', BA: '2', CE: '2', MA: '2', PB: '2', PE: '2', PI: '2', RN: '2', SE: '2',
+    MG: '3', SP: '3', RJ: '3', ES: '3',
+    PR: '4', RS: '4', SC: '4',
+    GO: '5', MT: '5', MS: '5', DF: '5'
+  };
+
+  const REDUTO_DIST = {
+    caiado: { homePct: 0.70, customPcts: { DF: 0.20 } },
+    zema:   { homePct: 0.50, customPcts: {} }
+  };
 
   for (const v of vinculos) {
     const r = IDX.redutos.findIndex(x => x.key === v.reduto);
     if (r < 0) continue;
     const col = v.coluna;
-    const fatia = fatiaUf[IDX.redutos[r].uf];
-    if (fatia == null || col == null || col < 0) continue;
-    const [ini, qtd] = fatia;
+    if (col == null || col < 0) continue;
+
+    const homeUf = IDX.redutos[r].uf;
+    const mrKey = UF_MACRORREGIAO[homeUf];
+    const ufsNoMr = MACRORREGIAO_UFS[mrKey] || [homeUf];
     const forca = Math.max(0, Math.min(1, v.forca == null ? 1 : v.forca));
 
-    let total = 0, somaW = 0;
-    const w = new Float64Array(qtd);
-    for (let a = 0; a < qtd; a++) {
-      const i = ini + a;
-      total += cur[i * np + col];
-      // Votos de governador do politico naquele local.
-      w[a] = (redutoArr[i * nR + r] / QUANT) * aptosArr[i];
-      somaW += w[a];
-    }
-    if (total <= 0 || somaW <= 0) continue;
+    let totalMacro = 0;
+    ufsNoMr.forEach(uf => {
+      totalMacro += fatiaVotos(fatiaUf[uf], col, np, cur);
+    });
 
-    for (let a = 0; a < qtd; a++) {
-      const i = ini + a, vb = i * np;
-      const atual = cur[vb + col];
-      const desejado = total * w[a] / somaW;
-      let delta = forca * (desejado - atual);
-      if (!delta) continue;
+    if (totalMacro <= 0) continue;
 
-      let outros = 0;
-      for (let p = 0; p < np; p++) {
-        if (p === col || p === iNulo || p === iAbst) continue;
-        outros += cur[vb + p];
+    const config = REDUTO_DIST[v.reduto] || { homePct: 0.70, customPcts: {} };
+
+    let customTotalPct = 0;
+    Object.keys(config.customPcts).forEach(uf => {
+      if (ufsNoMr.includes(uf) && uf !== homeUf) {
+        customTotalPct += config.customPcts[uf];
       }
-      if (delta > 0) delta = Math.min(delta, outros);        // nao pode zerar o resto
-      else delta = Math.max(delta, -atual);                  // nem ficar negativo
-      if (!delta) continue;
+    });
 
-      cur[vb + col] = atual + delta;
-      if (outros > 0) {
-        const fator = (outros - delta) / outros;
-        for (let p = 0; p < np; p++) {
-          if (p === col || p === iNulo || p === iAbst) continue;
-          cur[vb + p] *= fator;
+    const restPct = Math.max(0, 1 - config.homePct - customTotalPct);
+
+    let aptosGenericos = 0;
+    ufsNoMr.forEach(uf => {
+      if (uf !== homeUf && config.customPcts[uf] == null) {
+        aptosGenericos += fatiaAptos(fatiaUf[uf]);
+      }
+    });
+
+    const targetStateVotes = {};
+    ufsNoMr.forEach(uf => {
+      let targetPct = 0;
+      if (uf === homeUf) {
+        targetPct = config.homePct;
+      } else if (config.customPcts[uf] != null) {
+        targetPct = config.customPcts[uf];
+      } else {
+        const aptUf = fatiaAptos(fatiaUf[uf]);
+        targetPct = aptosGenericos > 0 ? restPct * (aptUf / aptosGenericos) : restPct / Math.max(1, ufsNoMr.length - 1);
+      }
+      const effPct = targetPct * forca + (1 - forca) * (1 / ufsNoMr.length);
+      targetStateVotes[uf] = totalMacro * effPct;
+    });
+
+    ufsNoMr.forEach(uf => {
+      const fat = fatiaUf[uf];
+      if (!fat) return;
+      const [ini, qtd] = fat;
+      const ehHome = (uf === homeUf);
+
+      if (ehHome) {
+        let somaW = 0;
+        const w = new Float64Array(qtd);
+        for (let a = 0; a < qtd; a++) {
+          const i = ini + a;
+          w[a] = (redutoArr[i * nR + r] / QUANT) * aptosArr[i];
+          somaW += w[a];
+        }
+
+        const targetUfVotes = targetStateVotes[uf] || 0;
+        for (let a = 0; a < qtd; a++) {
+          const i = ini + a, vb = i * np;
+          const atual = cur[vb + col];
+          const desejado = somaW > 0 ? targetUfVotes * (w[a] / somaW) : targetUfVotes / qtd;
+          const delta = desejado - atual;
+          if (!delta) continue;
+
+          let outros = 0;
+          for (let p = 0; p < np; p++) {
+            if (p === col || p === iNulo || p === iAbst) continue;
+            outros += cur[vb + p];
+          }
+          const deltaEff = delta > 0 ? Math.min(delta, outros) : Math.max(delta, -atual);
+          if (!deltaEff) continue;
+
+          cur[vb + col] = atual + deltaEff;
+          if (outros > 0) {
+            const fator = (outros - deltaEff) / outros;
+            for (let p = 0; p < np; p++) {
+              if (p === col || p === iNulo || p === iAbst) continue;
+              cur[vb + p] *= fator;
+            }
+          }
+        }
+      } else {
+        const aptUf = fatiaAptos(fat);
+        const targetUfVotes = targetStateVotes[uf] || 0;
+        const atualUfVotes = fatiaVotos(fat, col, np, cur);
+        const deltaUf = targetUfVotes - atualUfVotes;
+
+        if (deltaUf) {
+          for (let a = 0; a < qtd; a++) {
+            const i = ini + a, vb = i * np;
+            const fracLoc = aptosArr[i] / (aptUf || 1);
+            const deltaLoc = deltaUf * fracLoc;
+            const atual = cur[vb + col];
+
+            let outros = 0;
+            for (let p = 0; p < np; p++) {
+              if (p === col || p === iNulo || p === iAbst) continue;
+              outros += cur[vb + p];
+            }
+            const deltaEff = deltaLoc > 0 ? Math.min(deltaLoc, outros) : Math.max(deltaLoc, -atual);
+            if (!deltaEff) continue;
+
+            cur[vb + col] = atual + deltaEff;
+            if (outros > 0) {
+              const fator = (outros - deltaEff) / outros;
+              for (let p = 0; p < np; p++) {
+                if (p === col || p === iNulo || p === iAbst) continue;
+                cur[vb + p] *= fator;
+              }
+            }
+          }
         }
       }
-    }
 
-    // Reinteira: a redistribuicao trabalha em ponto flutuante e sem isto o
-    // total do estado nao fecha exatamente com os aptos.
-    const fv = new Float64Array(np);
-    const saida = new Int32Array(np);
-    for (let a = 0; a < qtd; a++) {
-      const i = ini + a, vb = i * np;
-      for (let p = 0; p < np; p++) fv[p] = Math.max(0, cur[vb + p]);
-      hamilton(fv, Math.round(aptosArr[i]), saida, np);
-      for (let p = 0; p < np; p++) cur[vb + p] = saida[p];
-    }
+      const fv = new Float64Array(np);
+      const saida = new Int32Array(np);
+      for (let a = 0; a < qtd; a++) {
+        const i = ini + a, vb = i * np;
+        for (let p = 0; p < np; p++) fv[p] = Math.max(0, cur[vb + p]);
+        hamilton(fv, Math.round(aptosArr[i]), saida, np);
+        for (let p = 0; p < np; p++) cur[vb + p] = saida[p];
+      }
+    });
   }
 }
 
@@ -841,14 +953,9 @@ function calcular(msg) {
 
   // 1) migracao de 2022 -> superficie base
   const cur = montarBase(msg.transfer, np);
-  // 2) redutos pessoais de governador, ainda antes de qualquer meta
-  aplicarRedutos(cur, np, msg.redutos, iNulo, iAbst);
 
-  /* 3) Replay determinista, na ordem em que a simulacao e construida:
-        nacional -> macrorregiao -> UF -> regiao intermediaria -> municipio.
-     A macrorregiao vem antes porque e o input obrigatorio que define a
-     projecao base; RGINT e municipio sao refinamentos posteriores e por isso
-     tem prioridade sobre ela. */
+  /* 2) Replay determinista, na ordem em que a simulacao e construida:
+        nacional -> macrorregiao -> UF -> regiao intermediaria -> municipio. */
   const rank = { nacional: 0, mr: 1, uf: 2, ri: 3, municipio: 4 };
   const rankDe = (o) => {
     const s = o.scope || {};
@@ -860,6 +967,9 @@ function calcular(msg) {
     aplicarOp(cur, ops[o], np, iNulo, iAbst);
     progresso(0.2 + 0.6 * (o + 1) / ops.length, 'Aplicando ajustes');
   }
+
+  // 3) redutos pessoais: concentra 70% dos votos da macrorregiao no estado sede (GO para Caiado, MG para Zema)
+  aplicarRedutos(cur, np, msg.redutos, iNulo, iAbst);
 
   progresso(0.85, 'Agregando');
   const agregado = agregar(cur, np, msg.detailUfs);

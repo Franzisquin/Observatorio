@@ -27,13 +27,6 @@
       <span class="toolbar-page">Simulador Eleitoral 2026</span>
     </div>
     <div class="toolbar-right">
-      <button id="btnAbrirConfig" class="toolbar-link toolbar-cta">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
-        </svg>
-        Editar cenário
-      </button>
       <a href="index.html" class="toolbar-link">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
           stroke-linecap="round" stroke-linejoin="round">
@@ -59,6 +52,55 @@
   </div>
 
   <div class="app sim-app">
+    <!-- LEFT PANEL: Controles da simulação -->
+    <div class="panel side side-left" id="simControlPanel">
+      <div class="head">
+        <div class="title">Controles</div>
+      </div>
+      <div class="body">
+        <!-- Estado vazio: antes do primeiro cálculo -->
+        <div id="simLeftEmpty" style="display:flex;flex-direction:column;gap:10px;">
+          <p style="font-size:0.8rem;color:var(--muted);margin:0;">Configure a simulação para habilitar os controles.</p>
+          <button class="sim-btn sim-btn-apply" id="btnEmptyConfigLeft" hidden>Configurar simulação</button>
+        </div>
+
+        <!-- Controles ativos (aparecem após calcular) -->
+        <div id="simLeftControls" hidden>
+          <div class="sim-ctrl-section">
+            <div class="sim-ctrl-section-title">Cenário</div>
+            <button class="sim-btn sim-btn-apply" id="btnEditSimGlobalLeft" style="width:100%;">Editar cenário</button>
+          </div>
+
+          <div class="sim-ctrl-section" style="margin-top:14px;">
+            <div class="sim-color-mode-ctrl">
+              <label class="sim-color-mode-label">Modo de colorização</label>
+              <div class="sim-color-mode-switch" id="simGradientModeSwitchLeft">
+                <button class="sim-color-btn active" data-value="margin">Margem</button>
+                <button class="sim-color-btn" data-value="winnerPct">% do Vencedor</button>
+              </div>
+            </div>
+
+            <div class="sim-color-mode-ctrl">
+              <label class="sim-color-mode-label">Contorno dos municípios</label>
+              <div class="sim-color-mode-switch" id="simBorderModeSwitchLeft">
+                <button class="sim-color-btn active" data-value="on">Ligado</button>
+                <button class="sim-color-btn" data-value="off">Desligado</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sim-ctrl-section" style="margin-top:14px;">
+            <div id="simRunoffCallout"></div>
+          </div>
+
+          <div class="sim-ctrl-section" style="margin-top:14px;">
+            <div class="sim-ctrl-section-title">Ajustar escopo</div>
+            <div id="simTabAjustar" class="sim-sidebar-tab"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- CENTER: Map -->
     <div class="panel" id="mapPanel">
       <div id="map"></div>
@@ -66,6 +108,10 @@
       <!-- Faixa de contexto sobre o mapa: onde estou e o que estou vendo -->
       <div class="sim-map-bar" id="simMapBar">
         <div class="sim-breadcrumb" id="simBreadcrumb"></div>
+        <div class="sim-mode-switch" id="simModeSwitch">
+          <button class="sim-mode-btn active" data-mode="estado">Estado</button>
+          <button class="sim-mode-btn" data-mode="municipio">Município</button>
+        </div>
         <div class="sim-turno-switch" id="simTurnoSwitch" hidden>
           <button class="sim-turno-btn active" data-turno="1">1º turno</button>
           <button class="sim-turno-btn" data-turno="2">2º turno</button>
@@ -92,7 +138,10 @@
             </svg>
           </div>
           <p id="simEmptyMsg">Carregando o eleitorado de 2026 e a base de 2022…</p>
-          <button class="sim-btn sim-btn-apply" id="btnEmptyConfig" hidden>Configurar simulação</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center;">
+            <button class="sim-btn sim-btn-apply" id="btnEmptyConfig" hidden>Configurar simulação</button>
+            <button class="sim-btn" id="btnEmptyImportJSON" hidden>Importar JSON</button>
+          </div>
         </div>
 
         <div id="simPanelResults" hidden>
@@ -106,20 +155,14 @@
 
           <div class="sim-tab-group" role="tablist">
             <button class="sim-tab active" data-tab="resultado">Resultado</button>
-            <button class="sim-tab" data-tab="ajustar">Ajustar</button>
             <button class="sim-tab" data-tab="demografia">Demografia</button>
           </div>
 
           <div id="simTabResultado" class="sim-sidebar-tab">
             <div id="simBarsContainer"></div>
             <div id="simMetricsContainer"></div>
-            <div id="simRunoffCallout"></div>
-            <div class="sim-actions-row">
-              <button class="sim-btn sim-btn-apply" id="btnEditSimGlobal">Editar cenário</button>
-            </div>
           </div>
 
-          <div id="simTabAjustar" class="sim-sidebar-tab" hidden></div>
           <div id="simTabDemografia" class="sim-sidebar-tab" hidden></div>
         </div>
       </div>
@@ -207,12 +250,14 @@
         </div>
         <div class="sim-footer-spacer"></div>
         <button class="sim-btn sim-btn-ghost" id="btnResetSim">Recomeçar</button>
+        <button class="sim-btn" id="btnCarregarCenario">Importar JSON</button>
         <button class="sim-btn" id="btnSalvarCenario">Salvar JSON</button>
         <button class="sim-btn sim-btn-apply" id="btnAplicarSimModal">Aplicar simulação</button>
       </div>
     </div>
   </div>
 
+  <input type="file" id="simFileInputJSON" accept=".json,application/json" hidden>
   <datalist id="sim-party-list"></datalist>
 
   <script src="js/maplibre-compat.js"></script>
