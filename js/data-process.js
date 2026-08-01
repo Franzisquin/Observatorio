@@ -176,8 +176,11 @@ function processLoadedGeoJSON(geojson, cargoKey) {
   if (STATE.currentElectionType === 'geral') {
     // Se for geral, adiciona cidades à lista única
     geojson.features.forEach(f => {
-      const cidade = getProp(f.properties, 'nm_localidade');
-      if (cidade) uniqueCidades.add(cidade);
+      if (typeof registerCityCodeAndName === 'function') registerCityCodeAndName(f.properties);
+      else {
+        const cidade = getProp(f.properties, 'nm_localidade');
+        if (cidade) uniqueCidades.add(cidade);
+      }
     });
   }
 }

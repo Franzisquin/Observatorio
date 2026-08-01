@@ -550,8 +550,6 @@ function setupControls() {
 
   if (dom.btnMapModeLocais) {
     dom.btnMapModeLocais.addEventListener('click', () => {
-      if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) return;
-
       STATE.currentMapMode = 'locais';
       clearSelection(true);
       updateApplyButtonText();

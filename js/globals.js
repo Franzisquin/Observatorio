@@ -725,6 +725,28 @@ if (typeof window !== 'undefined') {
 
 let uniqueCidades = new Set();
 let uniqueBairros = new Set();
+
+function registerCityCodeAndName(props) {
+  if (!props) return;
+  const city = String(getProp(props, 'nm_localidade') || '').trim();
+  const code = getProp(props, 'CD_MUNICIPIO') || getProp(props, 'cod_localidade_ibge') || getProp(props, 'cd_localidade_tse') || getProp(props, 'cd_ibge') || getProp(props, 'CD_MUN');
+  if (city && city.toUpperCase() !== 'N/D') {
+    uniqueCidades.add(city);
+    if (code) {
+      const codeStr = String(code).trim();
+      if (codeStr && codeStr !== 'null' && codeStr !== 'undefined') {
+        if (typeof STATE !== 'undefined') {
+          if (!STATE.muniCodeToNameMap) STATE.muniCodeToNameMap = new Map();
+          STATE.muniCodeToNameMap.set(codeStr, city);
+          if (codeStr.length > 6) {
+            STATE.muniCodeToNameMap.set(codeStr.slice(0, 6), city);
+          }
+        }
+      }
+    }
+  }
+}
+
 let dom = {};
 let REGIONAL_FILTERS_PROMISE = null;
 let REGIONAL_FILTERS_INDEX = {
@@ -758,9 +780,17 @@ function buildRegionalFilterIndex(rawByUf = {}) {
       const municipioSlugs = new Set();
       (municipios || []).forEach((municipio) => {
         const code = String(municipio?.codigo_ibge || '').trim();
-        const slug = normalizeMunicipioSlug(municipio?.nome_municipio);
+        const name = String(municipio?.nome_municipio || '').trim();
+        const slug = normalizeMunicipioSlug(name);
         if (code) municipioCodes.add(code);
         if (slug) municipioSlugs.add(slug);
+        if (code && name) {
+          if (typeof STATE !== 'undefined') {
+            if (!STATE.muniCodeToNameMap) STATE.muniCodeToNameMap = new Map();
+            STATE.muniCodeToNameMap.set(code, name);
+            if (code.length > 6) STATE.muniCodeToNameMap.set(code.slice(0, 6), name);
+          }
+        }
       });
       regionEntries.push({
         label: regionName,

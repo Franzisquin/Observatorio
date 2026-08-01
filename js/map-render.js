@@ -578,14 +578,42 @@ function getMunicipalityFeatureCode(props) {
 
 function getMunicipalityFeatureName(props) {
   if (!props) return 'Município';
-  return String(
+  const directName = String(
     props.NM_MUN ||
     props.nm_mun ||
     props.municipio ||
     props.nm_localidade ||
     props.NOME ||
-    'Município'
+    ''
   ).trim();
+  if (directName && directName !== 'Município') return directName;
+
+  const code = getMunicipalityFeatureCode(props);
+  if (code) {
+    const codeStr = String(code).trim();
+    const code6 = codeStr.slice(0, 6);
+
+    if (STATE.currentMapMuniSummary) {
+      const summary = STATE.currentMapMuniSummary;
+      if (summary[codeStr]?.nome) return summary[codeStr].nome;
+      if (code6.length >= 6 && summary[code6]?.nome) return summary[code6].nome;
+      const byCode = Object.values(summary).find((entry) => {
+        if (!entry || !entry.muniCode) return false;
+        const c = String(entry.muniCode).trim();
+        return c === codeStr || (code6.length >= 6 && c.slice(0, 6) === code6);
+      });
+      if (byCode?.nome) return byCode.nome;
+    }
+
+    if (STATE.muniCodeToNameMap) {
+      if (STATE.muniCodeToNameMap.has(codeStr)) return STATE.muniCodeToNameMap.get(codeStr);
+      if (code6.length >= 6 && STATE.muniCodeToNameMap.has(code6)) {
+        return STATE.muniCodeToNameMap.get(code6);
+      }
+    }
+  }
+
+  return 'Município';
 }
 
 function getCurrentMunicipalMapSelection() {
@@ -1276,8 +1304,10 @@ function buildLocationTooltip(feature) {
 }
 
 function buildMunicipalityTooltip(feature, summary) {
-  const nome = formatTooltipDisplayName(getMunicipalityFeatureName(feature?.properties));
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
+  const rawFeatureName = getMunicipalityFeatureName(feature?.properties);
+  const displayName = result?.nome || rawFeatureName;
+  const nome = formatTooltipDisplayName(displayName);
   const uf = STATE.currentElectionType === 'municipal'
     ? String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase()
     : String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
@@ -1415,28 +1445,73 @@ function buildMunicipalityTooltip(feature, summary) {
 function getMunicipalSummaryEntryForFeature(props, summary) {
   if (!props || !summary) return null;
   const directCode = getMunicipalityFeatureCode(props);
-  if (directCode && summary[directCode]) return summary[directCode];
-
-  // Match por codigo IBGE embutido no resumo (entry.muniCode) — cobre grafias
-  // divergentes entre a malha e os dados (essencial na malha 1994).
   if (directCode) {
-    const byCode = Object.values(summary).find((entry) => entry && String(entry.muniCode || '') === directCode);
+    if (summary[directCode]) return summary[directCode];
+    const direct6 = directCode.slice(0, 6);
+    if (direct6.length >= 6 && summary[direct6]) return summary[direct6];
+    const byCode = Object.values(summary).find((entry) => {
+      if (!entry) return false;
+      const code = String(entry.muniCode || entry.ibge || '').trim();
+      return code === directCode || (direct6.length >= 6 && code.slice(0, 6) === direct6);
+    });
     if (byCode) return byCode;
+
+    if (STATE.muniCodeToNameMap) {
+      const mappedName = STATE.muniCodeToNameMap.get(directCode)
+        || (direct6.length >= 6 && STATE.muniCodeToNameMap.get(direct6));
+      if (mappedName) {
+        const slug = normalizeMunicipioSlug(mappedName);
+        if (summary[slug]) return summary[slug];
+        if (summary[mappedName]) return summary[mappedName];
+        const aliases = typeof getMunicipioAliasSlugs === 'function'
+          ? getMunicipioAliasSlugs(mappedName)
+          : [slug];
+        const byName = Object.values(summary).find((entry) => {
+          const entrySlug = normalizeMunicipioSlug(entry?.nome || '');
+          return aliases.includes(entrySlug);
+        });
+        if (byName) return byName;
+      }
+    }
   }
 
-  const nome = getMunicipalityFeatureName(props);
-  const aliases = typeof getMunicipioAliasSlugs === 'function'
-    ? getMunicipioAliasSlugs(nome)
-    : [normalizeMunicipioSlug(nome)];
+  const directName = String(
+    props.NM_MUN ||
+    props.nm_mun ||
+    props.municipio ||
+    props.nm_localidade ||
+    props.NOME ||
+    ''
+  ).trim();
 
-  return Object.values(summary).find((entry) => {
-    const slug = normalizeMunicipioSlug(entry?.nome || '');
-    return aliases.includes(slug);
-  }) || null;
+  if (directName && directName !== 'Município') {
+    const aliases = typeof getMunicipioAliasSlugs === 'function'
+      ? getMunicipioAliasSlugs(directName)
+      : [normalizeMunicipioSlug(directName)];
+
+    return Object.values(summary).find((entry) => {
+      const slug = normalizeMunicipioSlug(entry?.nome || '');
+      return aliases.includes(slug);
+    }) || null;
+  }
+
+  return null;
 }
 
 function getActiveTurnoKeyForCurrentCargo(cargoKey = currentCargo) {
   return (currentTurno === 2 && STATE.dataHas2T[cargoKey]) ? '2T' : '1T';
+}
+
+function getOfficialCityTotalsForCargo(cargoKey = currentCargo, turnoKey) {
+  if (!STATE.generalOfficialTotalsByCity) return null;
+  const direct = STATE.generalOfficialTotalsByCity[cargoKey]?.[turnoKey];
+  if (direct && Object.keys(direct).length > 0) return direct;
+
+  const altKey = cargoKey.endsWith('_ord') ? cargoKey.replace('_ord', '') : `${cargoKey}_ord`;
+  const alt = STATE.generalOfficialTotalsByCity[altKey]?.[turnoKey];
+  if (alt && Object.keys(alt).length > 0) return alt;
+
+  return null;
 }
 
 function buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey) {
@@ -1544,7 +1619,7 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
     const winnerName = winnerInfo.nome || 'N/D';
     const winnerParty = winnerInfo.partido || '';
 
-    const ibgeCode = cityData.ibge ? String(cityData.ibge) : '';
+    const ibgeCode = cityData.ibge ? String(cityData.ibge).trim() : '';
     const entry = {
       nome: cityKey,
       muniCode: ibgeCode,
@@ -1562,9 +1637,13 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
       isDetailed: false
     };
     summary[slug] = entry;
-    // Indexa tambem pelo codigo IBGE para que o poligono case por codigo (mais
-    // robusto que por nome) em getMunicipalSummaryEntryForFeature.
-    if (ibgeCode) summary[ibgeCode] = entry;
+    summary[cityKey] = entry;
+    const aliases = typeof getMunicipioAliasSlugs === 'function' ? getMunicipioAliasSlugs(cityKey) : [slug];
+    aliases.forEach((a) => { summary[a] = entry; });
+    if (ibgeCode) {
+      summary[ibgeCode] = entry;
+      summary[ibgeCode.slice(0, 6)] = entry;
+    }
   });
 
   return summary;
@@ -1578,22 +1657,17 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
     return precomputedSummary;
   }
 
-  // For 2002/2006 (and 1994, que so tem dados por municipio), use JSON-based
-  // official city totals (dot coverage is too sparse / inexistente)
-  const year = String(STATE.currentElectionYear);
-  if (year === '2002' || year === '2006' || year === '1994') {
-    const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
-    const officialCityTotals = STATE.generalOfficialTotalsByCity?.[cargoKey]?.[turnoKey];
-    if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
-      return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
-    }
-    // For deputado 2002/1994: use pre-built raw city totals resolved to groups at render time
-    if ((year === '2002' || year === '1994') && cargoKey.startsWith('deputado')) {
-      if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
-      const rawCityTotals = STATE.deputyCityTotals?.[cargoKey];
-      if (rawCityTotals?.size > 0) {
-        return buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey);
-      }
+  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+  const officialCityTotals = getOfficialCityTotalsForCargo(cargoKey, turnoKey);
+  if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
+    return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
+  }
+
+  if (cargoKey.startsWith('deputado')) {
+    if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
+    const rawCityTotals = STATE.deputyCityTotals?.[cargoKey];
+    if (rawCityTotals?.size > 0 || (rawCityTotals && Object.keys(rawCityTotals).length > 0)) {
+      return buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey);
     }
   }
 
@@ -1603,7 +1677,6 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   const geojson = currentDataCollection[cargoKey];
   if (!geojson?.features?.length) return {};
 
-  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
   const turnoLabel = (turnoKey === '2T' || turnoKey === '2t') ? '2º Turno' : '1º Turno';
   const inaptosTurno = STATE.inaptos[cargoKey]?.[turnoKey] || [];
   const grouped = new Map();
@@ -1871,7 +1944,11 @@ async function showGeneralMunicipalityOverview(uf) {
     }
 
     STATE.municipiosLayer = createMunicipiosGeoLayer(geojson, (feature) => {
-      const nome = getMunicipalityFeatureName(feature.properties);
+      const summaryEntry = typeof getMunicipalSummaryEntryForFeature === 'function'
+        ? getMunicipalSummaryEntryForFeature(feature?.properties, STATE.currentMapMuniSummary)
+        : null;
+      const rawNome = getMunicipalityFeatureName(feature?.properties);
+      const nome = summaryEntry?.nome || (rawNome !== 'Município' ? rawNome : '');
       const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
       const is1994 = String(STATE.currentElectionYear) === '1994';
       currentCidadeFilter = matchedCity;
@@ -2096,13 +2173,13 @@ function applyFiltersAndRedraw() {
   const isSpecialYearGeral = STATE.currentElectionType === 'geral' &&
     (String(STATE.currentElectionYear) === '2002' || String(STATE.currentElectionYear) === '2006');
 
+  const isCitySelected = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
+    || (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value);
+
   const keepMunicipalOverviewVisible =
     !!STATE.municipiosLayer
     && map.hasLayer(STATE.municipiosLayer)
-    && (
-      (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value)
-      || (STATE.currentElectionType === 'geral' && !!STATE.currentMapMuniUF && (currentCidadeFilter !== 'all' || isSpecialYearGeral))
-    );
+    && (STATE.currentMapMode === 'municipios' || isCitySelected);
 
   if (!keepMunicipalOverviewVisible && STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
     map.removeLayer(STATE.municipiosLayer);
@@ -2142,6 +2219,17 @@ function applyFiltersAndRedraw() {
   }
   STATE.currentCityHasNoDots = keepMunicipalOverviewVisible && !hasRealDots;
 
+  if (keepMunicipalOverviewVisible) {
+    if (STATE.currentElectionType === 'geral' && STATE.currentMapMuniUF) {
+      refreshGeneralMunicipalityOverviewLayer({ syncResults: STATE.currentMapMode === 'municipios' });
+    }
+  }
+  refreshMunicipalSelectionOverlay();
+
+  if (currentLayer && typeof currentLayer.remove === 'function') {
+    try { currentLayer.remove(); } catch (_) { /* noop */ }
+  }
+
   currentLayer = new MLCompat.GeoLayer(map, {
     id: 'locais',
     type: 'point',
@@ -2153,13 +2241,6 @@ function applyFiltersAndRedraw() {
   });
   currentLayer.setFeatures(visibleFeatures);
   currentLayer.addTo(map);
-
-  if (keepMunicipalOverviewVisible) {
-    if (STATE.currentElectionType === 'geral' && STATE.currentMapMuniUF) {
-      refreshGeneralMunicipalityOverviewLayer({ syncResults: STATE.currentMapMode === 'municipios' });
-    }
-    refreshMunicipalSelectionOverlay();
-  }
 
   CURRENT_VISIBLE_FEATURES_CACHE = visibleFeatures;
   CURRENT_VISIBLE_PROPS_CACHE = visibleFeatures.map((feature) => feature.properties);
@@ -3246,11 +3327,27 @@ function getMunicipalPolygonStyle(feature, summary) {
     }
     return {
       ...baseStyle,
-      fillOpacity: 0.02,
+      fillOpacity: 0.0,
       color: 'rgba(255, 255, 255, 0.96)',
-      weight: 0.8,
+      weight: 1.2,
       opacity: 1,
       height: height
+    };
+  }
+
+  if (STATE.currentMapMode === 'locais') {
+    const isSelectionActive = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
+      || (STATE.currentElectionType === 'municipal' && !!selectedMunicipality);
+    if (isSelectionActive) {
+      return baseStyle;
+    }
+    return {
+      ...baseStyle,
+      fillOpacity: 0.02,
+      color: 'rgba(255, 255, 255, 0.25)',
+      weight: 0.1,
+      opacity: 0.5,
+      height: 0
     };
   }
 
@@ -3276,7 +3373,21 @@ function getMunicipalOverviewSummaryWithRunoffPriority(summaryByTurn) {
   ]);
 
   muniCodes.forEach((muniCode) => {
-    combined[muniCode] = secondTurn[muniCode] || firstTurn[muniCode];
+    const entry = secondTurn[muniCode] || firstTurn[muniCode];
+    if (!entry) return;
+    combined[muniCode] = entry;
+    if (entry.nome) {
+      combined[normalizeMunicipioSlug(entry.nome)] = entry;
+      combined[entry.nome] = entry;
+    }
+    if (entry.muniCode) {
+      combined[entry.muniCode] = entry;
+    }
+    if (entry.ibge) {
+      const ibgeStr = String(entry.ibge).trim();
+      combined[ibgeStr] = entry;
+      combined[ibgeStr.slice(0, 6)] = entry;
+    }
   });
 
   return combined;
@@ -3340,7 +3451,8 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
   const ufName = UF_MAP.get(uf) || uf;
   const partyTotals = new Map();
 
-  Object.values(summary || {}).forEach((result) => {
+  const uniqueEntries = Array.from(new Set(Object.values(summary || {})));
+  uniqueEntries.forEach((result) => {
     const presentation = resolveMunicipalOverviewWinnerPresentation(result);
     if (!presentation.key) return;
     if (!partyTotals.has(presentation.key)) {
@@ -3462,7 +3574,8 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
       fetchMunicipalPolygonGeoJSON(uf),
       (typeof window.loadMunicipalOverviewSummary === 'function'
         ? window.loadMunicipalOverviewSummary(uf, year, subtype)
-        : Promise.resolve({}))
+        : Promise.resolve({})),
+      (typeof ensureRegionalFiltersLoaded === 'function' ? ensureRegionalFiltersLoaded() : Promise.resolve())
     ]);
 
     // Overview superado por um load municipal ou outro overview mais novo.
@@ -3488,7 +3601,11 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     }
 
     STATE.municipiosLayer = createMunicipiosGeoLayer(geojson, (feature) => {
-      const nome = getMunicipalityFeatureName(feature.properties);
+      const summaryEntry = typeof getMunicipalSummaryEntryForFeature === 'function'
+        ? getMunicipalSummaryEntryForFeature(feature?.properties, STATE.currentMapMuniSummary)
+        : null;
+      const rawNome = getMunicipalityFeatureName(feature?.properties);
+      const nome = summaryEntry?.nome || (rawNome !== 'Município' ? rawNome : '');
       const matchedOption = Array.from(dom.selectMunicipio?.options || []).find((option) => option.value && matchesMunicipioName(nome, option.value));
       if (matchedOption) {
         dom.selectMunicipio.value = matchedOption.value;
@@ -3569,7 +3686,7 @@ function focusCurrentLayerOnMap(options = {}) {
 function showOfficialCityResultPanel(entry, cityName) {
   dom.resultsBox.classList.remove('section-hidden');
   dom.resultsTitle.textContent = toTitleCase(cityName);
-  dom.resultsSubtitle.textContent = 'Resultado oficial • sem locais cadastrados';
+  dom.resultsSubtitle.textContent = 'Resultado oficial por município';
   if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
   dom.summaryGrid.innerHTML = '';
 
@@ -3812,26 +3929,37 @@ function syncResultsPanelToCurrentView() {
     return;
   }
 
-  // Para eleições gerais de 2002 e 2006, se um município estiver selecionado,
-  // nós SEMPRE devemos exibir o resultado consolidado oficial do município (totals do JSON),
-  // e nunca a soma parcial dos locais de votação geocodificados.
-  const year = String(STATE.currentElectionYear);
-  if ((year === '2002' || year === '2006') &&
-      currentCidadeFilter !== 'all' &&
-      STATE.currentElectionType === 'geral') {
+  const visibleFeatures = CURRENT_VISIBLE_FEATURES_CACHE || [];
+  const hasRealLocations = visibleFeatures.some(f => f.geometry !== null && f.geometry !== undefined);
+
+  if (hasRealLocations) {
+    selectedLocationIDs.clear();
+    visibleFeatures.forEach((feature) => {
+      const id = resolveFeatureSelectionId(feature.properties);
+      if (id) selectedLocationIDs.add(id);
+    });
+    updateSelectionUI(true);
+    return;
+  }
+
+  // Fallback para quando o município filtrado não possui pontos geolocalizados com geometria (ex: dados sintéticos ou 1994)
+  if (currentCidadeFilter !== 'all' && STATE.currentElectionType === 'geral') {
     const slug = normalizeMunicipioSlug(String(currentCidadeFilter));
     let entry = STATE.currentMapMuniSummary?.[slug];
 
     if (!entry && STATE.generalOfficialTotalsByCity) {
       const turnoKey = getActiveTurnoKeyForCurrentCargo(currentCargo);
-      const cityTotals = STATE.generalOfficialTotalsByCity[currentCargo]?.[turnoKey];
+      const cityTotals = getOfficialCityTotalsForCargo(currentCargo, turnoKey);
       if (cityTotals) {
-        const matchKey = Object.keys(cityTotals).find(k => normalizeMunicipioSlug(k) === slug);
+        const aliases = typeof getMunicipioAliasSlugs === 'function'
+          ? getMunicipioAliasSlugs(currentCidadeFilter)
+          : [slug];
+        const matchKey = Object.keys(cityTotals).find(k => aliases.includes(normalizeMunicipioSlug(k)));
         if (matchKey) {
           const raw = cityTotals[matchKey];
           const totalValid = ensureNumber(raw.totalValidos) ||
             Object.values(raw.votesByDisplayKey || {}).reduce((s, v) => s + ensureNumber(v), 0);
-          entry = { nome: String(currentCidadeFilter), totalValid, votes: raw.votesByDisplayKey || {} };
+          entry = { nome: String(currentCidadeFilter), totalValid, votes: raw.votesByDisplayKey || {}, rawTotals: raw.rawTotals || raw };
         }
       }
     }
@@ -3852,7 +3980,6 @@ function syncResultsPanelToCurrentView() {
         let totalValid = 0;
         let matchFound = false;
 
-        // Construir o mapa de código TSE para nome do município
         const codToNameMap = new Map();
         geojson.features.forEach((feature) => {
           const props = feature.properties || {};
@@ -3869,7 +3996,6 @@ function syncResultsPanelToCurrentView() {
           }
         });
 
-        // Somar os votos de todos os locais da base de dados bruta
         Object.entries(STATE.deputyResults).forEach(([locId, typeMap]) => {
           const parts = locId.split('_');
           if (parts.length < 3) return;
@@ -3912,27 +4038,14 @@ function syncResultsPanelToCurrentView() {
     }
   }
 
-  const visibleFeatures = CURRENT_VISIBLE_FEATURES_CACHE || [];
-  const hasRealLocations = visibleFeatures.some(f => f.geometry !== null && f.geometry !== undefined);
-  if (!visibleFeatures.length || !hasRealLocations) {
-    dom.resultsBox.classList.remove('section-hidden');
-    dom.resultsTitle.textContent = 'Sem resultados';
-    dom.resultsSubtitle.textContent = 'Nenhum local corresponde ao estado atual dos filtros';
-    if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
-    dom.resultsContent.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum local encontrado.</div>';
-    dom.resultsMetrics.innerHTML = '';
-    dom.summaryGrid.innerHTML = '';
-    updateNeighborhoodProfileUI();
-    return;
-  }
-
-  selectedLocationIDs.clear();
-  visibleFeatures.forEach((feature) => {
-    const id = resolveFeatureSelectionId(feature.properties);
-    if (id) selectedLocationIDs.add(id);
-  });
-
-  updateSelectionUI(true);
+  dom.resultsBox.classList.remove('section-hidden');
+  dom.resultsTitle.textContent = 'Sem resultados';
+  dom.resultsSubtitle.textContent = 'Nenhum local corresponde ao estado atual dos filtros';
+  if (dom.btnLocateSelection) dom.btnLocateSelection.style.display = 'none';
+  dom.resultsContent.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Nenhum local encontrado.</div>';
+  dom.resultsMetrics.innerHTML = '';
+  dom.summaryGrid.innerHTML = '';
+  updateNeighborhoodProfileUI();
 }
 
 function getAllFeaturesForAggregation() {

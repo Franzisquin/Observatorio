@@ -314,6 +314,10 @@
       this._rawFeatures = features || [];
       this.fc = { type: 'FeatureCollection', features: features || [] };
       this._computeProps();
+      if (this.map && this.sourceId) {
+        const src = this.map.getSource(this.sourceId);
+        if (src) src.setData(this.fc);
+      }
       return this;
     }
 
@@ -378,7 +382,12 @@
 
     _addSourceAndLayers() {
       const m = this.map;
-      if (!m || m.getSource(this.sourceId)) return; // já adicionado
+      if (!m) return;
+      const existingSrc = m.getSource(this.sourceId);
+      if (existingSrc) {
+        existingSrc.setData(this.fc);
+        return;
+      }
       m.addSource(this.sourceId, {
         type: 'geojson',
         data: this.fc,

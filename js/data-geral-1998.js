@@ -109,13 +109,48 @@ async function loadMajoritariaCargo1998(cargo, uf) {
     }
   }
 
-  // Mapa de nomes (cd_municipio_tse -> nm_municipio) a partir da base 2006.
-  const muniNameMaps = await Promise.all(ufs.map((s) => getMuniNameMap1998(s).catch(() => new Map())));
-  const muniNameMap = new Map();
-  muniNameMaps.forEach((m) => m.forEach((v, k) => muniNameMap.set(k, v)));
-
   // Pontos do mapa: base 2006 (o que bater bateu).
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+
+  // Compila muniNameMap e muniIbgeMap a partir da base 2006 e Censo 2006
+  const muniNameMap = new Map();
+  const muniIbgeVotes = new Map();
+  const tallyMuniInfo = (key, name, ibge) => {
+    const cdMuni = extractMunicipioCodeFromGeneralResultKey(key);
+    if (!cdMuni) return;
+    const cleanName = String(name || '').trim();
+    if (cleanName && !muniNameMap.has(cdMuni)) muniNameMap.set(cdMuni, cleanName);
+    const cleanIbge = String(ibge || '').trim();
+    if (cleanIbge) {
+      let votes = muniIbgeVotes.get(cdMuni);
+      if (!votes) { votes = new Map(); muniIbgeVotes.set(cdMuni, votes); }
+      votes.set(cleanIbge, (votes.get(cleanIbge) || 0) + 1);
+    }
+  };
+
+  (geojson.features || []).forEach((f) => {
+    const props = f.properties || {};
+    const key = String(props.id_unico || props.local_key || '');
+    tallyMuniInfo(key, props.nm_localidade, props.cod_localidade_ibge || props.cd_ibge);
+  });
+
+  await Promise.all(ufs.map(async (sigla) => {
+    try {
+      const censusJson = await loadCensoJson2006(sigla);
+      Object.entries(censusJson?.RESULTS || {}).forEach(([k, row]) => {
+        const key = String(row?.local_key || row?.ID_UNICO || k || '');
+        tallyMuniInfo(key, row?.nm_localidade, row?.cod_localidade_ibge || row?.cd_ibge);
+      });
+    } catch (_) {}
+  }));
+
+  const muniIbgeMap = new Map();
+  muniIbgeVotes.forEach((votes, cdMuni) => {
+    let bestIbge = '', bestCount = -1;
+    votes.forEach((count, ibge) => { if (count > bestCount) { bestCount = count; bestIbge = ibge; } });
+    if (bestIbge) muniIbgeMap.set(cdMuni, bestIbge);
+  });
+
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
@@ -141,8 +176,8 @@ async function loadMajoritariaCargo1998(cargo, uf) {
   geojson.features.push(...syntheticFeatures);
 
   const officialCityTotals = {
-    '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap),
-    ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap) } : {})
+    '1T': buildGeneralCityTotals2002(mergedTurno1, '1T', muniNameMap, muniIbgeMap),
+    ...(mergedTurno2 ? { '2T': buildGeneralCityTotals2002(mergedTurno2, '2T', muniNameMap, muniIbgeMap) } : {})
   };
   await adjustEmancCityTotals(1998, cargo, ufs, muniNameMap, officialCityTotals,
     { '1T': mergedTurno1, '2T': mergedTurno2 });

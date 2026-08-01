@@ -529,8 +529,11 @@ async function onClickLoadData_Deputies_legado(uf, year) {
 
       baseGeo.features.forEach(f => {
         const p = f.properties;
-        const city = getProp(p, 'nm_localidade');
-        if (city) uniqueCidades.add(city);
+        if (typeof registerCityCodeAndName === 'function') registerCityCodeAndName(p);
+        else {
+          const city = getProp(p, 'nm_localidade');
+          if (city) uniqueCidades.add(city);
+        }
         const bairro = getProp(p, 'ds_bairro');
         if (bairro) uniqueBairros.add(bairro);
       });

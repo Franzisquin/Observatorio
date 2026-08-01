@@ -798,8 +798,11 @@ async function onClickLoadData_Deputies_2006(uf, year) {
 
     baseGeo.features.forEach((feature) => {
       const props = feature.properties || {};
-      const city = getProp(props, 'nm_localidade');
-      if (city) uniqueCidades.add(city);
+      if (typeof registerCityCodeAndName === 'function') registerCityCodeAndName(props);
+      else {
+        const city = getProp(props, 'nm_localidade');
+        if (city) uniqueCidades.add(city);
+      }
       const bairro = getProp(props, 'ds_bairro');
       if (bairro) uniqueBairros.add(bairro);
     });

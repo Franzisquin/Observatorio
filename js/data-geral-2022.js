@@ -297,16 +297,25 @@ function extractMunicipioCodeFromGeneralResultKey(resultKey) {
 function buildGeneralOfficialSummariesByCity(fullJson, turnoKey, geojson) {
   const metadata = fullJson?.METADATA?.cand_names || {};
   const cityNameByCode = new Map();
+  const cityIbgeByCode = new Map();
 
   (geojson?.features || []).forEach((feature) => {
     const props = feature?.properties || {};
     const municipioCode = String(getProp(props, 'cd_localidade_tse') || '').trim();
     const cityName = String(getProp(props, 'nm_localidade') || '').trim();
-    if (!municipioCode || !cityName || cityNameByCode.has(municipioCode)) return;
-    cityNameByCode.set(municipioCode, cityName);
+    const ibgeCode = String(
+      getProp(props, 'cod_localidade_ibge') ||
+      getProp(props, 'cd_ibge') ||
+      getProp(props, 'CD_MUN') ||
+      ''
+    ).trim();
+    if (!municipioCode || !cityName) return;
+    if (!cityNameByCode.has(municipioCode)) cityNameByCode.set(municipioCode, cityName);
+    if (ibgeCode && !cityIbgeByCode.has(municipioCode)) cityIbgeByCode.set(municipioCode, ibgeCode);
   });
 
   const rawTotalsByCity = new Map();
+  const ibgeByCity = new Map();
   Object.entries(fullJson?.RESULTS || {}).forEach(([resultKey, voteMap]) => {
     const municipioCode = extractMunicipioCodeFromGeneralResultKey(resultKey);
     const cityName = cityNameByCode.get(municipioCode);
@@ -317,6 +326,8 @@ function buildGeneralOfficialSummariesByCity(fullJson, turnoKey, geojson) {
       rawTotals = {};
       rawTotalsByCity.set(cityName, rawTotals);
     }
+    const ibge = cityIbgeByCode.get(municipioCode);
+    if (ibge && !ibgeByCity.has(cityName)) ibgeByCity.set(cityName, ibge);
 
     Object.entries(voteMap || {}).forEach(([candidateId, rawVotes]) => {
       rawTotals[candidateId] = (rawTotals[candidateId] || 0) + ensureNumber(rawVotes);
@@ -326,6 +337,8 @@ function buildGeneralOfficialSummariesByCity(fullJson, turnoKey, geojson) {
   const summaries = {};
   rawTotalsByCity.forEach((rawTotals, cityName) => {
     const summary = buildGeneralOfficialSummaryFromRawTotals(rawTotals, metadata, turnoKey);
+    const ibge = ibgeByCity.get(cityName);
+    if (ibge) summary.ibge = ibge;
     summaries[cityName] = summary;
     summaries[norm(cityName)] = summary;
   });
@@ -444,9 +457,8 @@ function shouldUseGeneralCityOfficialTotals(cargo = currentCargo) {
   );
 
   const year = String(STATE.currentElectionYear);
-  return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1994')
+  return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1998' || year === '1994')
     && STATE.currentElectionType === 'geral'
-    && STATE.isFilterAggregationActive
     && currentCidadeFilter !== 'all'
     && currentBairroFilter === 'all'
     && !currentLocalFilter
@@ -461,8 +473,16 @@ function getGeneralOfficialSummaryForScope(cargo = currentCargo, turnoKey = '1T'
 
   if (shouldUseGeneralCityOfficialTotals(cargo)) {
     const cityKey = String(currentCidadeFilter || '').trim();
-    const cityTotals = STATE.generalOfficialTotalsByCity?.[cargo]?.[turnoKey] || {};
-    return cityTotals[cityKey] || cityTotals[norm(cityKey)] || null;
+    const cityTotals = typeof getOfficialCityTotalsForCargo === 'function'
+      ? getOfficialCityTotalsForCargo(cargo, turnoKey)
+      : STATE.generalOfficialTotalsByCity?.[cargo]?.[turnoKey];
+    if (cityTotals) {
+      if (cityTotals[cityKey]) return cityTotals[cityKey];
+      if (cityTotals[norm(cityKey)]) return cityTotals[norm(cityKey)];
+      const aliases = typeof getMunicipioAliasSlugs === 'function' ? getMunicipioAliasSlugs(cityKey) : [normalizeMunicipioSlug(cityKey)];
+      const matchKey = Object.keys(cityTotals).find(k => aliases.includes(normalizeMunicipioSlug(k)));
+      if (matchKey) return cityTotals[matchKey];
+    }
   }
 
   return null;
@@ -735,8 +755,11 @@ async function onClickLoadData_Deputies_2022(uf, year) {
 
     baseGeo.features.forEach((feature) => {
       const props = feature.properties || {};
-      const city = getProp(props, 'nm_localidade');
-      if (city) uniqueCidades.add(city);
+      if (typeof registerCityCodeAndName === 'function') registerCityCodeAndName(props);
+      else {
+        const city = getProp(props, 'nm_localidade');
+        if (city) uniqueCidades.add(city);
+      }
       const bairro = getProp(props, 'ds_bairro');
       if (bairro) uniqueBairros.add(bairro);
     });
