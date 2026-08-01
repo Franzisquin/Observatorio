@@ -4089,7 +4089,10 @@ function ensureCustomCandTooltip() {
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 0px;
       padding: 10px 12px;
-      max-width: 320px;
+      max-width: 340px;
+      box-sizing: border-box;
+      overflow-wrap: anywhere;
+      word-break: break-word;
       color: #f4f4f5;
       font-family: 'Libre Franklin', system-ui, -apple-system, sans-serif;
       font-size: 0.75rem;

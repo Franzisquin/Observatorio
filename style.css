@@ -1143,7 +1143,11 @@ body {
 .nyt-tooltip-container {
   font-family: var(--font-main);
   color: var(--text);
-  min-width: 220px;
+  min-width: 260px;
+  max-width: 360px;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .nyt-tooltip-title {
@@ -1152,6 +1156,8 @@ body {
   font-size: 0.9rem;
   margin-bottom: 8px;
   color: #ffffff;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 [data-theme="light"] .nyt-tooltip-title {
@@ -1159,9 +1165,10 @@ body {
 }
 
 .nyt-tooltip-table {
-  width: 100%;
+  width: 100% !important;
   border-collapse: collapse;
   margin-top: 4px;
+  table-layout: fixed !important;
 }
 
 .nyt-tooltip-table th {
@@ -1173,12 +1180,35 @@ body {
   border-bottom: 1px solid var(--border-color);
   font-weight: 600;
 }
+.nyt-tooltip-table th:first-child {
+  text-align: left;
+  padding-left: 0;
+  width: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.nyt-tooltip-table th:nth-child(2) {
+  width: 70px;
+  text-align: right;
+}
+.nyt-tooltip-table th:nth-child(3) {
+  width: 50px;
+  text-align: right;
+}
 
 .nyt-tooltip-table td {
   font-size: 0.75rem;
   padding: 5px 6px;
   border-bottom: 1px solid rgba(125, 125, 125, 0.08);
   vertical-align: middle;
+}
+.nyt-tooltip-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+  width: auto;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .nyt-tooltip-table tr:last-child td {
@@ -1197,8 +1227,19 @@ body {
 
 .nyt-party-name-container {
   display: flex;
-  align-items: center;
-  white-space: nowrap;
+  align-items: flex-start;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+.nyt-party-name-container span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .nyt-tooltip-footer {
@@ -1208,6 +1249,8 @@ body {
   border-top: 1px solid var(--border-color);
   padding-top: 6px;
   text-align: right;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 /* Tooltip puramente informativa: não deve capturar o ponteiro. No CSS padrão
@@ -1226,12 +1269,15 @@ body {
   border: 1px solid #cccccc !important;
   border-radius: 2px !important;
   padding: 8px 10px !important;
-  box-shadow: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
   font-family: var(--font-main) !important;
-  min-width: 280px;
-  max-width: 340px !important;
+  min-width: 260px;
+  max-width: 360px !important;
   white-space: normal !important;
   box-sizing: border-box !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  overflow: hidden !important;
 }
 .district-nyt-title {
   font-weight: 700;
@@ -1239,31 +1285,45 @@ body {
   color: #1a1a1a;
   margin-bottom: 8px;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
 }
 .district-nyt-table {
-  width: 100%;
+  width: 100% !important;
   border-collapse: collapse;
+  table-layout: fixed !important;
 }
 .district-nyt-table th {
   font-size: 12px;
   font-weight: normal;
   color: #777777;
   border-bottom: 1px solid #eeeeee;
-  padding: 4px 8px;
+  padding: 4px 6px;
   padding-top: 0;
   text-align: right;
 }
 .district-nyt-table th:first-child {
   text-align: left;
   padding-left: 0;
+  width: auto;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
 }
-.district-nyt-table th:last-child {
-  padding-right: 0;
+.district-nyt-table th:nth-child(2) {
+  width: 70px !important;
+  text-align: right !important;
+  padding-right: 6px !important;
+}
+.district-nyt-table th:last-child,
+.district-nyt-table th:nth-child(3) {
+  width: 50px !important;
+  text-align: right !important;
+  padding-right: 0 !important;
 }
 .district-nyt-table td {
   font-size: 13px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-bottom: 1px solid #eeeeee;
   text-align: right;
   vertical-align: middle;
@@ -1275,6 +1335,24 @@ body {
 .district-nyt-table td:first-child {
   text-align: left;
   padding-left: 0;
+  width: auto;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
+}
+.district-nyt-table td.votes-cell {
+  width: 70px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  padding-left: 4px !important;
+  padding-right: 6px !important;
+}
+.district-nyt-table td.pct-cell {
+  width: 50px !important;
+  text-align: right !important;
+  white-space: nowrap !important;
+  padding-left: 2px !important;
+  padding-right: 0 !important;
 }
 .district-nyt-table td:last-child {
   padding-right: 0;
@@ -1288,13 +1366,35 @@ body {
   padding: 4px 6px !important;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
 }
 .district-nyt-loser-cell {
   padding: 4px 6px !important;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   border-left: 3px solid;
+  min-width: 0 !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
+}
+.district-nyt-loser-cell > span,
+.district-nyt-winner-cell > span {
+  margin-left: 6px;
+  min-width: 0 !important;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+  white-space: normal !important;
+  line-height: 1.25;
 }
 
 /* Tooltip Table Cells Styles */
@@ -1317,7 +1417,7 @@ body {
   background: #151515 !important;
   color: #f5f5f5 !important;
   border-color: #2a2a2a !important;
-  box-shadow: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
 }
 [data-theme="dark"] .district-nyt-title {
   color: #ffffff;
