@@ -330,6 +330,14 @@
               <button class="chip-button" data-value="winnerPct">% do Vencedor</button>
             </div>
           </div>
+
+          <div class="ctrl section-hidden" id="viz3DMetricCtrl">
+            <label>Métrica de Altura (3D)</label>
+            <div class="chip-group" id="viz3DMetricChips">
+              <button class="chip-button active" data-value="votes" title="Altura proporcional aos votos válidos do município">Total de Votos</button>
+              <button class="chip-button" data-value="margin" title="Altura proporcional à margem de vitória ou % no município">Margem de Vitória</button>
+            </div>
+          </div>
         </div>
 
       </div>
@@ -372,6 +380,17 @@
               <polyline points="2 17 7 22 12 17"></polyline>
             </svg>
             <span>Altura (3D)</span>
+          </button>
+
+          <button id="btnToggle3DMetric" class="toggle-btn" title="Alternar Métrica 3D (Votos vs Margem)"
+            style="display: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span id="label3DMetric">Altura: Votos</span>
           </button>
         </div>
       </div>

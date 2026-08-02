@@ -4853,13 +4853,13 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   display: none !important;
 }
 
-/* Animações e refinamentos para o botão 3D e densidade */
-#btnToggleExtrusion {
+/* Animações e refinamentos para os botões 3D, extrusão e métrica */
+#btnToggleExtrusion, #btnToggle3DMetric {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   opacity: 0;
 }
 
-#btnToggleExtrusion.visible-inline {
+#btnToggleExtrusion.visible-inline, #btnToggle3DMetric.visible-inline {
   display: inline-flex !important;
   opacity: 1;
   animation: fadeIn 0.2s ease-out;

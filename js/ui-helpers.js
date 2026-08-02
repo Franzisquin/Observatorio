@@ -396,17 +396,40 @@ async function init() {
 
   function syncExtrusionButtonVisibility() {
     const btnExtrusion = document.getElementById('btnToggleExtrusion');
+    const btn3DMetric = document.getElementById('btnToggle3DMetric');
+    const viz3DMetricCtrl = document.getElementById('viz3DMetricCtrl');
     if (!map) return;
     
     const isPitched = map.getPitch() > 10;
     const isMunicipios = STATE.currentMapMode === 'municipios';
     
+    if (STATE.municipiosLayer) {
+      STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && isMunicipios);
+    }
+
     // Altura (Municípios)
     if (btnExtrusion) {
       if (isPitched && isMunicipios) {
         btnExtrusion.classList.add('visible-inline');
       } else {
         btnExtrusion.classList.remove('visible-inline');
+      }
+    }
+
+    // Métrica 3D (Votos vs Margem)
+    if (btn3DMetric) {
+      if (isPitched && isMunicipios && STATE.extrusion3DEnabled) {
+        btn3DMetric.classList.add('visible-inline');
+      } else {
+        btn3DMetric.classList.remove('visible-inline');
+      }
+    }
+
+    if (viz3DMetricCtrl) {
+      if (isMunicipios) {
+        viz3DMetricCtrl.classList.remove('section-hidden');
+      } else {
+        viz3DMetricCtrl.classList.add('section-hidden');
       }
     }
   }

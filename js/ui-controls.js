@@ -551,6 +551,9 @@ function setupControls() {
   if (dom.btnMapModeLocais) {
     dom.btnMapModeLocais.addEventListener('click', () => {
       STATE.currentMapMode = 'locais';
+      if (STATE.municipiosLayer) {
+        STATE.municipiosLayer.setExtrusionEnabled(false).refresh();
+      }
       clearSelection(true);
       updateApplyButtonText();
       applyFiltersAndRedraw();
@@ -562,9 +565,40 @@ function setupControls() {
 
   // ====== CONTROLES DO MAPA 3D ======
   STATE.extrusion3DEnabled = false;
+  STATE.extrusionMetric = 'votes'; // 'votes' | 'margin'
+
+  function setExtrusionMetric(metric) {
+    const nextMetric = (metric === 'margin' || metric === 'margem') ? 'margin' : 'votes';
+    STATE.extrusionMetric = nextMetric;
+
+    // Sincronizar botões no painel esquerdo
+    const metricChips = document.querySelectorAll('#viz3DMetricChips .chip-button');
+    metricChips.forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === nextMetric);
+    });
+
+    // Sincronizar botão na barra superior do mapa
+    const label3DMetric = document.getElementById('label3DMetric');
+    if (label3DMetric) {
+      label3DMetric.textContent = nextMetric === 'margin' ? 'Altura: Margem' : 'Altura: Votos';
+    }
+
+    const btnToggle3DMetric = document.getElementById('btnToggle3DMetric');
+    if (btnToggle3DMetric) {
+      btnToggle3DMetric.classList.toggle('active', nextMetric === 'margin');
+    }
+
+    // Recarregar estilo da camada de municípios
+    if (STATE.municipiosLayer) {
+      STATE.municipiosLayer.refresh();
+    }
+  }
+  window.setExtrusionMetric = setExtrusionMetric;
 
   const btnToggle3D = document.getElementById('btnToggle3D');
   const btnToggleExtrusion = document.getElementById('btnToggleExtrusion');
+  const btnToggle3DMetric = document.getElementById('btnToggle3DMetric');
+  const viz3DMetricChips = document.getElementById('viz3DMetricChips');
 
   if (btnToggle3D) {
     btnToggle3D.addEventListener('click', () => {
@@ -592,9 +626,38 @@ function setupControls() {
       STATE.extrusion3DEnabled = !STATE.extrusion3DEnabled;
       btnToggleExtrusion.classList.toggle('active', STATE.extrusion3DEnabled);
       
+      if (map) {
+        if (STATE.extrusion3DEnabled) {
+          map.easeTo({ pitch: 58, bearing: -20, duration: 800 });
+        } else {
+          map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+        }
+      }
+
+      if (typeof window.syncExtrusionButtonVisibility === 'function') {
+        window.syncExtrusionButtonVisibility();
+      }
+
       // Atualizar a camada de municípios com o novo estado de extrusão
       if (STATE.municipiosLayer) {
-        STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled).refresh();
+        const isMunicipios = STATE.currentMapMode === 'municipios';
+        STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && isMunicipios).refresh();
+      }
+    });
+  }
+
+  if (btnToggle3DMetric) {
+    btnToggle3DMetric.addEventListener('click', () => {
+      const nextMetric = STATE.extrusionMetric === 'margin' ? 'votes' : 'margin';
+      setExtrusionMetric(nextMetric);
+    });
+  }
+
+  if (viz3DMetricChips) {
+    viz3DMetricChips.addEventListener('click', (e) => {
+      const btn = e.target.closest('.chip-button');
+      if (btn && btn.dataset.value) {
+        setExtrusionMetric(btn.dataset.value);
       }
     });
   }

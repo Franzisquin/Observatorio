@@ -1914,7 +1914,7 @@ function createMunicipiosGeoLayer(geojson, onSelectFeature) {
     }
   });
   
-  if (STATE.extrusion3DEnabled) {
+  if (STATE.extrusion3DEnabled && STATE.currentMapMode === 'municipios') {
     layer.extrusionEnabled = true;
   }
   
@@ -3166,6 +3166,23 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
   return promise;
 }
 
+function getMaxTotalValidForSummary(summary) {
+  if (!summary || typeof summary !== 'object') return 1;
+  if (summary._maxTotalValid != null && summary._maxTotalValid > 0) {
+    return summary._maxTotalValid;
+  }
+  let maxV = 0;
+  Object.values(summary).forEach((entry) => {
+    if (entry && typeof entry === 'object') {
+      const v = ensureNumber(entry.totalValid || entry.totalValidos || entry.qt_votos_validos || 0);
+      if (v > maxV) maxV = v;
+    }
+  });
+  const resolvedMax = maxV > 0 ? maxV : 1;
+  summary._maxTotalValid = resolvedMax;
+  return resolvedMax;
+}
+
 function getMunicipalPolygonStyle(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const selectedMunicipality = getCurrentMunicipalMapSelection();
@@ -3291,14 +3308,33 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   let height = 0;
-  if (STATE.extrusion3DEnabled && result) {
-    if (currentVizMode.startsWith('desempenho')) {
-      height = pctVal * 300; // 0% = 0m, 100% = 30km
-    } else {
-      if (currentGradientMode === 'winnerPct') {
-        height = (result.winnerPct / 100) * 30000;
+  if (STATE.extrusion3DEnabled && STATE.currentMapMode === 'municipios' && result) {
+    const isFilteredOutPerformance = currentVizMode.startsWith('desempenho') && (pctVal === 0 || (performanceFilterMinPct > 0 && pctVal < performanceFilterMinPct));
+    if (!isFilteredOutPerformance) {
+      if (STATE.extrusionMetric === 'margin') {
+        if (currentVizMode.startsWith('desempenho')) {
+          const pVal = Math.max(0, Math.min(100, ensureNumber(pctVal) || 0));
+          height = (pVal / 100) * 80000;
+        } else {
+          if (currentGradientMode === 'winnerPct') {
+            const wPct = Math.max(0, Math.min(100, ensureNumber(result.winnerPct) || 0));
+            height = (wPct / 100) * 80000;
+          } else {
+            const mPct = Math.max(0, Math.min(100, ensureNumber(result.margin) || 0));
+            height = (mPct / 100) * 80000;
+          }
+        }
       } else {
-        height = result.margin * 30000; // Default: margin
+        const totalValidTerritory = ensureNumber(result.totalValid || result.totalValidos || result.qt_votos_validos || 0);
+        const maxValid = getMaxTotalValidForSummary(summary || STATE.currentMapMuniSummary);
+        if (totalValidTerritory > 0 && maxValid > 0) {
+          const ratio = Math.min(1, Math.max(0, totalValidTerritory / maxValid));
+          const MAX_3D_HEIGHT_METERS = 180000;
+          const MIN_3D_HEIGHT_METERS = 2000;
+          // Exponential/power scale (0.45) ensures small, medium and large cities all have distinct, non-uniform heights
+          const scaledRatio = Math.pow(ratio, 0.45);
+          height = MIN_3D_HEIGHT_METERS + (scaledRatio * (MAX_3D_HEIGHT_METERS - MIN_3D_HEIGHT_METERS));
+        }
       }
     }
   }
@@ -3339,7 +3375,10 @@ function getMunicipalPolygonStyle(feature, summary) {
     const isSelectionActive = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
       || (STATE.currentElectionType === 'municipal' && !!selectedMunicipality);
     if (isSelectionActive) {
-      return baseStyle;
+      return {
+        ...baseStyle,
+        height: 0
+      };
     }
     return {
       ...baseStyle,
