@@ -459,6 +459,7 @@ function shouldUseGeneralCityOfficialTotals(cargo = currentCargo) {
   const year = String(STATE.currentElectionYear);
   return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1998' || year === '1994')
     && STATE.currentElectionType === 'geral'
+    && STATE.isFilterAggregationActive
     && currentCidadeFilter !== 'all'
     && currentBairroFilter === 'all'
     && !currentLocalFilter
