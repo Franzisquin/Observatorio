@@ -578,20 +578,17 @@ function getMunicipalityFeatureCode(props) {
 
 function getMunicipalityFeatureName(props) {
   if (!props) return 'Município';
-  const directName = String(
-    props.NM_MUN ||
-    props.nm_mun ||
-    props.municipio ||
-    props.nm_localidade ||
-    props.NOME ||
-    ''
-  ).trim();
-  if (directName && directName !== 'Município') return directName;
-
   const code = getMunicipalityFeatureCode(props);
   if (code) {
     const codeStr = String(code).trim();
     const code6 = codeStr.slice(0, 6);
+
+    if (STATE.muniCodeToNameMap) {
+      if (STATE.muniCodeToNameMap.has(codeStr)) return STATE.muniCodeToNameMap.get(codeStr);
+      if (code6.length >= 6 && STATE.muniCodeToNameMap.has(code6)) {
+        return STATE.muniCodeToNameMap.get(code6);
+      }
+    }
 
     if (STATE.currentMapMuniSummary) {
       const summary = STATE.currentMapMuniSummary;
@@ -604,14 +601,18 @@ function getMunicipalityFeatureName(props) {
       });
       if (byCode?.nome) return byCode.nome;
     }
-
-    if (STATE.muniCodeToNameMap) {
-      if (STATE.muniCodeToNameMap.has(codeStr)) return STATE.muniCodeToNameMap.get(codeStr);
-      if (code6.length >= 6 && STATE.muniCodeToNameMap.has(code6)) {
-        return STATE.muniCodeToNameMap.get(code6);
-      }
-    }
   }
+
+  const directName = String(
+    props.NM_MUN ||
+    props.nm_mun ||
+    props.municipio ||
+    props.nm_localidade ||
+    props.NOME ||
+    ''
+  ).replace(/[\x00-\x1f\ufffd]/g, '').trim();
+
+  if (directName && directName !== 'Município') return directName;
 
   return 'Município';
 }
@@ -1174,20 +1175,29 @@ function getMajoritarianMarginPct(props, turnoKey, totalValidos) {
   return getWinningMarginPct(candidateVotes, totalValidos);
 }
 
-function formatTooltipDisplayName(value) {
-  const text = String(value || '').trim();
+function formatTooltipDisplayName(value, featureProps = null) {
+  if (featureProps) {
+    const code = getMunicipalityFeatureCode(featureProps);
+    if (code && STATE.muniCodeToNameMap) {
+      const codeStr = String(code).trim();
+      const code6 = codeStr.slice(0, 6);
+      const cleanMapped = STATE.muniCodeToNameMap.get(codeStr) || (code6.length >= 6 && STATE.muniCodeToNameMap.get(code6));
+      if (cleanMapped) return safeToTitleCase(cleanMapped);
+    }
+  }
+  const text = String(value || '').replace(/[\x00-\x1f\ufffd]/g, '').trim();
   if (!text) return '';
   return safeToTitleCase(text);
 }
 
 function formatTooltipCaps(value) {
-  return String(value || '').trim().toUpperCase();
+  return String(value || '').replace(/[\x00-\x1f\ufffd]/g, '').trim().toUpperCase();
 }
 
 function buildLocationTooltip(feature) {
   const props = feature.properties || {};
   const nomeLocal = formatTooltipCaps(getProp(props, 'nm_locvot') || 'Local');
-  const nomeCidade = formatTooltipDisplayName(getProp(props, 'nm_localidade') || 'Cidade');
+  const nomeCidade = formatTooltipDisplayName(getProp(props, 'nm_localidade') || 'Cidade', props);
   const turnoKey = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
   const turnoLabel = (turnoKey === '2T') ? '2º Turno' : '1º Turno';
   const isProportional = currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador');
@@ -1307,7 +1317,7 @@ function buildMunicipalityTooltip(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const rawFeatureName = getMunicipalityFeatureName(feature?.properties);
   const displayName = result?.nome || rawFeatureName;
-  const nome = formatTooltipDisplayName(displayName);
+  const nome = formatTooltipDisplayName(displayName, feature?.properties);
   const uf = STATE.currentElectionType === 'municipal'
     ? String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase()
     : String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();

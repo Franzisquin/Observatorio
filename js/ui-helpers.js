@@ -136,11 +136,12 @@ async function ensureCandidateDetails() {
 
 function toTitleCase(str) {
   if (!str) return '';
+  str = String(str).replace(/[\x00-\x1f\x7f-\x9f\ufffd]/g, '');
   const exceptions = ['de', 'da', 'do', 'dos', 'das', 'e', 'em', 'com', 'na', 'no', 'nas', 'nos', 'por', 'pra', 'pro', 'para', 'a', 'o', 'as', 'os', 'y'];
 
   // Helper to check if word is a known party (acronym)
   const isPartyAcronym = (w) => {
-    const clean = w.replace(/[^a-zA-Z0-9]/g, ''); // Remove ( ) / etc
+    const clean = w.replace(/[^\p{L}\p{N}]/gu, ''); // Remove ( ) / punctuation, preserving unicode letters
     const upperClean = clean.toUpperCase();
     if (['NOVO', 'REDE', 'PATRIOTA', 'CIDADANIA', 'AVANTE', 'SOLIDARIEDADE', 'REPUBLICANOS', 'AGIR', 'PODEMOS', 'MOBILIZA'].includes(upperClean)) {
       return false;
@@ -148,15 +149,17 @@ function toTitleCase(str) {
     const normalized = typeof getNormalizedPartyColorKey === 'function'
       ? getNormalizedPartyColorKey(clean)
       : clean.toUpperCase();
-    return PARTY_COLOR_OVERRIDES.has(normalized) || PARTY_COLORS.has(normalized);
+    return (typeof PARTY_COLOR_OVERRIDES !== 'undefined' && PARTY_COLOR_OVERRIDES.has(normalized)) || 
+           (typeof PARTY_COLORS !== 'undefined' && PARTY_COLORS.has(normalized));
   };
 
-  return str.split(' ').map((word) => {
+  return str.split(/\s+/).map((word) => {
+    if (!word) return '';
     // If the word is a known party acronym
     // or contains slashes (e.g., "PT/PSDB")
     // or is enclosed in parentheses (e.g., "(PT)")
     if (isPartyAcronym(word) || word.includes('/') || (word.startsWith('(') && word.endsWith(')'))) {
-      return word; // Keep original casing (usually uppercase for these)
+      return word; // Keep original casing
     }
 
     const lower = word.toLowerCase();

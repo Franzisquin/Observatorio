@@ -747,6 +747,32 @@ function registerCityCodeAndName(props) {
   }
 }
 
+// Auto-initialize muniCodeToNameMap with clean IBGE UTF-8 names on page load
+if (typeof window !== 'undefined') {
+  (async function initMuniCodeToNameMap() {
+    try {
+      const resp = await fetch('resultados_geo/regioes_ibge.json');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (typeof STATE !== 'undefined') {
+          if (!STATE.muniCodeToNameMap) STATE.muniCodeToNameMap = new Map();
+          const m = data.muni_to_region || {};
+          Object.entries(m).forEach(([code7, info]) => {
+            if (info && info.nome) {
+              STATE.muniCodeToNameMap.set(code7, info.nome);
+              if (code7.length >= 6) {
+                STATE.muniCodeToNameMap.set(code7.slice(0, 6), info.nome);
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Could not pre-populate muniCodeToNameMap:', e);
+    }
+  })();
+}
+
 let dom = {};
 let REGIONAL_FILTERS_PROMISE = null;
 let REGIONAL_FILTERS_INDEX = {
