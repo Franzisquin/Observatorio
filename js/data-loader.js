@@ -548,7 +548,9 @@ async function onClickLoadData_Deputies_legado(uf, year) {
     console.log(`[onClickLoadData_Deputies] currentCargo definido como: ${currentCargo}`);
 
     // Setup UI
-    currentRegionFilter = { level: '', code: '' };
+    // O filtro de regiao NAO e zerado aqui: trocar para deputado nao deve tirar
+    // o usuario da regiao em que ele estava. Quem invalida o filtro e a troca de
+    // UF, que ja o zera no handler do proprio select.
     populateRegionalDropdowns();
     populateCidadeDropdown();
     [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
@@ -588,11 +590,9 @@ async function onClickLoadData_Deputies_legado(uf, year) {
       dom.btnToggleInaptos.textContent = 'Filtrar Inaptos';
     }
 
-    if (currentCidadeFilter === 'all') {
-      STATE.currentMapMode = 'municipios';
-    } else {
-      STATE.currentMapMode = 'locais';
-    }
+    STATE.currentMapMode = resolveMapModeAfterLoad(
+      dom.selectUFGeneral?.value, currentCidadeFilter,
+      currentCidadeFilter === 'all' ? 'municipios' : 'locais');
 
     console.log(`[onClickLoadData_Deputies] Chamando applyFiltersAndRedraw... MapMode: ${STATE.currentMapMode}`);
     applyFiltersAndRedraw();

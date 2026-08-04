@@ -275,6 +275,26 @@ ok(totalTooltip === painel.totalValidos,
   'tooltip e painel batem no mesmo total',
   `tooltip ${totalTooltip} vs painel ${painel.totalValidos}`);
 
+// ------------------------------------------------- recorte sobrevive ao reload
+// Trocar de ano ou de cargo recarrega os dados e antes jogava o mapa de volta
+// para "Municipios", desfazendo o recorte escolhido a cada troca.
+const resolveModo = vm.runInContext('resolveMapModeAfterLoad', ctx, { filename: 'modo.js' });
+
+vm.runInContext("STATE.currentElectionType = 'geral'; STATE.currentMapMode = 'regioes';", ctx);
+ok(resolveModo('PR', 'all', 'municipios') === 'regioes',
+  'trocar de ano/cargo mantem o recorte de regiao');
+
+// Casos em que o recorte de regiao deixa de fazer sentido e o mapa volta ao padrao.
+ok(resolveModo('BR', 'all', 'locais') === 'locais', 'UF = BR nao tem mapa de regiao');
+ok(resolveModo('PR', 'Curitiba', 'locais') === 'locais',
+  'com municipio selecionado, volta para o recorte municipal/locais');
+vm.runInContext("STATE.currentElectionType = 'municipal';", ctx);
+ok(resolveModo('PR', 'all', 'locais') === 'locais', 'eleicao municipal nao tem mapa de regiao');
+
+vm.runInContext("STATE.currentElectionType = 'geral'; STATE.currentMapMode = 'municipios';", ctx);
+ok(resolveModo('PR', 'all', 'municipios') === 'municipios',
+  'quem nao estava em regiao continua no recorte padrao');
+
 // ------------------------------------------------- guarda da camada
 
 const aplicarRecorte = vm.runInContext('applyRegionScopeToMunicipiosLayer', ctx, { filename: 'rec.js' });

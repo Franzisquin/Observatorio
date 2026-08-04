@@ -856,6 +856,18 @@ function isPolygonMapMode() {
   return STATE.currentMapMode === 'municipios' || STATE.currentMapMode === 'regioes';
 }
 
+// Trocar de ano ou de cargo recarrega os dados, mas nao pode derrubar o recorte
+// que o usuario escolheu: se o mapa estava num nivel de regiao, continua nele.
+// Quem invalida o recorte de regiao e a troca de UF (que ja zera o filtro no
+// handler do select), nao a troca de eleicao.
+function resolveMapModeAfterLoad(uf, cidadeFilter, fallback) {
+  const ufNorm = String(uf || '').toUpperCase();
+  const cabeRegiao = STATE.currentElectionType === 'geral'
+    && ufNorm && ufNorm !== 'BR'
+    && cidadeFilter === 'all';
+  return (STATE.currentMapMode === 'regioes' && cabeRegiao) ? 'regioes' : fallback;
+}
+
 // Casa SEMPRE por codigo IBGE. O casamento por nome saiu de proposito: a fonte
 // antiga (municipios_por_mesorregiao.json) tinha 595 de 5571 nomes trocados por
 // homonimos de outra UF, e era exatamente isso que fazia municipios como

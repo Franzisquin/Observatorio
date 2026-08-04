@@ -576,11 +576,11 @@ function finalizeGeneralLoadUI(ufToLoad) {
   currentLocalFilter = preservedLocal;
   dom.searchLocal.value = preservedLocal ? preservedLocal : '';
 
-  STATE.currentMapMode = (
+  STATE.currentMapMode = resolveMapModeAfterLoad(ufToLoad, preservedCidade, (
     ufToLoad !== 'BR'
     && !String(currentCargo || '').startsWith('deputado')
     && preservedCidade === 'all'
-  ) ? 'municipios' : 'locais';
+  ) ? 'municipios' : 'locais');
 
   updateElectionTypeUI();
 
