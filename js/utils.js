@@ -255,8 +255,22 @@ const GENERAL_SECOND_TURN_AVAILABILITY = {
     presidente: { ord: [] },
     governador: { ord: ['AC', 'AP', 'BA', 'DF', 'ES', 'GO', 'MA', 'MG', 'PA', 'PB', 'PI', 'RJ', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP'] },
     senador: { ord: [] }
+  },
+  '1989': {
+    // Unica eleicao de 1989: presidente, decidida em 2o turno (Collor x Lula).
+    presidente: 'ALL'
   }
 };
+
+// Anos gerais sem dados por local de votacao: o resultado do TSE so existe por
+// municipio. Nesses anos o mapa e sempre o coropletico da malha historica do
+// ano (resultados_geo/municipios_{ano}/) e nao existe modo "Locais".
+const MUNI_ONLY_GENERAL_YEARS = new Set(['1989', '1994']);
+
+function isMuniOnlyGeneralYear(year) {
+  const y = (year === undefined) ? STATE?.currentElectionYear : year;
+  return MUNI_ONLY_GENERAL_YEARS.has(String(y));
+}
 
 function hasGeneralSecondTurnArchive(year, cargo, uf, subtype = 'ord') {
   const yearKey = String(year || '').trim();

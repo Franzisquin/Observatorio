@@ -1894,14 +1894,14 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
 
 function shouldRenderGeneralMunicipalityOverview() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
-  const is1994 = String(STATE.currentElectionYear) === '1994';
+  const muniOnly = isMuniOnlyGeneralYear();
   if (STATE.currentElectionType !== 'geral') return false;
   if (!uf || uf === 'BR') return false;
   // if (String(currentCargo || '').startsWith('deputado')) return false; // REMOVED: Allow deputies
-  if (STATE.currentMapMode === 'locais' && !is1994) return false;
-  // 1994 nao tem locais: o coropletico permanece mesmo com municipio filtrado
-  // (o selecionado fica destacado).
-  if (currentCidadeFilter !== 'all' && !is1994) return false;
+  if (STATE.currentMapMode === 'locais' && !muniOnly) return false;
+  // 1989/1994 nao tem locais: o coropletico permanece mesmo com municipio
+  // filtrado (o selecionado fica destacado).
+  if (currentCidadeFilter !== 'all' && !muniOnly) return false;
   if (currentBairroFilter !== 'all') return false;
   if (currentLocalFilter.trim().length > 2) return false;
   return true;
@@ -1960,14 +1960,13 @@ async function showGeneralMunicipalityOverview(uf) {
       const rawNome = getMunicipalityFeatureName(feature?.properties);
       const nome = summaryEntry?.nome || (rawNome !== 'Município' ? rawNome : '');
       const matchedCity = Array.from(uniqueCidades || []).find((candidate) => matchesMunicipioName(nome, candidate)) || nome;
-      const is1994 = String(STATE.currentElectionYear) === '1994';
       currentCidadeFilter = matchedCity;
       currentBairroFilter = 'all';
       currentLocalFilter = '';
       selectedLocationIDs.clear();
       STATE.isFilterAggregationActive = false;
-      // 1994 nao tem locais: permanece no coropletico com o municipio destacado.
-      if (!is1994) STATE.currentMapMode = 'locais';
+      // 1989/1994 nao tem locais: permanece no coropletico com o municipio destacado.
+      if (!isMuniOnlyGeneralYear()) STATE.currentMapMode = 'locais';
       if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
       if (bairroCombobox) bairroCombobox.setValue('');
       if (dom.searchLocal) dom.searchLocal.value = '';
@@ -3138,17 +3137,19 @@ function clearSelection(updateMap = true) {
 async function fetchMunicipalPolygonGeoJSON(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (!ufNorm) return null;
-  // 1994 (geral) usa a malha municipal historica de 1994 (convertida do SVG);
-  // demais anos usam a malha atual.
-  const is1994 = STATE.currentElectionType === 'geral' && String(STATE.currentElectionYear) === '1994';
-  const cacheKey = is1994 ? `1994|${ufNorm}` : ufNorm;
+  // 1989/1994 (gerais) usam a malha municipal historica do ano (convertida do
+  // SVG); demais anos usam a malha atual.
+  const histYear = (STATE.currentElectionType === 'geral' && isMuniOnlyGeneralYear())
+    ? String(STATE.currentElectionYear)
+    : '';
+  const cacheKey = histYear ? `${histYear}|${ufNorm}` : ufNorm;
   if (MUNICIPAL_POLYGON_CACHE.has(cacheKey)) {
     return MUNICIPAL_POLYGON_CACHE.get(cacheKey);
   }
 
   const promise = (async () => {
-    const urls = is1994
-      ? [`${DATA_BASE_URL}municipios_1994/municipios_1994_${ufNorm}.geojson`]
+    const urls = histYear
+      ? [`${DATA_BASE_URL}municipios_${histYear}/municipios_${histYear}_${ufNorm}.geojson`]
       : [
         `${DATA_BASE_URL}municipios_hd/municipios_${ufNorm}.geojson`,
         `${DATA_BASE_URL}municipios/municipios_${ufNorm}.geojson`

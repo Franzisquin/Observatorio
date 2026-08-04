@@ -1,16 +1,18 @@
 // =====================================================================
-// ELEICOES GERAIS DE 1994 (Presidente, Governador, Senador e Deputados)
+// ELEICOES GERAIS SEM DADOS POR LOCAL DE VOTACAO: 1989 e 1994
 // =====================================================================
-// 1994 NAO tem dados por local de votacao: o TSE traz votos por MUNICIPIO
-// (NR_ZONA = -3). Cada municipio e uma chave sintetica "1_{cdMuniTSE}_M" no
-// RESULTS (gerado por scripts/gerar_majoritarias_1994.py e
-// scripts/gerar_legislativas_1994.py). No site, TODAS as features de 1994 sao
-// sinteticas (geometry:null) — nao existe modo "Locais"; o mapa e o
-// coropletico da malha municipal de 1994 (resultados_geo/municipios_1994/,
-// convertida do SVG historico por scripts/gerar_malha_1994.py).
+// 1989 (so Presidente, 2 turnos) e 1994 (Presidente, Governador, Senador e
+// Deputados) NAO tem dados por local de votacao — o resultado existe apenas por
+// MUNICIPIO. Cada municipio e uma chave sintetica "1_{cdMuni}_M" no RESULTS
+// (parts[1] = codigo TSE em 1994, IBGE-7 em 1989), gerado por
+// scripts/gerar_presidencial_1989.py, scripts/gerar_majoritarias_1994.py e
+// scripts/gerar_legislativas_1994.py. No site, TODAS as features desses anos
+// sao sinteticas (geometry:null) — nao existe modo "Locais"; o mapa e o
+// coropletico da malha municipal historica (resultados_geo/municipios_{ano}/,
+// convertida do SVG do ano por scripts/gerar_malha_svg.py).
 //
 // Os nomes/codigos de municipio vem embutidos no METADATA de cada JSON
-// (muni_names / muni_ibge), entao nenhum GPKG e baixado para 1994.
+// (muni_names / muni_ibge), entao nenhum GPKG e baixado nesses anos.
 //
 // Reutiliza, sem alterar, helpers de data-geral-2002.js:
 //   mergeGeneralJsonPayloads2002, buildSyntheticMuniFeatures2002,
@@ -98,43 +100,45 @@ function buildSyntheticMuniFeatures1994(rawPayloadsByTurno, muniNameMap) {
   return Array.from(featuresByMuni.values());
 }
 
-async function loadGeneralMajoritariaJson1994(cargo, uf, turno) {
+async function loadGeneralMajoritariaJson1994(year, cargo, uf, turno) {
   const ufNorm = String(uf || '').toUpperCase();
   const isSenador = cargo === 'senador';
   const isGovernador = cargo === 'governador';
   const basename = isSenador
-    ? `senador_1994_ord_t${turno}_${ufNorm}`
+    ? `senador_${year}_ord_t${turno}_${ufNorm}`
     : isGovernador
-      ? `governador_1994_ord_t${turno}_${ufNorm}`
-      : `${cargo}_1994_t${turno}_${ufNorm}`;
+      ? `governador_${year}_ord_t${turno}_${ufNorm}`
+      : `${cargo}_${year}_t${turno}_${ufNorm}`;
   const { data } = await fetchJsonFromZipEntry(
-    `${DATA_BASE_URL}Majoritarias 1994/${basename}.zip`, `${basename}.json`);
+    `${DATA_BASE_URL}Majoritarias ${year}/${basename}.zip`, `${basename}.json`);
   return data;
 }
 
-async function loadMajoritariaCargo1994(cargo, uf) {
+async function loadMajoritariaCargo1994(year, cargo, uf) {
   const ufs = (cargo === 'presidente' && String(uf).toUpperCase() === 'BR')
     ? ALL_STATE_SIGLAS
     : [String(uf || '').toUpperCase()];
 
   const turno1Payloads = (await Promise.all(
-    ufs.map((sigla) => loadGeneralMajoritariaJson1994(cargo, sigla, 1).catch(() => null))
+    ufs.map((sigla) => loadGeneralMajoritariaJson1994(year, cargo, sigla, 1).catch(() => null))
   )).filter((payload) => payload?.RESULTS);
 
   if (!turno1Payloads.length) return null;
 
   const mergedTurno1 = mergeGeneralJsonPayloads2002(turno1Payloads);
 
+  // Quem tem 2o turno vem de GENERAL_SECOND_TURN_AVAILABILITY (presidente 1989
+  // teve; presidente 1994 nao, e senador nunca tem).
   let mergedTurno2 = null;
   let turno2Payloads = [];
-  if (cargo !== 'senador' && cargo !== 'presidente') {
+  if (cargo !== 'senador') {
     const turno2Ufs = ufs.filter((sigla) => (
       typeof hasGeneralSecondTurnArchive === 'function'
-        ? hasGeneralSecondTurnArchive(1994, cargo, sigla)
+        ? hasGeneralSecondTurnArchive(year, cargo, sigla)
         : true
     ));
     turno2Payloads = (await Promise.all(
-      turno2Ufs.map((sigla) => loadGeneralMajoritariaJson1994(cargo, sigla, 2).catch(() => null))
+      turno2Ufs.map((sigla) => loadGeneralMajoritariaJson1994(year, cargo, sigla, 2).catch(() => null))
     )).filter((payload) => payload?.RESULTS);
 
     if (turno2Payloads.length) {
@@ -145,7 +149,7 @@ async function loadMajoritariaCargo1994(cargo, uf) {
   const { muniNameMap, muniIbgeMap } = buildMuniMaps1994(
     turno1Payloads.concat(turno2Payloads));
 
-  // Sem locais em 1994: nenhum dot, tudo vira feature sintetica por municipio,
+  // Sem locais: nenhum dot, tudo vira feature sintetica por municipio,
   // com id = chave RESULTS e turnout oficial (comparecimento/aptos) do detalhe.
   const geojson = { type: 'FeatureCollection', features: [] };
   const syntheticFeatures = buildSyntheticMuniFeatures1994({
@@ -211,11 +215,12 @@ async function onClickLoadData_Geral_1994() {
   currentCargo = `${currentOffice}_${currentSubType}`;
 
   try {
-    const cargos = (ufToLoad === 'BR')
+    // Em 1989 so houve eleicao presidencial.
+    const cargos = (ufToLoad === 'BR' || String(year) === '1989')
       ? ['presidente']
       : ['presidente', 'governador', 'senador'];
 
-    const results = await Promise.all(cargos.map((cargo) => loadMajoritariaCargo1994(cargo, ufToLoad)));
+    const results = await Promise.all(cargos.map((cargo) => loadMajoritariaCargo1994(year, cargo, ufToLoad)));
     let dataFound = false;
 
     results.forEach((loaded, index) => {
@@ -231,16 +236,16 @@ async function onClickLoadData_Geral_1994() {
     });
 
     if (!dataFound) {
-      throw new Error('Nenhum dado JSON encontrado para 1994.');
+      throw new Error(`Nenhum dado JSON encontrado para ${year}.`);
     }
 
     finalizeGeneralLoadUI(ufToLoad);
     if (ufToLoad === 'BR') {
-      showToast('Mapa nacional indisponível para 1994; selecione uma UF para ver o mapa.', 'info');
+      showToast(`Mapa nacional indisponível para ${year}; selecione uma UF para ver o mapa.`, 'info');
     }
     showToast(`Dados de ${ufToLoad} (${year}) carregados!`, 'success');
   } catch (error) {
-    console.error('[1994] Falha ao carregar gerais:', error);
+    console.error(`[${year}] Falha ao carregar gerais:`, error);
     showToast(`Erro: ${error.message}`, 'error');
   } finally {
     setButtonLoading(dom.btnLoadData, false);

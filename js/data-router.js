@@ -199,7 +199,7 @@ window.onClickLoadData_General = async function () {
   if (year === '1998') {
     return onClickLoadData_Geral_1998();
   }
-  if (year === '1994') {
+  if (year === '1994' || year === '1989') {
     return onClickLoadData_Geral_1994();
   }
 

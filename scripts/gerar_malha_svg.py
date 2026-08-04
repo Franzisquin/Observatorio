@@ -1,22 +1,23 @@
 # -*- coding: utf-8 -*-
 """
-Converte 1994/mapa1994BR.svg (malha municipal de 1994; 5022 paths com
+Converte {ano}/mapa{ano}BR.svg (malha municipal historica; paths com
 id = codigo IBGE-7, data-nome e data-uf) em GeoJSON georreferenciado por UF,
 no mesmo schema da malha atual (CD_MUN / NM_MUN), para o choropleth das
-eleicoes gerais de 1994.
+eleicoes gerais daquele ano. Usado por 1989 (4485 municipios) e 1994 (5022).
 
-Georreferenciamento: os municipios de 1994 ainda existem na malha atual
+Georreferenciamento: os municipios historicos ainda existem na malha atual
 (resultados_geo/municipios_hd/municipios_{UF}.geojson). Casamos os centroides
 por codigo IBGE e ajustamos uma transformacao AFIM (lon,lat <- x,y do SVG) por
 minimos quadrados: uma global (fallback) e uma por UF (usada quando ha pontos
 suficientes). O RMS por UF e reportado em km.
 
 Saidas:
-  resultados_geo/municipios_1994/municipios_1994_{UF}.geojson
-  scratch/malha1994/index_1994.json  ({ibge: {nome, uf}} p/ join TSE->IBGE)
+  resultados_geo/municipios_{ano}/municipios_{ano}_{UF}.geojson
+  scratch/malha{ano}/index_{ano}.json  ({ibge: {nome, uf}} p/ join TSE->IBGE)
 
 Uso:
-  py scripts/gerar_malha_1994.py
+  py scripts/gerar_malha_svg.py 1989
+  py scripts/gerar_malha_svg.py 1994
 """
 
 import html
@@ -28,10 +29,11 @@ import sys
 from collections import defaultdict
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SVG_PATH = os.path.join(BASE_DIR, '1994', 'mapa1994BR.svg')
+YEAR = sys.argv[1] if len(sys.argv) > 1 else '1994'
+SVG_PATH = os.path.join(BASE_DIR, YEAR, 'mapa%sBR.svg' % YEAR)
 HD_DIR = os.path.join(BASE_DIR, 'resultados_geo', 'municipios_hd')
-OUT_DIR = os.path.join(BASE_DIR, 'resultados_geo', 'municipios_1994')
-SCRATCH_DIR = os.path.join(BASE_DIR, 'scratch', 'malha1994')
+OUT_DIR = os.path.join(BASE_DIR, 'resultados_geo', 'municipios_%s' % YEAR)
+SCRATCH_DIR = os.path.join(BASE_DIR, 'scratch', 'malha%s' % YEAR)
 
 PATH_RE = re.compile(
     r'<path[^>]*?d="([^"]+)"[^>]*?id="(\d{7})"[^>]*?data-nome="([^"]*)"[^>]*?data-uf="([^"]*)"',
@@ -147,7 +149,7 @@ def rms_km(t, pairs):
 
 def fit_affine_robust(pairs, iters=6):
     """Ajuste afim com descarte iterativo de outliers. Municipios que perderam
-    territorio para emancipacoes pos-1994 tem centroide moderno deslocado de
+    territorio para emancipacoes posteriores tem centroide moderno deslocado de
     verdade — nao sao erro de projecao e nao devem puxar o ajuste."""
     inliers = list(pairs)
     t = fit_affine(inliers)
@@ -208,7 +210,7 @@ def main():
 
     # A projecao do SVG e afim globalmente (RMS < 1 km nos inliers), entao uma
     # unica transformacao serve para todas as UFs. Ajustes por UF sao piores em
-    # estados onde quase todos os municipios mudaram de forma pos-1994 (ex.: RR),
+    # estados onde quase todos os municipios mudaram de forma depois (ex.: RR),
     # pois nao sobra centroide estavel para ancorar o ajuste local.
     g_inlier_set = set(id(p) for p in g_inliers)
     print('RMS por UF (transformacao global, medido nos inliers globais da UF):')
@@ -246,13 +248,13 @@ def main():
             })
             index[ibge] = {'nome': nome, 'uf': uf}
 
-        out = os.path.join(OUT_DIR, f'municipios_1994_{uf}.geojson')
+        out = os.path.join(OUT_DIR, f'municipios_{YEAR}_{uf}.geojson')
         with open(out, 'w', encoding='utf-8') as f:
             json.dump({'type': 'FeatureCollection', 'features': features}, f,
                       ensure_ascii=False, separators=(',', ':'))
         print(f'  {out}: {len(features)} municipios')
 
-    with open(os.path.join(SCRATCH_DIR, 'index_1994.json'), 'w', encoding='utf-8') as f:
+    with open(os.path.join(SCRATCH_DIR, f'index_{YEAR}.json'), 'w', encoding='utf-8') as f:
         json.dump(index, f, ensure_ascii=False)
     print('OK.')
 

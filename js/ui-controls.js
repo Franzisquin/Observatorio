@@ -1468,26 +1468,31 @@ function setupSliders() {
 
 function updateCargoChipsVisibility() {
   if (!dom.cargoChipsGeneral) return;
-  const year = dom.selectYearGeneral?.value || STATE.currentElectionYear;
-  const is1998 = (String(year) === '1998');
+  const year = String(dom.selectYearGeneral?.value || STATE.currentElectionYear);
+  // 1998 nao tem deputados no acervo; 1989 so teve eleicao presidencial.
+  const is1998 = (year === '1998');
+  const is1989 = (year === '1989');
 
-  const federalBtn = dom.cargoChipsGeneral.querySelector('[data-value="deputado_federal"]');
-  const estadualBtn = dom.cargoChipsGeneral.querySelector('[data-value="deputado_estadual"]');
+  const hiddenCargos = is1989
+    ? ['governador', 'senador', 'deputado_federal', 'deputado_estadual']
+    : (is1998 ? ['deputado_federal', 'deputado_estadual'] : []);
 
-  if (federalBtn) federalBtn.style.display = is1998 ? 'none' : '';
-  if (estadualBtn) estadualBtn.style.display = is1998 ? 'none' : '';
+  dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach((btn) => {
+    btn.style.display = hiddenCargos.includes(btn.dataset.value) ? 'none' : '';
+  });
 
-  if (is1998 && currentOffice === 'deputado') {
-    // Se estiver selecionado deputado, volta para presidente
+  const currentHidden = hiddenCargos.some((value) => value.startsWith(currentOffice));
+  if (currentHidden) {
+    // Cargo indisponivel no ano selecionado: volta para presidente.
     currentOffice = 'presidente';
     currentSubType = 'ord';
     currentCargo = 'presidente_ord';
-    
+
     // Atualiza classes nos chips
     dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach(b => {
       b.classList.toggle('active', b.dataset.value === 'presidente');
     });
-    
+
     if (typeof updateElectionTypeUI === 'function') {
       updateElectionTypeUI();
     }
