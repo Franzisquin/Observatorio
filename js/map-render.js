@@ -578,6 +578,8 @@ function getMunicipalityFeatureCode(props) {
 
 function getMunicipalityFeatureName(props) {
   if (!props) return 'Município';
+  // Poligono de regiao: o nome vem da propria feature, nunca do mapa de municipios.
+  if (props.CD_REG) return props.NM_REG || 'Região';
   const code = getMunicipalityFeatureCode(props);
   if (code) {
     const codeStr = String(code).trim();
@@ -743,6 +745,8 @@ function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
   const uf = String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
   if (!uf || uf === 'BR' || STATE.currentElectionType !== 'geral') return false;
   if (!STATE.municipiosLayer || !map?.hasLayer?.(STATE.municipiosLayer)) return false;
+  // Camada de regiao usa summary proprio; reconstruir o municipal aqui a apagaria.
+  if (STATE.municipiosLayer.__regionLevel) return false;
 
   STATE.currentMapMuniUF = uf;
   const preservedCidade = currentCidadeFilter;
@@ -759,6 +763,7 @@ function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
     currentLocalFilter = preservedLocal;
   }
 
+  applyRegionScopeToMunicipiosLayer(STATE.municipiosLayer);
   STATE.municipiosLayer.refresh();
   refreshMunicipalSelectionOverlay();
 
@@ -1454,6 +1459,12 @@ function buildMunicipalityTooltip(feature, summary) {
 
 function getMunicipalSummaryEntryForFeature(props, summary) {
   if (!props || !summary) return null;
+  // Poligono de regiao so casa contra um summary DE REGIAO, e apenas pelo
+  // codigo da regiao. Sem isto um CD_RGI de 6 digitos (410010) acharia o
+  // municipio cujo prefixo de 6 digitos e igual e mostraria o resultado errado.
+  if (props.CD_REG) {
+    return summary._regionLevel ? (summary[String(props.CD_REG)] || null) : null;
+  }
   const directCode = getMunicipalityFeatureCode(props);
   if (directCode) {
     if (summary[directCode]) return summary[directCode];
@@ -1596,6 +1607,67 @@ function buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turno
   });
 
   return summary;
+}
+
+// Lookup de cor por lista proporcional, so faz sentido em deputado/vereador.
+function getScopedColorLookupForCargo(cargoKey) {
+  const key = String(cargoKey || '');
+  if (!key.startsWith('deputado') && !key.startsWith('vereador')) return null;
+  return getScopedProportionalColorKeyLookup(key.startsWith('vereador') ? 'vereador' : 'deputado', key);
+}
+
+// Resolve nome/partido/cor do vencedor a partir da chave vencedora do summary.
+// Tres formatos convivem: "party:SIGLA" e "group:ID" (proporcionais, onde a cor
+// vem da lista e nao do candidato) e a chave de candidato majoritario.
+// Compartilhado pelo summary municipal e pelo de regiao — se divergirem, o mapa
+// de deputado colore um dos dois errado.
+function resolveSummaryWinnerInfo(winnerKey, cargoKey, groupParties, scopedColorLookup) {
+  if (!winnerKey.startsWith('group:') && !winnerKey.startsWith('party:')) {
+    const info = parseCandidateKey(winnerKey);
+    const partido = info.partido || '';
+    return {
+      winnerName: info.nome || 'N/D',
+      winnerParty: partido,
+      winnerColorParty: getProportionalListColorKey(partido, partido, partido)
+    };
+  }
+
+  const [type, idOrComp] = winnerKey.split(':');
+  if (type === 'party') {
+    return {
+      winnerName: idOrComp,
+      winnerParty: idOrComp,
+      winnerColorParty: scopedColorLookup?.get(winnerKey)
+        || getProportionalListColorKey(idOrComp, idOrComp, idOrComp)
+    };
+  }
+
+  const metaStore = String(cargoKey || '').startsWith('vereador')
+    ? STATE.vereadorMetadata
+    : STATE.deputyMetadata;
+  const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
+  const found = groupedInfo.get(idOrComp)
+    || Array.from(groupedInfo.values()).find((info) => info.key === winnerKey);
+
+  // Partido dominante da lista naquele territorio define a cor da coligacao.
+  let dominantParty = '';
+  let dominantVotes = -1;
+  Object.entries((groupParties || {})[winnerKey] || {}).forEach(([party, votes]) => {
+    const safeVotes = ensureNumber(votes);
+    if (safeVotes > dominantVotes) {
+      dominantVotes = safeVotes;
+      dominantParty = party;
+    }
+  });
+
+  const winnerName = found ? found.name : idOrComp;
+  const winnerParty = found ? found.composition : idOrComp;
+  return {
+    winnerName,
+    winnerParty,
+    winnerColorParty: scopedColorLookup?.get(winnerKey)
+      || getProportionalListColorKey(winnerName, winnerParty, dominantParty)
+  };
 }
 
 function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
@@ -1767,9 +1839,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
   });
 
   const summary = {};
-  const scopedColorLookup = (cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador'))
-    ? getScopedProportionalColorKeyLookup(cargoKey.startsWith('vereador') ? 'vereador' : 'deputado', cargoKey)
-    : null;
+  const scopedColorLookup = getScopedColorLookupForCargo(cargoKey);
   grouped.forEach((entry) => {
     const orderedVotes = Object.entries(entry.votes)
       .filter(([, votes]) => ensureNumber(votes) > 0)
@@ -1779,46 +1849,8 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
     const [winnerKey, winnerVotesRaw] = orderedVotes[0];
     const [, secondVotesRaw] = orderedVotes[1] || [null, 0];
-    let winnerName = 'N/D';
-    let winnerParty = '';
-    let winnerColorParty = '';
-
-    if (winnerKey.startsWith('group:') || winnerKey.startsWith('party:')) {
-      const isVereador = cargoKey.startsWith('vereador');
-      const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
-      const parts = winnerKey.split(':');
-      const type = parts[0];
-      const idOrComp = parts[1];
-
-      if (type === 'party') {
-        winnerName = idOrComp;
-        winnerParty = idOrComp;
-        winnerColorParty = scopedColorLookup?.get(winnerKey)
-          || getProportionalListColorKey(winnerName, winnerParty, winnerParty);
-      } else {
-        const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
-        const found = groupedInfo.get(idOrComp) || Array.from(groupedInfo.values()).find(info => info.key === winnerKey);
-        const partyTotals = entry.groupParties[winnerKey] || {};
-        let dominantParty = '';
-        let dominantVotes = -1;
-        Object.entries(partyTotals).forEach(([party, votes]) => {
-          const safeVotes = ensureNumber(votes);
-          if (safeVotes > dominantVotes) {
-            dominantVotes = safeVotes;
-            dominantParty = party;
-          }
-        });
-        winnerName = found ? found.name : idOrComp;
-        winnerParty = found ? found.composition : idOrComp;
-        winnerColorParty = scopedColorLookup?.get(winnerKey)
-          || getProportionalListColorKey(winnerName, winnerParty, dominantParty);
-      }
-    } else {
-      const winnerInfo = parseCandidateKey(winnerKey);
-      winnerName = winnerInfo.nome || 'N/D';
-      winnerParty = winnerInfo.partido || '';
-      winnerColorParty = getProportionalListColorKey(winnerParty, winnerParty, winnerParty);
-    }
+    const { winnerName, winnerParty, winnerColorParty } = resolveSummaryWinnerInfo(
+      winnerKey, cargoKey, entry.groupParties, scopedColorLookup);
     const winnerVotes = ensureNumber(winnerVotesRaw);
     const secondVotes = ensureNumber(secondVotesRaw);
 
@@ -1892,6 +1924,20 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
   if (typeof updateNeighborhoodProfileUI === 'function') updateNeighborhoodProfileUI();
 }
 
+// Um so lugar decide qual botao da barra fica aceso. Com 6 botoes (municipios,
+// 4 niveis de regiao e locais) sincronizar na mao em cada caminho ja nao cabia.
+function syncMapModeButtons() {
+  dom.layerToggleGroup?.querySelectorAll('.toggle-btn[id^="btnMapMode"]').forEach((btn) => {
+    const level = btn.dataset.regionLevel;
+    const ativo = level
+      ? (STATE.currentMapMode === 'regioes' && STATE.currentRegionLevel === level)
+      : (btn.id === 'btnMapModeMunicipios'
+        ? STATE.currentMapMode === 'municipios'
+        : STATE.currentMapMode === 'locais');
+    btn.classList.toggle('active', ativo);
+  });
+}
+
 function shouldRenderGeneralMunicipalityOverview() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
   const muniOnly = isMuniOnlyGeneralYear();
@@ -1924,12 +1970,32 @@ function createMunicipiosGeoLayer(geojson, onSelectFeature) {
     }
   });
   
-  if (STATE.extrusion3DEnabled && STATE.currentMapMode === 'municipios') {
+  if (STATE.extrusion3DEnabled && isPolygonMapMode()) {
     layer.extrusionEnabled = true;
   }
   
-  layer.setFeatures(geojson.features || []);
+  // Guarda a UF inteira: setFeatures so recebe a regiao filtrada, e sem o
+  // original nao daria para voltar atras quando o filtro muda.
+  layer.__ufFeatures = geojson.features || [];
+  applyRegionScopeToMunicipiosLayer(layer);
   return layer;
+}
+
+// Deixa na camada apenas os municipios da regiao filtrada. getBounds() deriva
+// das features, entao o enquadramento acompanha sozinho, e o 3D usa o mesmo
+// source. Em eleicoes municipais matchesRegionalScope e no-op (deixa tudo).
+//
+// Precisa ser reaplicado, e nao so feito na criacao: todos os outros caminhos
+// que tocam a camada (refresh de estilo, troca de turno, toggle 3D) chamam
+// apenas .refresh(), que re-estiliza sem repor features — sem isto, trocar de
+// regiao sem recriar a camada deixaria o mapa com o recorte antigo.
+function applyRegionScopeToMunicipiosLayer(layer = STATE.municipiosLayer) {
+  // Camada de regiao nao se recorta por municipio — ela JA e o nivel de cima.
+  if (layer?.__regionLevel) return false;
+  const all = layer?.__ufFeatures;
+  if (!layer?.setFeatures || !Array.isArray(all)) return false;
+  layer.setFeatures(all.filter((f) => matchesRegionalScope(f.properties)));
+  return true;
 }
 
 
@@ -1981,13 +2047,176 @@ async function showGeneralMunicipalityOverview(uf) {
     const bounds = STATE.municipiosLayer.getBounds();
     MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
 
-    if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
-    if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
+    syncMapModeButtons();
 
     renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
   } catch (error) {
     console.error('[Geral] Falha ao montar visão municipal:', error);
     showToast(`Erro ao carregar a visão municipal: ${error.message}`, 'error');
+  } finally {
+    hideMapLoading();
+  }
+}
+
+// ===================== MAPA POR REGIAO (nivel acima do municipio) =====================
+
+async function fetchRegionPolygonGeoJSON(level, uf) {
+  const ufNorm = String(uf || '').toUpperCase();
+  if (!level || !ufNorm) return null;
+  const cacheKey = `regioes_${level}|${ufNorm}`;
+  if (MUNICIPAL_POLYGON_CACHE.has(cacheKey)) return MUNICIPAL_POLYGON_CACHE.get(cacheKey);
+
+  const promise = (async () => {
+    const url = `${DATA_BASE_URL}regioes_${level}/regioes_${level}_${ufNorm}.geojson`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Malha de regiões não encontrada: ${url}`);
+    return response.json();
+  })();
+
+  MUNICIPAL_POLYGON_CACHE.set(cacheKey, promise);
+  promise.catch(() => {
+    if (MUNICIPAL_POLYGON_CACHE.get(cacheKey) === promise) MUNICIPAL_POLYGON_CACHE.delete(cacheKey);
+  });
+  return promise;
+}
+
+// Agrega o summary MUNICIPAL por regiao, iterando o indice municipio->regiao e
+// nao as chaves do summary: cada entry do summary e apontada por varias chaves
+// (slug, aliases, ibge7, ibge6) e ha ainda a chave sintetica _maxTotalValid —
+// iterar Object.values contaria municipio repetido e inflaria os totais.
+function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCargo) {
+  const ufNorm = String(uf || '').toUpperCase();
+  const nivelUf = REGION_INDEX.niveis?.[level]?.[ufNorm] || {};
+  if (!muniSummary || !Object.keys(nivelUf).length) return {};
+
+  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+  const turnoLabel = (turnoKey === '2T') ? '2º Turno' : '1º Turno';
+  const grupos = new Map();
+
+  Object.entries(REGION_INDEX.muni || {}).forEach(([muniCode, regioes]) => {
+    const regionCode = regioes?.[level];
+    if (!regionCode || !nivelUf[regionCode]) return;
+
+    const entry = getMunicipalSummaryEntryForFeature({ CD_MUN: muniCode }, muniSummary);
+    if (!entry) return;
+
+    let grupo = grupos.get(regionCode);
+    if (!grupo) {
+      grupo = { votes: {}, groupParties: {}, totalValid: 0 };
+      grupos.set(regionCode, grupo);
+    }
+    Object.entries(entry.votes || {}).forEach(([chave, votos]) => {
+      grupo.votes[chave] = (grupo.votes[chave] || 0) + ensureNumber(votos);
+    });
+    Object.entries(entry.groupParties || {}).forEach(([chave, partidos]) => {
+      const acc = grupo.groupParties[chave] || (grupo.groupParties[chave] = {});
+      Object.entries(partidos || {}).forEach(([partido, votos]) => {
+        acc[partido] = (acc[partido] || 0) + ensureNumber(votos);
+      });
+    });
+    grupo.totalValid += ensureNumber(entry.totalValid);
+  });
+
+  const scopedColorLookup = getScopedColorLookupForCargo(cargoKey);
+  const summary = {};
+  // Marca de qual nivel e este summary, para o resolver nao confundir com o
+  // municipal. Nao-enumeravel: Object.keys/values do summary seguem so com as
+  // regioes, como o resto do codigo espera.
+  Object.defineProperty(summary, '_regionLevel', { value: level });
+  grupos.forEach((grupo, regionCode) => {
+    const ordenados = Object.entries(grupo.votes)
+      .filter(([, votos]) => ensureNumber(votos) > 0)
+      .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
+    if (!ordenados.length || grupo.totalValid <= 0) return;
+
+    const [winnerKey, winnerVotesRaw] = ordenados[0];
+    const [, secondVotesRaw] = ordenados[1] || [null, 0];
+    const winnerVotes = ensureNumber(winnerVotesRaw);
+    const secondVotes = ensureNumber(secondVotesRaw);
+    const { winnerName, winnerParty, winnerColorParty } = resolveSummaryWinnerInfo(
+      winnerKey, cargoKey, grupo.groupParties, scopedColorLookup);
+
+    summary[regionCode] = {
+      nome: nivelUf[regionCode],
+      muniCode: '',
+      winnerCode: winnerKey,
+      winnerName,
+      winnerParty,
+      winnerColorParty: winnerColorParty || winnerParty,
+      totalValid: grupo.totalValid,
+      margin: ((winnerVotes - secondVotes) / grupo.totalValid) * 100,
+      winnerPct: (winnerVotes / grupo.totalValid) * 100,
+      turno: turnoKey,
+      turnoLabel,
+      votes: grupo.votes,
+      rawTotals: grupo.votes,
+      isDetailed: true
+    };
+  });
+
+  return summary;
+}
+
+function createRegioesGeoLayer(geojson, level, onSelectFeature) {
+  const layer = new MLCompat.GeoLayer(map, {
+    // Mesmo id da camada municipal de proposito: mesmos ids de source/layer no
+    // MapLibre, mesma ordem de empilhamento, nada novo para limpar.
+    id: 'muni',
+    type: 'polygon',
+    hover: true,
+    styleFn: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+    tooltipFn: (feature) => buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary),
+    onClick: onSelectFeature
+  });
+  if (STATE.extrusion3DEnabled && isPolygonMapMode()) {
+    layer.extrusionEnabled = true;
+  }
+  // Marca que esta camada e de regiao: as rotinas municipais checam isto para
+  // nao recortar por municipio nem reconstruir o summary por cima.
+  layer.__regionLevel = level;
+  layer.setFeatures(geojson.features || []);
+  return layer;
+}
+
+async function showGeneralRegionOverview(uf) {
+  const ufNorm = String(uf || '').toUpperCase();
+  const level = STATE.currentRegionLevel;
+  if (!map || !ufNorm || ufNorm === 'BR' || !level || STATE.currentElectionType !== 'geral') return;
+
+  showMapLoading(`Carregando ${(REGION_LEVEL_LABEL[level] || 'regiões').toLowerCase()} de ${ufNorm}...`);
+
+  try {
+    STATE.currentMapMode = 'regioes';
+    STATE.currentMapMuniUF = ufNorm;
+
+    await ensureRegionalFiltersLoaded();
+    const muniSummary = buildGeneralMunicipalityOverviewSummary(currentCargo);
+    STATE.currentMapMuniSummary = buildGeneralRegionSummary(level, ufNorm, muniSummary);
+
+    const geojson = await fetchRegionPolygonGeoJSON(level, ufNorm);
+    if (STATE.currentMapMode !== 'regioes' || STATE.currentRegionLevel !== level
+      || String(dom.selectUFGeneral?.value || '').toUpperCase() !== ufNorm) {
+      return;
+    }
+
+    if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
+      map.removeLayer(STATE.municipiosLayer);
+    }
+
+    STATE.municipiosLayer = createRegioesGeoLayer(geojson, level, (feature) => {
+      const code = String(feature?.properties?.CD_REG || '');
+      if (!code || typeof window.applyRegionSelection !== 'function') return;
+      window.applyRegionSelection({ level, code });
+    });
+    STATE.municipiosLayer.addTo(map);
+
+    MLCompat.fitMapToBounds(map, STATE.municipiosLayer.getBounds(), { padding: [20, 20], animate: false });
+    syncMapModeButtons();
+
+    renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
+  } catch (error) {
+    console.error('[Geral] Falha ao montar visão por região:', error);
+    showToast(`Erro ao carregar a visão por região: ${error.message}`, 'error');
   } finally {
     hideMapLoading();
   }
@@ -2165,7 +2394,9 @@ function applyFiltersAndRedraw() {
     const overviewVisible = geojson.features.filter((feature) => filterFeature(feature));
     CURRENT_VISIBLE_FEATURES_CACHE = overviewVisible;
     CURRENT_VISIBLE_PROPS_CACHE = overviewVisible.map((feature) => feature.properties);
-    void showGeneralMunicipalityOverview(dom.selectUFGeneral?.value);
+    void (STATE.currentMapMode === 'regioes'
+      ? showGeneralRegionOverview(dom.selectUFGeneral?.value)
+      : showGeneralMunicipalityOverview(dom.selectUFGeneral?.value));
     if (STATE.isLoadingDataset) {
       clearPendingFilterChanges();
     }
@@ -2195,8 +2426,7 @@ function applyFiltersAndRedraw() {
   }
 
   STATE.currentMapMode = 'locais';
-  if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.remove('active');
-  if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.add('active');
+  syncMapModeButtons();
 
   const visibleFeatures = (geojson.features || []).filter(filterFeature);
 
@@ -2329,9 +2559,13 @@ function refreshTurnDependentUI() {
     }
   }
 
-  if (STATE.currentMapMode === 'municipios') {
+  if (STATE.currentMapMode !== 'locais') {
     if (STATE.currentElectionType === 'geral' && shouldRenderGeneralMunicipalityOverview()) {
-      void showGeneralMunicipalityOverview(STATE.currentMapMuniUF || dom.selectUFGeneral?.value);
+      const alvo = STATE.currentMapMuniUF || dom.selectUFGeneral?.value;
+      // Trocar de turno tem de recolorir tambem o mapa de regioes.
+      void (STATE.currentMapMode === 'regioes'
+        ? showGeneralRegionOverview(alvo)
+        : showGeneralMunicipalityOverview(alvo));
       return;
     }
 
@@ -3090,8 +3324,7 @@ function onFeatureClick(feature, e) {
 
   const shouldRestoreFilteredAggregation =
     (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value)
-    || currentMesorregiaoFilter !== 'all'
-    || currentMicrorregiaoFilter !== 'all'
+    || hasRegionalScopeFilters()
     || currentCidadeFilter !== 'all'
     || currentBairroFilter !== 'all'
     || String(currentLocalFilter || '').trim().length > 0;
@@ -3177,21 +3410,46 @@ async function fetchMunicipalPolygonGeoJSON(uf) {
   return promise;
 }
 
-function getMaxTotalValidForSummary(summary) {
+const MAX_3D_HEIGHT_METERS = 180000;
+const MIN_3D_HEIGHT_METERS = 2000;
+
+// Escala unica das alturas 3D: normaliza pelo MAIOR valor visivel e aplica a
+// mesma curva, seja qual for a metrica.
+//
+// Antes so "por Votos" fazia isso. "por Margem" dividia por 100 fixo e tinha
+// teto proprio de 80.000, entao saia achatada por dois motivos somados: margens
+// reais raramente passam de ~60%, e 60% de um teto que ja era 2,25x menor dava
+// menos de um terco da altura da outra metrica. Sem piso, ainda por cima, quem
+// tinha margem perto de zero sumia no chao.
+function scale3DHeightMeters(value, maxValue) {
+  if (!(value > 0) || !(maxValue > 0)) return 0;
+  const ratio = Math.min(1, Math.max(0, value / maxValue));
+  // Curva 0.45: mantem pequenos, medios e grandes com alturas distintas.
+  return MIN_3D_HEIGHT_METERS + Math.pow(ratio, 0.45) * (MAX_3D_HEIGHT_METERS - MIN_3D_HEIGHT_METERS);
+}
+
+// Maior valor de uma metrica no summary. O cache vai como propriedade
+// nao-enumeravel para nao aparecer em Object.keys/values do summary — quem
+// itera espera achar so territorios ali.
+function getMaxSummaryMetric(summary, campo, ler) {
   if (!summary || typeof summary !== 'object') return 1;
-  if (summary._maxTotalValid != null && summary._maxTotalValid > 0) {
-    return summary._maxTotalValid;
-  }
+  const chave = `_max_${campo}`;
+  if (summary[chave] > 0) return summary[chave];
   let maxV = 0;
   Object.values(summary).forEach((entry) => {
     if (entry && typeof entry === 'object') {
-      const v = ensureNumber(entry.totalValid || entry.totalValidos || entry.qt_votos_validos || 0);
+      const v = ensureNumber(ler(entry));
       if (v > maxV) maxV = v;
     }
   });
-  const resolvedMax = maxV > 0 ? maxV : 1;
-  summary._maxTotalValid = resolvedMax;
-  return resolvedMax;
+  const resolvido = maxV > 0 ? maxV : 1;
+  Object.defineProperty(summary, chave, { value: resolvido, configurable: true });
+  return resolvido;
+}
+
+function getMaxTotalValidForSummary(summary) {
+  return getMaxSummaryMetric(summary, 'totalValid',
+    (e) => e.totalValid || e.totalValidos || e.qt_votos_validos || 0);
 }
 
 function getMunicipalPolygonStyle(feature, summary) {
@@ -3319,33 +3577,28 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   let height = 0;
-  if (STATE.extrusion3DEnabled && STATE.currentMapMode === 'municipios' && result) {
+  if (STATE.extrusion3DEnabled && isPolygonMapMode() && result) {
     const isFilteredOutPerformance = currentVizMode.startsWith('desempenho') && (pctVal === 0 || (performanceFilterMinPct > 0 && pctVal < performanceFilterMinPct));
     if (!isFilteredOutPerformance) {
+      const summaryAtual = summary || STATE.currentMapMuniSummary;
+
       if (STATE.extrusionMetric === 'margin') {
         if (currentVizMode.startsWith('desempenho')) {
-          const pVal = Math.max(0, Math.min(100, ensureNumber(pctVal) || 0));
-          height = (pVal / 100) * 80000;
+          // Desempenho vem da feature, nao do summary: o teto natural e 100%.
+          height = scale3DHeightMeters(Math.max(0, Math.min(100, ensureNumber(pctVal))), 100);
+        } else if (currentGradientMode === 'winnerPct') {
+          height = scale3DHeightMeters(
+            ensureNumber(result.winnerPct),
+            getMaxSummaryMetric(summaryAtual, 'winnerPct', (e) => e.winnerPct));
         } else {
-          if (currentGradientMode === 'winnerPct') {
-            const wPct = Math.max(0, Math.min(100, ensureNumber(result.winnerPct) || 0));
-            height = (wPct / 100) * 80000;
-          } else {
-            const mPct = Math.max(0, Math.min(100, ensureNumber(result.margin) || 0));
-            height = (mPct / 100) * 80000;
-          }
+          height = scale3DHeightMeters(
+            ensureNumber(result.margin),
+            getMaxSummaryMetric(summaryAtual, 'margin', (e) => e.margin));
         }
       } else {
-        const totalValidTerritory = ensureNumber(result.totalValid || result.totalValidos || result.qt_votos_validos || 0);
-        const maxValid = getMaxTotalValidForSummary(summary || STATE.currentMapMuniSummary);
-        if (totalValidTerritory > 0 && maxValid > 0) {
-          const ratio = Math.min(1, Math.max(0, totalValidTerritory / maxValid));
-          const MAX_3D_HEIGHT_METERS = 180000;
-          const MIN_3D_HEIGHT_METERS = 2000;
-          // Exponential/power scale (0.45) ensures small, medium and large cities all have distinct, non-uniform heights
-          const scaledRatio = Math.pow(ratio, 0.45);
-          height = MIN_3D_HEIGHT_METERS + (scaledRatio * (MAX_3D_HEIGHT_METERS - MIN_3D_HEIGHT_METERS));
-        }
+        height = scale3DHeightMeters(
+          ensureNumber(result.totalValid || result.totalValidos || result.qt_votos_validos || 0),
+          getMaxTotalValidForSummary(summaryAtual));
       }
     }
   }
@@ -3671,8 +3924,7 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     const bounds = STATE.municipiosLayer.getBounds();
     MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
 
-    if (dom.btnMapModeMunicipios) dom.btnMapModeMunicipios.classList.add('active');
-    if (dom.btnMapModeLocais) dom.btnMapModeLocais.classList.remove('active');
+    syncMapModeButtons();
 
     renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
   } catch (error) {

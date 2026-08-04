@@ -137,8 +137,6 @@ async function onClickLoadData_Municipal() {
     updateElectionTypeUI();
     dom.summaryBoxContainer.classList.add('section-hidden');
     [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
-    if (mesorregiaoCombobox) { mesorregiaoCombobox.disable(true); mesorregiaoCombobox.setValue(''); }
-    if (microrregiaoCombobox) { microrregiaoCombobox.disable(true); microrregiaoCombobox.setValue(''); }
     if (cidadeCombobox) cidadeCombobox.disable(true);
     if (bairroCombobox) bairroCombobox.disable(false);
     [dom.searchLocal, dom.selectVizColorStyle, dom.selectVizSize].forEach(el => el && (el.disabled = false));
@@ -432,8 +430,6 @@ async function onClickLoadData_Vereadores(uf, municipio, ano, baseGeoProvided = 
     updateElectionTypeUI();
     dom.summaryBoxContainer.classList.add('section-hidden');
     [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
-    if (mesorregiaoCombobox) { mesorregiaoCombobox.disable(true); mesorregiaoCombobox.setValue(''); }
-    if (microrregiaoCombobox) { microrregiaoCombobox.disable(true); microrregiaoCombobox.setValue(''); }
     if (cidadeCombobox) { cidadeCombobox.disable(true); cidadeCombobox.setValue("Todos os municipios"); currentCidadeFilter = 'all'; }
     if (bairroCombobox) bairroCombobox.disable(false);
     if (dom.selectVizColorStyle) dom.selectVizColorStyle.disabled = false;

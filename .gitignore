@@ -15,3 +15,8 @@ __pycache__/
 # em resultados_geo/eleitorado_2026/ entram no repo.
 scratch/eleitorado/2026/
 
+# Shapefiles de regiao do IBGE (280 MB; cada .shp tem 47-92 MB, acima do aviso de
+# 50 MB do GitHub). Sao insumo de scripts/gerar_malhas_regioes.py — o que o site
+# usa e a saida em resultados_geo/regioes_*/ (13,5 MB) e regioes_index.json.
+malhas/
+

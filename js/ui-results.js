@@ -405,7 +405,6 @@ function updateCensusControlsForYear() {
 function updateConditionalUI() {
   const show2T = STATE.dataHas2T[currentCargo] || false;
   updateCensusControlsForYear();
-  if (typeof syncRegionalFilterVisibility === 'function') syncRegionalFilterVisibility();
   syncVizColorStyleControl();
   if (currentVizMode.startsWith('desempenho')) updateVizModeUI();
   // Turn visibility is handled by setupTurnTabs now.
@@ -432,9 +431,19 @@ function updateElectionTypeUI() {
   const isMuniOnlyGeral = !isMunicipal && isMuniOnlyGeneralYear();
 
   // --- MUNICIPAL UI REFINEMENTS ---
-  // Hide map mode toggle group in municipal elections
+  // A barra de modos so some nas municipais. Em 1989/1994 some apenas o botao
+  // "Locais de Votacao" (nao ha locais nesses anos), mas municipios e regioes
+  // funcionam: todo municipio historico cai em exatamente uma regiao moderna.
   if (dom.layerToggleGroup) {
-      dom.layerToggleGroup.style.display = (isMunicipal || isMuniOnlyGeral) ? 'none' : '';
+      dom.layerToggleGroup.style.display = isMunicipal ? 'none' : '';
+  }
+  // A segunda linha (Perspectiva/Altura) acompanha a primeira: nas municipais a
+  // barra inteira some, como antes de ela ser dividida em duas.
+  if (dom.mapRenderControls) {
+      dom.mapRenderControls.style.display = isMunicipal ? 'none' : '';
+  }
+  if (dom.btnMapModeLocais) {
+      dom.btnMapModeLocais.style.display = isMuniOnlyGeral ? 'none' : '';
   }
 
   // Filtros demograficos so fazem sentido com um municipio selecionado;

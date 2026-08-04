@@ -615,8 +615,11 @@ let performanceModeStats = {
 };
 // Filtro de porcentagem mínima para modo Desempenho
 let performanceFilterMinPct = 0;
-let currentMesorregiaoFilter = 'all';
-let currentMicrorregiaoFilter = 'all';
+// Filtro regional ativo. Um nivel por vez — os quatro sao particoes concorrentes
+// do mesmo territorio, entao combinar dois nao faz sentido (e a UI ja tratava
+// meso/micro como mutuamente exclusivos).
+// level: '' | 'meso' | 'micro' | 'rgint' | 'rgi'
+let currentRegionFilter = { level: '', code: '' };
 let currentCidadeFilter = 'all';
 let currentBairroFilter = 'all';
 let currentLocalFilter = '';
@@ -679,6 +682,8 @@ const STATE = {
   },
   currentMapMode: 'locais',
   currentMapMuniUF: null,
+  // Nivel desenhado quando currentMapMode === 'regioes'.
+  currentRegionLevel: 'rgint',
   currentMapMuniSummary: null,
   currentMapMuniSummaryByTurn: null,
   pendingMunicipalFocusBounds: null,
@@ -776,9 +781,19 @@ if (typeof window !== 'undefined') {
 
 let dom = {};
 let REGIONAL_FILTERS_PROMISE = null;
-let REGIONAL_FILTERS_INDEX = {
-  mesoByUf: new Map(),
-  microByUf: new Map()
+// resultados_geo/regioes_index.json (gerado por scripts/gerar_malhas_regioes.py):
+//   muni[ibge7]        = { meso, micro, rgint, rgi }   codigos IBGE da regiao
+//   niveis[level][UF]  = { codigo: nome }
+// Sempre casar por (nivel, codigo), nunca por codigo solto: CD_MESO e CD_RGINT
+// tem ambos 4 digitos e colidem (4102 e meso E rgint).
+let REGION_INDEX = { muni: {}, niveis: {} };
+
+const REGION_LEVELS = ['meso', 'micro', 'rgint', 'rgi'];
+const REGION_LEVEL_LABEL = {
+  meso: 'Mesorregião',
+  micro: 'Microrregião',
+  rgint: 'Região Intermediária',
+  rgi: 'Região Imediata'
 };
 
 function getCurrentGeneralRegionalUF() {
@@ -792,102 +807,65 @@ function getFeatureMunicipioIdentity(props) {
       getProp(props, 'cod_localidade_ibge')
       || getProp(props, 'codigo_ibge')
       || getProp(props, 'COD_LOCALIDADE_IBGE')
+      // Poligonos da malha municipal: CD_MUN vem numero em municipios_hd e
+      // string nas malhas 1989/1994 — o String() externo normaliza os dois.
+      // Fica por ultimo para nao competir com as chaves de local de votacao.
+      || getProp(props, 'CD_MUN')
       || ''
     ).trim(),
     slug: normalizeMunicipioSlug(getProp(props, 'nm_localidade'))
   };
 }
 
-function buildRegionalFilterIndex(rawByUf = {}) {
-  const index = new Map();
-  Object.entries(rawByUf || {}).forEach(([uf, regions]) => {
-    const regionEntries = [];
-    Object.entries(regions || {}).forEach(([regionName, municipios]) => {
-      const municipioCodes = new Set();
-      const municipioSlugs = new Set();
-      (municipios || []).forEach((municipio) => {
-        const code = String(municipio?.codigo_ibge || '').trim();
-        const name = String(municipio?.nome_municipio || '').trim();
-        const slug = normalizeMunicipioSlug(name);
-        if (code) municipioCodes.add(code);
-        if (slug) municipioSlugs.add(slug);
-        if (code && name) {
-          if (typeof STATE !== 'undefined') {
-            if (!STATE.muniCodeToNameMap) STATE.muniCodeToNameMap = new Map();
-            STATE.muniCodeToNameMap.set(code, name);
-            if (code.length > 6) STATE.muniCodeToNameMap.set(code.slice(0, 6), name);
-          }
-        }
-      });
-      regionEntries.push({
-        label: regionName,
-        key: norm(regionName),
-        municipioCodes,
-        municipioSlugs
-      });
-    });
-    index.set(String(uf || '').toUpperCase(), regionEntries.sort((a, b) => a.label.localeCompare(b.label, 'pt-BR')));
-  });
-  return index;
-}
-
 async function ensureRegionalFiltersLoaded() {
-  if (REGIONAL_FILTERS_INDEX.mesoByUf.size && REGIONAL_FILTERS_INDEX.microByUf.size) return REGIONAL_FILTERS_INDEX;
+  if (Object.keys(REGION_INDEX.muni).length) return REGION_INDEX;
   if (REGIONAL_FILTERS_PROMISE) return REGIONAL_FILTERS_PROMISE;
 
-  REGIONAL_FILTERS_PROMISE = Promise.all([
-    fetch('resultados_geo/municipios_por_mesorregiao.json').then((res) => {
-      if (!res.ok) throw new Error('Falha ao carregar mesorregiões');
-      return res.json();
-    }),
-    fetch('resultados_geo/municipios_por_microrregiao.json').then((res) => {
-      if (!res.ok) throw new Error('Falha ao carregar microrregiões');
+  REGIONAL_FILTERS_PROMISE = fetch('resultados_geo/regioes_index.json')
+    .then((res) => {
+      if (!res.ok) throw new Error('Falha ao carregar o índice de regiões');
       return res.json();
     })
-  ]).then(([mesoJson, microJson]) => {
-    REGIONAL_FILTERS_INDEX = {
-      mesoByUf: buildRegionalFilterIndex(mesoJson),
-      microByUf: buildRegionalFilterIndex(microJson)
-    };
-    return REGIONAL_FILTERS_INDEX;
-  });
+    .then((data) => {
+      REGION_INDEX = { muni: data?.muni || {}, niveis: data?.niveis || {} };
+      return REGION_INDEX;
+    });
 
   return REGIONAL_FILTERS_PROMISE;
 }
 
-function getRegionalEntries(kind, uf = getCurrentGeneralRegionalUF()) {
-  const source = kind === 'micro' ? REGIONAL_FILTERS_INDEX.microByUf : REGIONAL_FILTERS_INDEX.mesoByUf;
-  return source.get(String(uf || '').toUpperCase()) || [];
+// [{code, label}] de um nivel numa UF, em ordem alfabetica.
+function getRegionalEntries(level, uf = getCurrentGeneralRegionalUF()) {
+  const porUf = REGION_INDEX.niveis?.[level]?.[String(uf || '').toUpperCase()] || {};
+  return Object.entries(porUf)
+    .map(([code, label]) => ({ code, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
 }
 
-function getSelectedRegionalEntry(kind, uf = getCurrentGeneralRegionalUF()) {
-  const filterValue = kind === 'micro' ? currentMicrorregiaoFilter : currentMesorregiaoFilter;
-  if (filterValue === 'all') return null;
-  return getRegionalEntries(kind, uf).find((entry) => entry.label === filterValue || entry.key === norm(filterValue)) || null;
+function getRegionalEntryLabel(level, code, uf = getCurrentGeneralRegionalUF()) {
+  return REGION_INDEX.niveis?.[level]?.[String(uf || '').toUpperCase()]?.[String(code)] || '';
 }
 
 function hasRegionalScopeFilters() {
-  return currentMesorregiaoFilter !== 'all' || currentMicrorregiaoFilter !== 'all';
+  return !!currentRegionFilter.code;
 }
 
+// Modos em que o mapa desenha POLIGONOS (municipios ou regioes). Os dois aceitam
+// extrusao 3D; 'locais' desenha pontos e nao tem altura.
+function isPolygonMapMode() {
+  return STATE.currentMapMode === 'municipios' || STATE.currentMapMode === 'regioes';
+}
+
+// Casa SEMPRE por codigo IBGE. O casamento por nome saiu de proposito: a fonte
+// antiga (municipios_por_mesorregiao.json) tinha 595 de 5571 nomes trocados por
+// homonimos de outra UF, e era exatamente isso que fazia municipios como
+// Castro/PR e Palmeira/PR caírem fora da propria regiao.
 function matchesRegionalScope(props) {
   if (STATE.currentElectionType !== 'geral') return true;
-  if (!hasRegionalScopeFilters()) return true;
-  const uf = getCurrentGeneralRegionalUF();
-  if (!uf) return false;
-
-  const { code, slug } = getFeatureMunicipioIdentity(props);
-  const mesoEntry = getSelectedRegionalEntry('meso', uf);
-  if (mesoEntry) {
-    const matchMeso = (code && mesoEntry.municipioCodes.has(code)) || (slug && mesoEntry.municipioSlugs.has(slug));
-    if (!matchMeso) return false;
-  }
-  const microEntry = getSelectedRegionalEntry('micro', uf);
-  if (microEntry) {
-    const matchMicro = (code && microEntry.municipioCodes.has(code)) || (slug && microEntry.municipioSlugs.has(slug));
-    if (!matchMicro) return false;
-  }
-  return true;
+  const { level, code } = currentRegionFilter;
+  if (!code) return true;
+  const muni = getFeatureMunicipioIdentity(props).code;
+  return !!muni && REGION_INDEX.muni?.[muni]?.[level] === code;
 }
 
 function matchesLocationFilters(props, options = {}) {
@@ -970,10 +948,10 @@ function getEscolaridadeGroupedValue(mode, acc = {}) {
 }
 
 function getRegionalFilterSummaryLabel() {
-  const parts = [];
-  if (currentMesorregiaoFilter !== 'all') parts.push(`Mesorregião ${currentMesorregiaoFilter}`);
-  if (currentMicrorregiaoFilter !== 'all') parts.push(`Microrregião ${currentMicrorregiaoFilter}`);
-  return parts.join(' • ');
+  const { level, code } = currentRegionFilter;
+  if (!code) return '';
+  const nome = getRegionalEntryLabel(level, code);
+  return nome ? `${REGION_LEVEL_LABEL[level] || 'Região'} ${nome}` : '';
 }
 
 // ====== MULTI-SELECTION GLOBALS ======

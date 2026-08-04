@@ -360,8 +360,7 @@ function setupControls() {
 
   // LISTENER DE MUDANÇA DE UF - Carrega automaticamente nas eleições gerais
   dom.selectUFGeneral.addEventListener('change', () => {
-    currentMesorregiaoFilter = 'all';
-    currentMicrorregiaoFilter = 'all';
+    currentRegionFilter = { level: '', code: '' };
     currentCidadeFilter = 'all';
     currentBairroFilter = 'all';
     currentLocalFilter = '';
@@ -472,42 +471,61 @@ function setupControls() {
 
 
 
-  // FILTROS
-  // INIT COMBOBOXES
-  // FILTROS REGIONAIS (RGINT / RGI) via Selects originais
-  if (dom.selectRGINT) {
-    dom.selectRGINT.addEventListener('change', (e) => {
-      currentMesorregiaoFilter = e.target.value || 'all';
-      currentMicrorregiaoFilter = 'all';
-      if (dom.selectRGI) dom.selectRGI.value = '';
-      currentCidadeFilter = 'all';
-      currentBairroFilter = 'all';
-      clearSelection(false);
-      markFiltersDirty();
-      populateRegionalDropdowns();
-      populateCidadeDropdown();
-      populateBairroDropdown();
-      updateApplyButtonText();
-      debouncedAutoApplyFilters();
+  // FILTRO REGIONAL — um select so, valor "nivel:codigo" (ver populateRegionalDropdowns).
+  if (dom.selectRegiao) {
+    dom.selectRegiao.addEventListener('change', (e) => {
+      const [level, code] = String(e.target.value || '').split(':');
+      applyRegionSelection(code ? { level, code } : { level: '', code: '' });
     });
   }
 
-  if (dom.selectRGI) {
-    dom.selectRGI.addEventListener('change', (e) => {
-      currentMesorregiaoFilter = 'all';
-      if (dom.selectRGINT) dom.selectRGINT.value = '';
-      currentMicrorregiaoFilter = e.target.value || 'all';
+  // Botoes de nivel de regiao na barra do mapa (delegado: um handler para os 4).
+  if (dom.layerToggleGroup) {
+    dom.layerToggleGroup.addEventListener('click', (e) => {
+      const level = e.target.closest('[data-region-level]')?.dataset.regionLevel;
+      if (!level) return;
+      const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+      if (STATE.currentElectionType !== 'geral' || !uf || uf === 'BR') return;
+
+      currentRegionFilter = { level: '', code: '' };
       currentCidadeFilter = 'all';
       currentBairroFilter = 'all';
-      clearSelection(false);
-      markFiltersDirty();
+      currentLocalFilter = '';
+      if (dom.searchLocal) dom.searchLocal.value = '';
+      STATE.currentRegionLevel = level;
+      STATE.currentMapMode = 'regioes';
+      clearSelection(true);
       populateRegionalDropdowns();
       populateCidadeDropdown();
       populateBairroDropdown();
       updateApplyButtonText();
-      debouncedAutoApplyFilters();
+      applyFiltersAndRedraw();
     });
   }
+
+  // Entrar/sair de uma regiao: usado pelo select, pelo clique no mapa de regioes
+  // e pelo botao de voltar. Deixa o mapa no coropletico municipal recortado.
+  window.applyRegionSelection = function (regiao) {
+    currentRegionFilter = { level: regiao.level || '', code: regiao.code || '' };
+    currentCidadeFilter = 'all';
+    currentBairroFilter = 'all';
+    currentLocalFilter = '';
+    if (dom.searchLocal) dom.searchLocal.value = '';
+    // Vindo do modo Locais (municipio clicado), sem isto o coropletico some em
+    // vez de redesenhar: shouldRenderGeneralMunicipalityOverview() barraria o
+    // rebuild e a camada de municipios seria removida.
+    STATE.currentMapMode = 'municipios';
+    // Recorta o mapa na regiao ja, sem esperar o rebuild assincrono do
+    // coropletico (que nem sempre acontece — ha caminhos que so re-estilizam).
+    applyRegionScopeToMunicipiosLayer();
+    clearSelection(false);
+    markFiltersDirty();
+    populateRegionalDropdowns();
+    populateCidadeDropdown();
+    populateBairroDropdown();
+    updateApplyButtonText();
+    debouncedAutoApplyFilters();
+  };
 
   
 
@@ -580,7 +598,7 @@ function setupControls() {
     // Sincronizar botão na barra superior do mapa
     const label3DMetric = document.getElementById('label3DMetric');
     if (label3DMetric) {
-      label3DMetric.textContent = nextMetric === 'margin' ? 'Altura: Margem' : 'Altura: Votos';
+      label3DMetric.textContent = nextMetric === 'margin' ? 'por Margem' : 'por Votos';
     }
 
     const btnToggle3DMetric = document.getElementById('btnToggle3DMetric');
@@ -640,8 +658,7 @@ function setupControls() {
 
       // Atualizar a camada de municípios com o novo estado de extrusão
       if (STATE.municipiosLayer) {
-        const isMunicipios = STATE.currentMapMode === 'municipios';
-        STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && isMunicipios).refresh();
+        STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && isPolygonMapMode()).refresh();
       }
     });
   }
@@ -665,8 +682,7 @@ function setupControls() {
   
 
   const shouldAutoFrameFilteredArea = () => (
-    currentMesorregiaoFilter !== 'all' ||
-    currentMicrorregiaoFilter !== 'all' ||
+    hasRegionalScopeFilters() ||
     currentCidadeFilter !== 'all' ||
     currentBairroFilter !== 'all'
   );
@@ -866,6 +882,28 @@ function setupControls() {
 
   if (dom.btnClearSelection) {
     dom.btnClearSelection.addEventListener('click', () => {
+      // Voltar sobe UM nivel de cada vez: local -> municipio -> regiao -> estado.
+      // Sem pilha de historico: o nivel a exibir e o do proprio filtro removido.
+      if (STATE.currentElectionType === 'geral'
+        && currentCidadeFilter === 'all' && hasRegionalScopeFilters()) {
+        STATE.currentRegionLevel = currentRegionFilter.level;
+        currentRegionFilter = { level: '', code: '' };
+        currentBairroFilter = 'all';
+        currentLocalFilter = '';
+        if (dom.searchLocal) dom.searchLocal.value = '';
+        STATE.currentMapMode = 'regioes';
+        clearSelection(true);
+        populateRegionalDropdowns();
+        populateCidadeDropdown();
+        populateBairroDropdown();
+        updateApplyButtonText();
+        applyFiltersAndRedraw();
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
+        return;
+      }
+
       if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
         currentCidadeFilter = 'all';
         currentBairroFilter = 'all';
@@ -1076,6 +1114,20 @@ function setupControls() {
     });
   }
 
+
+  // Recolher/expandir o perfil demografico. So mexe na classe do container: o
+  // display: none de updateElectionTypeUI (que esconde o perfil por contexto)
+  // continua valendo por cima, sem conflito.
+  const btnToggleProfile = document.getElementById('btnToggleProfile');
+  if (btnToggleProfile && dom.neighborhoodProfile) {
+    btnToggleProfile.addEventListener('click', () => {
+      const recolhido = dom.neighborhoodProfile.classList.toggle('collapsed');
+      btnToggleProfile.setAttribute('aria-expanded', String(!recolhido));
+      btnToggleProfile.title = recolhido
+        ? 'Expandir o perfil demográfico'
+        : 'Recolher o perfil demográfico';
+    });
+  }
 
   // --- CENSUS LISTENERS ---
   // Info Button Logic

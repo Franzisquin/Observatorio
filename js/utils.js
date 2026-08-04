@@ -790,8 +790,7 @@ function updateClearSelectionButtonVisibility() {
   if (typeof STATE !== 'undefined') {
     if (STATE.currentElectionType === 'geral') {
       const hasRegionalFilter = 
-        (typeof currentMesorregiaoFilter !== 'undefined' && currentMesorregiaoFilter !== 'all') ||
-        (typeof currentMicrorregiaoFilter !== 'undefined' && currentMicrorregiaoFilter !== 'all') ||
+        (typeof hasRegionalScopeFilters === 'function' && hasRegionalScopeFilters()) ||
         (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all') ||
         (typeof currentBairroFilter !== 'undefined' && currentBairroFilter !== 'all') ||
         (typeof currentLocalFilter !== 'undefined' && currentLocalFilter !== '');

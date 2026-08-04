@@ -92,19 +92,15 @@ async function onClickLoadData_General_legado() {
 
     if (!dataFound) throw new Error("Nenhum dado encontrado.");
 
-    const preservedMeso = currentMesorregiaoFilter;
-    const preservedMicro = currentMicrorregiaoFilter;
+    const preservedRegion = currentRegionFilter;
     const preservedCidade = currentCidadeFilter;
     const preservedBairro = currentBairroFilter;
     const preservedLocal = currentLocalFilter;
     populateRegionalDropdowns();
-    currentMesorregiaoFilter = preservedMeso;
-    currentMicrorregiaoFilter = preservedMicro;
+    currentRegionFilter = preservedRegion;
     populateCidadeDropdown();
     [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
 
-    if (mesorregiaoCombobox) mesorregiaoCombobox.disable(ufToLoad === 'BR');
-    if (microrregiaoCombobox) microrregiaoCombobox.disable(ufToLoad === 'BR');
     if (cidadeCombobox) {
       cidadeCombobox.disable(false);
       cidadeCombobox.setValue("Todos os municípios");
@@ -314,23 +310,13 @@ function getPrecomputedMunicipalOverviewSummary(cargo = currentCargo) {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
   if (!municipalitiesByCode || !uf || uf === 'BR') return null;
 
-  const mesoEntry = getSelectedRegionalEntry('meso', uf);
-  const microEntry = getSelectedRegionalEntry('micro', uf);
   const summary = {};
 
   Object.entries(municipalitiesByCode).forEach(([muniCode, rawEntry]) => {
     const entry = rawEntry || {};
-    const entrySlug = normalizeMunicipioSlug(entry.slug || entry.nome || '');
 
-    if (mesoEntry) {
-      const matchMeso = (muniCode && mesoEntry.municipioCodes.has(String(muniCode))) || (entrySlug && mesoEntry.municipioSlugs.has(entrySlug));
-      if (!matchMeso) return;
-    }
-
-    if (microEntry) {
-      const matchMicro = (muniCode && microEntry.municipioCodes.has(String(muniCode))) || (entrySlug && microEntry.municipioSlugs.has(entrySlug));
-      if (!matchMicro) return;
-    }
+    // Mesmo criterio do resto do site: casa por codigo IBGE via matchesRegionalScope.
+    if (!matchesRegionalScope({ CD_MUN: String(entry.muniCode || muniCode || '') })) return;
 
     const summaryEntry = {
       ...entry,
@@ -562,14 +548,11 @@ async function onClickLoadData_Deputies_legado(uf, year) {
     console.log(`[onClickLoadData_Deputies] currentCargo definido como: ${currentCargo}`);
 
     // Setup UI
-    currentMesorregiaoFilter = 'all';
-    currentMicrorregiaoFilter = 'all';
+    currentRegionFilter = { level: '', code: '' };
     populateRegionalDropdowns();
     populateCidadeDropdown();
     [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
 
-    if (mesorregiaoCombobox) mesorregiaoCombobox.disable(uf === 'BR');
-    if (microrregiaoCombobox) microrregiaoCombobox.disable(uf === 'BR');
     if (cidadeCombobox) {
       cidadeCombobox.disable(false);
       cidadeCombobox.setValue("Todos os municípios");

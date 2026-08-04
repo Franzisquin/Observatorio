@@ -1685,6 +1685,25 @@ body {
   letter-spacing: -0.2px;
 }
 
+/* Recolher o perfil: tudo menos o cabecalho some, entao o botao continua
+   acessivel para reabrir. A seta aponta para baixo aberto, para o lado fechado. */
+.profile-toggle svg {
+  transition: transform 0.2s ease;
+  transform: rotate(90deg);
+}
+
+.neighborhood-profile.collapsed .profile-toggle svg {
+  transform: rotate(0deg);
+}
+
+.neighborhood-profile.collapsed > *:not(.profile-header) {
+  display: none;
+}
+
+.neighborhood-profile.collapsed .profile-header {
+  margin-bottom: 0;
+}
+
 .info-button {
   display: inline-flex;
   align-items: center;
@@ -2586,6 +2605,12 @@ input:disabled {
 
 .layer-toggle-group {
   display: flex;
+  align-items: center;
+  /* Sao 6 recortes de mapa (municipios, 4 niveis de regiao e locais): sem
+     quebra de linha a barra estoura a largura do mapa. */
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 900px);
   background: rgba(15, 15, 15, 0.7);
   padding: 4px;
   border-radius: 8px;
@@ -2596,6 +2621,20 @@ input:disabled {
 [data-theme="light"] .layer-toggle-group {
   background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Diz para que serve cada linha: "Recorte" (o que o mapa mostra) e "Visual"
+   (como ele e desenhado). Sem isso as duas linhas pareciam a mesma coisa. */
+.toggle-group-label {
+  padding: 0 8px 0 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.75;
+  white-space: nowrap;
+  user-select: none;
 }
 
 .toggle-btn {

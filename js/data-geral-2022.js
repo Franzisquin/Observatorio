@@ -410,18 +410,14 @@ async function buildDeputyBaseGeojson2022(uf) {
   return filterGeneralFeatures2022(baseGeo, resultKeys);
 }
 
-function shouldUseGeneralJsonTotals(cargo = currentCargo) {
-  const hasActiveCensusFilter = (
-    STATE.censusFilters.rendaMin !== null ||
-    STATE.censusFilters.rendaMax !== null ||
-    STATE.censusFilters.racaVal !== null ||
-    STATE.censusFilters.idadeVal !== null ||
-    STATE.censusFilters.generoVal !== null ||
-    STATE.censusFilters.escolaridadeVal !== null ||
-    STATE.censusFilters.estadoCivilVal !== null ||
-    STATE.censusFilters.saneamentoVal !== null
-  );
+function hasActiveCensusFilter() {
+  const f = STATE.censusFilters;
+  return f.rendaMin !== null || f.rendaMax !== null || f.racaVal !== null
+    || f.idadeVal !== null || f.generoVal !== null || f.escolaridadeVal !== null
+    || f.estadoCivilVal !== null || f.saneamentoVal !== null;
+}
 
+function shouldUseGeneralJsonTotals(cargo = currentCargo) {
   const year = String(STATE.currentElectionYear);
   return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1994' || year === '1989')
     && STATE.currentElectionType === 'geral'
@@ -430,7 +426,7 @@ function shouldUseGeneralJsonTotals(cargo = currentCargo) {
     && currentCidadeFilter === 'all'
     && currentBairroFilter === 'all'
     && !currentLocalFilter
-    && !hasActiveCensusFilter
+    && !hasActiveCensusFilter()
     && (
       String(cargo || '').startsWith('presidente')
       || String(cargo || '').startsWith('governador')
@@ -444,32 +440,90 @@ function shouldUseGeneralOfficialTotals(cargo = currentCargo) {
     && !String(cargo || '').startsWith('deputado');
 }
 
-function shouldUseGeneralCityOfficialTotals(cargo = currentCargo) {
-  const hasActiveCensusFilter = (
-    STATE.censusFilters.rendaMin !== null ||
-    STATE.censusFilters.rendaMax !== null ||
-    STATE.censusFilters.racaVal !== null ||
-    STATE.censusFilters.idadeVal !== null ||
-    STATE.censusFilters.generoVal !== null ||
-    STATE.censusFilters.escolaridadeVal !== null ||
-    STATE.censusFilters.estadoCivilVal !== null ||
-    STATE.censusFilters.saneamentoVal !== null
-  );
-
+// Anos cujos totais oficiais por municipio existem (fonte de verdade do TSE,
+// independente de quantos locais de votacao foram geolocalizados).
+function hasOfficialCityTotalsYear() {
   const year = String(STATE.currentElectionYear);
-  return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1998' || year === '1994' || year === '1989')
+  return ['2022', '2018', '2014', '2010', '2006', '2002', '1998', '1994', '1989'].includes(year);
+}
+
+function shouldUseGeneralCityOfficialTotals(cargo = currentCargo) {
+  return hasOfficialCityTotalsYear()
     && STATE.currentElectionType === 'geral'
     && STATE.isFilterAggregationActive
     && currentCidadeFilter !== 'all'
     && currentBairroFilter === 'all'
     && !currentLocalFilter
-    && !hasActiveCensusFilter
+    && !hasActiveCensusFilter()
     && !String(cargo || '').startsWith('deputado');
+}
+
+// Regiao filtrada: mesmo criterio da cidade, mas somando os totais oficiais de
+// TODOS os municipios da regiao.
+function shouldUseGeneralRegionOfficialTotals(cargo = currentCargo) {
+  return hasOfficialCityTotalsYear()
+    && STATE.currentElectionType === 'geral'
+    && STATE.isFilterAggregationActive
+    && hasRegionalScopeFilters()
+    && currentCidadeFilter === 'all'
+    && currentBairroFilter === 'all'
+    && !currentLocalFilter
+    && !hasActiveCensusFilter()
+    && !String(cargo || '').startsWith('deputado');
+}
+
+// Soma os totais oficiais por municipio dentro da regiao filtrada.
+//
+// Sem isto o painel somava as FEATURES visiveis, que sao os locais de votacao
+// geolocalizados — e em varios anos parte dos votos de um municipio nao esta em
+// nenhum local geocodificado. Dava painel menor que o tooltip do mapa, que ja
+// vinha do JSON oficial. Aqui as duas leituras passam a ter a mesma fonte.
+function buildGeneralRegionOfficialSummary(cargo = currentCargo, turnoKey = '1T') {
+  const cityTotals = typeof getOfficialCityTotalsForCargo === 'function'
+    ? getOfficialCityTotalsForCargo(cargo, turnoKey)
+    : STATE.generalOfficialTotalsByCity?.[cargo]?.[turnoKey];
+  if (!cityTotals) return null;
+
+  const { level, code } = currentRegionFilter;
+  if (!code) return null;
+
+  // A MESMA entry e apontada por varias chaves (nome e slug), entao a
+  // deduplicacao por identidade e obrigatoria — sem ela cada municipio entraria
+  // duas vezes e a regiao apareceria com o dobro dos votos.
+  const vistos = new Set();
+  const rawTotals = {};
+  const votesByDisplayKey = {};
+  let achou = false;
+
+  Object.values(cityTotals).forEach((entry) => {
+    if (!entry || typeof entry !== 'object' || vistos.has(entry)) return;
+    vistos.add(entry);
+    const ibge = String(entry.ibge || '').trim();
+    if (!ibge || REGION_INDEX.muni?.[ibge]?.[level] !== code) return;
+    achou = true;
+    Object.entries(entry.rawTotals || {}).forEach(([cid, v]) => {
+      rawTotals[cid] = (rawTotals[cid] || 0) + ensureNumber(v);
+    });
+    Object.entries(entry.votesByDisplayKey || {}).forEach(([chave, v]) => {
+      votesByDisplayKey[chave] = (votesByDisplayKey[chave] || 0) + ensureNumber(v);
+    });
+  });
+
+  if (!achou) return null;
+  return {
+    votesByDisplayKey,
+    rawTotals,
+    ...summarizeRawVoteMap(rawTotals, { includeLegenda: true })
+  };
 }
 
 function getGeneralOfficialSummaryForScope(cargo = currentCargo, turnoKey = '1T') {
   if (shouldUseGeneralOfficialTotals(cargo)) {
     return STATE.generalOfficialTotals?.[cargo]?.[turnoKey] || null;
+  }
+
+  if (shouldUseGeneralRegionOfficialTotals(cargo)) {
+    return buildGeneralRegionOfficialSummary(cargo, turnoKey);
   }
 
   if (shouldUseGeneralCityOfficialTotals(cargo)) {
@@ -495,21 +549,17 @@ function shouldUseGeneralDeputyJsonTotals(cargo = currentCargo) {
 }
 
 function finalizeGeneralLoadUI(ufToLoad) {
-  const preservedMeso = currentMesorregiaoFilter;
-  const preservedMicro = currentMicrorregiaoFilter;
+  const preservedRegion = currentRegionFilter;
   const preservedCidade = currentCidadeFilter;
   const preservedBairro = currentBairroFilter;
   const preservedLocal = currentLocalFilter;
 
-  currentMesorregiaoFilter = preservedMeso;
-  currentMicrorregiaoFilter = preservedMicro;
+  currentRegionFilter = preservedRegion;
   populateRegionalDropdowns();
   populateCidadeDropdown();
   currentCidadeFilter = preservedCidade;
   [dom.filterBox, dom.vizBox].forEach((el) => el.classList.remove('section-hidden'));
 
-  if (mesorregiaoCombobox) mesorregiaoCombobox.disable(ufToLoad === 'BR');
-  if (microrregiaoCombobox) microrregiaoCombobox.disable(ufToLoad === 'BR');
   if (cidadeCombobox) {
     cidadeCombobox.disable(false);
     cidadeCombobox.setValue(currentCidadeFilter === 'all' ? 'Todos os municipios' : currentCidadeFilter);
@@ -773,10 +823,8 @@ async function onClickLoadData_Deputies_2022(uf, year) {
     currentSubType = sub;
     currentCargo = `deputado_${sub}`;
 
-    const preservedMeso = currentMesorregiaoFilter;
-    const preservedMicro = currentMicrorregiaoFilter;
-    currentMesorregiaoFilter = preservedMeso;
-    currentMicrorregiaoFilter = preservedMicro;
+    const preservedRegion = currentRegionFilter;
+    currentRegionFilter = preservedRegion;
     populateRegionalDropdowns();
     populateCidadeDropdown();
     [dom.filterBox, dom.vizBox].forEach((el) => el.classList.remove('section-hidden'));

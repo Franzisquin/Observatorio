@@ -37,7 +37,11 @@ function buildMuniMaps1994(payloads) {
 // recebe id_unico = chave RESULTS e o turnout oficial (comparecimento/aptos) de
 // METADATA.muni_turnout — que se perde no merge, por isso recebemos os payloads
 // BRUTOS por turno (UFs sao disjuntas, sem dupla contagem).
-function buildSyntheticMuniFeatures1994(rawPayloadsByTurno, muniNameMap) {
+//
+// O codigo IBGE (muniIbgeMap) tambem vai nas props: sem ele o filtro por regiao
+// e o join com a malha cairiam no nome, que nem sempre bate (1989/1994 usam a
+// grafia da epoca) — por codigo o casamento e exato.
+function buildSyntheticMuniFeatures1994(rawPayloadsByTurno, muniNameMap, muniIbgeMap) {
   const featuresByMuni = new Map();
 
   Object.entries(rawPayloadsByTurno).forEach(([turnoKey, payloads]) => {
@@ -60,6 +64,7 @@ function buildSyntheticMuniFeatures1994(rawPayloadsByTurno, muniNameMap) {
             geometry: null,
             properties: {
               nm_localidade: cityName,
+              cod_localidade_ibge: String(muniIbgeMap?.get(cdMuni) || ''),
               id_unico: key,
               ID_UNICO: key,
               local_key: key,
@@ -155,7 +160,7 @@ async function loadMajoritariaCargo1994(year, cargo, uf) {
   const syntheticFeatures = buildSyntheticMuniFeatures1994({
     '1T': turno1Payloads,
     ...(turno2Payloads.length ? { '2T': turno2Payloads } : {})
-  }, muniNameMap);
+  }, muniNameMap, muniIbgeMap);
   geojson.features.push(...syntheticFeatures);
 
   const officialCityTotals = {
@@ -256,7 +261,11 @@ async function onClickLoadData_Geral_1994() {
 // Base sintetica de deputados: uma feature geometry:null por municipio, com
 // id_unico = chave RESULTS ("1_{cdMuni}_M") para o lookup em STATE.deputyResults,
 // e o turnout oficial (comparecimento/aptos) do detalhe de votacao.
-function buildDeputyBaseGeojson1994(results, muniNameMap, muniTurnout) {
+//
+// O codigo IBGE e obrigatorio, nao decorativo: o filtro por regiao casa
+// municipio<->regiao SO por codigo, entao sem ele nenhuma feature de deputado
+// passaria no recorte e o painel de resultados ficaria vazio ao filtrar regiao.
+function buildDeputyBaseGeojson1994(results, muniNameMap, muniTurnout, muniIbgeMap) {
   const turnout = muniTurnout || {};
   const features = Object.keys(results || {}).map((key) => {
     const parts = key.split('_');
@@ -266,6 +275,7 @@ function buildDeputyBaseGeojson1994(results, muniNameMap, muniTurnout) {
       ID_UNICO: key,
       local_key: key,
       local_id: key,
+      cod_localidade_ibge: String(muniIbgeMap?.get(cdMuni) || ''),
       nm_localidade: muniNameMap.get(cdMuni) || `Município ${cdMuni}`
     };
     const t = turnout[cdMuni];
@@ -373,7 +383,7 @@ async function onClickLoadData_Deputies_1994(uf, year) {
       }
 
       // Totais por municipio direto do JSON (nao ha precomputados para 1994).
-      const { muniNameMap } = buildMuniMaps1994([fullJson]);
+      const { muniNameMap, muniIbgeMap } = buildMuniMaps1994([fullJson]);
       const rawCityTotals = new Map();
       Object.entries(results).forEach(([locId, voteMap]) => {
         const parts = locId.split('_');
@@ -391,7 +401,7 @@ async function onClickLoadData_Deputies_1994(uf, year) {
 
       // Guarda a base sintetica para reuso pelos dois tipos (f/e).
       STATE._deputyBase1994 = buildDeputyBaseGeojson1994(
-        results, muniNameMap, fullJson.METADATA?.muni_turnout);
+        results, muniNameMap, fullJson.METADATA?.muni_turnout, muniIbgeMap);
 
       loadedDeputyState.types.add(typeKey);
       loadedDeputyState.year = year;

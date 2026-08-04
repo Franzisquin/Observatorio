@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260804c" />
 </head>
 
 <body data-theme="dark">
@@ -134,15 +134,9 @@
 
 
           <div class="ctrl">
-            <label for="filterRGINT">Região Intermediária</label>
-            <select id="filterRGINT" class="select" disabled>
-              <option value="" selected>Todas as regiões intermediárias</option>
-            </select>
-          </div>
-          <div class="ctrl">
-            <label for="filterRGI">Região Imediata</label>
-            <select id="filterRGI" class="select" disabled>
-              <option value="" selected>Todas as regiões imediatas</option>
+            <label for="filterRegiao">Região</label>
+            <select id="filterRegiao" class="select" disabled>
+              <option value="" selected>Todas as regiões</option>
             </select>
           </div>
           <div class="row">
@@ -354,26 +348,48 @@
       <!-- MAP OVERLAY CONTROLS -->
       <div class="map-overlay-controls">
         <div class="layer-toggle-group">
+          <span class="toggle-group-label">Recorte</span>
           <button id="btnMapModeMunicipios" class="toggle-btn active" title="Ver Municípios">
             Municípios
+          </button>
+          <button id="btnMapModeMeso" class="toggle-btn" data-region-level="meso"
+            title="Ver Mesorregiões (divisão IBGE até 2017)">
+            Mesorregiões
+          </button>
+          <button id="btnMapModeMicro" class="toggle-btn" data-region-level="micro"
+            title="Ver Microrregiões (divisão IBGE até 2017)">
+            Microrregiões
+          </button>
+          <button id="btnMapModeRgint" class="toggle-btn" data-region-level="rgint"
+            title="Ver Regiões Intermediárias (divisão IBGE vigente)">
+            Intermediárias
+          </button>
+          <button id="btnMapModeRgi" class="toggle-btn" data-region-level="rgi"
+            title="Ver Regiões Imediatas (divisão IBGE vigente)">
+            Imediatas
           </button>
           <button id="btnMapModeLocais" class="toggle-btn" title="Ver Locais de Votação">
             Locais de Votação
           </button>
 
-          <div class="toggle-divider"></div>
+        </div>
 
-          <button id="btnToggle3D" class="toggle-btn" title="Alternar Modo 3D (Perspectiva)">
+        <!-- Segunda linha: como o mapa e DESENHADO (o de cima e o que ele mostra). -->
+        <div class="layer-toggle-group" id="mapRenderControls">
+          <span class="toggle-group-label">Visual</span>
+
+          <button id="btnToggle3D" class="toggle-btn" title="Inclina a câmera, sem mudar os dados">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
               <polyline points="2 17 12 22 22 17"></polyline>
               <polyline points="2 12 12 17 22 12"></polyline>
             </svg>
-            <span>Modo 3D</span>
+            <span>Perspectiva</span>
           </button>
 
-          <button id="btnToggleExtrusion" class="toggle-btn" title="Alternar Extrusão de Altura (Municípios)"
+          <button id="btnToggleExtrusion" class="toggle-btn"
+            title="Levanta os polígonos conforme o resultado (liga a perspectiva sozinho)"
             style="display: none;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -381,10 +397,10 @@
               <polyline points="17 2 22 7 17 12"></polyline>
               <polyline points="2 17 7 22 12 17"></polyline>
             </svg>
-            <span>Altura (3D)</span>
+            <span>Altura</span>
           </button>
 
-          <button id="btnToggle3DMetric" class="toggle-btn" title="Alternar Métrica 3D (Votos vs Margem)"
+          <button id="btnToggle3DMetric" class="toggle-btn" title="O que define a altura: votos ou margem"
             style="display: none;">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -392,7 +408,7 @@
               <line x1="12" y1="20" x2="12" y2="4"></line>
               <line x1="6" y1="20" x2="6" y2="14"></line>
             </svg>
-            <span id="label3DMetric">Altura: Votos</span>
+            <span id="label3DMetric">por Votos</span>
           </button>
         </div>
       </div>
@@ -496,6 +512,12 @@
                 <button id="btnInfoCensus" class="info-button" title="Informações sobre os dados">
                   <svg class="info-icon">
                     <use href="#svg-info"></use>
+                  </svg>
+                </button>
+                <button id="btnToggleProfile" class="info-button profile-toggle" aria-expanded="true"
+                  aria-controls="neighborhoodProfile" title="Recolher o perfil demográfico">
+                  <svg class="info-icon">
+                    <use href="#svg-arrow"></use>
                   </svg>
                 </button>
               </div>
@@ -1354,31 +1376,31 @@
   </div>
 
   <!-- NOVOS SCRIPTS MODULARES -->
-  <script src="js/globals.js?v=20260803a"></script>
+  <script src="js/globals.js?v=20260804c"></script>
   <script src="js/maplibre-compat.js?v=20260619c"></script>
-  <script src="js/utils.js?v=20260803a"></script>
+  <script src="js/utils.js?v=20260804a"></script>
   <script src="js/data-zip.js?v=20260703a"></script>
-  <script src="js/data-process.js?v=20260619c"></script>
+  <script src="js/data-process.js?v=20260804a"></script>
   <script src="js/emancipacoes-pre2014.js?v=20260621b"></script>
-  <script src="js/data-geral-2022.js?v=20260803a"></script>
+  <script src="js/data-geral-2022.js?v=20260804b"></script>
   <script src="js/data-geral-2018.js?v=20260619c"></script>
   <script src="js/data-geral-2014.js?v=20260702a"></script>
   <script src="js/data-geral-2010.js?v=20260621b"></script>
   <script src="js/data-geral-2006.js?v=20260621b"></script>
   <script src="js/data-geral-2002.js?v=20260621b"></script>
   <script src="js/data-geral-1998.js?v=20260621b"></script>
-  <script src="js/data-geral-1989-1994.js?v=20260803a"></script>
+  <script src="js/data-geral-1989-1994.js?v=20260804b"></script>
   <script src="js/data-municipal.js?v=20260702a"></script>
   <script src="js/municipal-aliases-2000-2004.js?v=20260619c"></script>
   <script src="js/data-municipal-2000-2004.js?v=20260619c"></script>
-  <script src="js/data-loader.js?v=20260619c"></script>
-  <script src="js/data-router.js?v=20260803a"></script>
-  <script src="js/map-render.js?v=20260803a"></script>
-  <script src="js/ui-helpers.js?v=20260703c"></script>
-  <script src="js/ui-results.js?v=20260803a"></script>
+  <script src="js/data-loader.js?v=20260804a"></script>
+  <script src="js/data-router.js?v=20260804a"></script>
+  <script src="js/map-render.js?v=20260804d"></script>
+  <script src="js/ui-helpers.js?v=20260804c"></script>
+  <script src="js/ui-results.js?v=20260804c"></script>
   <script src="js/historico-presidente.js?v=20260619c"></script>
   <script src="js/results-panel.js?v=20260704a"></script>
-  <script src="js/ui-controls.js?v=20260803a"></script>
+  <script src="js/ui-controls.js?v=20260804c"></script>
 </body>
 
 </html>

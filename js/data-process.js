@@ -278,72 +278,43 @@ function createCombobox(elements, onSelect) {
   };
 }
 
-let mesorregiaoCombobox = null;
-let microrregiaoCombobox = null;
 let cidadeCombobox = null;
 let bairroCombobox = null;
 
-function syncRegionalFilterVisibility() {
-  const showRegional = STATE.currentElectionType === 'geral';
-  if (dom.regionalFilterRow) dom.regionalFilterRow.classList.toggle('section-hidden', !showRegional);
-  const enabled = showRegional && !!getCurrentGeneralRegionalUF();
-  const lockMeso = currentMicrorregiaoFilter !== 'all';
-  const lockMicro = currentMesorregiaoFilter !== 'all';
-  if (mesorregiaoCombobox) mesorregiaoCombobox.disable(!enabled || lockMeso);
-  if (microrregiaoCombobox) microrregiaoCombobox.disable(!enabled || lockMicro);
-}
-
+// Um <select> so, com um optgroup por nivel: as quatro divisoes sao particoes
+// concorrentes do mesmo territorio, entao a exclusividade fica estrutural (antes
+// eram dois selects que se travavam mutuamente na mao).
 async function populateRegionalDropdowns() {
-  const showRegional = STATE.currentElectionType === 'geral';
-  if (dom.regionalFilterRow) dom.regionalFilterRow.classList.toggle('section-hidden', !showRegional);
-
-  const rgintSelect = dom.selectRGINT;
-  const rgiSelect = dom.selectRGI;
-
-  if (!rgintSelect || !rgiSelect) return;
+  const select = dom.selectRegiao;
+  if (!select) return;
 
   const uf = getCurrentGeneralRegionalUF();
   if (!uf) {
-    rgintSelect.innerHTML = '<option value="" selected>Todas as regiões intermediárias</option>';
-    rgiSelect.innerHTML = '<option value="" selected>Todas as regiões imediatas</option>';
-    rgintSelect.disabled = true;
-    rgiSelect.disabled = true;
+    select.innerHTML = '<option value="" selected>Todas as regiões</option>';
+    select.disabled = true;
     return;
   }
 
-  rgintSelect.disabled = false;
-  rgiSelect.disabled = false;
-
   await ensureRegionalFiltersLoaded();
 
-  // Popular Intermediária (Mesorregião)
-  const mesoEntries = getRegionalEntries('meso', uf);
-  let mesoHTML = '<option value=""' + (currentMesorregiaoFilter === 'all' ? ' selected' : '') + '>Todas as regiões intermediárias</option>';
-  mesoEntries.forEach(entry => {
-    mesoHTML += `<option value="${entry.label}" ${currentMesorregiaoFilter === entry.label ? 'selected' : ''}>${entry.label}</option>`;
-  });
-  rgintSelect.innerHTML = mesoHTML;
+  const selecionado = currentRegionFilter.code
+    ? `${currentRegionFilter.level}:${currentRegionFilter.code}`
+    : '';
 
-  // Popular Imediata (Microrregião)
-  const selectedMeso = getSelectedRegionalEntry('meso', uf);
-  let microEntries = getRegionalEntries('micro', uf);
-  if (selectedMeso) {
-    microEntries = microEntries.filter((entry) => {
-      for (const code of entry.municipioCodes) if (selectedMeso.municipioCodes.has(code)) return true;
-      for (const slug of entry.municipioSlugs) if (selectedMeso.municipioSlugs.has(slug)) return true;
-      return false;
+  let html = `<option value=""${selecionado ? '' : ' selected'}>Todas as regiões</option>`;
+  REGION_LEVELS.forEach((level) => {
+    const entries = getRegionalEntries(level, uf);
+    if (!entries.length) return;
+    html += `<optgroup label="${escapeHtml(REGION_LEVEL_LABEL[level])}">`;
+    entries.forEach((entry) => {
+      const value = `${level}:${entry.code}`;
+      html += `<option value="${value}"${value === selecionado ? ' selected' : ''}>${escapeHtml(entry.label)}</option>`;
     });
-  }
-
-  let microHTML = '<option value=""' + (currentMicrorregiaoFilter === 'all' ? ' selected' : '') + '>Todas as regiões imediatas</option>';
-  microEntries.forEach(entry => {
-    microHTML += `<option value="${entry.label}" ${currentMicrorregiaoFilter === entry.label ? 'selected' : ''}>${entry.label}</option>`;
+    html += '</optgroup>';
   });
-  rgiSelect.innerHTML = microHTML;
 
-  // Lock logic
-  rgintSelect.disabled = currentMicrorregiaoFilter !== 'all';
-  rgiSelect.disabled = currentMesorregiaoFilter !== 'all' && !selectedMeso;
+  select.innerHTML = html;
+  select.disabled = false;
 }
 
 function populateCidadeDropdown() {

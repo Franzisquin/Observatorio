@@ -301,8 +301,7 @@ async function init() {
   dom.filterBox = document.getElementById('filterBox');
 
   // Filtros Regionais (Cargas)
-  dom.selectRGINT = document.getElementById('filterRGINT');
-  dom.selectRGI = document.getElementById('filterRGI');
+  dom.selectRegiao = document.getElementById('filterRegiao');
 
   dom.ctrlCidadeFilter = document.getElementById('ctrlCidadeFilter');
   
@@ -335,6 +334,7 @@ async function init() {
   dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
   dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
   dom.layerToggleGroup = document.querySelector('.layer-toggle-group');
+  dom.mapRenderControls = document.getElementById('mapRenderControls');
   dom.btnLocateSelection = document.getElementById('btnLocateSelection');
   dom.btnClearSelection = document.getElementById('btnClearSelection');
   dom.turnTabs = document.getElementById('turnTabs');
@@ -403,37 +403,27 @@ async function init() {
     const viz3DMetricCtrl = document.getElementById('viz3DMetricCtrl');
     if (!map) return;
     
-    const isPitched = map.getPitch() > 10;
-    const isMunicipios = STATE.currentMapMode === 'municipios';
-    
+    // Municipios e regioes desenham poligonos, entao os dois tem altura.
+    const podeExtrudir = isPolygonMapMode();
+
     if (STATE.municipiosLayer) {
-      STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && isMunicipios);
+      STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && podeExtrudir);
     }
 
-    // Altura (Municípios)
+    // "Altura" aparece sempre que o mapa desenha poligonos. Antes so aparecia
+    // com o mapa ja inclinado, o que obrigava a apertar "Perspectiva" primeiro
+    // so para descobrir que existia um segundo botao — e ele proprio inclina.
     if (btnExtrusion) {
-      if (isPitched && isMunicipios) {
-        btnExtrusion.classList.add('visible-inline');
-      } else {
-        btnExtrusion.classList.remove('visible-inline');
-      }
+      btnExtrusion.classList.toggle('visible-inline', podeExtrudir);
     }
 
-    // Métrica 3D (Votos vs Margem)
+    // A metrica so faz sentido com altura ligada: essa dependencia e real.
     if (btn3DMetric) {
-      if (isPitched && isMunicipios && STATE.extrusion3DEnabled) {
-        btn3DMetric.classList.add('visible-inline');
-      } else {
-        btn3DMetric.classList.remove('visible-inline');
-      }
+      btn3DMetric.classList.toggle('visible-inline', podeExtrudir && STATE.extrusion3DEnabled);
     }
 
     if (viz3DMetricCtrl) {
-      if (isMunicipios) {
-        viz3DMetricCtrl.classList.remove('section-hidden');
-      } else {
-        viz3DMetricCtrl.classList.add('section-hidden');
-      }
+      viz3DMetricCtrl.classList.toggle('section-hidden', !podeExtrudir);
     }
   }
   window.syncExtrusionButtonVisibility = syncExtrusionButtonVisibility;
