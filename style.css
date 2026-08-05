@@ -1020,8 +1020,12 @@ body {
   min-width: 0;
 }
 
+/* break-word, NAO anywhere: 'anywhere' entra no calculo de largura minima da
+   coluna, entao a tabela concluia que o nome cabia em um caractere e o empilhava
+   letra por letra na vertical (visto na lista de deputados). Com 'break-word' a
+   coluna reserva a maior palavra e so quebra o que realmente nao couber. */
 .cand-table .cand-name-text {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Numero de votos e porcentagem nunca quebram no meio */
