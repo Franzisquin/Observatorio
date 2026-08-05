@@ -1722,8 +1722,22 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
     if (seen.has(slug)) return;
     seen.add(slug);
 
-    const votes = cityData.votesByDisplayKey;
-    const totalValid = ensureNumber(cityData.totalValidos) || 0;
+    // "Filtrar Inaptos" tem que valer aqui tambem, e nao so no painel: sem
+    // isto o voto do inapto continuava entrando no total, no vencedor e na
+    // margem que pintam o municipio — o mapa contradizia a lista ao lado.
+    // O status vem na propria chave de exibicao ("NOME (PARTIDO) (INAPTO) 1T"),
+    // entao o recorte sai de parseCandidateKey, sem depender de STATE.inaptos
+    // (que so e preenchido para deputado/vereador).
+    const votes = STATE.filterInaptos
+      ? Object.fromEntries(Object.entries(cityData.votesByDisplayKey)
+        .filter(([key]) => parseCandidateKey(key).status !== 'INAPTO'))
+      : cityData.votesByDisplayKey;
+
+    // O total tem que ser recomposto junto, senao as porcentagens continuariam
+    // divididas pelo denominador com inapto dentro.
+    const totalValid = STATE.filterInaptos
+      ? Object.values(votes).reduce((sum, v) => sum + ensureNumber(v), 0)
+      : (ensureNumber(cityData.totalValidos) || 0);
     if (totalValid <= 0) return;
 
     const orderedVotes = Object.entries(votes)
@@ -3689,6 +3703,71 @@ function getMunicipalOverviewSummaryForTurn(summaryByTurn, turnoKey = getActiveT
   return {};
 }
 
+// Recompoe uma entrada do resumo municipal sem os votos de candidatos inaptos.
+//
+// Trabalha sobre `votes`, cujas chaves ja carregam o status
+// ("NOME (PARTIDO) (INAPTO) 1T"). Isso vale para qualquer resumo do
+// choropleth e nao depende de STATE.inaptos, que so e preenchido para
+// deputado/vereador. Sem recompor o total, o vencedor e a margem, tirar o
+// candidato da lista mudaria o painel mas nao a cor do municipio.
+function rebuildMunicipalEntryWithoutInaptos(entry) {
+  const votes = Object.fromEntries(Object.entries(entry?.votes || {})
+    .filter(([key]) => parseCandidateKey(key).status !== 'INAPTO'));
+
+  const ordered = Object.entries(votes)
+    .filter(([, v]) => ensureNumber(v) > 0)
+    .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
+
+  const totalValid = ordered.reduce((sum, [, v]) => sum + ensureNumber(v), 0);
+  if (!ordered.length || totalValid <= 0) return null;
+
+  const [winnerKey, winnerVotesRaw] = ordered[0];
+  const [, secondVotesRaw] = ordered[1] || [null, 0];
+  const winnerVotes = ensureNumber(winnerVotesRaw);
+  const secondVotes = ensureNumber(secondVotesRaw);
+  const info = parseCandidateKey(winnerKey);
+
+  return {
+    ...entry,
+    winnerCode: winnerKey,
+    winnerName: info.nome || 'N/D',
+    winnerParty: info.partido || '',
+    winnerColorParty: info.partido || '',
+    totalValid,
+    margin: ((winnerVotes - secondVotes) / totalValid) * 100,
+    marginVotes: Math.max(0, winnerVotes - secondVotes),
+    winnerPct: (winnerVotes / totalValid) * 100,
+    votes
+  };
+}
+
+// Ha algum candidato inapto no resumo estadual? Decide se "Filtrar Inaptos"
+// fica clicavel na visao estadual, onde nenhum municipio foi carregado e
+// portanto STATE.dataHasInaptos nao diz nada.
+function summaryByTurnHasInaptos(summaryByTurn) {
+  return ['1T', '2T'].some((turnoKey) =>
+    Object.values(summaryByTurn?.[turnoKey] || {}).some((entry) =>
+      Object.keys(entry?.votes || {}).some((key) => parseCandidateKey(key).status === 'INAPTO')));
+}
+
+// Municipio cujo unico voto valido era de inapto sai do resumo: fica sem
+// vencedor, e o poligono deve cair no cinza de "sem resultado".
+function applyInaptosFilterToMunicipalSummaryByTurn(summaryByTurn) {
+  if (!STATE.filterInaptos || !summaryByTurn) return summaryByTurn;
+
+  const filtrado = {};
+  ['1T', '2T'].forEach((turnoKey) => {
+    const origem = summaryByTurn[turnoKey] || {};
+    const destino = {};
+    Object.entries(origem).forEach(([muniCode, entry]) => {
+      const rebuilt = rebuildMunicipalEntryWithoutInaptos(entry);
+      if (rebuilt) destino[muniCode] = rebuilt;
+    });
+    filtrado[turnoKey] = destino;
+  });
+  return filtrado;
+}
+
 function getMunicipalOverviewSummaryWithRunoffPriority(summaryByTurn) {
   const combined = {};
   const firstTurn = summaryByTurn?.['1T'] || {};
@@ -3860,8 +3939,12 @@ async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
 
   if (!summaryByTurn) return false;
 
+  // Guarda SEMPRE o resumo canonico (sem filtro): ele tambem serve de cache
+  // acima, e gravar a versao filtrada aqui faria desligar "Filtrar Inaptos"
+  // nao ter mais como voltar aos numeros completos.
   STATE.currentMapMuniSummaryByTurn = summaryByTurn;
-  STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(summaryByTurn);
+  STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(
+    applyInaptosFilterToMunicipalSummaryByTurn(summaryByTurn));
 
   if (STATE.municipiosLayer?.refresh) STATE.municipiosLayer.refresh();
 
@@ -3920,7 +4003,8 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     }
 
     STATE.currentMapMuniSummaryByTurn = summary || { '1T': {}, '2T': {} };
-    STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(STATE.currentMapMuniSummaryByTurn);
+    STATE.currentMapMuniSummary = getMunicipalOverviewSummaryWithRunoffPriority(
+      applyInaptosFilterToMunicipalSummaryByTurn(STATE.currentMapMuniSummaryByTurn));
 
     if (STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
       map.removeLayer(STATE.municipiosLayer);
@@ -3948,6 +4032,13 @@ async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
     MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
 
     syncMapModeButtons();
+
+    // Habilita "Filtrar Inaptos" pelo que o resumo ESTADUAL tem: ate aqui o
+    // botao so era ligado ao carregar um municipio, entao quem caia direto na
+    // visao estadual o encontrava desabilitado mesmo havendo inaptos na UF.
+    if (dom.btnToggleInaptos) {
+      dom.btnToggleInaptos.disabled = !summaryByTurnHasInaptos(STATE.currentMapMuniSummaryByTurn);
+    }
 
     renderMunicipalStatewidePartyResults(STATE.currentMapMuniSummary, uf);
   } catch (error) {

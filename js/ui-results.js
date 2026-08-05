@@ -133,15 +133,32 @@ function updateNeighborhoodProfileUI() {
   });
 
   if (count === 0) {
-    if (dom.profileRendaVal) dom.profileRendaVal.textContent = '--';
-    if (dom.profileRacaChart) dom.profileRacaChart.innerHTML = '';
-    if (dom.profileGeneroChart) dom.profileGeneroChart.innerHTML = '';
-    if (dom.profileIdadeChart) dom.profileIdadeChart.innerHTML = '';
-    if (dom.profileSaneamentoChart) dom.profileSaneamentoChart.innerHTML = '';
-    if (document.getElementById('profileEscolaridadeChart')) document.getElementById('profileEscolaridadeChart').innerHTML = '';
-    if (document.getElementById('profileEstadoCivilChart')) document.getElementById('profileEstadoCivilChart').innerHTML = '';
+    clearNeighborhoodProfileCharts();
     return;
   }
+
+  renderDemographicProfile({ count, sumRenda, countRenda, pctSum, abs, ageBuckets }, isLegacy);
+}
+
+function clearNeighborhoodProfileCharts() {
+  if (dom.profileRendaVal) dom.profileRendaVal.textContent = '--';
+  if (dom.profileRacaChart) dom.profileRacaChart.innerHTML = '';
+  if (dom.profileGeneroChart) dom.profileGeneroChart.innerHTML = '';
+  if (dom.profileIdadeChart) dom.profileIdadeChart.innerHTML = '';
+  if (dom.profileSaneamentoChart) dom.profileSaneamentoChart.innerHTML = '';
+  const esc = document.getElementById('profileEscolaridadeChart');
+  if (esc) esc.innerHTML = '';
+  const civil = document.getElementById('profileEstadoCivilChart');
+  if (civil) civil.innerHTML = '';
+}
+
+// Metade de RENDERIZACAO do perfil, separada da acumulacao. Recebe os mesmos
+// acumuladores que updateNeighborhoodProfileUI monta a partir dos locais
+// selecionados — o que permite alimenta-la tambem com o agregado nacional
+// pre-calculado (ver scripts/gerar_perfil_nacional.py), que nao tem locais
+// carregados para somar.
+function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) {
+  const { count, sumRenda, countRenda, pctSum, abs, ageBuckets } = totals;
 
   // Render Renda
   const rendaFinal = countRenda > 0 ? sumRenda / countRenda : 0;

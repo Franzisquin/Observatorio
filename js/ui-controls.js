@@ -803,7 +803,17 @@ function setupControls() {
       STATE.filterInaptos = !STATE.filterInaptos;
       dom.btnToggleInaptos.classList.toggle('active', STATE.filterInaptos);
       dom.btnToggleInaptos.textContent = STATE.filterInaptos ? 'Inaptos Filtrados' : 'Filtrar Inaptos';
-      applyFiltersAndRedraw();
+
+      // No resumo estadual das municipais applyFiltersAndRedraw sai logo na
+      // primeira linha (o coropletico e gerido por showMunicipalStatewideOverview),
+      // entao o botao nao chegava a repintar o mapa. Aqui o resumo e recomposto
+      // a partir do canonico ja em memoria — sem rede, sem reabrir zip.
+      if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) {
+        void window.refreshMunicipalStatewideOverviewForTurn({ syncResults: true });
+      } else {
+        applyFiltersAndRedraw();
+      }
+
       if (selectedLocationIDs.size > 0) updateSelectionUI(STATE.isFilterAggregationActive);
     });
   }

@@ -183,7 +183,7 @@ function buildOrderedSeatColors(allocations, votesByParty = {}, partyColorFn = n
 //
 // A ultima fileira, quando incompleta, e centralizada na horizontal — sem isso
 // ela fica encostada a esquerda e o aglomerado perde o eixo.
-function createStateCircleDotsHTML(label, N, seatColors, dotROverride = null) {
+function createStateCircleDotsHTML(label, N, seatColors, dotROverride = null, strokeWidthOverride = null) {
   if (!(N > 0)) return { html: '', width: 0, height: 0 };
 
   let cols;
@@ -197,6 +197,7 @@ function createStateCircleDotsHTML(label, N, seatColors, dotROverride = null) {
 
   const rows = Math.ceil(N / cols);
   const dotR = dotROverride ?? getDotRadiusForSeats(N);
+  const strokeW = strokeWidthOverride ?? 0.1875;
   const gap = 1.25;
   const padding = 6.25;
   const dotSpacing = dotR * 2 + gap;
@@ -211,7 +212,7 @@ function createStateCircleDotsHTML(label, N, seatColors, dotROverride = null) {
     const rowOffset = (row === rows - 1 && rowSeats < cols) ? ((cols - rowSeats) * dotSpacing) / 2 : 0;
     const cx = (padding + dotR + rowOffset + col * dotSpacing).toFixed(1);
     const cy = (padding + dotR + row * dotSpacing).toFixed(1);
-    circles += `<circle cx="${cx}" cy="${cy}" r="${dotR}" fill="${seatColors[i] || '#555555'}" stroke="#0b0d11" stroke-width="0.1875"/>`;
+    circles += `<circle cx="${cx}" cy="${cy}" r="${dotR}" fill="${seatColors[i] || '#555555'}" stroke="#0b0d11" stroke-width="${strokeW}"/>`;
   }
 
   return {
@@ -262,14 +263,21 @@ function renderNationalDotplotMapMarkers(totalsByUf, houseKey) {
   // UM raio para o conjunto inteiro, derivado da MAIOR bancada — e o que faz
   // os aglomerados serem comparaveis entre si.
   const maxSeats = Math.max(...Array.from(seatsByUf.values(), (p) => p.totalSeats));
-  const dotR = getDotRadiusForSeats(maxSeats);
+  let dotR = getDotRadiusForSeats(maxSeats);
+  let strokeWidth = 0.1875;
+
+  // Assembleias Legislativas (houseKey === 'e'): 84.5% do tamanho dos federais (+30% adicionais)
+  if (houseKey === 'e') {
+    dotR = dotR * 0.845;
+    strokeWidth = strokeWidth * 0.845;
+  }
 
   // Linhas de chamada primeiro: elas ficam por baixo dos aglomerados.
   renderNationalLeaderLines(Array.from(seatsByUf.keys()));
 
   seatsByUf.forEach(({ alloc, votes, totalSeats }, uf) => {
     const { seatColors } = buildOrderedSeatColors(alloc, votes, nationalLegendColor);
-    const info = createStateCircleDotsHTML(uf, totalSeats, seatColors, dotR);
+    const info = createStateCircleDotsHTML(uf, totalSeats, seatColors, dotR, strokeWidth);
     if (!info.html) return;
 
     const el = document.createElement('div');
@@ -1005,6 +1013,72 @@ function buildNationalLegislativeStateSummary(totalsByUf, houseKey) {
 
 // ===================== MAPA =====================
 
+// Nome curto e legivel de uma legenda, na linha do getCleanGroupName do
+// Simulador Parlamentar Brasileiro: federacao aparece pela composicao, que e o
+// que identifica a lista de relance. O que NAO foi importado de la e a tabela
+// que renomeia partido por ano (PMDB/MDB, PR/PL, PFL/DEM...): aquele projeto
+// precisa dela porque simula qualquer ano contra uma lista canonica unica,
+// enquanto aqui o nome vem do arquivo do TSE do proprio ano e ja chega certo —
+// aplicar a regra so teria como efeito renomear dado que estava correto.
+function cleanNationalLegendName(id) {
+  const raw = String(id || '').trim();
+  if (!raw) return '';
+
+  const upper = raw.toUpperCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+  if (upper.includes('BRASIL DA ESPERANCA')) return 'FE Brasil (PT/PCdoB/PV)';
+  if (upper.includes('PSDB/CIDADANIA') || upper.includes('PSDB CIDADANIA')) return 'PSDB/Cidadania';
+  if (upper.includes('PSOL/REDE') || upper.includes('PSOL REDE')) return 'PSOL/Rede';
+
+  // Demais federacoes/coligacoes: mostra so a composicao entre parenteses.
+  const composicao = raw.match(/\(([^()]*\/[^()]*)\)/);
+  if (composicao) return composicao[1].replace(/\s*\/\s*/g, '/');
+
+  return raw.length > 28 ? `${raw.slice(0, 27)}…` : raw;
+}
+
+// Linha da tabela no padrao NYT do projeto de referencia: o vencedor vem em
+// celula preenchida com a cor da legenda e um ✔; os demais, com apenas um
+// filete colorido a esquerda.
+function buildNationalTooltipRow({ label, color, value, pct, isWinner }) {
+  const cell = isWinner
+    ? `<div class="district-nyt-winner-cell" style="background-color: ${color};">
+         <span>${escapeHtml(label)}</span>
+         <span style="font-size: 10px; margin-left: 6px;">✔</span>
+       </div>`
+    : `<div class="district-nyt-loser-cell" style="border-left-color: ${color};">
+         <span style="margin-left: 6px; color: var(--text);">${escapeHtml(label)}</span>
+       </div>`;
+
+  return `
+    <tr>
+      <td style="padding: 0;">${cell}</td>
+      <td style="color: ${isWinner ? 'var(--text)' : 'var(--text-sec)'};">${fmtInt(value)}</td>
+      <td style="font-weight: bold; color: var(--text);">${pct.toFixed(2)}%</td>
+    </tr>
+  `;
+}
+
+function wrapNationalTooltip({ title, headerLabel, valueLabel, rowsHtml, footer }) {
+  return `
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: var(--text); min-width: 250px;">
+      <div class="district-nyt-title">${escapeHtml(title)}</div>
+      <table class="district-nyt-table">
+        <thead>
+          <tr>
+            <th style="text-align: left;">${headerLabel}</th>
+            <th>${valueLabel}</th>
+            <th>%</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 8px; border-top: 1px solid var(--border-color); padding-top: 6px; text-align: right;">${escapeHtml(footer)}</div>
+    </div>
+  `;
+}
+
 function buildNationalStateTooltip(feature, summary) {
   const uf = String(feature?.properties?.CD_REG || '').toUpperCase();
   const entry = summary?.[uf];
@@ -1019,144 +1093,60 @@ function buildNationalStateTooltip(feature, summary) {
     `;
   }
 
+  const titulo = `${nome} (${uf})`;
   const isProporcional = String(currentCargo || '').startsWith('deputado');
 
   if (isProporcional) {
     const houseKey = getLegislativeHouseKey(currentCargo);
     const ufPayload = nationalView.data?.[uf]?.[houseKey];
     const totalVagas = ensureNumber(entry.vagas) || ensureNumber(ufPayload?.stats?.qt_vagas) || 0;
-    
-    let partyList = entry.partyBreakdown;
-    if (!partyList && ufPayload?.coalitions) {
-      partyList = ufPayload.coalitions
-        .map((c) => ({
-          id: String(c.id || '').trim(),
-          color: colorForParty(getProportionalListColorKey(c.id, c.raw_comp || c.id, String(c.raw_comp || c.id).split('/')[0].trim())),
-          elected: ensureNumber(c.elected),
-          votes: ensureNumber(c.votes)
-        }))
-        .filter((p) => p.elected > 0 || p.votes > 0)
-        .sort((a, b) => b.elected - a.elected || b.votes - a.votes);
-    }
 
-    const seatsParties = (partyList || []).filter(p => p.elected > 0);
-    const displayParties = seatsParties.length ? seatsParties : (partyList || []).slice(0, 5);
+    const partyList = (ufPayload?.coalitions || [])
+      .map((c) => ({
+        id: String(c.id || '').trim(),
+        color: nationalLegendColor(c.id),
+        elected: ensureNumber(c.elected),
+        votes: ensureNumber(c.votes)
+      }))
+      .filter((p) => p.elected > 0)
+      // Regra de vencedor do projeto de referencia: mais cadeiras, e o empate
+      // desempata por voto no estado.
+      .sort((a, b) => b.elected - a.elected || b.votes - a.votes);
 
-    const rowsHtml = displayParties.map((p, idx) => {
-      const pct = totalVagas > 0 ? ((p.elected / totalVagas) * 100).toFixed(2) : '0.00';
-      const isWinner = idx === 0;
+    const top5 = partyList.slice(0, 5);
+    const vencedor = partyList[0]?.id;
 
-      if (isWinner) {
-        return `
-          <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <td style="padding: 4px 0;">
-              <span style="background: ${p.color}; color: #ffffff; font-weight: 700; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase;">
-                ${escapeHtml(shortenNationalLegendLabel(p.id))} <span style="font-size: 10px;">✔</span>
-              </span>
-            </td>
-            <td style="text-align: right; padding: 4px 6px; font-weight: 700; font-size: 0.8rem; color: #ffffff;">${fmtInt(p.elected)}</td>
-            <td style="text-align: right; padding: 4px 0; font-weight: 700; font-size: 0.8rem; color: #ffffff;">${pct}%</td>
-          </tr>
-        `;
-      }
+    const rowsHtml = top5.length
+      ? top5.map((p) => buildNationalTooltipRow({
+        label: cleanNationalLegendName(p.id),
+        color: p.color,
+        value: p.elected,
+        pct: totalVagas > 0 ? (p.elected / totalVagas) * 100 : 0,
+        isWinner: p.id === vencedor
+      })).join('')
+      : '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding: 8px;">Nenhuma vaga conquistada</td></tr>';
 
-      return `
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-          <td style="padding: 4px 0;">
-            <div style="border-left: 3px solid ${p.color}; padding-left: 6px; font-weight: 600; font-size: 0.75rem; color: #e5e7eb; text-transform: uppercase;">
-              ${escapeHtml(shortenNationalLegendLabel(p.id))}
-            </div>
-          </td>
-          <td style="text-align: right; padding: 4px 6px; font-weight: 600; font-size: 0.8rem; color: #e5e7eb;">${fmtInt(p.elected)}</td>
-          <td style="text-align: right; padding: 4px 0; font-weight: 700; font-size: 0.8rem; color: #ffffff;">${pct}%</td>
-        </tr>
-      `;
-    }).join('');
-
-    return `
-      <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: #ffffff; min-width: 220px; padding: 10px 12px;">
-        <div class="district-nyt-title" style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">${escapeHtml(nome)} (${uf})</div>
-        <table class="district-nyt-table" style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
-          <thead>
-            <tr style="color: #9ca3af; font-size: 0.7rem; font-weight: 500; border-bottom: 1px solid rgba(255,255,255,0.15);">
-              <th style="text-align: left; padding: 4px 0;">Partido</th>
-              <th style="text-align: right; padding: 4px 6px;">Vagas</th>
-              <th style="text-align: right; padding: 4px 0;">%</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-        <div style="text-align: right; font-size: 11px; color: #9ca3af; margin-top: 6px;">Total: ${fmtInt(totalVagas)} ${totalVagas === 1 ? 'vaga' : 'vagas'}</div>
-      </div>
-    `;
+    // Sem dotplot aqui de proposito: a tooltip do projeto de referencia e so
+    // titulo + tabela + rodape, e o aglomerado do estado ja esta no mapa.
+    return wrapNationalTooltip({
+      title: titulo,
+      headerLabel: 'Partido',
+      valueLabel: 'Vagas',
+      rowsHtml,
+      footer: `Total: ${fmtInt(totalVagas)} ${totalVagas === 1 ? 'vaga' : 'vagas'}`
+    });
   }
 
-  const rows = Object.entries(entry.votes || {})
-    .map(([key, votes]) => {
-      const info = parseCandidateKey(key);
-      return {
-        nome: toTitleCase(info.nome),
-        color: getColorForCandidate(info.nome, info.partido),
-        votes: ensureNumber(votes)
-      };
-    })
-    .filter((row) => row.votes > 0)
-    .sort((a, b) => b.votes - a.votes)
-    .slice(0, 4);
-
-  const rowsHtml = rows.length
-    ? rows.map((row) => {
-      const pct = entry.totalValid > 0 ? (row.votes / entry.totalValid) * 100 : 0;
-      return `
-        <tr>
-          <td style="padding: 0;">
-            <div class="district-nyt-loser-cell" style="border-left-color: ${row.color};">
-              <span style="margin-left: 6px;">${escapeHtml(row.nome)}</span>
-            </div>
-          </td>
-          <td class="votes-cell">${fmtInt(row.votes)}</td>
-          <td class="pct-cell">${pct.toFixed(1)}%</td>
-        </tr>
-      `;
-    }).join('')
-    : '<tr><td colspan="3" style="text-align:center;color:#777;padding: 8px;">Sem detalhamento.</td></tr>';
-
-  const vagasHtml = entry.vagas
-    ? `<div style="font-size: 11px; color: #777777; margin-top: 4px;">${fmtInt(entry.vagas)} cadeiras em disputa</div>`
-    : '';
-
-  let dotplotSvgHtml = '';
-  if (nationalView.data) {
-    const { alloc, votes, totalSeats } = buildUfSeatAllocation(
-      nationalView.data?.[uf], getLegislativeHouseKey(currentCargo));
-    if (totalSeats > 0) {
-      const { seatColors } = buildOrderedSeatColors(alloc, votes, nationalLegendColor);
-      const info = createStateCircleDotsHTML(uf, totalSeats, seatColors, 4.834);
-      if (info.html) {
-        dotplotSvgHtml = `<div style="margin: 8px 0; display: flex; justify-content: center;">${info.html}</div>`;
-      }
-    }
-  }
-
-  return `
-    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
-      <div class="district-nyt-title">${escapeHtml(nome)}</div>
-      <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">${escapeHtml(entry.turnoLabel || '')}</div>
-      ${dotplotSvgHtml}
-      <table class="district-nyt-table">
-        <thead>
-          <tr>
-            <th style="text-align: left;">Candidato</th>
-            <th>Votos</th>
-            <th>%</th>
-          </tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
-      <div style="font-size: 11px; color: #777777; margin-top: 8px;">Votos válidos: ${fmtInt(entry.totalValid)}</div>
-      ${vagasHtml}
-    </div>
-  `;
+  // Majoritarias (presidente, governador, senador): exatamente a tooltip dos
+  // mapas municipal e de locais. Delegar em vez de reproduzir o markup garante
+  // que sao a MESMA coisa, e nao duas que se parecem — qualquer mudanca la
+  // continua valendo aqui.
+  //
+  // buildMunicipalityTooltip ja sabe ler feature de regiao: casa pelo CD_REG
+  // contra um summary marcado com _regionLevel, que e como o summary nacional
+  // por UF e montado. O padrao do Simulador Parlamentar fica so na legislativa,
+  // onde a unidade e cadeira e nao voto.
+  return buildMunicipalityTooltip(feature, summary);
 }
 
 function createNationalStatesLayer(geojson, summary) {
@@ -1166,6 +1156,18 @@ function createNationalStatesLayer(geojson, summary) {
     type: 'polygon',
     hover: true,
     styleFn: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+    // O estilo do Simulador Parlamentar vale SO na legislativa; nas
+    // majoritarias a tooltip e a mesma dos mapas municipal e de locais e tem
+    // que herdar o CSS global. A camada e recriada a cada troca de cargo,
+    // entao decidir aqui basta.
+    //
+    // A classe e escopada (e nao aplicada as .district-nyt-* globais) porque
+    // essas regras sao compartilhadas com as tooltips municipal e de regiao e
+    // carregam os acertos de quebra de linha do commit "tabela cabe no painel";
+    // sobrescreve-las no global traria de volta o estouro horizontal la.
+    tooltipClass: String(currentCargo || '').startsWith('deputado')
+      ? 'district-nyt-tooltip spb-state-tooltip'
+      : 'district-nyt-tooltip',
     tooltipFn: (feature) => buildNationalStateTooltip(feature, STATE.currentMapMuniSummary),
     onClick: (feature) => {
       const uf = String(feature?.properties?.CD_REG || '').toUpperCase();
@@ -1693,7 +1695,7 @@ function renderNationalLegislativeResults(totalsByUf, houseKey) {
   const aggregate = buildNationalLegislativeAggregate(totalsByUf, houseKey);
   const rows = aggregate.rows.map((row) => ({
     ...row,
-    label: shortenNationalLegendLabel(row.id)
+    label: cleanNationalLegendName(row.id)
   }));
 
   if (dom.turnTabs) {
@@ -1789,15 +1791,6 @@ function renderNationalSenateResults(byTurn) {
   renderNationalChamberMetrics(rows, seats.length, totalVotes, 'Maioria das vagas em jogo');
 }
 
-// Federacoes vem com o nome inteiro ("FEDERAÇÃO BRASIL DA ESPERANÇA - FE
-// BRASIL(PT/PC DO B/PV)"), que estoura a coluna. Mostra a composicao entre
-// parenteses, que e o que identifica a legenda de relance.
-function shortenNationalLegendLabel(id) {
-  const raw = String(id || '').trim();
-  const match = raw.match(/\(([^()]*\/[^()]*)\)/);
-  if (match) return match[1].replace(/\s*\/\s*/g, '/');
-  return raw.length > 28 ? `${raw.slice(0, 27)}…` : raw;
-}
 
 // ===================== ORQUESTRACAO =====================
 
