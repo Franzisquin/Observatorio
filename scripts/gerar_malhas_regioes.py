@@ -65,12 +65,19 @@ UF_POR_CODIGO = {
 
 def ler_nivel(pasta, cd, nm, uf_col):
     """GeoDataFrame com colunas normalizadas cd/nm/uf. Sem `encoding=`: o
-    geopandas ja resolve pelo .cpg (forcar latin-1 e que produziria mojibake)."""
+    geopandas ja resolve pelo .cpg (os arquivos sao UTF-8; forcar cp1252 ou
+    latin-1 e que produziria mojibake).
+
+    O nome passa por uma correcao: 8 registros do IBGE trazem U+00BF ('¿') onde
+    deveria haver o travessao que separa as duas cidades-polo — 'Ilheus ¿
+    Itabuna'. O byte esta assim no .dbf de origem, nao e erro de leitura;
+    padronizamos para o mesmo ' - ' que o proprio IBGE usa nos demais nomes
+    compostos, senao o nome aparece quebrado no mapa e nos filtros."""
     caminho = os.path.join(MALHAS_DIR, pasta, pasta + '.shp')
     g = gpd.read_file(caminho).to_crs(CRS)
     out = gpd.GeoDataFrame({
         'cd': g[cd].astype(str).str.strip(),
-        'nm': g[nm].astype(str).str.strip(),
+        'nm': g[nm].astype(str).str.strip().str.replace('¿', '-', regex=False),
         'uf': (g[uf_col].astype(str).str.strip().map(UF_POR_CODIGO)
                if uf_col.startswith('CD_') else g[uf_col].astype(str).str.strip()),
         'geometry': g.geometry,
