@@ -20,3 +20,9 @@ scratch/eleitorado/2026/
 # usa e a saida em resultados_geo/regioes_*/ (13,5 MB) e regioes_index.json.
 malhas/
 
+# Analise avulsa das regioes imediatas mais oscilantes nas presidenciais. Nao e
+# usada pelo site — nem o .md nem o script sao carregados por eleicoes.html.
+# Ficam no disco de quem gerou, fora do controle de versao.
+analise_swing_regioes_imediatas.md
+scripts/analisar_swing_rgi.py
+
