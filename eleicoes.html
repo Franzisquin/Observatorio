@@ -340,6 +340,16 @@
         <div class="section section-hidden" id="swingBox">
 
           <div class="ctrl">
+            <label>O que comparar</label>
+            <div class="chip-group" id="swingMetricChips">
+              <button class="chip-button active" data-value="swing"
+                title="Variação percentual entre duas candidaturas">Swing</button>
+              <button class="chip-button" data-value="virada"
+                title="Onde o vencedor mudou de uma eleição para a outra">Virada</button>
+            </div>
+          </div>
+
+          <div class="ctrl">
             <label>Cargo</label>
             <div class="chip-group" id="swingOfficeChips">
               <button class="chip-button active" data-value="presidente">Presidente</button>
@@ -391,6 +401,17 @@
               </div>
             </div>
             <select id="swingCandB" class="select" disabled></select>
+          </div>
+
+          <div class="ctrl section-hidden" id="swingFlipByCtrl">
+            <label>Mesmo vencedor é…</label>
+            <div class="chip-group" id="swingFlipByChips">
+              <button class="chip-button active" data-value="partido"
+                title="Trata renomeações e sucessões (PMDB/MDB, PFL/DEM/União) como a mesma legenda">mesmo
+                partido</button>
+              <button class="chip-button" data-value="candidato"
+                title="Compara pelo nome do candidato vencedor">mesmo candidato</button>
+            </div>
           </div>
 
           <div class="ctrl">

@@ -88,6 +88,8 @@ const SWING_LEVEL_SHORT = {
 
 const SWING = {
   enabled: false,
+  metric: 'swing',      // 'swing' (duas candidaturas) ou 'virada' (trocou o vencedor)
+  flipBy: 'partido',    // criterio de "mesmo vencedor": 'partido' ou 'candidato'
   office: 'presidente',
   subtype: 'ord',
   scope: 'BR',          // 'BR' ou sigla da UF
@@ -282,39 +284,42 @@ function parseSwingResultKey(key) {
   return { muni, local: String(parts[2] || '').trim() };
 }
 
-// Percorre o RESULTS de UMA eleicao e devolve os votos do candidato escolhido
-// e o total de votos validos, ja agrupados por local, municipio e UF.
-function buildSwingSideAggregates(payloadsByUf, candId) {
+// Percorre o RESULTS de UMA eleicao e agrupa a distribuicao COMPLETA de votos
+// por local, municipio e UF.
+//
+// Guardar o mapa inteiro (e nao so os votos de um candidato) e o que permite os
+// dois modos saírem do mesmo carregamento: o modo Swing le a chave do candidato
+// escolhido, o modo Virada tira o vencedor por argmax. Trocar de candidato ou de
+// modo vira redesenho, nao recarga. O custo e baixo porque eleicao majoritaria
+// tem poucos candidatos (~10): sao ~10 numeros por unidade.
+function buildSwingSideAggregates(payloadsByUf) {
   const byStation = new Map();
   const byMuni = new Map();
   const byUf = new Map();
 
-  const bump = (store, key, cand, total) => {
+  const bump = (store, key, voteMap) => {
     if (!key) return;
     let entry = store.get(key);
     if (!entry) {
-      entry = { cand: 0, total: 0 };
+      entry = { votes: {}, total: 0 };
       store.set(key, entry);
     }
-    entry.cand += cand;
-    entry.total += total;
+    Object.entries(voteMap || {}).forEach(([id, votes]) => {
+      if (id === '95' || id === '96') return; // brancos e nulos fora do valido
+      const value = ensureNumber(votes);
+      entry.votes[id] = (entry.votes[id] || 0) + value;
+      entry.total += value;
+    });
   };
 
   Object.entries(payloadsByUf || {}).forEach(([uf, payload]) => {
+    const ufKey = String(uf).toUpperCase();
     Object.entries(payload?.RESULTS || {}).forEach(([resultKey, voteMap]) => {
       const parsed = parseSwingResultKey(resultKey);
       if (!parsed) return;
-
-      let total = 0;
-      Object.entries(voteMap || {}).forEach(([id, votes]) => {
-        if (id === '95' || id === '96') return; // brancos e nulos fora do valido
-        total += ensureNumber(votes);
-      });
-      const cand = ensureNumber(voteMap?.[candId]);
-
-      bump(byStation, `${parsed.muni}|${parsed.local}`, cand, total);
-      bump(byMuni, parsed.muni, cand, total);
-      bump(byUf, String(uf).toUpperCase(), cand, total);
+      bump(byStation, `${parsed.muni}|${parsed.local}`, voteMap);
+      bump(byMuni, parsed.muni, voteMap);
+      bump(byUf, ufKey, voteMap);
     });
   });
 
@@ -322,15 +327,17 @@ function buildSwingSideAggregates(payloadsByUf, candId) {
 }
 
 // Versao para o escopo nacional, onde so temos os TOTALS por UF (resumo).
-function buildSwingSideAggregatesFromTotals(totalsByUf, candId) {
+function buildSwingSideAggregatesFromTotals(totalsByUf) {
   const byUf = new Map();
   Object.entries(totalsByUf || {}).forEach(([uf, totals]) => {
-    let total = 0;
+    const entry = { votes: {}, total: 0 };
     Object.entries(totals || {}).forEach(([id, votes]) => {
       if (id === '95' || id === '96') return;
-      total += ensureNumber(votes);
+      const value = ensureNumber(votes);
+      entry.votes[id] = (entry.votes[id] || 0) + value;
+      entry.total += value;
     });
-    byUf.set(String(uf).toUpperCase(), { cand: ensureNumber(totals?.[candId]), total });
+    byUf.set(String(uf).toUpperCase(), entry);
   });
   return { byStation: new Map(), byMuni: new Map(), byUf };
 }
@@ -345,36 +352,172 @@ function rollupSwingByRegion(byMuni, level) {
     if (!regionCode) return;
     let acc = out.get(regionCode);
     if (!acc) {
-      acc = { cand: 0, total: 0 };
+      acc = { votes: {}, total: 0 };
       out.set(regionCode, acc);
     }
-    acc.cand += entry.cand;
+    Object.entries(entry.votes).forEach(([id, votes]) => {
+      acc.votes[id] = (acc.votes[id] || 0) + votes;
+    });
     acc.total += entry.total;
   });
   return out;
 }
 
-function swingPct(entry) {
+// Vencedor de uma unidade + margem para o 2o colocado. Cacheado no proprio
+// entry: a mesma unidade e lida pelo estilo, pelo tooltip e pelo painel.
+function swingUnitWinner(entry) {
   if (!entry || !(entry.total > 0)) return null;
-  return (entry.cand / entry.total) * 100;
+  if (entry.__winner !== undefined) return entry.__winner;
+
+  let winnerId = null;
+  let winnerVotes = -1;
+  let secondVotes = -1;
+  Object.entries(entry.votes).forEach(([id, votes]) => {
+    if (votes > winnerVotes) {
+      secondVotes = winnerVotes;
+      winnerId = id;
+      winnerVotes = votes;
+    } else if (votes > secondVotes) {
+      secondVotes = votes;
+    }
+  });
+
+  const winner = (winnerId === null) ? null : {
+    id: winnerId,
+    votes: Math.max(0, winnerVotes),
+    secondVotes: Math.max(0, secondVotes),
+    pct: (Math.max(0, winnerVotes) / entry.total) * 100,
+    margin: ((Math.max(0, winnerVotes) - Math.max(0, secondVotes)) / entry.total) * 100
+  };
+
+  Object.defineProperty(entry, '__winner', { value: winner, configurable: true });
+  return winner;
+}
+
+function swingCandVotes(entry, candId) {
+  return ensureNumber(entry?.votes?.[candId]);
+}
+
+/* --------------------------------------------------------------------------
+ * IDENTIDADE DO VENCEDOR ENTRE DOIS ANOS
+ *
+ * "Mudou o ganhador" so tem resposta depois de dizer o que conta como MESMO
+ * ganhador em eleicoes diferentes, e as duas leituras possiveis discordam em
+ * casos reais:
+ *
+ *   - Por CANDIDATO: Bolsonaro 2018 (PSL) e Bolsonaro 2022 (PL) sao o mesmo
+ *     ganhador; PT de Dilma 2014 e PT de Haddad 2018 sao ganhadores distintos.
+ *   - Por PARTIDO: o inverso nos dois casos.
+ *
+ * Nenhuma das duas e "a certa", entao o criterio e do usuario (chips na
+ * lateral). O padrao e partido, que e o sentido usual de um mapa de virada —
+ * por nome, toda eleicao em que a legenda troca de candidato viraria o mapa
+ * inteiro e nao sobraria informacao.
+ * -------------------------------------------------------------------------- */
+
+// Sucessoes e renomeacoes de legendas que apareceram em disputas majoritarias
+// de 1989 para ca. Sem isto, PMDB (ate 2017) x MDB (2018+) contaria como virada
+// em todo municipio do pais. Resolvida transitivamente (PFL -> DEM -> UNIAO).
+const SWING_PARTY_LINEAGE = {
+  PMDB: 'MDB',
+  PFL: 'DEM', DEM: 'UNIAO', PSL: 'UNIAO', 'UNIÃO': 'UNIAO', 'UNIAO BRASIL': 'UNIAO',
+  ARENA: 'PP', PDS: 'PP', PPR: 'PP', PPB: 'PP', PP: 'PP',
+  PRB: 'REPUBLICANOS',
+  PRONA: 'PL', PR: 'PL',
+  PPS: 'CIDADANIA',
+  PTN: 'PODEMOS', PODE: 'PODEMOS', PHS: 'PODEMOS',
+  'PT DO B': 'AVANTE', PTDOB: 'AVANTE',
+  PSDC: 'DC',
+  PEN: 'PATRIOTA', PATRI: 'PATRIOTA', PRP: 'PATRIOTA',
+  PTC: 'AGIR',
+  PPL: 'PC DO B', PCDOB: 'PC DO B',
+  SD: 'SOLIDARIEDADE'
+};
+
+// Linhagem ajustada exclusivamente para eleição presidencial
+const SWING_PRESIDENTIAL_PARTY_LINEAGE = {
+  ...SWING_PARTY_LINEAGE,
+  PSL: 'PL',
+  PRN: 'PL',
+  PSDB: 'PL'
+};
+
+function resolvePartyLineage(sigla, office = SWING.office) {
+  let current = String(sigla || '').toUpperCase().trim();
+  if (!current) return '';
+  const lineageMap = office === 'presidente' ? SWING_PRESIDENTIAL_PARTY_LINEAGE : SWING_PARTY_LINEAGE;
+  // Cadeia curta e conhecida; o teto so protege contra um ciclo introduzido por
+  // engano na tabela acima.
+  for (let hop = 0; hop < 6; hop++) {
+    const next = lineageMap[current];
+    if (!next || next === current) break;
+    current = next;
+  }
+  return current;
+}
+
+function swingCandMeta(side, candId) {
+  return (SWING[side].cands || []).find((cand) => cand.id === String(candId)) || null;
+}
+
+// Chave de comparacao do vencedor, no criterio escolhido. String vazia quando a
+// metadata do ano nao conhece o id — melhor "nao sei" do que uma falsa virada.
+function swingWinnerIdentity(side, candId) {
+  const meta = swingCandMeta(side, candId);
+  if (!meta) return '';
+  if (SWING.flipBy === 'candidato') return norm(meta.nome);
+  const sigla = typeof normalizePartyAlias === 'function'
+    ? normalizePartyAlias(String(meta.partido || '').toUpperCase())
+    : String(meta.partido || '').toUpperCase();
+  return resolvePartyLineage(sigla);
+}
+
+// Rotulo do vencedor de uma unidade, como aparece no tooltip e no painel.
+function swingWinnerLabel(side, candId) {
+  const meta = swingCandMeta(side, candId);
+  if (!meta) return `Candidato ${candId}`;
+  return `${toTitleCase(meta.nome)} (${meta.partido})`;
+}
+
+function swingWinnerColor(side, candId) {
+  const meta = swingCandMeta(side, candId);
+  if (!meta) return SWING_NO_DATA_COLOR;
+  return getColorForCandidate(meta.nome, meta.partido);
 }
 
 // Cruza os dois lados num unico Map de linhas. So entram chaves presentes nas
 // DUAS eleicoes com voto valido — e isso que garante, no nivel de locais, que
 // so aparecem os locais de votacao que existiam nas duas.
+//
+// A linha carrega os dois modos ao mesmo tempo: os votos das candidaturas
+// escolhidas (Swing) e os vencedores de cada ano (Virada).
 function joinSwingSides(mapA, mapB) {
   const rows = new Map();
+  const candA = SWING.A.candId;
+  const candB = SWING.B.candId;
+
   mapB.forEach((entryB, key) => {
     const entryA = mapA.get(key);
     if (!entryA) return;
-    const pctA = swingPct(entryA);
-    const pctB = swingPct(entryB);
-    if (pctA === null || pctB === null) return;
+    if (!(entryA.total > 0) || !(entryB.total > 0)) return;
+
+    const votesA = swingCandVotes(entryA, candA);
+    const votesB = swingCandVotes(entryB, candB);
+    const pctA = (votesA / entryA.total) * 100;
+    const pctB = (votesB / entryB.total) * 100;
+
+    const winnerA = swingUnitWinner(entryA);
+    const winnerB = swingUnitWinner(entryB);
+    const identA = winnerA ? swingWinnerIdentity('A', winnerA.id) : '';
+    const identB = winnerB ? swingWinnerIdentity('B', winnerB.id) : '';
+
     rows.set(key, {
       key,
-      a: { votes: entryA.cand, total: entryA.total, pct: pctA },
-      b: { votes: entryB.cand, total: entryB.total, pct: pctB },
-      swing: pctB - pctA
+      a: { votes: votesA, total: entryA.total, pct: pctA, winner: winnerA, identity: identA },
+      b: { votes: votesB, total: entryB.total, pct: pctB, winner: winnerB, identity: identB },
+      swing: pctB - pctA,
+      // Sem identidade nos dois lados nao da para afirmar virada nem manutencao.
+      flipped: (identA && identB) ? (identA !== identB) : null
     });
   });
   return rows;
@@ -401,19 +544,39 @@ function swingScopeTotals() {
   if (!dataset) return null;
 
   const source = SWING.scope === 'BR' ? 'byUf' : (dataset.A.byMuni.size ? 'byMuni' : 'byUf');
-  const acc = { a: { votes: 0, total: 0 }, b: { votes: 0, total: 0 } };
 
-  dataset.A[source].forEach((entry) => { acc.a.votes += entry.cand; acc.a.total += entry.total; });
-  dataset.B[source].forEach((entry) => { acc.b.votes += entry.cand; acc.b.total += entry.total; });
+  // Soma as distribuicoes completas para poder responder aos dois modos: a
+  // candidatura escolhida (Swing) e o vencedor do recorte inteiro (Virada).
+  const fold = (store) => {
+    const acc = { votes: {}, total: 0 };
+    store.forEach((entry) => {
+      Object.entries(entry.votes).forEach(([id, votes]) => {
+        acc.votes[id] = (acc.votes[id] || 0) + votes;
+      });
+      acc.total += entry.total;
+    });
+    return acc;
+  };
 
-  if (!(acc.a.total > 0) || !(acc.b.total > 0)) return null;
-  const pctA = (acc.a.votes / acc.a.total) * 100;
-  const pctB = (acc.b.votes / acc.b.total) * 100;
+  const accA = fold(dataset.A[source]);
+  const accB = fold(dataset.B[source]);
+  if (!(accA.total > 0) || !(accB.total > 0)) return null;
+
+  const votesA = swingCandVotes(accA, SWING.A.candId);
+  const votesB = swingCandVotes(accB, SWING.B.candId);
+  const pctA = (votesA / accA.total) * 100;
+  const pctB = (votesB / accB.total) * 100;
+  const winnerA = swingUnitWinner(accA);
+  const winnerB = swingUnitWinner(accB);
+  const identA = winnerA ? swingWinnerIdentity('A', winnerA.id) : '';
+  const identB = winnerB ? swingWinnerIdentity('B', winnerB.id) : '';
+
   return {
     key: '__scope__',
-    a: { ...acc.a, pct: pctA },
-    b: { ...acc.b, pct: pctB },
-    swing: pctB - pctA
+    a: { votes: votesA, total: accA.total, pct: pctA, winner: winnerA, identity: identA },
+    b: { votes: votesB, total: accB.total, pct: pctB, winner: winnerB, identity: identB },
+    swing: pctB - pctA,
+    flipped: (identA && identB) ? (identA !== identB) : null
   };
 }
 
@@ -452,7 +615,7 @@ async function loadSwingSide(side, onProgress) {
     if (!Object.keys(totalsByUf).length) {
       throw new Error(`Sem dados de ${SWING_OFFICE_LABEL[office]} em ${cfg.year} (${cfg.turno}º turno).`);
     }
-    return buildSwingSideAggregatesFromTotals(totalsByUf, cfg.candId);
+    return buildSwingSideAggregatesFromTotals(totalsByUf);
   }
 
   const payloadsByUf = {};
@@ -467,7 +630,7 @@ async function loadSwingSide(side, onProgress) {
   if (!Object.keys(payloadsByUf).length) {
     throw new Error(`Sem dados de ${SWING_OFFICE_LABEL[office]} em ${cfg.year} (${cfg.turno}º turno).`);
   }
-  return buildSwingSideAggregates(payloadsByUf, cfg.candId);
+  return buildSwingSideAggregates(payloadsByUf);
 }
 
 async function buildSwingDataset() {
@@ -642,7 +805,11 @@ function fmtSwing(value) {
   return `${sign}${Math.abs(n).toFixed(1).replace('.', ',')} p.p.`;
 }
 
-function fmtPct(value) {
+// NAO se chama fmtPct de proposito: utils.js ja tem uma fmtPct global, e ela
+// recebe FRACAO (0-1) e multiplica por 100. Como este arquivo carrega por
+// ultimo, uma declaracao homonima aqui sobrescreveria a do app inteiro e todo
+// percentual dos paineis sairia dividido por 100. Aqui a entrada e 0-100.
+function fmtSwingPct(value) {
   return `${ensureNumber(value).toFixed(1).replace('.', ',')}%`;
 }
 
@@ -703,6 +870,46 @@ function swingKeyForFeature(feature) {
   return String(props.CD_REG || '').trim();
 }
 
+// Função para clarear uma cor hexadecimal mantendo a tonalidade (estilo mapa dos EUA)
+function getLightenedPartyColor(baseColorHex) {
+  if (!baseColorHex || baseColorHex === SWING_NO_DATA_COLOR) return SWING_NO_DATA_COLOR;
+  let hex = String(baseColorHex).trim();
+  if (!hex.startsWith('#')) {
+    if (hex.length === 3 || hex.length === 6) hex = '#' + hex;
+    else return baseColorHex;
+  }
+  if (typeof hexToHSL !== 'function' || typeof hslToHex !== 'function') return baseColorHex;
+  try {
+    const hsl = hexToHSL(hex);
+    if (!hsl || typeof hsl.l !== 'number') return baseColorHex;
+    // Eleva a luminosidade para um tom pastel elegante (~72-82%) e suaviza a saturação
+    const targetL = Math.max(72, Math.min(82, hsl.l + (100 - hsl.l) * 0.58));
+    const targetS = Math.min(hsl.s, 72);
+    return hslToHex(hsl.h, targetS, targetL);
+  } catch (e) {
+    return baseColorHex;
+  }
+}
+
+// No modo Virada:
+// - Quem virou recebe a cor padrão (sem variação de margem/gradiente)
+// - Quem manteve recebe uma versão clareada (pastel) da cor padrão
+function swingFillFor(row) {
+  if (SWING.metric === 'virada') {
+    const winnerB = row.b.winner;
+    if (!winnerB) return { color: SWING_NO_DATA_COLOR, opacity: 0.12 };
+    const base = swingWinnerColor('B', winnerB.id);
+    if (row.flipped === true) {
+      return { color: base, opacity: 0.9 };
+    }
+    if (row.flipped === false) {
+      return { color: getLightenedPartyColor(base), opacity: SWING.level === 'locais' ? 0.85 : 0.82 };
+    }
+    return { color: base, opacity: 0.12 };
+  }
+  return { color: swingColor(row.swing), opacity: SWING.level === 'locais' ? 0.85 : 0.82 };
+}
+
 function swingFeatureStyle(feature) {
   const isPoint = SWING.level === 'locais';
   const row = SWING.rows?.get(swingKeyForFeature(feature));
@@ -713,23 +920,23 @@ function swingFeatureStyle(feature) {
       : { fillColor: SWING_NO_DATA_COLOR, fillOpacity: 0.10, color: '#ffffff', weight: 0.12, opacity: 0.45, height: 0 };
   }
 
-  const color = swingColor(row.swing);
+  const isSelected = SWING.selectedKey && SWING.selectedKey === row.key;
+  const fill = swingFillFor(row);
+
   if (isPoint) {
-    const isSelected = SWING.selectedKey && SWING.selectedKey === row.key;
     return {
       stroke: !!isSelected,
-      fillColor: isSelected ? 'var(--accent)' : color,
-      fillOpacity: 0.85,
+      fillColor: isSelected ? 'var(--accent)' : fill.color,
+      fillOpacity: fill.opacity,
       color: '#ffffff',
       weight: isSelected ? 1.6 : 0,
       opacity: 1
     };
   }
 
-  const isSelected = SWING.selectedKey && SWING.selectedKey === row.key;
   return {
-    fillColor: color,
-    fillOpacity: 0.82,
+    fillColor: fill.color,
+    fillOpacity: fill.opacity,
     color: isSelected ? 'rgba(255,255,255,0.95)' : '#ffffff',
     weight: isSelected ? 1.4 : 0.12,
     opacity: isSelected ? 1 : 0.8,
@@ -770,29 +977,71 @@ function buildSwingTooltip(feature) {
   `;
 }
 
-// Tabela usada tanto no tooltip quanto na sidebar direita: os dois candidatos,
-// seus resultados e a diferenca entre eles.
-function buildSwingComparisonTable(row) {
-  const rows = [
-    { side: 'A', year: SWING.A.year, data: row.a },
-    { side: 'B', year: SWING.B.year, data: row.b }
-  ];
+// Rotulo curto do desfecho de uma unidade no modo Virada.
+function swingFlipVerdict(row) {
+  if (row.flipped === null) return { texto: 'Indeterminado', cls: '' };
+  if (!row.flipped) return { texto: 'Manteve', cls: 'swing-held' };
+  return { texto: 'Virou', cls: 'swing-flip' };
+}
 
-  const body = rows.map(({ side, year, data }) => `
+// Tabela usada tanto no tooltip quanto na sidebar direita. Em qualquer um dos
+// dois modos ela mostra DUAS candidaturas — as escolhidas, no Swing; as
+// vencedoras de cada ano, na Virada — com votos, % e a diferenca entre elas.
+function buildSwingComparisonTable(row) {
+  const isFlip = SWING.metric === 'virada';
+
+  const linhas = ['A', 'B'].map((side) => {
+    const data = row[side.toLowerCase()];
+    const winnerId = data.winner?.id;
+    return {
+      side,
+      year: SWING[side].year,
+      data,
+      label: isFlip
+        ? (winnerId ? swingWinnerLabel(side, winnerId) : 'Sem vencedor')
+        : swingCandidateLabel(side),
+      color: isFlip
+        ? (winnerId ? swingWinnerColor(side, winnerId) : SWING_NO_DATA_COLOR)
+        : swingCandidateColor(side),
+      votes: isFlip ? (data.winner?.votes ?? 0) : data.votes,
+      pct: isFlip ? (data.winner?.pct ?? 0) : data.pct
+    };
+  });
+
+  const body = linhas.map((linha) => `
     <tr>
       <td style="padding:0;">
-        <div class="district-nyt-loser-cell" style="border-left-color: ${swingCandidateColor(side)};">
-          <span class="swing-cand-name">${escapeHtml(swingCandidateLabel(side))}</span>
-          <span class="swing-cand-year">${escapeHtml(String(year))}</span>
+        <div class="district-nyt-loser-cell" style="border-left-color: ${linha.color};">
+          <span class="swing-cand-name">${escapeHtml(linha.label)}</span>
+          <span class="swing-cand-year">${escapeHtml(String(linha.year))}</span>
         </div>
       </td>
-      <td class="votes-cell">${fmtInt(data.votes)}</td>
-      <td class="pct-cell">${fmtPct(data.pct)}</td>
+      <td class="votes-cell">${fmtInt(linha.votes)}</td>
+      <td class="pct-cell">${fmtSwingPct(linha.pct)}</td>
     </tr>
   `).join('');
 
-  const cls = row.swing >= 0 ? 'swing-pos' : 'swing-neg';
+  if (isFlip) {
+    const verdict = swingFlipVerdict(row);
+    const delta = linhas[1].pct - linhas[0].pct;
+    return `
+      <table class="district-nyt-table swing-table">
+        <thead>
+          <tr><th style="text-align:left;">Vencedor</th><th>Votos</th><th>%</th></tr>
+        </thead>
+        <tbody>${body}</tbody>
+        <tfoot>
+          <tr class="swing-total-row ${verdict.cls}">
+            <td style="text-align:left;">${escapeHtml(verdict.texto)}</td>
+            <td class="votes-cell">${fmtSwing(delta)}</td>
+            <td class="pct-cell"><span class="swing-chip" style="background:${swingFillFor(row).color}"></span></td>
+          </tr>
+        </tfoot>
+      </table>
+    `;
+  }
 
+  const cls = row.swing >= 0 ? 'swing-pos' : 'swing-neg';
   return `
     <table class="district-nyt-table swing-table">
       <thead>
@@ -977,7 +1226,9 @@ function renderSwingPanel(feature = null) {
     dom.resultsSubtitle.textContent = 'Escolha as duas candidaturas na barra lateral.';
     dom.resultsContent.innerHTML = `
       <div class="swing-empty">
-        Selecione o cargo, o recorte e uma candidatura em cada ano para ver a comparação.
+        ${SWING.metric === 'virada'
+          ? 'Selecione o cargo, o recorte e as duas eleições para ver onde o vencedor mudou.'
+          : 'Selecione o cargo, o recorte e uma candidatura em cada ano para ver a comparação.'}
       </div>`;
     dom.resultsMetrics.innerHTML = '';
     return;
@@ -999,12 +1250,32 @@ function renderSwingPanel(feature = null) {
     return;
   }
 
-  const cls = active.swing >= 0 ? 'swing-pos' : 'swing-neg';
-  const comparativo = row && scopeRow
-    ? `<div class="swing-context">Swing no recorte inteiro: <strong class="${scopeRow.swing >= 0 ? 'swing-pos' : 'swing-neg'}">${fmtSwing(scopeRow.swing)}</strong></div>`
+  const isFlip = SWING.metric === 'virada';
+  const headline = isFlip ? buildSwingFlipHeadline(active) : buildSwingSwingHeadline(active);
+
+  const comparativo = (row && scopeRow)
+    ? (isFlip
+      ? `<div class="swing-context">No recorte inteiro: <strong>${escapeHtml(swingFlipVerdict(scopeRow).texto.toLowerCase())}</strong>${scopeRow.b.winner ? ` — venceu ${escapeHtml(swingWinnerLabel('B', scopeRow.b.winner.id))} em ${escapeHtml(String(SWING.B.year))}` : ''}</div>`
+      : `<div class="swing-context">Swing no recorte inteiro: <strong class="${scopeRow.swing >= 0 ? 'swing-pos' : 'swing-neg'}">${fmtSwing(scopeRow.swing)}</strong></div>`)
     : '';
 
+  const agregado = row ? '' : (isFlip ? buildSwingFlipBreakdown() : buildSwingRanking());
+
   dom.resultsContent.innerHTML = `
+    ${headline}
+    ${buildSwingComparisonTable(active)}
+    ${comparativo}
+    ${agregado}
+  `;
+
+  dom.resultsMetrics.innerHTML = isFlip
+    ? buildSwingFlipMetrics(active)
+    : buildSwingSwingMetrics(active);
+}
+
+function buildSwingSwingHeadline(active) {
+  const cls = active.swing >= 0 ? 'swing-pos' : 'swing-neg';
+  return `
     <div class="swing-headline ${cls}" style="border-color:${swingColor(active.swing)}">
       <div class="swing-headline-value" style="color:${swingColor(active.swing)}">${fmtSwing(active.swing)}</div>
       <div class="swing-headline-label">
@@ -1012,18 +1283,119 @@ function renderSwingPanel(feature = null) {
         vs. ${escapeHtml(swingCandidateLabel('A'))} em ${escapeHtml(String(SWING.A.year))}
       </div>
     </div>
-    ${buildSwingComparisonTable(active)}
-    ${comparativo}
-    ${row ? '' : buildSwingRanking()}
   `;
+}
 
+function buildSwingFlipHeadline(active) {
+  const verdict = swingFlipVerdict(active);
+  const cor = swingFillFor(active).color;
+  const de = active.a.winner ? swingWinnerLabel('A', active.a.winner.id) : '—';
+  const para = active.b.winner ? swingWinnerLabel('B', active.b.winner.id) : '—';
+
+  return `
+    <div class="swing-headline ${verdict.cls}" style="border-color:${cor}">
+      <div class="swing-headline-value" style="color:${cor}; font-size:1.25rem;">${escapeHtml(verdict.texto)}</div>
+      <div class="swing-headline-label">
+        ${active.flipped === false
+          ? `${escapeHtml(para)} venceu nos dois anos`
+          : `${escapeHtml(de)} (${escapeHtml(String(SWING.A.year))}) → ${escapeHtml(para)} (${escapeHtml(String(SWING.B.year))})`}
+      </div>
+    </div>
+  `;
+}
+
+function buildSwingSwingMetrics(active) {
   const deltaVotos = active.b.votes - active.a.votes;
-  dom.resultsMetrics.innerHTML = `
+  return `
     <div class="swing-metrics">
       <span>Votos ${escapeHtml(String(SWING.A.year))}: <strong>${fmtInt(active.a.votes)}</strong></span>
       <span>Votos ${escapeHtml(String(SWING.B.year))}: <strong>${fmtInt(active.b.votes)}</strong></span>
       <span>Diferença: <strong class="${deltaVotos >= 0 ? 'swing-pos' : 'swing-neg'}">${deltaVotos >= 0 ? '+' : '−'}${fmtInt(Math.abs(deltaVotos))}</strong></span>
       <span>Unidades comparadas: <strong>${fmtInt(SWING.rows?.size || 0)}</strong></span>
+    </div>
+  `;
+}
+
+function buildSwingFlipMetrics(active) {
+  const stats = swingFlipStats();
+  return `
+    <div class="swing-metrics">
+      <span>Margem ${escapeHtml(String(SWING.A.year))}: <strong>${fmtSwingPct(active.a.winner?.margin || 0)}</strong></span>
+      <span>Margem ${escapeHtml(String(SWING.B.year))}: <strong>${fmtSwingPct(active.b.winner?.margin || 0)}</strong></span>
+      <span>Viraram: <strong class="swing-flip">${fmtInt(stats.flipped)}</strong> de ${fmtInt(stats.total)}</span>
+      <span>Critério: <strong>${SWING.flipBy === 'candidato' ? 'candidato' : 'partido'}</strong></span>
+    </div>
+  `;
+}
+
+// Contagem de viradas do recorte e, dentro delas, o fluxo de-para. E o resumo
+// que responde "onde mudou o ganhador" sem exigir clique em cada unidade.
+function swingFlipStats() {
+  const stats = { total: 0, flipped: 0, held: 0, unknown: 0, fluxos: new Map() };
+  if (!SWING.rows) return stats;
+
+  SWING.rows.forEach((row) => {
+    stats.total += 1;
+    if (row.flipped === null) { stats.unknown += 1; return; }
+    if (!row.flipped) { stats.held += 1; return; }
+    stats.flipped += 1;
+
+    const de = row.a.winner ? swingWinnerLabel('A', row.a.winner.id) : '—';
+    const para = row.b.winner ? swingWinnerLabel('B', row.b.winner.id) : '—';
+    const chave = `${de}>>${para}`;
+    const fluxo = stats.fluxos.get(chave) || {
+      de,
+      para,
+      corDe: row.a.winner ? swingWinnerColor('A', row.a.winner.id) : SWING_NO_DATA_COLOR,
+      corPara: row.b.winner ? swingWinnerColor('B', row.b.winner.id) : SWING_NO_DATA_COLOR,
+      n: 0,
+      votos: 0
+    };
+    fluxo.n += 1;
+    fluxo.votos += row.b.total;
+    stats.fluxos.set(chave, fluxo);
+  });
+
+  return stats;
+}
+
+function buildSwingFlipBreakdown() {
+  const stats = swingFlipStats();
+  if (!stats.total) return '';
+
+  const unidade = SWING_LEVEL_SHORT[SWING.level].toLowerCase();
+  const pctFlip = stats.total > 0 ? (stats.flipped / stats.total) * 100 : 0;
+
+  if (!stats.flipped) {
+    return `
+      <div class="swing-flip-summary">
+        <div class="swing-flip-count">Nenhuma virada</div>
+        <div class="swing-flip-sub">O vencedor se manteve nas ${fmtInt(stats.held)} ${escapeHtml(unidade)} comparadas.</div>
+      </div>
+    `;
+  }
+
+  const fluxos = Array.from(stats.fluxos.values()).sort((a, b) => b.n - a.n).slice(0, 8);
+  const linhas = fluxos.map((fluxo) => `
+    <li>
+      <span class="swing-flow-arrow">
+        <span class="swing-chip" style="background:${fluxo.corDe}"></span>
+        <span class="swing-flow-sep">→</span>
+        <span class="swing-chip" style="background:${fluxo.corPara}"></span>
+      </span>
+      <span class="swing-flow-name">${escapeHtml(fluxo.de)} → ${escapeHtml(fluxo.para)}</span>
+      <span class="swing-flow-count">${fmtInt(fluxo.n)}</span>
+    </li>
+  `).join('');
+
+  return `
+    <div class="swing-flip-summary">
+      <div class="swing-flip-count"><strong class="swing-flip">${fmtInt(stats.flipped)}</strong> de ${fmtInt(stats.total)} ${escapeHtml(unidade)} viraram <span class="swing-flip-pct">(${fmtSwingPct(pctFlip)})</span></div>
+      <div class="swing-flip-sub">${fmtInt(stats.held)} mantiveram o vencedor${stats.unknown ? ` • ${fmtInt(stats.unknown)} sem identificação` : ''}</div>
+    </div>
+    <div class="swing-flows">
+      <h4>Viradas por direção</h4>
+      <ul>${linhas}</ul>
     </div>
   `;
 }
@@ -1052,6 +1424,26 @@ function cacheSwingDom() {
   swingDom.status = document.getElementById('swingStatus');
   swingDom.legend = document.getElementById('swingLegend');
   swingDom.appModeChips = document.getElementById('appModeChips');
+  swingDom.metricChips = document.getElementById('swingMetricChips');
+  swingDom.flipByCtrl = document.getElementById('swingFlipByCtrl');
+  swingDom.flipByChips = document.getElementById('swingFlipByChips');
+  swingDom.cardA = document.getElementById('swingCardA');
+  swingDom.cardB = document.getElementById('swingCardB');
+}
+
+// Na Virada nao se escolhe candidatura: o vencedor sai dos dados. Os selects
+// somem (os anos e turnos continuam, porque definem QUAIS eleicoes comparar) e
+// entra o criterio de "mesmo vencedor".
+function syncSwingMetricUI() {
+  const isFlip = SWING.metric === 'virada';
+  swingDom.flipByCtrl?.classList.toggle('section-hidden', !isFlip);
+  [swingDom.cardA, swingDom.cardB].forEach((card) => {
+    card?.classList.toggle('swing-card-no-cand', isFlip);
+  });
+  [swingDom.selectCandA, swingDom.selectCandB].forEach((select) => {
+    const wrapper = select?.closest('.custom-select-wrapper') || select;
+    if (wrapper) wrapper.style.display = isFlip ? 'none' : '';
+  });
 }
 
 function populateSwingScopeSelect() {
@@ -1157,6 +1549,20 @@ function renderSwingTurnoChips(side) {
 
 function renderSwingLegend() {
   if (!swingDom.legend) return;
+
+  // Na Virada a cor sai da legenda partidaria do novo vencedor, entao a rampa
+  // divergente nao se aplica: o que a legenda precisa explicar e a diferenca
+  // entre "virou" (cheio) e "manteve" (apagado).
+  if (SWING.metric === 'virada') {
+    swingDom.legend.innerHTML = `
+      <div class="swing-legend-flip">
+        <span><span class="swing-legend-box swing-legend-box-full"></span>Virou (cor padrão do vencedor)</span>
+        <span><span class="swing-legend-box swing-legend-box-faded"></span>Manteve (cor clareada)</span>
+      </div>
+    `;
+    return;
+  }
+
   const steps = [-40, -25, -12, -4, 4, 12, 25, 40];
   const swatches = steps.map((value) => `
     <span class="swing-legend-swatch" style="background:${swingColor(value)}"
@@ -1247,17 +1653,22 @@ function scheduleSwingApply(delay = 120) {
 // passa por aqui: os agregados por municipio ja permitem todos os rollups.
 async function applySwing({ reloadData = true } = {}) {
   if (!SWING.enabled) return;
-  const vazio = ['A', 'B'].find((side) => !SWING[side].candId);
+
+  // A Virada dispensa escolher candidatura — o vencedor de cada ano sai dos
+  // proprios dados. Mas a metadata do ano PRECISA ter carregado, porque e dela
+  // que sai o nome/partido usado para dizer se o vencedor e o mesmo.
+  const semMetadata = ['A', 'B'].find((side) => !(SWING[side].cands || []).length);
+  if (semMetadata) {
+    setSwingStatus(`${SWING[semMetadata].year} não teve ${SWING[semMetadata].turno}º turno neste recorte.`, 'warn');
+    renderSwingPanel();
+    return;
+  }
+
+  const vazio = (SWING.metric === 'swing')
+    ? ['A', 'B'].find((side) => !SWING[side].candId)
+    : null;
   if (vazio) {
-    // Sem candidato normalmente significa turno inexistente naquele ano/UF —
-    // e o caso comum de escolher 2º turno onde a eleicao acabou no primeiro.
-    const semTurno = !(SWING[vazio].cands || []).length;
-    setSwingStatus(
-      semTurno
-        ? `${SWING[vazio].year} não teve ${SWING[vazio].turno}º turno neste recorte.`
-        : `Escolha a candidatura da eleição ${vazio}.`,
-      semTurno ? 'warn' : 'info'
-    );
+    setSwingStatus(`Escolha a candidatura da eleição ${vazio}.`, 'info');
     renderSwingPanel();
     return;
   }
@@ -1282,11 +1693,10 @@ async function applySwing({ reloadData = true } = {}) {
     await renderSwingMap();
     renderSwingPanel();
 
-    const comparadas = SWING.rows?.size || 0;
-    if (!comparadas) {
+    if (!SWING.rows?.size) {
       setSwingStatus('Nenhuma unidade aparece nas duas eleições.', 'warn');
     } else {
-      setSwingStatus(`${fmtInt(comparadas)} ${SWING_LEVEL_SHORT[SWING.level].toLowerCase()} em ambas as eleições.`, 'ok');
+      setSwingStatus(swingStatusSummary(), 'ok');
     }
   } catch (error) {
     console.error('[Swing] Falha ao montar comparação:', error);
@@ -1298,23 +1708,36 @@ async function applySwing({ reloadData = true } = {}) {
   }
 }
 
-// Troca de nivel: so redesenha (os agregados ja estao em memoria).
-async function applySwingLevel() {
+// Redesenho sem recarga. Serve para tudo que so muda a LEITURA dos agregados
+// que ja estao em memoria: nivel do mapa, modo (swing/virada), criterio de
+// virada e ate a candidatura escolhida — desde a refatoracao que guarda a
+// distribuicao completa de votos, nenhum desses depende de ir a rede.
+async function swingRedraw(mensagem = 'Redesenhando…') {
   if (!SWING.dataset) return;
-  showMapLoading('Redesenhando…');
+  showMapLoading(mensagem);
   try {
     SWING.selectedKey = null;
     await renderSwingMap();
     renderSwingPanel();
-    const comparadas = SWING.rows?.size || 0;
-    setSwingStatus(`${fmtInt(comparadas)} ${SWING_LEVEL_SHORT[SWING.level].toLowerCase()} em ambas as eleições.`, 'ok');
+    setSwingStatus(swingStatusSummary(), 'ok');
   } catch (error) {
-    console.error('[Swing] Falha ao trocar de nível:', error);
+    console.error('[Swing] Falha ao redesenhar:', error);
     showToast(`Swing: ${error.message}`, 'error', 4000);
   } finally {
     hideMapLoading();
   }
 }
+
+function swingStatusSummary() {
+  const comparadas = SWING.rows?.size || 0;
+  const unidade = SWING_LEVEL_SHORT[SWING.level].toLowerCase();
+  if (SWING.metric === 'virada') {
+    const stats = swingFlipStats();
+    return `${fmtInt(stats.flipped)} de ${fmtInt(stats.total)} ${unidade} viraram.`;
+  }
+  return `${fmtInt(comparadas)} ${unidade} em ambas as eleições.`;
+}
+
 
 function syncSwingControlsVisibility() {
   const isPrefeito = SWING.office === 'prefeito';
@@ -1350,9 +1773,32 @@ function setupSwingControls() {
 
   populateSwingScopeSelect();
   syncSwingControlsVisibility();
+  syncSwingMetricUI();
   populateSwingYearSelects();
   renderSwingLevelChips();
   renderSwingLegend();
+
+  swingDom.metricChips?.addEventListener('click', (event) => {
+    const btn = event.target.closest('.chip-button');
+    if (!btn || btn.classList.contains('active')) return;
+    swingDom.metricChips.querySelectorAll('.chip-button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    SWING.metric = btn.dataset.value === 'virada' ? 'virada' : 'swing';
+    syncSwingMetricUI();
+    renderSwingLegend();
+    // Os dois modos saem do MESMO dataset: trocar de modo nao vai a rede.
+    if (SWING.dataset) void swingRedraw();
+    else scheduleSwingApply();
+  });
+
+  swingDom.flipByChips?.addEventListener('click', (event) => {
+    const btn = event.target.closest('.chip-button');
+    if (!btn || btn.classList.contains('active')) return;
+    swingDom.flipByChips.querySelectorAll('.chip-button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    SWING.flipBy = btn.dataset.value === 'candidato' ? 'candidato' : 'partido';
+    if (SWING.dataset) void swingRedraw();
+  });
 
   swingDom.officeChips?.addEventListener('click', (event) => {
     const btn = event.target.closest('.chip-button');
@@ -1416,8 +1862,10 @@ function setupSwingControls() {
   [['A', swingDom.selectCandA], ['B', swingDom.selectCandB]].forEach(([side, select]) => {
     select?.addEventListener('change', (event) => {
       SWING[side].candId = String(event.target.value || '');
-      SWING.dataset = null;
-      scheduleSwingApply();
+      // O dataset guarda a distribuicao inteira, entao trocar de candidatura e
+      // so reler o mesmo agregado — nada de rede.
+      if (SWING.dataset) void swingRedraw();
+      else scheduleSwingApply();
     });
   });
 
@@ -1426,7 +1874,7 @@ function setupSwingControls() {
     if (!btn || btn.classList.contains('active')) return;
     SWING.level = btn.dataset.value;
     renderSwingLevelChips();
-    void applySwingLevel();
+    void swingRedraw();
   });
 
   swingDom.appModeChips?.addEventListener('click', (event) => {

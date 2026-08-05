@@ -5422,3 +5422,126 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
 @media (max-width: 520px) {
   .swing-ranking { grid-template-columns: 1fr; }
 }
+
+/* --- Swing: modo Virada --- */
+
+#swingBox .swing-card-no-cand .swing-election-head {
+  margin-bottom: 0;
+}
+
+#swingBox #swingFlipByChips .chip-button {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+}
+
+.swing-legend-flip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.swing-legend-flip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swing-legend-box {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.swing-legend-box-full { opacity: 0.95; }
+.swing-legend-box-faded { opacity: 0.85; filter: brightness(1.4) saturate(0.6); }
+
+.swing-flip { color: #e0a63a; }
+.swing-held { color: var(--muted); }
+
+[data-theme="light"] .swing-flip { color: #a97112; }
+
+.swing-flip-summary {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-color);
+}
+
+.swing-flip-count {
+  font-size: 0.9rem;
+  color: var(--text-sec);
+}
+
+.swing-flip-count strong {
+  font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.swing-flip-pct {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.swing-flip-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.swing-flows {
+  margin-top: 12px;
+}
+
+.swing-flows h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.swing-flows ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swing-flows li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.swing-flow-arrow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.swing-flow-sep {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.swing-flow-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-sec);
+}
+
+.swing-flow-count {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
