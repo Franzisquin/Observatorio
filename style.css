@@ -304,6 +304,10 @@ body {
   gap: 6px;
   padding: 6px 8px;
   overflow-y: auto;
+  /* Sem isto o overflow-x vira 'auto' sozinho (regra do CSS quando so um eixo e
+     nao-visivel) e QUALQUER conteudo largo faz o painel inteiro deslizar de
+     lado, levando titulo e cabecalho junto. O conteudo se adapta a largura. */
+  overflow-x: hidden;
   scrollbar-width: thin;
   flex: 1;
   min-height: 0;
@@ -991,6 +995,62 @@ body {
 .cand-table .cand-mini-bar {
   height: 100%;
   border-radius: 2px;
+}
+
+/* ===== A tabela de resultados tem de CABER na largura do painel =====
+   Antes o painel inteiro deslizava de lado — o titulo e a contagem de locais
+   saiam da tela junto com a tabela. A causa: as colunas de numero reservavam
+   largura fixa e nao encolhiam (barra de 80px com flex-shrink: 0, pct com
+   min-width, padding de 8px), somando mais que a largura do painel, e o nome do
+   candidato nao quebrava. Aqui nada e removido: as colunas passam a ceder. */
+
+.cand-table th,
+.cand-table td {
+  padding: 8px 6px;
+}
+
+/* A coluna da faixa de cor e so a faixa: sem padding no cabecalho tambem, senao
+   ela reserva 12px a mais que o td e a tabela inteira herda essa largura. */
+.cand-table th.color-bar-td {
+  padding: 0;
+  width: 6px;
+}
+
+/* O nome e a coluna elastica: quebra em vez de empurrar a tabela. */
+.cand-table th.align-left,
+.cand-table td.align-left {
+  min-width: 0;
+}
+
+.cand-table .cand-name-container {
+  min-width: 0;
+}
+
+.cand-table .cand-name-text {
+  overflow-wrap: anywhere;
+}
+
+/* Numero de votos nunca quebra no meio, mas tambem nao reserva sobra. */
+.cand-table .cand-votes-text {
+  white-space: nowrap;
+}
+
+/* A barra encolhe junto com o painel em vez de fixar 80px. */
+.cand-table .pct-bar-container {
+  gap: 8px;
+  min-width: 0;
+}
+
+.cand-table .cand-mini-bar-wrap {
+  width: auto;
+  max-width: 80px;
+  min-width: 18px;
+  flex: 1 1 auto;
+}
+
+.cand-table .pct-text {
+  min-width: 40px;
+  white-space: nowrap;
 }
 
 .status-badge-sim {
