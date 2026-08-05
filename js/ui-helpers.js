@@ -26,6 +26,9 @@ function getAutoLoadSignature() {
 
 function scheduleAutoLoadCurrentSelection(delay = 80) {
   if (!STATE.autoLoadEnabled) return;
+  // No swing o mapa e do swing-view; carregar a eleicao normal por baixo so
+  // gastaria rede e derrubaria a camada dele ao terminar.
+  if (STATE.swingEnabled) return;
   clearTimeout(autoLoadTimer);
   const sequence = ++autoLoadSequence;
 
@@ -432,6 +435,12 @@ async function init() {
     setupSliders();
   } catch (e) {
     console.error("Error in setupSliders:", e);
+  }
+
+  try {
+    if (typeof setupSwingControls === 'function') setupSwingControls();
+  } catch (e) {
+    console.error("Error in setupSwingControls:", e);
   }
 
   // Init Shift+Drag Selector

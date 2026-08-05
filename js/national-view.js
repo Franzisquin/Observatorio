@@ -1876,6 +1876,7 @@ async function refreshNationalViewForTurn() {
 // Entrada unica da visao nacional: carrega o agregado do cargo corrente,
 // desenha a malha de estados e monta o painel conforme o cargo.
 async function showNationalOverview(options = {}) {
+  if (STATE.swingEnabled) return;
   if (!map || !isNationalGeneralScope()) return;
 
   const generation = ++nationalView.generation;

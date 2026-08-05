@@ -5171,3 +5171,254 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   display: none !important;
   opacity: 0;
 }
+
+/* ==========================================================================
+   VISAO DE SWING
+   ========================================================================== */
+
+/* --- Controles (sidebar esquerda) --- */
+
+#swingBox .swing-election-card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  padding: 8px;
+  margin-bottom: 4px;
+}
+
+#swingBox .swing-election-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+#swingBox .swing-election-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  color: #ffffff;
+}
+
+#swingBox .swing-tag-a { background: #6b7280; }
+#swingBox .swing-tag-b { background: #374151; }
+
+[data-theme="light"] #swingBox .swing-tag-b { background: #4b5563; }
+
+#swingBox .swing-year-select {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 0.85rem;
+}
+
+#swingBox .swing-turno-chips {
+  margin-left: auto;
+  gap: 2px;
+}
+
+#swingBox .swing-turno-chips .chip-button {
+  padding: 2px 7px;
+  font-size: 0.72rem;
+}
+
+#swingBox .swing-arrow {
+  display: flex;
+  justify-content: center;
+  color: var(--muted);
+  margin: 2px 0;
+}
+
+#swingBox #swingLevelChips {
+  flex-wrap: wrap;
+}
+
+/* Legenda do gradiente */
+.swing-legend {
+  margin-top: 4px;
+}
+
+.swing-legend-scale {
+  display: flex;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.swing-legend-swatch {
+  flex: 1 1 0;
+}
+
+.swing-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.swing-status {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  padding: 6px 8px;
+  border-left: 2px solid var(--border-color);
+  color: var(--muted);
+}
+
+.swing-status-ok { border-left-color: var(--ok); }
+.swing-status-warn { border-left-color: var(--warn); color: var(--text-sec); }
+
+/* --- Tabela comparativa (tooltip + painel direito) --- */
+
+.swing-tooltip-sub {
+  font-size: 12px;
+  color: #777777;
+  margin-bottom: 6px;
+}
+
+.swing-tooltip-foot {
+  font-size: 11px;
+  color: #777777;
+  margin-top: 8px;
+}
+
+.swing-tooltip-empty {
+  font-size: 12px;
+  color: #777777;
+  padding: 6px 0;
+}
+
+.swing-cand-name {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.swing-cand-year {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  font-size: 0.7em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.swing-table tfoot .swing-total-row td {
+  border-top: 1px solid var(--border-color);
+  font-weight: 700;
+  padding-top: 6px;
+}
+
+.swing-chip {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.swing-pos { color: #4fae7a; }
+.swing-neg { color: #d0697a; }
+
+[data-theme="light"] .swing-pos { color: #2f7a51; }
+[data-theme="light"] .swing-neg { color: #a8404e; }
+
+/* --- Painel direito --- */
+
+.swing-headline {
+  border-left: 3px solid;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: var(--card);
+}
+
+.swing-headline-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.swing-headline-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 4px;
+  line-height: 1.35;
+}
+
+.swing-context {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+.swing-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.swing-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.swing-metrics strong {
+  color: var(--text-sec);
+  font-variant-numeric: tabular-nums;
+}
+
+.swing-ranking {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.swing-ranking h4 {
+  margin: 0 0 6px 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.swing-ranking ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swing-ranking li {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 0.75rem;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.swing-rank-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-sec);
+}
+
+.swing-rank-value {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 520px) {
+  .swing-ranking { grid-template-columns: 1fr; }
+}

@@ -59,6 +59,17 @@
     <div class="panel side side-left">
       <div class="body">
 
+        <div class="section" id="appModeBox">
+          <div class="ctrl">
+            <label>Visualização</label>
+            <div class="chip-group" id="appModeChips">
+              <button class="chip-button active" data-value="normal" title="Resultados de uma eleição">Eleição</button>
+              <button class="chip-button" data-value="swing"
+                title="Compara duas candidaturas de anos diferentes">Swing</button>
+            </div>
+          </div>
+        </div>
+
         <div class="section" id="loaderBox">
 
           <div class="ctrl">
@@ -323,6 +334,74 @@
               <button class="chip-button" data-value="winnerPct">% do Vencedor</button>
             </div>
           </div>
+        </div>
+
+        <!-- SWING: compara duas candidaturas majoritárias de anos diferentes -->
+        <div class="section section-hidden" id="swingBox">
+
+          <div class="ctrl">
+            <label>Cargo</label>
+            <div class="chip-group" id="swingOfficeChips">
+              <button class="chip-button active" data-value="presidente">Presidente</button>
+              <button class="chip-button" data-value="governador">Governador</button>
+              <button class="chip-button" data-value="senador">Senador</button>
+              <button class="chip-button" data-value="prefeito">Prefeito</button>
+            </div>
+          </div>
+
+          <div class="ctrl" id="swingScopeCtrl">
+            <label for="swingSelectScope">Abrangência</label>
+            <select id="swingSelectScope" class="select"></select>
+          </div>
+
+          <div class="ctrl section-hidden" id="swingMuniCtrl">
+            <label for="swingSelectMuni">Município</label>
+            <select id="swingSelectMuni" class="select"></select>
+            <input id="swingSearchMuni" class="search-input" placeholder="Buscar município..."
+              style="margin-top: 4px;">
+          </div>
+
+          <div class="swing-election-card" id="swingCardA">
+            <div class="swing-election-head">
+              <span class="swing-election-tag swing-tag-a">Eleição A</span>
+              <select id="swingYearA" class="select swing-year-select"></select>
+              <div class="chip-group swing-turno-chips" id="swingTurnoA">
+                <button class="chip-button active" data-value="1" title="1º turno">1º</button>
+                <button class="chip-button" data-value="2" title="2º turno">2º</button>
+              </div>
+            </div>
+            <select id="swingCandA" class="select" disabled></select>
+          </div>
+
+          <div class="swing-arrow" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <polyline points="19 12 12 19 5 12"></polyline>
+            </svg>
+          </div>
+
+          <div class="swing-election-card" id="swingCardB">
+            <div class="swing-election-head">
+              <span class="swing-election-tag swing-tag-b">Eleição B</span>
+              <select id="swingYearB" class="select swing-year-select"></select>
+              <div class="chip-group swing-turno-chips" id="swingTurnoB">
+                <button class="chip-button active" data-value="1" title="1º turno">1º</button>
+                <button class="chip-button" data-value="2" title="2º turno">2º</button>
+              </div>
+            </div>
+            <select id="swingCandB" class="select" disabled></select>
+          </div>
+
+          <div class="ctrl">
+            <label>Nível do Mapa</label>
+            <div class="chip-group" id="swingLevelChips"></div>
+          </div>
+
+          <div class="swing-legend" id="swingLegend"></div>
+
+          <div class="swing-status" id="swingStatus" style="display:none;"></div>
+
         </div>
 
       </div>
@@ -1381,6 +1460,7 @@
   <script src="js/historico-presidente.js?v=20260619c"></script>
   <script src="js/results-panel.js?v=20260704a"></script>
   <script src="js/national-view.js?v=20260805a"></script>
+  <script src="js/swing-view.js?v=20260805a"></script>
   <script src="js/ui-controls.js?v=20260805a"></script>
 </body>
 

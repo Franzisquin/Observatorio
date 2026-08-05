@@ -2047,6 +2047,7 @@ function applyRegionScopeToMunicipiosLayer(layer = STATE.municipiosLayer) {
 
 
 async function showGeneralMunicipalityOverview(uf) {
+  if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
 
@@ -2227,6 +2228,7 @@ function createRegioesGeoLayer(geojson, level, onSelectFeature) {
 }
 
 async function showGeneralRegionOverview(uf) {
+  if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
   const level = STATE.currentRegionLevel;
   if (!map || !ufNorm || ufNorm === 'BR' || !level || STATE.currentElectionType !== 'geral') return;
@@ -2396,6 +2398,10 @@ function renderDeputySearchResults(results, container, query) {
 let moveEndListener = null;
 
 function applyFiltersAndRedraw() {
+  // Modo swing: o mapa e do swing-view (duas eleicoes ao mesmo tempo), e
+  // redesenhar aqui derrubaria a camada dele.
+  if (STATE.swingEnabled) return;
+
   // Resumo estadual municipal: mapa e painel sao geridos por
   // showMunicipalStatewideOverview; redesenhar aqui derrubaria o choropleth
   // e renderizaria locais residuais do ultimo municipio carregado.
@@ -3946,6 +3952,7 @@ async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
 }
 
 async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
+  if (STATE.swingEnabled) return;
   if (!map || !uf || STATE.currentElectionType !== 'municipal') return;
 
   const viewGen = ++MUNICIPAL_VIEW_GENERATION;
@@ -4642,6 +4649,13 @@ function getActiveCensusFilterLabel() {
  * para refletir mudanças nos CUSTOM_PARTY_COLORS.
  */
 function refreshMapStylesAndTooltips() {
+  // No swing quem tem camada no mapa e o swing-view, e o painel dele nao
+  // depende de currentMapMuniSummary.
+  if (STATE.swingEnabled) {
+    window.SWING?.layer?.refresh?.();
+    return;
+  }
+
   const summary = STATE.currentMapMuniSummary;
 
   // Recolore as camadas recomputando as props (cor/opacidade) e re-enviando os
