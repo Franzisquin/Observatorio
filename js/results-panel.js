@@ -864,18 +864,16 @@ function renderResultsPanel(props, cargo) {
         </td>
         <td class="align-left">
           ${nameHtml}
-          <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(r.partido)}</div>
+          <div class="cand-mini-bar-wrap">
+            <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, r.pct * 100))}%; background-color: ${sw};"></div>
+          </div>
+          ${r.partido ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(r.partido)}</div>` : ''}
         </td>
         <td class="align-center cand-votes-text">
           ${fmtInt(r.votos)}
         </td>
-        <td class="align-center">
-          <div class="pct-bar-container">
-            <span class="pct-text">${fmtPct(r.pct)}</span>
-            <div class="cand-mini-bar-wrap">
-              <div class="cand-mini-bar" style="width: ${r.pct * 100}%; background-color: ${sw};"></div>
-            </div>
-          </div>
+        <td class="align-center pct-text">
+          ${fmtPct(r.pct)}
         </td>
       </tr>
     `;
@@ -2010,6 +2008,9 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         <span style="font-weight: 600; color: var(--text); font-size: 0.85rem;">${escapeHtml(group.name)}</span>
         ${compositionHtml}
         ${propStatusHtml}
+        <div class="cand-mini-bar-wrap">
+          <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, pct * 100))}%; background-color: ${group.color};"></div>
+        </div>
       </td>
       <td class="align-center" style="vertical-align: middle;">
         ${electedCellHtml}
@@ -2017,7 +2018,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
       <td class="align-center cand-votes-text" style="font-variant-numeric: tabular-nums; vertical-align: middle;">
         ${fmtInt(group.votes)}
       </td>
-      <td class="align-center" style="vertical-align: middle; font-weight: 600; font-size: 0.85rem; font-variant-numeric: tabular-nums;">
+      <td class="align-center pct-text" style="vertical-align: middle; font-weight: 600; font-size: 0.85rem; font-variant-numeric: tabular-nums;">
         ${fmtPct(pct)}
       </td>
     `;
@@ -2215,13 +2216,18 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
         ? ` cand-row-hoverable" data-explanation="${escapeHtml(ruleExplanation)}" style="cursor: help;"`
         : `"`;
 
+      const candPctVal = totalValidos > 0 ? (candidate.votos / totalValidos) * 100 : 0;
+
       candidatesHtml += `
         <tr class="${candidate.statusInfo.rowClass}${ruleAttrs}>
           <td class="color-bar-td">
             <div class="cand-color-bar" style="background-color: ${partyColor};"></div>
           </td>
-          <td class="align-left" style="padding-top: 6px; padding-bottom: 6px;">
+          <td class="align-left" style="padding: 6px 6px 6px 12px;">
             ${nameHtml}
+            <div class="cand-mini-bar-wrap">
+              <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, candPctVal))}%; background-color: ${partyColor};"></div>
+            </div>
             <div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">
               ${escapeHtml(candidate.partido)}
             </div>
@@ -2229,7 +2235,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
           <td class="align-center cand-votes-text" style="vertical-align: middle;">
             ${fmtInt(candidate.votos)}
           </td>
-          <td class="align-center" style="font-weight: 600; font-variant-numeric: tabular-nums; vertical-align: middle;">
+          <td class="align-center pct-text" style="font-weight: 600; font-variant-numeric: tabular-nums; vertical-align: middle;">
             ${pctStr}
           </td>
         </tr>

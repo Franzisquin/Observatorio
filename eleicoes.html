@@ -64,17 +64,16 @@
           <div class="ctrl">
             <label for="selectElectionLevel">Tipo de Eleição</label>
             <select id="selectElectionLevel" class="select">
-              <option value="" disabled selected>Selecione...</option>
-              <option value="geral">Geral</option>
+              <option value="geral" selected>Geral</option>
               <option value="municipal">Municipal</option>
             </select>
           </div>
 
-          <div id="loaderBoxGeneral" class="section-hidden">
+          <div id="loaderBoxGeneral">
             <div class="ctrl" style="margin-bottom: 6px;">
-              <label for="selectUFGeneral">Estado (UF)</label>
+              <label for="selectUFGeneral">Abrangência</label>
               <select id="selectUFGeneral" class="select">
-                <option value="" disabled selected>Selecione UF...</option>
+                <option value="BR" selected>Brasil (Nacional)</option>
               </select>
             </div>
             <div class="ctrl" style="margin-bottom: 6px;">
@@ -348,17 +347,12 @@
       <!-- MAP OVERLAY CONTROLS -->
       <div class="map-overlay-controls">
         <div class="layer-toggle-group">
-          <span class="toggle-group-label">Recorte</span>
+          <button id="btnMapModeEstados" class="toggle-btn" data-region-level="uf"
+            title="Ver Estados (visão nacional)">
+            Estados
+          </button>
           <button id="btnMapModeMunicipios" class="toggle-btn active" title="Ver Municípios">
             Municípios
-          </button>
-          <button id="btnMapModeMeso" class="toggle-btn" data-region-level="meso"
-            title="Ver Mesorregiões (divisão IBGE até 2017)">
-            Mesorregiões
-          </button>
-          <button id="btnMapModeMicro" class="toggle-btn" data-region-level="micro"
-            title="Ver Microrregiões (divisão IBGE até 2017)">
-            Microrregiões
           </button>
           <button id="btnMapModeRgint" class="toggle-btn" data-region-level="rgint"
             title="Ver Regiões Intermediárias (divisão IBGE vigente)">
@@ -371,13 +365,10 @@
           <button id="btnMapModeLocais" class="toggle-btn" title="Ver Locais de Votação">
             Locais de Votação
           </button>
-
         </div>
 
         <!-- Segunda linha: como o mapa e DESENHADO (o de cima e o que ele mostra). -->
         <div class="layer-toggle-group" id="mapRenderControls">
-          <span class="toggle-group-label">Visual</span>
-
           <button id="btnToggle3D" class="toggle-btn" title="Inclina a câmera, sem mudar os dados">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -1400,7 +1391,8 @@
   <script src="js/ui-results.js?v=20260804c"></script>
   <script src="js/historico-presidente.js?v=20260619c"></script>
   <script src="js/results-panel.js?v=20260704a"></script>
-  <script src="js/ui-controls.js?v=20260804c"></script>
+  <script src="js/national-view.js?v=20260805a"></script>
+  <script src="js/ui-controls.js?v=20260805a"></script>
 </body>
 
 </html>

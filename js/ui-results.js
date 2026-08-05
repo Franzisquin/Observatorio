@@ -442,8 +442,22 @@ function updateElectionTypeUI() {
   if (dom.mapRenderControls) {
       dom.mapRenderControls.style.display = isMunicipal ? 'none' : '';
   }
+  // No escopo nacional o unico recorte possivel e o estado: municipios e locais
+  // do pais inteiro nao cabem no mapa nem no navegador, e os quatro niveis do
+  // IBGE sao particoes de UMA UF. Fora dele, "Estados" e que nao se aplica.
+  const isNacional = typeof isNationalGeneralScope === 'function' && isNationalGeneralScope();
+  if (dom.btnMapModeEstados) {
+      dom.btnMapModeEstados.style.display = (!isMunicipal && isNacional) ? '' : 'none';
+  }
+  if (dom.btnMapModeMunicipios) {
+      dom.btnMapModeMunicipios.style.display = isNacional ? 'none' : '';
+  }
+  dom.layerToggleGroup?.querySelectorAll('[data-region-level]').forEach((btn) => {
+      if (btn.dataset.regionLevel === 'uf') return;
+      btn.style.display = isNacional ? 'none' : '';
+  });
   if (dom.btnMapModeLocais) {
-      dom.btnMapModeLocais.style.display = isMuniOnlyGeral ? 'none' : '';
+      dom.btnMapModeLocais.style.display = (isMuniOnlyGeral || isNacional) ? 'none' : '';
   }
 
   // Filtros demograficos so fazem sentido com um municipio selecionado;

@@ -288,6 +288,21 @@ async function populateRegionalDropdowns() {
   const select = dom.selectRegiao;
   if (!select) return;
 
+  // Escopo nacional: o nivel do dropdown e o ESTADO. Escolher um aqui e a mesma
+  // coisa que clicar nele no mapa — desce para aquela UF, onde os quatro niveis
+  // do IBGE voltam a valer.
+  if (typeof isNationalGeneralScope === 'function' && isNationalGeneralScope()) {
+    const options = ALL_STATE_SIGLAS
+      .map((sigla) => ({ code: sigla, label: UF_MAP.get(sigla) || sigla }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'))
+      .map((entry) => `<option value="uf:${entry.code}">${escapeHtml(entry.label)}</option>`)
+      .join('');
+    select.innerHTML = `<option value="" selected>Brasil (todos os estados)</option>`
+      + `<optgroup label="${escapeHtml(REGION_LEVEL_LABEL.uf)}">${options}</optgroup>`;
+    select.disabled = false;
+    return;
+  }
+
   const uf = getCurrentGeneralRegionalUF();
   if (!uf) {
     select.innerHTML = '<option value="" selected>Todas as regiões</option>';

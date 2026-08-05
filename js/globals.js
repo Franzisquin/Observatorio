@@ -557,6 +557,10 @@ function getColorForCandidate(nome, partido) {
 const DEFAULT_SWATCH = "#7a8699";
 
 const UF_MAP = new Map([
+  // 'BR' e um escopo, nao uma UF: e o nivel nacional das gerais (ver
+  // js/national-view.js). ALL_STATE_SIGLAS o remove, e setupControls ja
+  // rotulava esta chave de forma especial — faltava so ela existir.
+  ['BR', 'Brasil (Nacional)'],
   ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'],
   ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'],
   ['ES', 'Espírito Santo'], ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'],
@@ -813,6 +817,10 @@ async function ensureTseIbgeLoaded() {
 
 const REGION_LEVELS = ['meso', 'micro', 'rgint', 'rgi'];
 const REGION_LEVEL_LABEL = {
+  // 'uf' nao esta em REGION_LEVELS: os quatro niveis do IBGE particionam UMA
+  // UF, enquanto o estado particiona o pais. Ele so entra no rotulo e no
+  // dropdown, que sao compartilhados (ver populateRegionalDropdowns).
+  uf: 'Estado',
   meso: 'Mesorregião',
   micro: 'Microrregião',
   rgint: 'Região Intermediária',

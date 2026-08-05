@@ -331,6 +331,7 @@ async function init() {
   dom.resultsBox = document.getElementById('resultsBox');
   dom.resultsTitle = document.getElementById('resultsTitle');
   dom.resultsSubtitle = document.getElementById('resultsSubtitle');
+  dom.btnMapModeEstados = document.getElementById('btnMapModeEstados');
   dom.btnMapModeMunicipios = document.getElementById('btnMapModeMunicipios');
   dom.btnMapModeLocais = document.getElementById('btnMapModeLocais');
   dom.layerToggleGroup = document.querySelector('.layer-toggle-group');

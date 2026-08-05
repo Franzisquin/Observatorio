@@ -65,8 +65,8 @@ function setupControls() {
     if (STATE.currentElectionType === 'geral') {
       const uf = dom.selectUFGeneral?.value;
       if (!uf) return false;
-      if (currentOffice === 'presidente') return true;
-      return uf !== 'BR';
+      // BR e escopo proprio: qualquer cargo tem visao nacional (agregada).
+      return true;
     }
 
     return !!(dom.selectUFMunicipal?.value && dom.selectMunicipio?.value);
@@ -76,6 +76,12 @@ function setupControls() {
     if (STATE.isLoadingDataset || !canInstantLoadCurrentContext()) return;
     if (typeof rememberMapViewportForNextLoad === 'function') {
       rememberMapViewportForNextLoad();
+    }
+
+    // Escopo nacional nao passa pelos loaders por UF: le so os agregados.
+    if (typeof isNationalGeneralScope === 'function' && isNationalGeneralScope()) {
+      await window.showNationalOverview();
+      return;
     }
 
     try {
@@ -234,6 +240,20 @@ function setupControls() {
     // Se não mudou o cargo E já tem dados carregados, apenas redesenha
     applyDefaultVizColorStyleForCurrentCargo();
 
+    // Escopo nacional: todo cargo tem visao nacional e ela nao depende de nada
+    // que ja esteja em memoria — remonta direto.
+    if (typeof isNationalGeneralScope === 'function' && isNationalGeneralScope()) {
+      dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setChipLoading(btn, true);
+      Promise.resolve(window.showNationalOverview({ keepViewport: true }))
+        .finally(() => {
+          setChipLoading(btn, false);
+          updateLoadButtonState();
+        });
+      return;
+    }
+
     if (!isChangingCargo && (currentDataCollection[currentCargo] || currentDataCollection[`${currentOffice}_sup`])) {
       console.log(`[Cargo] ${currentOffice} já está ativo e com dados carregados, apenas redesenhando...`);
 
@@ -280,13 +300,8 @@ function setupControls() {
     btn.classList.add('active');
     setChipLoading(btn, true);
 
-    // AUTO-AJUSTA UF SE NECESSÁRIO
-    if ((currentOffice !== 'presidente' && currentOffice !== 'deputado') && dom.selectUFGeneral.value === 'BR') {
-      dom.selectUFGeneral.value = ''; // Limpa BR para cargos estaduais
-    }
-    if (currentOffice === 'deputado' && dom.selectUFGeneral.value === 'BR') {
-      dom.selectUFGeneral.value = ''; // Deputado precisa de UF
-    }
+    // BR nao e mais limpo aqui: virou escopo nacional valido para todo cargo, e
+    // o caminho nacional acima ja retornou antes de chegar neste ponto.
 
     // Verifica se temos os dados na memória
     // FIX: Para deputados, verificar se os dados de votos do tipo específico (federal/estadual)
@@ -365,6 +380,12 @@ function setupControls() {
     currentBairroFilter = 'all';
     currentLocalFilter = '';
     if (dom.searchLocal) dom.searchLocal.value = '';
+    // Sair do escopo nacional: o recorte 'uf' nao existe dentro de um estado,
+    // entao o mapa volta ao coropletico municipal.
+    if (STATE.currentRegionLevel === NATIONAL_UF_LEVEL) {
+      STATE.currentRegionLevel = '';
+      STATE.currentMapMode = 'municipios';
+    }
     populateRegionalDropdowns();
     updateLoadButtonState();
     if (canInstantLoadCurrentContext()) {
@@ -475,6 +496,11 @@ function setupControls() {
   if (dom.selectRegiao) {
     dom.selectRegiao.addEventListener('change', (e) => {
       const [level, code] = String(e.target.value || '').split(':');
+      // Nivel estado: nao e recorte dentro da UF corrente, e troca de escopo.
+      if (level === 'uf' && code) {
+        window.enterStateFromNationalView(code);
+        return;
+      }
       applyRegionSelection(code ? { level, code } : { level: '', code: '' });
     });
   }
@@ -485,7 +511,14 @@ function setupControls() {
       const level = e.target.closest('[data-region-level]')?.dataset.regionLevel;
       if (!level) return;
       const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
-      if (STATE.currentElectionType !== 'geral' || !uf || uf === 'BR') return;
+      if (STATE.currentElectionType !== 'geral' || !uf) return;
+      // No escopo nacional so existe o nivel 'uf'; dentro de uma UF ele nao faz
+      // sentido (voltar ao pais e escolher "Brasil" no seletor de UF).
+      if (uf === 'BR') {
+        if (level === NATIONAL_UF_LEVEL) void window.showNationalOverview({ keepViewport: true });
+        return;
+      }
+      if (level === NATIONAL_UF_LEVEL) return;
 
       currentRegionFilter = { level: '', code: '' };
       currentCidadeFilter = 'all';

@@ -968,58 +968,52 @@ body {
   color: var(--text-sec);
 }
 
-.cand-table .pct-bar-container {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  width: 100%;
-}
-
 .cand-table .pct-text {
   font-weight: 700;
   color: var(--text);
-  min-width: 45px;
   text-align: right;
+  white-space: nowrap;
 }
 
 .cand-table .cand-mini-bar-wrap {
-  width: 80px;
+  width: 100%;
+  max-width: 100%;
   height: 4px;
-  background: rgba(125, 125, 125, 0.15);
-  border-radius: 2px;
+  background: rgba(125, 125, 125, 0.18);
+  border-radius: 0;
   overflow: hidden;
-  flex-shrink: 0;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  display: block;
 }
 
 .cand-table .cand-mini-bar {
   height: 100%;
-  border-radius: 2px;
+  border-radius: 0;
+  transition: width 0.3s ease;
 }
 
 /* ===== A tabela de resultados tem de CABER na largura do painel =====
-   Antes o painel inteiro deslizava de lado — o titulo e a contagem de locais
-   saiam da tela junto com a tabela. A causa: as colunas de numero reservavam
-   largura fixa e nao encolhiam (barra de 80px com flex-shrink: 0, pct com
-   min-width, padding de 8px), somando mais que a largura do painel, e o nome do
-   candidato nao quebrava. Aqui nada e removido: as colunas passam a ceder. */
+   As colunas de número são compactas (white-space: nowrap) enquanto o nome
+   do candidato ocupa a largura elástica com a barra de % logo abaixo. */
 
 .cand-table th,
 .cand-table td {
   padding: 8px 6px;
 }
 
-/* A coluna da faixa de cor e so a faixa: sem padding no cabecalho tambem, senao
-   ela reserva 12px a mais que o td e a tabela inteira herda essa largura. */
+/* A coluna da faixa de cor e so a faixa */
 .cand-table th.color-bar-td {
   padding: 0;
   width: 6px;
 }
 
-/* O nome e a coluna elastica: quebra em vez de empurrar a tabela. */
+/* O nome e a coluna elastica que ocupa o espaco disponivel */
 .cand-table th.align-left,
 .cand-table td.align-left {
+  width: 100%;
   min-width: 0;
+  padding-left: 12px;
 }
 
 .cand-table .cand-name-container {
@@ -1030,26 +1024,8 @@ body {
   overflow-wrap: anywhere;
 }
 
-/* Numero de votos nunca quebra no meio, mas tambem nao reserva sobra. */
+/* Numero de votos e porcentagem nunca quebram no meio */
 .cand-table .cand-votes-text {
-  white-space: nowrap;
-}
-
-/* A barra encolhe junto com o painel em vez de fixar 80px. */
-.cand-table .pct-bar-container {
-  gap: 8px;
-  min-width: 0;
-}
-
-.cand-table .cand-mini-bar-wrap {
-  width: auto;
-  max-width: 80px;
-  min-width: 18px;
-  flex: 1 1 auto;
-}
-
-.cand-table .pct-text {
-  min-width: 40px;
   white-space: nowrap;
 }
 
@@ -3402,14 +3378,8 @@ input:disabled {
   word-break: break-all !important;
 }
 
-.prop-table .pct-bar-container {
-  gap: 6px;
-}
 .prop-table .cand-mini-bar-wrap {
-  width: 40px;
-}
-.prop-table td:nth-child(4) .pct-text {
-  min-width: 14px;
+  width: 100%;
 }
 .prop-table .cand-votes-text {
   white-space: nowrap;

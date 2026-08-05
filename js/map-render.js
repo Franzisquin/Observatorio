@@ -2383,6 +2383,10 @@ function applyFiltersAndRedraw() {
   // e renderizaria locais residuais do ultimo municipio carregado.
   if (STATE.currentElectionType === 'municipal' && !dom.selectMunicipio?.value) return;
 
+  // Mesma razao no escopo nacional: quem manda no mapa e no painel e
+  // showNationalOverview, e nao ha currentDataCollection para redesenhar.
+  if (typeof isNationalGeneralScope === 'function' && isNationalGeneralScope()) return;
+
   // Limpeza PROFUNDA das camadas
   if (currentLayer) {
     try {
@@ -4188,18 +4192,16 @@ function showOfficialCityResultPanel(entry, cityName) {
         </td>
         <td class="align-left">
           ${nameHtml}
+          <div class="cand-mini-bar-wrap">
+            <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, pctVal * 100))}%; background-color: ${sw};"></div>
+          </div>
           ${party ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(party.toUpperCase())}</div>` : ''}
         </td>
         <td class="align-center cand-votes-text">
           ${fmtInt(votes)}
         </td>
-        <td class="align-center">
-          <div class="pct-bar-container">
-            <span class="pct-text">${formatPct(pctVal)}</span>
-            <div class="cand-mini-bar-wrap">
-              <div class="cand-mini-bar" style="width: ${pctVal * 100}%; background-color: ${sw};"></div>
-            </div>
-          </div>
+        <td class="align-center pct-text">
+          ${formatPct(pctVal)}
         </td>
       </tr>
     `;
