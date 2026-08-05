@@ -121,37 +121,45 @@
 
   // Deputados: ajusta o Map(cityName -> {candId:votos}) usado no coropletico de
   // deputados (add cidade nova, subtrai do pai). cargo: deputado_federal|estadual.
-  function adjustDeputyCityTotals(opts) {
+  /* Versao chaveada por codigo IBGE, para o resumo municipal de deputado.
+   *
+   * O mapa de votos agora e {ibge7: {candId: votos}} — antes era por NOME de
+   * municipio, o que so funcionava quando a grafia batia. O JSON de emancipacoes
+   * ja traz c.cd_ibge da cidade nova, e por_pai vem por codigo TSE, que a ponte
+   * converte. Assim vale para todos os anos com dado (1998, 2002, 2006, 2010) e
+   * nao so para 2002. */
+  function adjustDeputyMuniTotals(opts) {
     if (!_table) return 0;
     var cities = _citiesFor(opts.year, opts.uf);
     if (!cities.length) return 0;
     var cargo = opts.cargo;
     var turno = '1';
-    var map = opts.rawCityTotals;
-    var nameByCode = opts.muniNameMap;
-    var affected = opts.affected;
+    var map = opts.rawPorMuni;
+    var ponte = opts.tseParaIbge;
     var n = 0;
     cities.forEach(function (c) {
       var rawCity = c.resultados && c.resultados[cargo] && c.resultados[cargo][turno];
-      if (!rawCity) return;
+      var ibgeNova = c.cd_ibge ? String(c.cd_ibge) : '';
+      if (!rawCity || !ibgeNova) return;
+
+      // Tira do pai o que era das secoes que viraram a cidade nova.
       var porPai = c.por_pai || {};
-      Object.keys(porPai).forEach(function (code) {
-        var rawP = porPai[code] && porPai[code][cargo] && porPai[code][cargo][turno];
+      Object.keys(porPai).forEach(function (codeTse) {
+        var rawP = porPai[codeTse] && porPai[codeTse][cargo] && porPai[codeTse][cargo][turno];
         if (!rawP) return;
-        var pName = nameByCode && nameByCode.get ? nameByCode.get(String(code)) : null;
-        if (!pName) return;
-        var pv = map.get(pName);
+        var ibgePai = ponte && ponte.get ? ponte.get(String(codeTse)) : null;
+        if (!ibgePai) return;
+        var pv = map.get(ibgePai);
         if (!pv) return;
         Object.keys(rawP).forEach(function (cid) {
           pv[cid] = (pv[cid] || 0) - rawP[cid];
           if (pv[cid] <= 0) delete pv[cid];
         });
-        if (affected) affected.add(pName);
       });
-      var cv = map.get(c.nome);
-      if (!cv) { cv = {}; map.set(c.nome, cv); }
+
+      var cv = map.get(ibgeNova);
+      if (!cv) { cv = {}; map.set(ibgeNova, cv); }
       Object.keys(rawCity).forEach(function (cid) { cv[cid] = (cv[cid] || 0) + rawCity[cid]; });
-      if (affected) affected.add(c.nome);
       n++;
     });
     return n;
@@ -160,7 +168,7 @@
   global.EMANC = {
     ensureLoaded: ensureLoaded,
     adjustCityTotals: adjustCityTotals,
-    adjustDeputyCityTotals: adjustDeputyCityTotals,
+    adjustDeputyMuniTotals: adjustDeputyMuniTotals,
     // compat: chamadas antigas de remap viram no-op (tabela mudou p/ secoes).
     apply: function () { return 0; },
   };

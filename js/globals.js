@@ -23,7 +23,6 @@ let GPKG_2020_DB_PROMISE = null;
 let GPKG_2024_DB_PROMISE = null;
 let GPKG_2022_DB_PROMISE = null;
 let GENERAL_1998_BASE_CACHE = new Map();
-let GENERAL_2002_BASE_CACHE = new Map();
 let CENSO_2002_CACHE = new Map();
 let GENERAL_2006_BASE_CACHE = new Map();
 let CENSO_2006_CACHE = new Map();
@@ -225,7 +224,6 @@ function clearZipCache() {
   CANDIDATE_DETAILS = null;
   CANDIDATE_DETAILS_PROMISE = null;
   GENERAL_1998_BASE_CACHE.clear();
-  GENERAL_2002_BASE_CACHE.clear();
   CENSO_2002_CACHE.clear();
   GENERAL_2006_BASE_CACHE.clear();
   CENSO_2006_CACHE.clear();
@@ -787,6 +785,31 @@ let REGIONAL_FILTERS_PROMISE = null;
 // Sempre casar por (nivel, codigo), nunca por codigo solto: CD_MESO e CD_RGINT
 // tem ambos 4 digitos e colidem (4102 e meso E rgint).
 let REGION_INDEX = { muni: {}, niveis: {} };
+
+// Ponte codigo do municipio no TSE -> codigo IBGE-7 (scripts/gerar_ponte_tse_ibge.py).
+// Os resultados vem chaveados por codigo TSE e os poligonos so tem o IBGE
+// (municipios_hd nem carrega nome). Sem a ponte o join dependia da grafia do
+// nome ou de o municipio ter um local geolocalizado — e quem falhava virava
+// poligono cinza no mapa mesmo tendo votos no JSON.
+let TSE_TO_IBGE = new Map();
+let TSE_IBGE_PROMISE = null;
+
+async function ensureTseIbgeLoaded() {
+  if (TSE_TO_IBGE.size) return TSE_TO_IBGE;
+  if (TSE_IBGE_PROMISE) return TSE_IBGE_PROMISE;
+
+  TSE_IBGE_PROMISE = fetch('resultados_geo/tse_para_ibge.json')
+    .then((res) => {
+      if (!res.ok) throw new Error('Falha ao carregar a ponte TSE->IBGE');
+      return res.json();
+    })
+    .then((data) => {
+      TSE_TO_IBGE = new Map(Object.entries(data || {}));
+      return TSE_TO_IBGE;
+    });
+
+  return TSE_IBGE_PROMISE;
+}
 
 const REGION_LEVELS = ['meso', 'micro', 'rgint', 'rgi'];
 const REGION_LEVEL_LABEL = {

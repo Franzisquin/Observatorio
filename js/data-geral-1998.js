@@ -18,7 +18,7 @@
 
 // Mapa cd_municipio_tse -> nm_localidade, derivado da base de 2006 (mesma base de
 // pontos). Usado apenas para agrupar os totais por municipio. Equivalente a
-// getMuniNameMap2002, mas a fonte de nomes e o GPKG/censo de 2006.
+// A fonte de nomes e o GPKG/censo de 2006.
 async function getMuniNameMap1998(uf) {
   const ufNorm = String(uf || '').toUpperCase();
   if (GENERAL_1998_BASE_CACHE.has(ufNorm)) return GENERAL_1998_BASE_CACHE.get(ufNorm);

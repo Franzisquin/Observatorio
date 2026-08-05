@@ -169,6 +169,10 @@ async function onClickLoadData_Municipal() {
 }
 
 window.onClickLoadData_General = async function () {
+  // Ponte TSE->IBGE: o resumo municipal depende dela para casar resultado com
+  // poligono. Aqui e no loader de deputados estao os dois portoes de toda
+  // eleicao geral, entao duas linhas cobrem os oito loaders sem corrida.
+  await ensureTseIbgeLoaded().catch(() => {});
   const year = String(STATE.currentElectionYear);
   const uf = dom.selectUFGeneral?.value;
 
@@ -205,6 +209,7 @@ window.onClickLoadData_General = async function () {
 };
 
 window.onClickLoadData_Deputies = async function (uf, year) {
+  await ensureTseIbgeLoaded().catch(() => {});
   const targetYear = String(year || STATE.currentElectionYear);
   if (targetYear === '2022') {
     return onClickLoadData_Deputies_2022(uf, targetYear);

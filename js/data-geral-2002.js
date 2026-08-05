@@ -1,70 +1,10 @@
 // GPKG 2006 e' usado como malha de pontos para 2002.
 // O que bater bateu, o que nao bater segue a vida.
-// Para totais de municipio usamos o JSON direto (via mapa TSE-codigo->nome do GPKG 2002).
+// Para totais de municipio usamos o JSON direto, casado por codigo IBGE.
 
-async function getGeneral2002Database() {
-  if (GPKG_2002_DB_PROMISE) return GPKG_2002_DB_PROMISE;
-
-  GPKG_2002_DB_PROMISE = (async () => {
-    const SQL = await ensureSqlJsReady();
-    const { blob } = await fetchBlobFromZipEntry(
-      `${DATA_BASE_URL}locais_votacao_2002_gkpg.zip`,
-      null,
-      (entryName) => entryName.toLowerCase().endsWith('.gpkg')
-    );
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    return new SQL.Database(bytes);
-  })();
-
-  return GPKG_2002_DB_PROMISE;
-}
-
-// Retorna Map: str(cd_municipio_tse) -> nm_localidade
-// Usado apenas para construir totais por municipio a partir do JSON.
-async function getMuniNameMap2002(uf) {
-  const ufNorm = String(uf || '').toUpperCase();
-  if (GENERAL_2002_BASE_CACHE.has(ufNorm)) return GENERAL_2002_BASE_CACHE.get(ufNorm);
-
-  const promise = (async () => {
-    const db = await getGeneral2002Database();
-    const stmt = db.prepare(
-      'SELECT local_key, nm_localidade FROM locais_votacao_2002_padronizado WHERE sg_uf = ?'
-    );
-    const map = new Map();
-    stmt.bind([ufNorm]);
-    while (stmt.step()) {
-      const row = stmt.getAsObject();
-      const parts = String(row.local_key || '').split('_');
-      if (parts.length >= 2 && row.nm_localidade && !map.has(parts[1])) {
-        map.set(parts[1], row.nm_localidade);
-      }
-    }
-    stmt.free();
-
-    // Municípios ausentes do GPKG 2002 (sem local geocodificado) ficam fora
-    // do mapa e seus votos são descartados em buildGeneralCityTotals2002.
-    // O censo 2006 cobre esses municípios com local_key={zona}_{cdMuni}_{local}
-    // e os códigos TSE são estáveis entre eleições — seguro usar 2006 para 2002.
-    // loadCensoJson2006 usa CENSO_2006_CACHE: custo de rede zero quando
-    // loadGeneralStateBaseFromGpkg2006 já iniciou o download em paralelo.
-    try {
-      const censusJson = await loadCensoJson2006(ufNorm);
-      Object.entries(censusJson?.RESULTS || {}).forEach(([fallbackKey, row]) => {
-        const localKey = String(row?.local_key || row?.ID_UNICO || fallbackKey || '');
-        const parts = localKey.split('_');
-        if (parts.length < 3) return;
-        const cdMuni = parts[1];
-        const cityName = String(row?.nm_localidade || '').trim();
-        if (cdMuni && cityName && !map.has(cdMuni)) map.set(cdMuni, cityName);
-      });
-    } catch (_) { /* censo indisponível, prossegue sem suplemento */ }
-
-    return map;
-  })();
-
-  GENERAL_2002_BASE_CACHE.set(ufNorm, promise);
-  return promise;
-}
+// O GPKG de 2002 nao e mais baixado: existia so para traduzir codigo TSE em
+// nome de municipio, e era essa traducao por nome que apagava municipio do
+// mapa quando a grafia divergia. Agora o join e por codigo (tse_para_ibge.json).
 
 // Totais por municipio lidos direto do JSON (independente de quais locais bateram no GPKG).
 function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap, muniIbgeMap = null) {
@@ -76,7 +16,15 @@ function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap, muniIbgeMap
     const parts = resultKey.split('_');
     if (parts.length < 3) return;
     const cdMuni = parts[1];
-    const cityName = muniNameMap.get(cdMuni);
+    // Codigo IBGE (CD_MUN da malha municipal) para casar o municipio por codigo,
+    // e nao apenas por nome — alguns municipios usam grafias divergentes entre
+    // o GPKG/censo e a malha (ex.: "Sao Caetano" vs "Sao Caitano"), o que deixava
+    // o poligono "sem votos" mesmo com resultados carregados.
+    const ibge = String(muniIbgeMap?.get(cdMuni) || TSE_TO_IBGE.get(cdMuni) || '');
+    // Municipio ausente do GPKG/censo do ano cai no nome canonico do IBGE. Antes
+    // ele era simplesmente descartado, o que apagava o poligono do mapa mesmo
+    // havendo votos no JSON.
+    const cityName = muniNameMap.get(cdMuni) || (ibge && STATE.muniCodeToNameMap?.get(ibge)) || '';
     if (!cityName) return;
 
     let rawTotals = rawTotalsByCity.get(cityName);
@@ -85,14 +33,7 @@ function buildGeneralCityTotals2002(fullJson, turnoKey, muniNameMap, muniIbgeMap
       rawTotals[cid] = (rawTotals[cid] || 0) + ensureNumber(v);
     });
 
-    // Codigo IBGE (CD_MUN da malha municipal) para casar o municipio por codigo,
-    // e nao apenas por nome — alguns municipios usam grafias divergentes entre
-    // o GPKG/censo e a malha (ex.: "Sao Caetano" vs "Sao Caitano"), o que deixava
-    // o poligono "sem votos" mesmo com resultados carregados.
-    if (muniIbgeMap && !ibgeByCity.has(cityName)) {
-      const ibge = muniIbgeMap.get(cdMuni);
-      if (ibge) ibgeByCity.set(cityName, String(ibge));
-    }
+    if (ibge && !ibgeByCity.has(cityName)) ibgeByCity.set(cityName, ibge);
   });
 
   const summaries = {};
@@ -498,7 +439,6 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
       STATE.generalOfficialTotals = {};
       STATE.generalOfficialTotalsByCity = {};
-      STATE.deputyCityTotals = {};
       uniqueCidades.clear();
       uniqueBairros.clear();
 
@@ -560,29 +500,11 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       if (precomputedTotals) {
         if (!STATE.precomputedProportionalStateTotals) STATE.precomputedProportionalStateTotals = {};
         STATE.precomputedProportionalStateTotals[cargoKey] = precomputedTotals;
-      } else {
-        // Build city-level vote totals from JSON (covers municipalities with no GPKG dot)
-        const muniNameMap = await getMuniNameMap2002(uf).catch(() => new Map());
-        const rawCityTotals = new Map();
-        Object.entries(results).forEach(([locId, voteMap]) => {
-          const parts = locId.split('_');
-          if (parts.length < 3) return;
-          const cdMuni = parts[1];
-          const cityName = muniNameMap.get(cdMuni);
-          if (!cityName) return;
-          let cityVotes = rawCityTotals.get(cityName);
-          if (!cityVotes) { cityVotes = {}; rawCityTotals.set(cityName, cityVotes); }
-          Object.entries(voteMap || {}).forEach(([cid, v]) => {
-            cityVotes[cid] = (cityVotes[cid] || 0) + ensureNumber(v);
-          });
-        });
-        if (window.EMANC) {
-          await window.EMANC.ensureLoaded();
-          window.EMANC.adjustDeputyCityTotals({ year: 2002, uf, cargo: cargoKey, rawCityTotals, muniNameMap });
-        }
-        if (!STATE.deputyCityTotals) STATE.deputyCityTotals = {};
-        STATE.deputyCityTotals[cargoKey] = rawCityTotals;
       }
+      // O resumo municipal nao e mais montado aqui: buildDeputyMunicipalSummaryFromResults
+      // agrega o proprio RESULTS por codigo TSE e casa com o poligono pelo IBGE.
+      // O mapa nome<-GPKG que existia aqui era a origem dos municipios apagados.
+      if (window.EMANC) await window.EMANC.ensureLoaded();
 
       loadedDeputyState.types.add(typeKey);
       loadedDeputyState.year = year;

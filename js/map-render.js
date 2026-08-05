@@ -1535,75 +1535,115 @@ function getOfficialCityTotalsForCargo(cargoKey = currentCargo, turnoKey) {
   return null;
 }
 
-function buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey) {
-  const metaStore = STATE.deputyMetadata || {};
+// Resumo municipal de deputado direto do RESULTS, nunca dos dots.
+//
+// O RESULTS cobre TODOS os municipios da UF em todos os anos (medido), enquanto
+// os dots cobrem so quem tem local de votacao geolocalizado. E a chave e o
+// codigo TSE, que a ponte converte no IBGE do poligono — sem depender da grafia
+// do nome, que diverge entre os anos. Era essa dupla dependencia (ter dot + o
+// nome bater) que deixava municipio com voto virar poligono cinza.
+function buildDeputyMunicipalSummaryFromResults(cargoKey, turnoKey) {
+  const typeKey = getDeputyTypeKeyForCargo(cargoKey);
+  const metaStore = STATE.deputyMetadataByType?.[typeKey] || STATE.deputyMetadata || {};
   const prefixCache = STATE._partyPrefixCache;
   const inaptosTurno = STATE.inaptos?.[cargoKey]?.[turnoKey] || [];
   const turnoLabel = turnoKey === '2T' ? '2º Turno' : '1º Turno';
+
+  // Acumula os votos crus por municipio (IBGE-7), somando todos os locais.
+  const rawPorMuni = new Map();
+  Object.entries(STATE.deputyResults || {}).forEach(([locId, porTipo]) => {
+    const votes = porTipo?.[typeKey];
+    if (!votes) return;
+    const parts = String(locId).split('_');
+    if (parts.length < 3) return;
+    const ibge = TSE_TO_IBGE.get(parts[1]);
+    if (!ibge) return;
+
+    let acc = rawPorMuni.get(ibge);
+    if (!acc) { acc = {}; rawPorMuni.set(ibge, acc); }
+    Object.entries(votes).forEach(([candId, count]) => {
+      acc[candId] = (acc[candId] || 0) + ensureNumber(count);
+    });
+  });
+
+  // Cidades emancipadas depois da eleicao: transfere do municipio-pai os votos
+  // das secoes que viraram a cidade nova, para o poligono novo nao ficar vazio.
+  if (window.EMANC?.adjustDeputyMuniTotals) {
+    window.EMANC.adjustDeputyMuniTotals({
+      year: String(STATE.currentElectionYear),
+      uf: String(dom.selectUFGeneral?.value || '').toUpperCase(),
+      cargo: cargoKey,
+      rawPorMuni,
+      tseParaIbge: TSE_TO_IBGE
+    });
+  }
+
+  const scopedColorLookup = getScopedColorLookupForCargo(cargoKey);
   const summary = {};
 
-  rawCityTotals.forEach((rawVotes, cityName) => {
+  rawPorMuni.forEach((rawVotes, ibge) => {
+    // Mesmo criterio do resto do site: o recorte regional casa por codigo IBGE.
+    if (!matchesRegionalScope({ CD_MUN: ibge })) return;
+
     const groupVotes = {};
+    const groupParties = {};
     let totalValid = 0;
 
-    Object.entries(rawVotes).forEach(([candId, votes]) => {
+    Object.entries(rawVotes).forEach(([candId, count]) => {
       if (candId === '95' || candId === '96') return;
       if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
-      const v = ensureNumber(votes);
+      const v = ensureNumber(count);
       if (v <= 0) return;
+
       const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
       groupVotes[groupInfo.key] = (groupVotes[groupInfo.key] || 0) + v;
+      if (!groupParties[groupInfo.key]) groupParties[groupInfo.key] = {};
+      groupParties[groupInfo.key][groupInfo.party] =
+        (groupParties[groupInfo.key][groupInfo.party] || 0) + v;
       totalValid += v;
     });
 
     if (totalValid <= 0) return;
 
-    const orderedGroups = Object.entries(groupVotes)
+    const ordenados = Object.entries(groupVotes)
       .sort((a, b) => ensureNumber(b[1]) - ensureNumber(a[1]));
-    if (!orderedGroups.length) return;
+    if (!ordenados.length) return;
 
-    const [winnerKey, winnerVotesRaw] = orderedGroups[0];
-    const [, secondVotesRaw] = orderedGroups[1] || [null, 0];
+    const [winnerKey, winnerVotesRaw] = ordenados[0];
+    const [, secondVotesRaw] = ordenados[1] || [null, 0];
     const winnerVotes = ensureNumber(winnerVotesRaw);
     const secondVotes = ensureNumber(secondVotesRaw);
+    const { winnerName, winnerParty, winnerColorParty } = resolveSummaryWinnerInfo(
+      winnerKey, cargoKey, groupParties, scopedColorLookup);
 
-    const winnerParts = winnerKey.split(':');
-    const winnerType = winnerParts[0];
-    const idOrComp = winnerParts[1];
-    let winnerName = idOrComp;
-    let winnerParty = '';
-    let winnerColorParty = '';
-
-    if (winnerType === 'party') {
-      winnerName = idOrComp;
-      winnerParty = idOrComp;
-      winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, winnerParty);
-    } else {
-      const groupedInfo = getCachedGroupedProportionalInfo(metaStore);
-      const found = groupedInfo.get(idOrComp)
-        || Array.from(groupedInfo.values()).find(info => info.key === winnerKey);
-      winnerName = found ? found.name : idOrComp;
-      winnerParty = found ? found.composition : idOrComp;
-      winnerColorParty = getProportionalListColorKey(winnerName, winnerParty, '');
-    }
-
-    const slug = normalizeMunicipioSlug(cityName);
-    summary[slug] = {
-      nome: cityName,
-      muniCode: '',
+    const nome = STATE.muniCodeToNameMap?.get(ibge) || `Município ${ibge}`;
+    const entry = {
+      nome,
+      muniCode: ibge,
       winnerCode: winnerKey,
       winnerName,
       winnerParty,
       winnerColorParty: winnerColorParty || winnerParty,
       totalValid,
-      margin: totalValid > 0 ? ((winnerVotes - secondVotes) / totalValid) * 100 : 0,
-      winnerPct: totalValid > 0 ? (winnerVotes / totalValid) * 100 : 0,
+      margin: ((winnerVotes - secondVotes) / totalValid) * 100,
+      winnerPct: (winnerVotes / totalValid) * 100,
       turno: turnoKey,
       turnoLabel,
       votes: groupVotes,
+      groupParties,
       rawTotals: rawVotes,
-      isDetailed: false
+      isDetailed: true
     };
+
+    summary[ibge] = entry;
+    summary[ibge.slice(0, 6)] = entry;
+    // Os aliases sao o que faz o painel lateral achar a entry: o clique no mapa
+    // seta currentCidadeFilter com a grafia de uniqueCidades, que nem sempre e
+    // a mesma do nome canonico do IBGE.
+    const aliases = typeof getMunicipioAliasSlugs === 'function'
+      ? getMunicipioAliasSlugs(nome)
+      : [normalizeMunicipioSlug(nome)];
+    aliases.forEach((alias) => { if (alias) summary[alias] = entry; });
   });
 
   return summary;
@@ -1732,30 +1772,20 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
 }
 
 function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
-  const precomputedSummary = typeof getPrecomputedMunicipalOverviewSummary === 'function'
-    ? getPrecomputedMunicipalOverviewSummary(cargoKey)
-    : null;
-  if (precomputedSummary) {
-    return precomputedSummary;
+  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+
+  // Deputado nunca passa pelos dots: o RESULTS tem todos os municipios e a
+  // ponte casa com o poligono por codigo. Ver buildDeputyMunicipalSummaryFromResults.
+  if (cargoKey.startsWith('deputado')) {
+    if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
+    return buildDeputyMunicipalSummaryFromResults(cargoKey, turnoKey);
   }
 
-  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
   const officialCityTotals = getOfficialCityTotalsForCargo(cargoKey, turnoKey);
   if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
     return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
   }
 
-  if (cargoKey.startsWith('deputado')) {
-    if (typeof syncDeputyDataForCargo === 'function') syncDeputyDataForCargo(cargoKey);
-    const rawCityTotals = STATE.deputyCityTotals?.[cargoKey];
-    if (rawCityTotals?.size > 0 || (rawCityTotals && Object.keys(rawCityTotals).length > 0)) {
-      return buildDeputyMunicipalSummaryFromRawTotals(rawCityTotals, cargoKey, turnoKey);
-    }
-  }
-
-  if (cargoKey.startsWith('deputado') && typeof syncDeputyDataForCargo === 'function') {
-    syncDeputyDataForCargo(cargoKey);
-  }
   const geojson = currentDataCollection[cargoKey];
   if (!geojson?.features?.length) return {};
 

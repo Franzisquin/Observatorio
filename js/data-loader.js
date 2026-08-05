@@ -298,39 +298,12 @@ function getPrecomputedProportionalStateScope(cargo = currentCargo) {
   return STATE.precomputedProportionalStateTotals?.[cargo]?.state || null;
 }
 
-function getPrecomputedMunicipalOverviewSummary(cargo = currentCargo) {
-  if (!String(cargo || '').startsWith('deputado')) return null;
-  if (STATE.currentElectionType !== 'geral') return null;
-  if (currentCidadeFilter !== 'all') return null;
-  if (currentBairroFilter !== 'all') return null;
-  if (String(currentLocalFilter || '').trim()) return null;
-
-  const payload = STATE.precomputedProportionalStateTotals?.[cargo];
-  const municipalitiesByCode = payload?.municipalitiesByCode || null;
-  const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
-  if (!municipalitiesByCode || !uf || uf === 'BR') return null;
-
-  const summary = {};
-
-  Object.entries(municipalitiesByCode).forEach(([muniCode, rawEntry]) => {
-    const entry = rawEntry || {};
-
-    // Mesmo criterio do resto do site: casa por codigo IBGE via matchesRegionalScope.
-    if (!matchesRegionalScope({ CD_MUN: String(entry.muniCode || muniCode || '') })) return;
-
-    const summaryEntry = {
-      ...entry,
-      muniCode: String(entry.muniCode || muniCode || '').trim(),
-      rawTotals: entry.votes || {},
-      isDetailed: true
-    };
-
-    if (summaryEntry.muniCode) summary[summaryEntry.muniCode] = summaryEntry;
-    if (entrySlug) summary[entrySlug] = summaryEntry;
-  });
-
-  return Object.keys(summary).length ? summary : null;
-}
+// getPrecomputedMunicipalOverviewSummary saiu daqui: os arquivos
+// precomputed_totals_deputados_* nunca existiram em resultados_geo, ela
+// chaveava por codigo TSE (que nenhum poligono tem) e carregava um
+// ReferenceError latente. O resumo municipal de deputado agora vem de
+// buildDeputyMunicipalSummaryFromResults. getPrecomputedProportionalStateScope,
+// que e outra coisa (totais estaduais), continua valendo.
 
 async function onClickLoadData_Deputies_legado(uf, year) {
   // Determine Type based on current selection

@@ -330,7 +330,6 @@ async function onClickLoadData_Deputies_1994(uf, year) {
       STATE.spatialIndex2022 = { presidente: null, governador: null, senador: null };
       STATE.generalOfficialTotals = {};
       STATE.generalOfficialTotalsByCity = {};
-      STATE.deputyCityTotals = {};
       uniqueCidades.clear();
       uniqueBairros.clear();
 
@@ -382,22 +381,9 @@ async function onClickLoadData_Deputies_1994(uf, year) {
         STATE.deputyAdjustments = STATE.deputyAdjustmentsByType[typeKey];
       }
 
-      // Totais por municipio direto do JSON (nao ha precomputados para 1994).
+      // O resumo municipal sai de buildDeputyMunicipalSummaryFromResults, que
+      // agrega o RESULTS por codigo — nao ha mais mapa por nome aqui.
       const { muniNameMap, muniIbgeMap } = buildMuniMaps1994([fullJson]);
-      const rawCityTotals = new Map();
-      Object.entries(results).forEach(([locId, voteMap]) => {
-        const parts = locId.split('_');
-        if (parts.length < 3) return;
-        const cityName = muniNameMap.get(parts[1]);
-        if (!cityName) return;
-        let cityVotes = rawCityTotals.get(cityName);
-        if (!cityVotes) { cityVotes = {}; rawCityTotals.set(cityName, cityVotes); }
-        Object.entries(voteMap || {}).forEach(([cid, v]) => {
-          cityVotes[cid] = (cityVotes[cid] || 0) + ensureNumber(v);
-        });
-      });
-      if (!STATE.deputyCityTotals) STATE.deputyCityTotals = {};
-      STATE.deputyCityTotals[cargoKey] = rawCityTotals;
 
       // Guarda a base sintetica para reuso pelos dois tipos (f/e).
       STATE._deputyBase1994 = buildDeputyBaseGeojson1994(

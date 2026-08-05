@@ -318,15 +318,21 @@ function buildGeneralOfficialSummariesByCity(fullJson, turnoKey, geojson) {
   const ibgeByCity = new Map();
   Object.entries(fullJson?.RESULTS || {}).forEach(([resultKey, voteMap]) => {
     const municipioCode = extractMunicipioCodeFromGeneralResultKey(resultKey);
-    const cityName = cityNameByCode.get(municipioCode);
-    if (!municipioCode || !cityName) return;
+    if (!municipioCode) return;
+    // cityNameByCode vem do geojson JA filtrado (coordenada valida + censo +
+    // chave no RESULTS): municipio que nao sobreviveu a esse funil era
+    // descartado aqui e sumia do mapa. A ponte e o nome canonico do IBGE
+    // garantem que todo municipio com voto entre no resumo.
+    const ibge = cityIbgeByCode.get(municipioCode) || TSE_TO_IBGE.get(municipioCode) || '';
+    const cityName = cityNameByCode.get(municipioCode)
+      || (ibge && STATE.muniCodeToNameMap?.get(ibge)) || '';
+    if (!cityName) return;
 
     let rawTotals = rawTotalsByCity.get(cityName);
     if (!rawTotals) {
       rawTotals = {};
       rawTotalsByCity.set(cityName, rawTotals);
     }
-    const ibge = cityIbgeByCode.get(municipioCode);
     if (ibge && !ibgeByCity.has(cityName)) ibgeByCity.set(cityName, ibge);
 
     Object.entries(voteMap || {}).forEach(([candidateId, rawVotes]) => {
