@@ -1626,6 +1626,7 @@ function buildDeputyMunicipalSummaryFromResults(cargoKey, turnoKey) {
       winnerColorParty: winnerColorParty || winnerParty,
       totalValid,
       margin: ((winnerVotes - secondVotes) / totalValid) * 100,
+      marginVotes: Math.max(0, winnerVotes - secondVotes),
       winnerPct: (winnerVotes / totalValid) * 100,
       turno: turnoKey,
       turnoLabel,
@@ -1751,6 +1752,7 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
       winnerColorParty: winnerParty,
       totalValid,
       margin: totalValid > 0 ? ((winnerVotes - secondVotes) / totalValid) * 100 : 0,
+      marginVotes: Math.max(0, winnerVotes - secondVotes),
       winnerPct: totalValid > 0 ? (winnerVotes / totalValid) * 100 : 0,
       turno: turnoKey,
       turnoLabel,
@@ -1893,6 +1895,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
       winnerColorParty: winnerColorParty || winnerParty,
       totalValid: entry.totalValid,
       margin: entry.totalValid > 0 ? ((winnerVotes - secondVotes) / entry.totalValid) * 100 : 0,
+      marginVotes: Math.max(0, winnerVotes - secondVotes),
       winnerPct: entry.totalValid > 0 ? (winnerVotes / entry.totalValid) * 100 : 0,
       turno: turnoKey,
       turnoLabel,
@@ -2175,6 +2178,7 @@ function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCar
       winnerColorParty: winnerColorParty || winnerParty,
       totalValid: grupo.totalValid,
       margin: ((winnerVotes - secondVotes) / grupo.totalValid) * 100,
+      marginVotes: Math.max(0, winnerVotes - secondVotes),
       winnerPct: (winnerVotes / grupo.totalValid) * 100,
       turno: turnoKey,
       turnoLabel,
@@ -3615,25 +3619,10 @@ function getMunicipalPolygonStyle(feature, summary) {
     const isFilteredOutPerformance = currentVizMode.startsWith('desempenho') && (pctVal === 0 || (performanceFilterMinPct > 0 && pctVal < performanceFilterMinPct));
     if (!isFilteredOutPerformance) {
       const summaryAtual = summary || STATE.currentMapMuniSummary;
-
-      if (STATE.extrusionMetric === 'margin') {
-        if (currentVizMode.startsWith('desempenho')) {
-          // Desempenho vem da feature, nao do summary: o teto natural e 100%.
-          height = scale3DHeightMeters(Math.max(0, Math.min(100, ensureNumber(pctVal))), 100);
-        } else if (currentGradientMode === 'winnerPct') {
-          height = scale3DHeightMeters(
-            ensureNumber(result.winnerPct),
-            getMaxSummaryMetric(summaryAtual, 'winnerPct', (e) => e.winnerPct));
-        } else {
-          height = scale3DHeightMeters(
-            ensureNumber(result.margin),
-            getMaxSummaryMetric(summaryAtual, 'margin', (e) => e.margin));
-        }
-      } else {
-        height = scale3DHeightMeters(
-          ensureNumber(result.totalValid || result.totalValidos || result.qt_votos_validos || 0),
-          getMaxTotalValidForSummary(summaryAtual));
-      }
+      height = scale3DHeightMeters(
+        ensureNumber(result.totalValid || result.totalValidos || result.qt_votos_validos || 0),
+        getMaxTotalValidForSummary(summaryAtual)
+      );
     }
   }
 

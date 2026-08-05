@@ -815,10 +815,59 @@ function updateClearSelectionButtonVisibility() {
   } else {
     btn.classList.add('hidden');
   }
+
+  updateScopeBackButton();
+}
+
+// Para onde o botao de voltar leva, a partir da abrangencia atual. null = ja
+// estamos no topo (Brasil, ou o resumo estadual das municipais) e o botao some.
+//
+// Nao e a mesma escada do ✕: aquele sobe UM filtro por clique (local -> bairro
+// -> municipio -> regiao); este sobe um nivel de ABRANGENCIA, entao de dentro
+// de um municipio ou de uma regiao do IBGE ele volta direto para o estado.
+function getScopeBackTarget() {
+  if (typeof STATE === 'undefined') return null;
+
+  if (STATE.currentElectionType === 'municipal') {
+    if (!dom?.selectMunicipio?.value) return null;
+    const uf = String(dom.selectUFMunicipal?.value || '').toUpperCase();
+    return { kind: 'municipal-uf', label: UF_MAP.get(uf) || uf || 'Estado' };
+  }
+
+  const uf = String(dom?.selectUFGeneral?.value || '').toUpperCase();
+  if (!uf || uf === 'BR') return null;
+
+  const dentroDoEstado = (typeof hasRegionalScopeFilters === 'function' && hasRegionalScopeFilters())
+    || (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all')
+    || (typeof currentBairroFilter !== 'undefined' && currentBairroFilter !== 'all')
+    || (typeof currentLocalFilter !== 'undefined' && currentLocalFilter !== '');
+
+  return dentroDoEstado
+    ? { kind: 'geral-uf', label: UF_MAP.get(uf) || uf }
+    : { kind: 'geral-br', label: UF_MAP.get('BR') || 'Brasil' };
+}
+
+function updateScopeBackButton() {
+  const btn = document.getElementById('btnScopeBack');
+  if (!btn) return;
+
+  const target = getScopeBackTarget();
+  if (!target) {
+    btn.classList.add('hidden');
+    return;
+  }
+
+  const label = document.getElementById('btnScopeBackLabel');
+  if (label) label.textContent = target.label;
+  btn.title = `Voltar para ${target.label}`;
+  btn.dataset.scopeKind = target.kind;
+  btn.classList.remove('hidden');
 }
 
 if (typeof window !== 'undefined') {
   window.updateClearSelectionButtonVisibility = updateClearSelectionButtonVisibility;
+  window.getScopeBackTarget = getScopeBackTarget;
+  window.updateScopeBackButton = updateScopeBackButton;
 }
 
 if (typeof window !== 'undefined') {

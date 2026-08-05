@@ -338,6 +338,7 @@ async function init() {
   dom.mapRenderControls = document.getElementById('mapRenderControls');
   dom.btnLocateSelection = document.getElementById('btnLocateSelection');
   dom.btnClearSelection = document.getElementById('btnClearSelection');
+  dom.btnScopeBack = document.getElementById('btnScopeBack');
   dom.turnTabs = document.getElementById('turnTabs');
   dom.resultsContent = document.getElementById('resultsContent');
   dom.resultsMetrics = document.getElementById('resultsMetrics');
@@ -400,8 +401,6 @@ async function init() {
 
   function syncExtrusionButtonVisibility() {
     const btnExtrusion = document.getElementById('btnToggleExtrusion');
-    const btn3DMetric = document.getElementById('btnToggle3DMetric');
-    const viz3DMetricCtrl = document.getElementById('viz3DMetricCtrl');
     if (!map) return;
     
     // Municipios e regioes desenham poligonos, entao os dois tem altura.
@@ -411,20 +410,8 @@ async function init() {
       STATE.municipiosLayer.setExtrusionEnabled(STATE.extrusion3DEnabled && podeExtrudir);
     }
 
-    // "Altura" aparece sempre que o mapa desenha poligonos. Antes so aparecia
-    // com o mapa ja inclinado, o que obrigava a apertar "Perspectiva" primeiro
-    // so para descobrir que existia um segundo botao — e ele proprio inclina.
     if (btnExtrusion) {
       btnExtrusion.classList.toggle('visible-inline', podeExtrudir);
-    }
-
-    // A metrica so faz sentido com altura ligada: essa dependencia e real.
-    if (btn3DMetric) {
-      btn3DMetric.classList.toggle('visible-inline', podeExtrudir && STATE.extrusion3DEnabled);
-    }
-
-    if (viz3DMetricCtrl) {
-      viz3DMetricCtrl.classList.toggle('section-hidden', !podeExtrudir);
     }
   }
   window.syncExtrusionButtonVisibility = syncExtrusionButtonVisibility;
@@ -455,6 +442,11 @@ async function init() {
 
   // Initialize Mobile Tabbed Navigation & Routing
   setupMobileNavigation();
+
+  // Carregar o mapa do Brasil (Nacional) automaticamente ao abrir o site
+  if (typeof window.showNationalOverview === 'function') {
+    void window.showNationalOverview();
+  }
 
   console.log("App Initialized. Tabs and Sliders setup complete.");
 }
@@ -789,6 +781,7 @@ function enhanceSelectElement(select) {
     }
 
     options.forEach((opt, idx) => {
+      if (opt.disabled && !opt.value) return; // Ignore placeholder options
       const customOpt = document.createElement('div');
       customOpt.className = 'custom-select-option';
       customOpt.textContent = opt.textContent;

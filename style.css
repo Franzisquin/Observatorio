@@ -2945,6 +2945,62 @@ input:disabled {
 }
 
 /* Premium Map Box Clear Selection Button (✕) style */
+/* Voltar um nivel de abrangencia (canto superior esquerdo do mapa). Distinto do
+   ✕ da direita, que limpa a selecao dentro do nivel atual. */
+.btn-scope-back {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  height: 32px;
+  padding: 0 12px 0 8px;
+  background: #2b2b2b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: #e5e5e5;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+  user-select: none;
+}
+
+.btn-scope-back span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-scope-back:hover {
+  background: #3a3a3a;
+  color: #ffffff;
+}
+
+.btn-scope-back:active {
+  transform: scale(0.96);
+}
+
+.btn-scope-back.hidden {
+  display: none;
+}
+
+[data-theme="light"] .btn-scope-back {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #374151;
+}
+
+[data-theme="light"] .btn-scope-back:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
 .btn-clear-selection {
   position: absolute;
   top: 12px;
@@ -4932,4 +4988,59 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   display: inline-flex !important;
   opacity: 1;
   animation: fadeIn 0.2s ease-out;
+}
+
+/* DOTPLOTS POR ESTADO (visao nacional das legislativas)
+   O MapLibre posiciona o marcador escrevendo `transform` no proprio elemento.
+   Por isso NADA de transform/transition aqui: o hover e a animacao ficam no
+   <svg> de dentro, senao o CSS sobrescreve a posicao e o aglomerado descola do
+   mapa ao dar zoom. Mesma divisao do EUA Proporcional. */
+.state-parliament-circle {
+  background: none !important;
+  border: none !important;
+  cursor: pointer;
+  user-select: none;
+}
+
+.state-parliament-circle svg {
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.state-parliament-circle:hover svg {
+  transform: scale(1.15);
+}
+
+.chamber-party-table th {
+  padding: 8px 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* SEMICIRCLE PARLIAMENT TOOLTIP */
+.chamber-container {
+  position: relative;
+  width: 100%;
+}
+
+.chamber-tooltip {
+  position: absolute;
+  background: #1c1c1e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 10px 14px;
+  pointer-events: none;
+  z-index: 1000;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  min-width: 180px;
+  transition: opacity 0.1s ease;
+  font-family: var(--font-main);
+}
+
+.chamber-tooltip.hidden {
+  display: none !important;
+  opacity: 0;
 }

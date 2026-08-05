@@ -96,7 +96,6 @@
             <div class="ctrl" style="margin-bottom: 6px;">
               <label for="selectUFMunicipal">Estado (UF)</label>
               <select id="selectUFMunicipal" class="select">
-                <option value="" disabled selected>Selecione UF...</option>
               </select>
             </div>
 
@@ -116,7 +115,6 @@
             <div class="ctrl">
               <label for="selectMunicipio">Município</label>
               <select id="selectMunicipio" class="select" disabled>
-                <option value="" disabled selected>Selecione UF...</option>
               </select>
               <input id="searchMunicipio" class="search-input" placeholder="Buscar município..."
                 style="margin-top: 4px;" disabled>
@@ -325,14 +323,6 @@
               <button class="chip-button" data-value="winnerPct">% do Vencedor</button>
             </div>
           </div>
-
-          <div class="ctrl section-hidden" id="viz3DMetricCtrl">
-            <label>Métrica de Altura (3D)</label>
-            <div class="chip-group" id="viz3DMetricChips">
-              <button class="chip-button active" data-value="votes" title="Altura proporcional aos votos válidos do município">Total de Votos</button>
-              <button class="chip-button" data-value="margin" title="Altura proporcional à margem de vitória ou % no município">Margem de Vitória</button>
-            </div>
-          </div>
         </div>
 
       </div>
@@ -343,6 +333,16 @@
       <div id="map"></div>
       <button id="btnClearSelection" class="btn-clear-selection hidden"
         title="Voltar para visualização geral">✕</button>
+
+      <!-- Sobe um nivel de abrangencia: municipio/regiao -> estado -> Brasil.
+           Some no nivel nacional, que e o topo. -->
+      <button id="btnScopeBack" class="btn-scope-back hidden" type="button">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+        <span id="btnScopeBackLabel">Brasil</span>
+      </button>
 
       <!-- MAP OVERLAY CONTROLS -->
       <div class="map-overlay-controls">
@@ -389,17 +389,6 @@
               <polyline points="2 17 7 22 12 17"></polyline>
             </svg>
             <span>Altura</span>
-          </button>
-
-          <button id="btnToggle3DMetric" class="toggle-btn" title="O que define a altura: votos ou margem"
-            style="display: none;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10"></line>
-              <line x1="12" y1="20" x2="12" y2="4"></line>
-              <line x1="6" y1="20" x2="6" y2="14"></line>
-            </svg>
-            <span id="label3DMetric">por Votos</span>
           </button>
         </div>
       </div>

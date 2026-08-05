@@ -1,15 +1,17 @@
 function setupControls() {
-  // Popular UF Geral
-  dom.selectUFGeneral.innerHTML = '<option value="" disabled selected>Selecione UF</option>';
+  // Popular UF Geral (Brasil por padrão)
+  dom.selectUFGeneral.innerHTML = '';
   UF_MAP.forEach((nome, sigla) => {
     const opt = document.createElement('option');
     opt.value = sigla;
     opt.textContent = (sigla === 'BR') ? nome : `${nome} (${sigla})`;
+    if (sigla === 'BR') opt.selected = true;
     dom.selectUFGeneral.appendChild(opt);
   });
+  dom.selectUFGeneral.value = 'BR';
 
   // Popular UF Municipal
-  dom.selectUFMunicipal.innerHTML = '<option value="" disabled selected>Selecione UF</option>';
+  dom.selectUFMunicipal.innerHTML = '';
   ALL_STATE_SIGLAS.forEach(sigla => {
     if (sigla === 'DF') return;
     const nome = UF_MAP.get(sigla) || sigla;
@@ -616,30 +618,10 @@ function setupControls() {
 
   // ====== CONTROLES DO MAPA 3D ======
   STATE.extrusion3DEnabled = false;
-  STATE.extrusionMetric = 'votes'; // 'votes' | 'margin'
+  STATE.extrusionMetric = 'votes'; // Fixo por Votos
 
   function setExtrusionMetric(metric) {
-    const nextMetric = (metric === 'margin' || metric === 'margem') ? 'margin' : 'votes';
-    STATE.extrusionMetric = nextMetric;
-
-    // Sincronizar botões no painel esquerdo
-    const metricChips = document.querySelectorAll('#viz3DMetricChips .chip-button');
-    metricChips.forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.value === nextMetric);
-    });
-
-    // Sincronizar botão na barra superior do mapa
-    const label3DMetric = document.getElementById('label3DMetric');
-    if (label3DMetric) {
-      label3DMetric.textContent = nextMetric === 'margin' ? 'por Margem' : 'por Votos';
-    }
-
-    const btnToggle3DMetric = document.getElementById('btnToggle3DMetric');
-    if (btnToggle3DMetric) {
-      btnToggle3DMetric.classList.toggle('active', nextMetric === 'margin');
-    }
-
-    // Recarregar estilo da camada de municípios
+    STATE.extrusionMetric = 'votes';
     if (STATE.municipiosLayer) {
       STATE.municipiosLayer.refresh();
     }
@@ -696,21 +678,7 @@ function setupControls() {
     });
   }
 
-  if (btnToggle3DMetric) {
-    btnToggle3DMetric.addEventListener('click', () => {
-      const nextMetric = STATE.extrusionMetric === 'margin' ? 'votes' : 'margin';
-      setExtrusionMetric(nextMetric);
-    });
-  }
 
-  if (viz3DMetricChips) {
-    viz3DMetricChips.addEventListener('click', (e) => {
-      const btn = e.target.closest('.chip-button');
-      if (btn && btn.dataset.value) {
-        setExtrusionMetric(btn.dataset.value);
-      }
-    });
-  }
 
   
 
@@ -996,6 +964,75 @@ function setupControls() {
       applyFiltersAndRedraw();
       if (typeof window.syncExtrusionButtonVisibility === 'function') {
         window.syncExtrusionButtonVisibility();
+      }
+    });
+  }
+
+  // VOLTAR UM NIVEL DE ABRANGENCIA: municipio/regiao -> estado -> Brasil.
+  if (dom.btnScopeBack) {
+    dom.btnScopeBack.addEventListener('click', () => {
+      const target = window.getScopeBackTarget?.();
+      if (!target) return;
+
+      if (target.kind === 'geral-br') {
+        // Trocar o seletor basta: o listener de UF ja limpa filtros e o
+        // carregamento instantaneo cai em showNationalOverview.
+        dom.selectUFGeneral.value = 'BR';
+        dom.selectUFGeneral.dispatchEvent(new Event('change'));
+        return;
+      }
+
+      if (target.kind === 'geral-uf') {
+        // Volta ao estado inteiro de uma vez: derruba regiao E municipio no
+        // mesmo clique (o ✕ e que sobe de um em um).
+        currentRegionFilter = { level: '', code: '' };
+        currentCidadeFilter = 'all';
+        currentBairroFilter = 'all';
+        currentLocalFilter = '';
+        STATE.currentRegionLevel = '';
+        STATE.currentMapMode = 'municipios';
+        if (dom.searchLocal) dom.searchLocal.value = '';
+        if (dom.inputBairro) {
+          dom.inputBairro.disabled = true;
+          dom.inputBairro.value = 'all';
+        }
+        if (cidadeCombobox) cidadeCombobox.setValue('Todos os municipios');
+        clearSelection(true);
+        populateRegionalDropdowns();
+        populateCidadeDropdown();
+        populateBairroDropdown();
+        updateApplyButtonText();
+        applyFiltersAndRedraw();
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
+        return;
+      }
+
+      if (target.kind === 'municipal-uf') {
+        currentOffice = 'prefeito';
+        currentSubType = 'ord';
+        currentCargo = 'prefeito_ord';
+        applyDefaultVizColorStyleForCurrentCargo();
+        dom.officeChipsMunicipal?.querySelectorAll('.chip-button').forEach((b) => {
+          b.classList.toggle('active', b.dataset.value === 'prefeito');
+        });
+        dom.selectMunicipio.value = '';
+        if (dom.inputBairro) {
+          dom.inputBairro.disabled = true;
+          dom.inputBairro.value = 'all';
+        }
+        clearSelection(true);
+        updateElectionTypeUI();
+        updateConditionalUI();
+        updateApplyButtonText();
+        const uf = dom.selectUFMunicipal?.value;
+        if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
+          window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
+        }
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
       }
     });
   }
