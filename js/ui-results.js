@@ -19,20 +19,6 @@ function updateNeighborhoodProfileUI() {
 
   const isLegacy = isLimitedCensusYear2006();
 
-  const toggleProfileSection = (chartId, visible) => {
-    const chart = document.getElementById(chartId);
-    const section = chart?.closest('.profile-section');
-    if (section) section.style.display = visible ? '' : 'none';
-    if (!visible && chart) chart.innerHTML = '';
-  };
-
-  toggleProfileSection('profileRacaChart', true);
-  toggleProfileSection('profileSaneamentoChart', true);
-  toggleProfileSection('profileGeneroChart', !isLegacy);
-  toggleProfileSection('profileIdadeChart', !isLegacy);
-  toggleProfileSection('profileEscolaridadeChart', !isLegacy);
-  toggleProfileSection('profileEstadoCivilChart', !isLegacy);
-
   // --- ACUMULADORES ---
   let count = 0;
 
@@ -159,6 +145,23 @@ function clearNeighborhoodProfileCharts() {
 // carregados para somar.
 function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) {
   const { count, sumRenda, countRenda, pctSum, abs, ageBuckets } = totals;
+
+  // 2006 so tem raca, renda e saneamento: as demais secoes ficam escondidas em
+  // vez de aparecerem zeradas. Vive aqui (e nao na acumulacao) porque vale
+  // igual para o perfil do recorte selecionado e para o nacional.
+  const toggleProfileSection = (chartId, visible) => {
+    const chart = document.getElementById(chartId);
+    const section = chart?.closest('.profile-section');
+    if (section) section.style.display = visible ? '' : 'none';
+    if (!visible && chart) chart.innerHTML = '';
+  };
+
+  toggleProfileSection('profileRacaChart', true);
+  toggleProfileSection('profileSaneamentoChart', true);
+  toggleProfileSection('profileGeneroChart', !isLegacy);
+  toggleProfileSection('profileIdadeChart', !isLegacy);
+  toggleProfileSection('profileEscolaridadeChart', !isLegacy);
+  toggleProfileSection('profileEstadoCivilChart', !isLegacy);
 
   // Render Renda
   const rendaFinal = countRenda > 0 ? sumRenda / countRenda : 0;
@@ -371,8 +374,149 @@ function applyDefaultVizColorStyleForCurrentCargo() {
   syncVizColorStyleControl();
 }
 
+// ===================== TABELA PADRAO DAS SIDEBARS DE RESULTADO =====================
+//
+// Padrao unico do app, tirado da sidebar de presidente do resumo nacional (a
+// mesma de governador/senador no estadual e de prefeito): faixa de cor a
+// esquerda, nome com a barra de porcentagem LOGO ABAIXO dele, e as colunas
+// numericas na ordem Cadeiras -> Votos -> Pct.
+//
+// Cadeiras e Votos so aparecem se alguma linha tiver o valor, entao a mesma
+// funcao serve para eleicao majoritaria (votos + pct), contagem de vencedores
+// (contagem + pct) e legislativa (cadeiras + votos + pct).
+//
+// rows: [{ label, sublabel, color, seats, votes, pct, highlight, title,
+//          rowClass, rowAttrs, colorPicker: {name, party} }]
+function buildStandardResultsTable(rows, options = {}) {
+  const lista = Array.isArray(rows) ? rows : [];
+  const temCadeiras = lista.some((r) => r.seats !== undefined && r.seats !== null);
+  const temVotos = lista.some((r) => r.votes !== undefined && r.votes !== null);
+
+  const cabecalho = [
+    '<th class="color-bar-td"></th>',
+    `<th class="align-left">${escapeHtml(options.labelHeader || 'Candidato')}</th>`,
+    temCadeiras ? `<th class="align-center">${escapeHtml(options.seatsHeader || 'Cadeiras')}</th>` : '',
+    temVotos ? `<th class="align-center">${escapeHtml(options.votesHeader || 'Votos')}</th>` : '',
+    '<th class="align-center">Pct.</th>'
+  ].join('');
+
+  const corpo = lista.map((row) => {
+    const cor = row.color || DEFAULT_SWATCH;
+    const pct = Math.min(100, Math.max(0, ensureNumber(row.pct) * 100));
+
+    // Candidato tem seletor de cor (a faixa vira botao); partido/legenda nao,
+    // e entao a mesma faixa sai como span — o CSS so da cursor/hover ao button.
+    const faixa = row.colorPicker
+      ? `<button type="button" class="swatch-button cand-color-bar"
+             style="background-color: ${cor};"
+             data-candidate-name="${escapeAttribute(row.colorPicker.name || '')}"
+             data-candidate-party="${escapeAttribute(row.colorPicker.party || '')}"
+             data-current-color="${cor}"
+             title="Personalizar cor do candidato"></button>`
+      : `<span class="cand-color-bar" style="background-color: ${cor};"></span>`;
+
+    const celulas = [
+      `<td class="color-bar-td">${faixa}</td>`,
+      `<td class="align-left">
+        <div class="cand-name-container">
+          ${row.highlight ? `<span class="cand-check-circle" style="background-color: ${cor};">✔</span>` : ''}
+          <span class="cand-name-text">${escapeHtml(row.label || '')}</span>
+        </div>
+        <div class="cand-mini-bar-wrap">
+          <div class="cand-mini-bar" style="width: ${pct}%; background-color: ${cor};"></div>
+        </div>
+        ${row.sublabel ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(row.sublabel)}</div>` : ''}
+      </td>`,
+      temCadeiras ? `<td class="align-center cand-votes-text">${row.seats === undefined || row.seats === null ? '—' : fmtInt(row.seats)}</td>` : '',
+      temVotos ? `<td class="align-center cand-votes-text">${row.votes === undefined || row.votes === null ? '—' : fmtInt(row.votes)}</td>` : '',
+      `<td class="align-center pct-text">${fmtPct(ensureNumber(row.pct))}</td>`
+    ].join('');
+
+    return `<tr class="${row.rowClass || ''}"${row.title ? ` title="${escapeAttribute(row.title)}"` : ''}${row.rowAttrs || ''}>${celulas}</tr>`;
+  }).join('');
+
+  return `<table class="cand-table"><thead><tr>${cabecalho}</tr></thead><tbody>${corpo}</tbody></table>`;
+}
+
+if (typeof window !== 'undefined') {
+  window.buildStandardResultsTable = buildStandardResultsTable;
+}
+
 function isLimitedCensusYear2006() {
   return String(STATE.currentElectionYear) === '2006';
+}
+
+// ===================== PERFIL DEMOGRAFICO DO BRASIL =====================
+//
+// No escopo nacional nao ha locais de votacao carregados para somar — o mapa e
+// por estado. O agregado vem pronto de resultados_geo/Censo <ANO>/, gerado por
+// scripts/gerar_perfil_nacional.py com exatamente a mesma conta que
+// updateNeighborhoodProfileUI faz sobre o recorte selecionado.
+//
+// Cada eleicao le o censo do seu proprio ano, entao o perfil acompanha a
+// eleicao escolhida. 1989/1994/1998/2002 nao tem censo no acervo: nesses anos
+// o painel some, em vez de mostrar um perfil de outra epoca.
+const NATIONAL_PROFILE_CACHE = new Map();
+
+function hasNationalDemographicProfile(year = STATE.currentElectionYear) {
+  return Number(year) >= 2006;
+}
+
+async function loadNationalDemographicProfile(year) {
+  const chave = String(year);
+  if (NATIONAL_PROFILE_CACHE.has(chave)) return NATIONAL_PROFILE_CACHE.get(chave);
+
+  const promise = fetch(`${DATA_BASE_URL}Censo ${chave}/perfil_nacional_${chave}.json`)
+    .then((res) => {
+      if (!res.ok) throw new Error(`Sem perfil nacional para ${chave}`);
+      return res.json();
+    });
+
+  NATIONAL_PROFILE_CACHE.set(chave, promise);
+  promise.catch(() => {
+    if (NATIONAL_PROFILE_CACHE.get(chave) === promise) NATIONAL_PROFILE_CACHE.delete(chave);
+  });
+  return promise;
+}
+
+async function showNationalDemographicProfile(year = STATE.currentElectionYear) {
+  if (!dom.neighborhoodProfile) return;
+
+  if (!hasNationalDemographicProfile(year)) {
+    dom.neighborhoodProfile.style.display = 'none';
+    return;
+  }
+
+  try {
+    const totals = await loadNationalDemographicProfile(year);
+    // Troca de ano/escopo enquanto o fetch corria: o painel ja e de outra coisa.
+    if (String(STATE.currentElectionYear) !== String(year)) return;
+    if (typeof isNationalGeneralScope === 'function' && !isNationalGeneralScope()) return;
+
+    dom.neighborhoodProfile.style.display = '';
+    renderDemographicProfile(totals, String(year) === '2006');
+
+    const titulo = dom.neighborhoodProfile.querySelector('.profile-header h3');
+    if (titulo) titulo.textContent = `Perfil Demográfico — Brasil (${year})`;
+  } catch (error) {
+    console.warn('[Nacional] Perfil demográfico indisponível:', error);
+    clearNeighborhoodProfileCharts();
+    dom.neighborhoodProfile.style.display = 'none';
+  }
+}
+
+// O titulo vira "Perfil Demografico — Brasil (ANO)" no escopo nacional; ao
+// descer para um estado ou municipio tem que voltar ao rotulo original.
+function resetDemographicProfileTitle() {
+  const titulo = dom.neighborhoodProfile?.querySelector('.profile-header h3');
+  if (titulo) titulo.textContent = 'Perfil Demográfico';
+}
+
+if (typeof window !== 'undefined') {
+  window.showNationalDemographicProfile = showNationalDemographicProfile;
+  window.resetDemographicProfileTitle = resetDemographicProfileTitle;
+  window.renderDemographicProfile = renderDemographicProfile;
+  window.clearNeighborhoodProfileCharts = clearNeighborhoodProfileCharts;
 }
 
 function resetUnavailableCensusFiltersForYear() {
@@ -485,8 +629,14 @@ function updateElectionTypeUI() {
   // Hide neighborhood profile in statewide overview (if isMunicipal and no city selected)
   // e em 1994 (sem censo, o perfil ficaria todo zerado)
   if (dom.neighborhoodProfile) {
-      const shouldShowProfile = (!isMunicipal || hasMunicipalSelection) && !isMuniOnlyGeral;
+      // No escopo nacional o perfil e do pais inteiro, e vem pre-calculado —
+      // quem decide exibir e showNationalDemographicProfile, que so mostra o
+      // painel se houver censo para o ano da eleicao.
+      const shouldShowProfile = isNacional
+        ? hasNationalDemographicProfile()
+        : (!isMunicipal || hasMunicipalSelection) && !isMuniOnlyGeral;
       dom.neighborhoodProfile.style.display = shouldShowProfile ? '' : 'none';
+      if (!isNacional) resetDemographicProfileTitle();
   }
 
   if (!isMunicipal) {

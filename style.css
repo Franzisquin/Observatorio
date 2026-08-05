@@ -5121,6 +5121,14 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   user-select: none;
 }
 
+.state-parliament-circle circle {
+  stroke: #ffffff;
+}
+
+[data-theme="light"] .state-parliament-circle circle {
+  stroke: #0b0d11;
+}
+
 .state-parliament-circle svg {
   transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }

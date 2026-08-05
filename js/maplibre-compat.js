@@ -126,6 +126,11 @@
       map.__styleChangeInProgress = false;
       refreshThemeColors();
       reattachGeoLayers(map);
+      try {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('basemapthemechange', { detail: { theme } }));
+        }
+      } catch (_) {}
     };
 
     const onStyleData = () => {

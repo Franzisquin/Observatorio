@@ -63,6 +63,8 @@ const NATIONAL_LEADER_LINE_LAYER_ID = 'national-leader-lines-line';
 const NATIONAL_LEADER_DOT_LAYER_ID = 'national-leader-lines-dot';
 
 let nationalDotplotMarkers = [];
+let nationalDotplotTooltip = null;
+let lastLeaderLineUfs = null;
 // whenStyleReady pode rodar depois de a visao ja ter sido trocada; sem este
 // selo, um desenho antigo reinstalaria as linhas logo apos a limpeza.
 let nationalLeaderLinesToken = 0;
@@ -72,6 +74,7 @@ let nationalLeaderLinesToken = 0;
 // nao precisam de nenhum acerto manual a cada zoom.
 function renderNationalLeaderLines(ufs) {
   if (!map) return;
+  lastLeaderLineUfs = ufs;
   const token = ++nationalLeaderLinesToken;
 
   const features = [];
@@ -101,14 +104,21 @@ function renderNationalLeaderLines(ufs) {
       map.addSource(NATIONAL_LEADER_SOURCE_ID, { type: 'geojson', data });
     }
 
+    const isLight = document.body.dataset.theme === 'light';
+    const lineColor = isLight ? '#1a1a24' : '#ffffff';
+    const dotColor = isLight ? '#1a1a24' : '#ffffff';
+    const dotStrokeColor = isLight ? '#ffffff' : '#1a1a24';
+
     if (!map.getLayer(NATIONAL_LEADER_LINE_LAYER_ID)) {
       map.addLayer({
         id: NATIONAL_LEADER_LINE_LAYER_ID,
         type: 'line',
         source: NATIONAL_LEADER_SOURCE_ID,
         filter: ['==', ['geometry-type'], 'LineString'],
-        paint: { 'line-color': '#ffffff', 'line-width': 1.5, 'line-opacity': 0.9 }
+        paint: { 'line-color': lineColor, 'line-width': 1.5, 'line-opacity': 0.9 }
       });
+    } else {
+      map.setPaintProperty(NATIONAL_LEADER_LINE_LAYER_ID, 'line-color', lineColor);
     }
     if (!map.getLayer(NATIONAL_LEADER_DOT_LAYER_ID)) {
       map.addLayer({
@@ -118,17 +128,21 @@ function renderNationalLeaderLines(ufs) {
         filter: ['==', ['geometry-type'], 'Point'],
         paint: {
           'circle-radius': 3,
-          'circle-color': '#ffffff',
-          'circle-stroke-color': '#1a1a24',
+          'circle-color': dotColor,
+          'circle-stroke-color': dotStrokeColor,
           'circle-stroke-width': 1.5
         }
       });
+    } else {
+      map.setPaintProperty(NATIONAL_LEADER_DOT_LAYER_ID, 'circle-color', dotColor);
+      map.setPaintProperty(NATIONAL_LEADER_DOT_LAYER_ID, 'circle-stroke-color', dotStrokeColor);
     }
   });
 }
 
 function removeNationalLeaderLines() {
   nationalLeaderLinesToken += 1;
+  lastLeaderLineUfs = null;
   if (!map) return;
   [NATIONAL_LEADER_LINE_LAYER_ID, NATIONAL_LEADER_DOT_LAYER_ID].forEach((id) => {
     if (map.getLayer(id)) map.removeLayer(id);
@@ -136,7 +150,37 @@ function removeNationalLeaderLines() {
   if (map.getSource(NATIONAL_LEADER_SOURCE_ID)) map.removeSource(NATIONAL_LEADER_SOURCE_ID);
 }
 
+function showDotplotStateTooltip(uf, event) {
+  if (!map) return;
+  const layer = STATE.municipiosLayer;
+  const feature = { properties: { CD_REG: uf, NM_REG: UF_MAP.get(uf) || uf } };
+  const html = layer?.tooltipFn ? layer.tooltipFn(feature) : buildNationalStateTooltip(feature, STATE.currentMapMuniSummary);
+  if (!html) return;
+
+  if (layer && typeof layer._ensurePopup === 'function') {
+    const popup = layer._ensurePopup();
+    const lngLat = map.unproject([event.clientX, event.clientY]);
+    popup.setLngLat(lngLat);
+    if (html !== layer._popupHtml) {
+      popup.setHTML(html);
+      layer._popupHtml = html;
+    }
+    if (!layer._popupOpen) {
+      popup.addTo(map);
+      layer._popupOpen = true;
+    }
+  }
+}
+
+function hideDotplotStateTooltip() {
+  if (STATE.municipiosLayer && typeof STATE.municipiosLayer._closePopup === 'function') {
+    STATE.municipiosLayer._closePopup();
+  }
+}
+
 function clearNationalDotplotMarkers() {
+  hideDotplotStateTooltip();
+  document.querySelectorAll('.maplibregl-popup').forEach((p) => p.remove());
   nationalDotplotMarkers.forEach((m) => {
     try { m.remove(); } catch (_) {}
   });
@@ -179,7 +223,7 @@ function buildOrderedSeatColors(allocations, votesByParty = {}, partyColorFn = n
 
 // Aglomerado de cadeiras de um estado. Porte literal de createStateCircleDotsHTML
 // do Simulador Parlamentar Brasileiro: mesma grade (colunas por faixa de
-// tamanho), gap 1.25, padding 6.25, traco 0.1875 em #0b0d11.
+// tamanho), gap 1.25, padding 6.25, traco 0.1875 em #ffffff (tema escuro).
 //
 // A ultima fileira, quando incompleta, e centralizada na horizontal — sem isso
 // ela fica encostada a esquerda e o aglomerado perde o eixo.
@@ -212,7 +256,7 @@ function createStateCircleDotsHTML(label, N, seatColors, dotROverride = null, st
     const rowOffset = (row === rows - 1 && rowSeats < cols) ? ((cols - rowSeats) * dotSpacing) / 2 : 0;
     const cx = (padding + dotR + rowOffset + col * dotSpacing).toFixed(1);
     const cy = (padding + dotR + row * dotSpacing).toFixed(1);
-    circles += `<circle cx="${cx}" cy="${cy}" r="${dotR}" fill="${seatColors[i] || '#555555'}" stroke="#0b0d11" stroke-width="${strokeW}"/>`;
+    circles += `<circle cx="${cx}" cy="${cy}" r="${dotR}" fill="${seatColors[i] || '#555555'}" stroke="#ffffff" stroke-width="${strokeW}"/>`;
   }
 
   return {
@@ -291,10 +335,23 @@ function renderNationalDotplotMapMarkers(totalsByUf, houseKey) {
     el.style.lineHeight = '0';
     el.style.width = `${info.width}px`;
     el.style.height = `${info.height}px`;
-    el.title = `${UF_MAP.get(uf) || uf}: ${fmtInt(totalSeats)} cadeiras`;
     el.innerHTML = info.html;
+
+    el.addEventListener('mouseenter', (event) => {
+      showDotplotStateTooltip(uf, event);
+    });
+
+    el.addEventListener('mousemove', (event) => {
+      showDotplotStateTooltip(uf, event);
+    });
+
+    el.addEventListener('mouseleave', () => {
+      hideDotplotStateTooltip();
+    });
+
     el.addEventListener('click', (event) => {
       event.stopPropagation();
+      hideDotplotStateTooltip();
       enterStateFromNationalView(uf);
     });
 
@@ -397,6 +454,41 @@ function buildNationalArchiveBasenames(year, office, uf, turno, subtype = 'ord')
   ];
 }
 
+// Ate 2002 o acervo majoritario nao tem *_resumo.json e o TOTALS vem vazio:
+// existe so o JSON completo, com RESULTS por local (ou por municipio, em
+// 1989/1994). Somar os locais reconstitui o mesmo TOTALS que os anos seguintes
+// ja trazem prontos, e e o que fazia a visao nacional falhar antes de 2006.
+//
+// Ler o arquivo inteiro aqui e barato: presidente t1 de todas as 27 UFs pesa
+// 0,3 MB em 1994 e 2,5 MB em 1998 — nada perto dos zips de deputado.
+function buildTotalsFromResults(payload) {
+  const totals = {};
+  Object.values(payload?.RESULTS || {}).forEach((voteMap) => {
+    Object.entries(voteMap || {}).forEach(([candidateId, votes]) => {
+      totals[candidateId] = (totals[candidateId] || 0) + ensureNumber(votes);
+    });
+  });
+  return totals;
+}
+
+async function fetchNationalUfArchive(zipUrl, basename) {
+  // TOTALS = {} e truthy, entao a checagem tem que ser por conteudo, senao um
+  // resumo vazio passaria batido e a UF entraria zerada no agregado.
+  try {
+    const { data } = await fetchJsonFromZipEntry(zipUrl, `${basename}_resumo.json`);
+    if (data?.TOTALS && Object.keys(data.TOTALS).length) return data;
+  } catch (error) {
+    // Sem resumo neste ano: cai no JSON completo.
+  }
+
+  const { data } = await fetchJsonFromZipEntry(zipUrl, `${basename}.json`);
+  if (!data?.METADATA) return null;
+
+  const totals = buildTotalsFromResults(data);
+  if (!Object.keys(totals).length) return null;
+  return { METADATA: data.METADATA, TOTALS: totals };
+}
+
 async function fetchNationalUfResumo(year, office, uf, turno, subtype, forcedIndex = null) {
   const basenames = buildNationalArchiveBasenames(year, office, uf, turno, subtype);
   const order = (forcedIndex === null)
@@ -407,11 +499,11 @@ async function fetchNationalUfResumo(year, office, uf, turno, subtype, forcedInd
     const basename = basenames[index];
     if (!basename) continue;
     try {
-      const { data } = await fetchJsonFromZipEntry(
+      const data = await fetchNationalUfArchive(
         `${DATA_BASE_URL}Majoritarias ${year}/${basename}.zip`,
-        `${basename}_resumo.json`
+        basename
       );
-      if (data?.TOTALS) return { data, patternIndex: index };
+      if (data) return { data, patternIndex: index };
     } catch (error) {
       // Zip inexistente para este padrao/UF/turno: segue para o proximo.
     }
@@ -1243,55 +1335,32 @@ function renderNationalPresidentialResults(byTurn, turnoKey) {
   dom.resultsSubtitle.textContent =
     `${STATE.currentElectionYear} • ${turnoKey === '2T' ? '2º turno' : '1º turno'} • ${fmtInt(aggregate.ufCount)} estados apurados`;
 
-  let tableHtml = `
-    <table class="cand-table">
-      <thead>
-        <tr>
-          <th class="color-bar-td"></th>
-          <th class="align-left">Candidato</th>
-          <th class="align-center">Votos</th>
-          <th class="align-center">Pct.</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
-  results.forEach((r) => {
-    if (r.votos === 0 && results.length > 2) return;
-    const cleanStatus = r.status ? r.status.toUpperCase() : '';
-    const sw = getColorForCandidate(r.nome, r.partido);
-    const isSpecial = cleanStatus === 'ELEITO' || cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO';
-    const safeNome = escapeAttribute(r.nome || '');
-    const safePartido = escapeAttribute(r.partido || '');
-
-    tableHtml += `
-      <tr class="${cleanStatus ? 'prop-cand-' + cleanStatus.toLowerCase().replace(/º/g, '').replace(/°/g, '').replace(/\s+/g, '-') : ''}" data-status="${r.status}" data-cand-nome="${safeNome}" data-cand-partido="${safePartido}">
-        <td class="color-bar-td">
-          <button type="button" class="swatch-button cand-color-bar"
-               style="background-color: ${sw};"
-               data-candidate-name="${safeNome}"
-               data-candidate-party="${safePartido}"
-               data-current-color="${sw}"
-               title="Personalizar cor do candidato"></button>
-        </td>
-        <td class="align-left">
-          <div class="cand-name-container">
-            ${isSpecial ? `<span class="cand-check-circle" style="background-color: ${sw};">✔</span>` : ''}
-            <span class="cand-name-text">${toTitleCase(r.nome)}</span>
-          </div>
-          <div class="cand-mini-bar-wrap">
-            <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, r.pct * 100))}%; background-color: ${sw};"></div>
-          </div>
-          ${r.partido ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(r.partido)}</div>` : ''}
-        </td>
-        <td class="align-center cand-votes-text">${fmtInt(r.votos)}</td>
-        <td class="align-center pct-text">${fmtPct(r.pct)}</td>
-      </tr>
-    `;
-  });
-
-  tableHtml += '</tbody></table>';
-  dom.resultsContent.innerHTML = tableHtml;
+  // Esta e a sidebar que define o padrao visual do app; usa o mesmo construtor
+  // que as demais justamente para nao poderem divergir com o tempo.
+  dom.resultsContent.innerHTML = buildStandardResultsTable(
+    results
+      .filter((r) => !(r.votos === 0 && results.length > 2))
+      .map((r) => {
+        const cleanStatus = r.status ? r.status.toUpperCase() : '';
+        const isSpecial = cleanStatus === 'ELEITO' || cleanStatus === '2° TURNO' || cleanStatus === '2º TURNO';
+        return {
+          label: toTitleCase(r.nome),
+          sublabel: r.partido || '',
+          color: getColorForCandidate(r.nome, r.partido),
+          votes: r.votos,
+          pct: r.pct,
+          highlight: isSpecial,
+          colorPicker: { name: r.nome || '', party: r.partido || '' },
+          rowClass: cleanStatus
+            ? 'prop-cand-' + cleanStatus.toLowerCase().replace(/º/g, '').replace(/°/g, '').replace(/\s+/g, '-')
+            : '',
+          rowAttrs: ` data-status="${escapeAttribute(r.status || '')}"`
+            + ` data-cand-nome="${escapeAttribute(r.nome || '')}"`
+            + ` data-cand-partido="${escapeAttribute(r.partido || '')}"`
+        };
+      }),
+    { labelHeader: 'Candidato' }
+  );
 
   const invalidos = aggregate.brancos + aggregate.nulos;
   const invalidosPct = aggregate.comparecimento > 0 ? (invalidos / aggregate.comparecimento) : 0;
@@ -1353,31 +1422,19 @@ function renderNationalWinnerCountByParty(entries, options) {
   }
 
   const total = results.reduce((sum, item) => sum + item.count, 0);
-  const grid = document.createElement('div');
-  grid.className = 'grid';
 
-  results.forEach((result) => {
-    const pct = total > 0 ? (result.count / total) : 0;
-    const div = document.createElement('div');
-    div.className = 'cand';
-    div.title = result.ufs.slice().sort().join(', ');
-    div.innerHTML = `
-      <div class="cand-indicator" style="background:${result.color}"></div>
-      <div class="cand-name-wrapper">
-        <div class="cand-name" title="${escapeHtml(result.partido)}">
-          <span class="scroll-text">${escapeHtml(result.partido)}</span>
-        </div>
-      </div>
-      <div class="cand-bar-wrapper">
-        <div class="cand-bar-fill" style="background:${result.color}; width:${pct * 100}%;"></div>
-        <div class="cand-votos">${fmtInt(result.count)}</div>
-        <div class="cand-pct">${fmtPct(pct)}</div>
-      </div>
-    `;
-    grid.appendChild(div);
-  });
-
-  dom.resultsContent.appendChild(grid);
+  // Contagem de estados vencidos entra como "cadeiras": e a coluna de unidades
+  // conquistadas, primeira na ordem padrao Cadeiras -> Votos -> Pct.
+  dom.resultsContent.innerHTML = buildStandardResultsTable(
+    results.map((result) => ({
+      label: result.partido,
+      color: result.color,
+      seats: result.count,
+      pct: total > 0 ? (result.count / total) : 0,
+      title: result.ufs.slice().sort().join(', ')
+    })),
+    { labelHeader: 'Partido', seatsHeader: options.countLabel || 'Estados' }
+  );
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       <div class="metric-item"><span>Partidos vencedores</span><strong>${fmtInt(results.length)}</strong></div>
@@ -1418,10 +1475,13 @@ function buildSemicircleSeatPaths(total) {
   if (total <= 10) K = 1; else if (total <= 30) K = 2; else if (total <= 60) K = 3;
   else if (total <= 120) K = 4; else if (total <= 200) K = 5; else if (total <= 350) K = 6; else K = 7;
 
-  let Rmin = 195;
-  if (total <= 10) Rmin = 260; else if (total <= 30) Rmin = 245; else if (total <= 60) Rmin = 230;
-  else if (total <= 120) Rmin = 220; else if (total <= 200) Rmin = 210; else if (total <= 350) Rmin = 200;
-  const Rmax = 285;
+  let Rmin = 180, Rmax = 260;
+  if (total <= 10) { Rmin = 235; Rmax = 250; }
+  else if (total <= 30) { Rmin = 212; Rmax = 250; }
+  else if (total <= 60) { Rmin = 205; Rmax = 255; }
+  else if (total <= 120) { Rmin = 195; Rmax = 258; }
+  else if (total <= 200) { Rmin = 190; Rmax = 260; }
+  else if (total <= 350) { Rmin = 185; Rmax = 260; }
 
   const radii = [];
   if (K === 1) radii.push((Rmin + Rmax) / 2);
@@ -1592,72 +1652,70 @@ function drawNationalChamber(rows, totalSeats, seatWord = 'CADEIRAS') {
 // % de votos com barrinha, votos — e o detalhamento por UF no acordeao.
 function renderNationalChamberTable(rows, totalSeats, totalVotes, breakdownLabel) {
   const tableRows = rows.slice().sort((a, b) => b.seats - a.seats || b.votes - a.votes);
-  let bodyHtml = '';
-  tableRows.forEach((row) => {
-    const pct = totalVotes > 0 ? (row.votes / totalVotes * 100) : 0;
-    const pctStr = pct.toFixed(1);
-    const hasBreakdown = row.byUf && row.byUf.length > 0;
 
-    bodyHtml += `
-      <tr class="party-row-header" data-party="${escapeAttribute(row.id)}" style="border-bottom:1px solid var(--border-color); cursor:${hasBreakdown ? 'pointer' : 'default'}; ${row.seats === 0 ? 'opacity:0.55;' : ''}">
-        <td style="text-align:left; padding:8px 6px; border-left:4px solid ${row.color};">
-          <span style="font-weight:600; margin-left:4px; font-size:0.8rem;" title="${escapeAttribute(row.composition || row.id)}">${escapeHtml(row.label)}</span>
-        </td>
-        <td style="padding:8px 6px; text-align:right; font-weight:700; font-size:0.8rem; width:56px;">${fmtInt(row.seats)}</td>
-        <td style="padding:8px 6px; text-align:right; width:104px;">
-          <div style="display:flex; align-items:center; gap:6px; justify-content:flex-end;">
-            <span style="font-weight:700; min-width:34px; font-size:0.68rem; text-align:right;">${pctStr}%</span>
-            <div style="width:40px; height:6px; background:var(--border-color); overflow:hidden; flex-shrink:0;">
-              <div style="width:${pctStr}%; height:100%; background:${row.color};"></div>
-            </div>
-          </div>
-        </td>
-        <td style="padding:8px 6px; text-align:right; color:var(--muted); font-size:0.68rem; width:88px;">${fmtInt(row.votes)}</td>
-      </tr>
-    `;
-
-    if (hasBreakdown) {
-      const detailHtml = row.byUf.map((item) => `
-        <div class="cand-row" style="border-left:3px solid ${row.color};">
-          <div class="cand-name-row"><span class="cand-sim-name">${escapeHtml(UF_MAP.get(item.uf) || item.uf)}</span></div>
-          <div class="cand-meta-row">
-            <span class="cand-sim-detail">${fmtInt(item.votes)} votos</span>
-            <div class="cand-meta-right">
-              <span class="cand-sim-votes">${fmtInt(item.seats)} ${item.seats === 1 ? breakdownLabel.singular : breakdownLabel.plural}</span>
-            </div>
-          </div>
-        </div>
-      `).join('');
-
-      bodyHtml += `
-        <tr class="party-candidates-row" data-party="${escapeAttribute(row.id)}" style="display:none;">
-          <td colspan="4" style="padding:0; border:none;">
-            <div class="party-candidates" style="display:block; border-top:1px solid var(--border-color); background:var(--input-bg); padding:4px 0;">
-              ${detailHtml}
-            </div>
-          </td>
-        </tr>
-      `;
-    }
-  });
+  // Tabela no padrao das demais sidebars; o clique para abrir o detalhamento
+  // por UF continua, entao cada linha leva data-party e a classe do handler.
+  const tabelaHtml = buildStandardResultsTable(
+    tableRows.map((row) => ({
+      label: row.label,
+      // Sem sublinha aqui: o rotulo de federacao ja traz a composicao, e
+      // repeti-la por extenso embaixo so alongava a linha. Segue no title.
+      color: row.color,
+      seats: row.seats,
+      votes: row.votes,
+      pct: totalVotes > 0 ? (row.votes / totalVotes) : 0,
+      title: row.composition || row.id,
+      rowClass: 'party-row-header',
+      rowAttrs: ` data-party="${escapeAttribute(row.id)}"`
+        + ` style="cursor:${row.byUf && row.byUf.length ? 'pointer' : 'default'};${row.seats === 0 ? ' opacity:0.55;' : ''}"`
+    })),
+    { labelHeader: 'Legenda', seatsHeader: 'Cadeiras' }
+  );
 
   dom.resultsContent.innerHTML = `
     <div id="nationalChamberContainer" class="chamber-container">
       <svg id="nationalChamberSvg" viewBox="0 65 600 305" width="100%" preserveAspectRatio="xMidYMin meet"></svg>
       <div id="nationalChamberTooltip" class="chamber-tooltip hidden"></div>
     </div>
-    <table class="chamber-party-table" style="border-collapse:collapse; width:100%; margin-top:8px;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border-color); color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px;">
-          <th style="text-align:left; padding:8px 6px; font-weight:600;">Legenda</th>
-          <th style="text-align:right; padding:8px 6px; font-weight:600; width:56px;">Cadeiras</th>
-          <th style="text-align:right; padding:8px 6px; font-weight:600; width:104px;">% Votos</th>
-          <th style="text-align:right; padding:8px 6px; font-weight:600; width:88px;">Votos</th>
-        </tr>
-      </thead>
-      <tbody>${bodyHtml}</tbody>
-    </table>
+    ${tabelaHtml}
   `;
+
+  // Detalhamento por UF: uma linha escondida logo apos a linha da legenda. Vai
+  // por DOM (e nao concatenado no HTML) porque a tabela agora e montada pelo
+  // construtor padrao, que nao conhece linhas-filhas.
+  const colunas = dom.resultsContent.querySelectorAll('.cand-table thead th').length;
+  tableRows.forEach((row) => {
+    if (!row.byUf || !row.byUf.length) return;
+
+    const headerRow = dom.resultsContent.querySelector(
+      `.party-row-header[data-party="${CSS.escape(row.id)}"]`);
+    if (!headerRow) return;
+
+    const detailHtml = row.byUf.map((item) => `
+      <div class="cand-row" style="border-left:3px solid ${row.color};">
+        <div class="cand-name-row"><span class="cand-sim-name">${escapeHtml(UF_MAP.get(item.uf) || item.uf)}</span></div>
+        <div class="cand-meta-row">
+          <span class="cand-sim-detail">${fmtInt(item.votes)} votos</span>
+          <div class="cand-meta-right">
+            <span class="cand-sim-votes">${fmtInt(item.seats)} ${item.seats === 1 ? breakdownLabel.singular : breakdownLabel.plural}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'party-candidates-row';
+    detailRow.dataset.party = row.id;
+    detailRow.style.display = 'none';
+    detailRow.innerHTML = `
+      <td colspan="${colunas}" style="padding:0; border:none;">
+        <div class="party-candidates" style="display:block; border-top:1px solid var(--border-color); background:var(--input-bg); padding:4px 0;">
+          ${detailHtml}
+        </div>
+      </td>
+    `;
+    headerRow.insertAdjacentElement('afterend', detailRow);
+  });
 
   dom.resultsContent.querySelectorAll('.party-row-header').forEach((headerRow) => {
     const party = headerRow.dataset.party;
@@ -1921,6 +1979,13 @@ async function showNationalOverview(options = {}) {
       dom.btnToggleInaptos.disabled = true;
     }
 
+    // Perfil demografico do pais no censo do ano da eleicao. Nao bloqueia o
+    // resto do painel: se faltar o arquivo do ano, o proprio helper esconde a
+    // secao em vez de deixar um perfil zerado na tela.
+    if (typeof window.showNationalDemographicProfile === 'function') {
+      void window.showNationalDemographicProfile(year);
+    }
+
     if (office === 'presidente') {
       clearNationalDotplotMarkers();
       const turnoKey = (currentTurno === 2 && Object.keys(nationalView.data['2T'] || {}).length) ? '2T' : '1T';
@@ -1954,4 +2019,10 @@ if (typeof window !== 'undefined') {
   window.showNationalOverview = showNationalOverview;
   window.refreshNationalViewForTurn = refreshNationalViewForTurn;
   window.enterStateFromNationalView = enterStateFromNationalView;
+
+  window.addEventListener('basemapthemechange', () => {
+    if (lastLeaderLineUfs) {
+      renderNationalLeaderLines(lastLeaderLineUfs);
+    }
+  });
 }

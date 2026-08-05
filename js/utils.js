@@ -876,9 +876,58 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// Codigo do TSE para "voto de legenda" que nao pode ser atribuido a um
+// partido. Chega no acervo como candidato de mentira — cand_names traz
+// ['VOTO DE LEGENDA', 'PARTIDO 97', 'LEGENDA', '', ''] — e, por nao ser 95 nem
+// 96, escapava dos filtros de branco/nulo e ia parar na lista de resultados
+// (era o "PARTIDO 97" com 272 votos no 2o turno de 2010 em MG).
+//
+// Nao existe partido 97: a numeracao vai ate 90. E por isso que a lista e
+// fechada em um id so, e nao numa faixa >= 90 — o 90 e o PROS, aparece como
+// "PARTIDO 90" em 151 arquivos de legislativa e e voto de legenda legitimo.
+//
+// Voto de legenda so existe em eleicao proporcional; nas majoritarias onde
+// isto aparece (presidente 2010 2T MG, e Bahia 2018) e residuo da fonte: na BA
+// os mesmos 746 votos se repetem em governador, presidente e nas duas casas,
+// e 1492 (=2x746) no senador, que tinha duas vagas.
+const TSE_ORPHAN_LEGEND_ID = '97';
+
+function purgeOrphanLegendVotes(data) {
+  if (!data || typeof data !== 'object') return;
+
+  const candNames = data.METADATA?.cand_names || data.cand_names;
+  if (!candNames) return;
+
+  // O 97 chega de duas formas no acervo:
+  //   a) rotulado, como ['VOTO DE LEGENDA', 'PARTIDO 97', ...] — 2010/2018;
+  //   b) orfao, so nos votos e sem nenhuma entrada em cand_names — 2002, onde
+  //      virava a linha "Candidato 97" (2.633 votos no 1o turno, 258 no 2o).
+  // Candidato de verdade sempre tem metadado, e nao existe partido 97, entao
+  // as duas formas sao ruido. Se um dia 97 aparecer com sigla real, cai fora
+  // desta condicao e o dado passa intacto.
+  const meta = candNames[TSE_ORPHAN_LEGEND_ID];
+  const rotuladoComoLegenda = !!meta
+    && String(meta[1] || '').toUpperCase() === `PARTIDO ${TSE_ORPHAN_LEGEND_ID}`;
+  if (meta && !rotuladoComoLegenda) return;
+
+  delete candNames[TSE_ORPHAN_LEGEND_ID];
+  delete data.TOTALS?.[TSE_ORPHAN_LEGEND_ID];
+
+  Object.values(data.RESULTS || {}).forEach((voteMap) => {
+    if (voteMap && typeof voteMap === 'object') delete voteMap[TSE_ORPHAN_LEGEND_ID];
+  });
+
+  Object.values(data.METADATA?.official_summary || {}).forEach((porTurno) => {
+    delete porTurno?.rawTotals?.[TSE_ORPHAN_LEGEND_ID];
+  });
+}
+
 function cleanCandNamesMetadata(data, yearOrZipUrl) {
   if (!data) return;
-  
+
+  // Antes do recorte por ano: vale para todo arquivo, nao so 2000/2004.
+  purgeOrphanLegendVotes(data);
+
   let candNames = null;
   if (data.METADATA && data.METADATA.cand_names) {
     candNames = data.METADATA.cand_names;

@@ -443,8 +443,12 @@ const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
   'PMN': '#ff3333',
   'PODE': '#23a840',
   'PODEMOS': '#23a840',
+  // Mesma linhagem partidaria, mesma cor: PDS -> PPR -> PPB -> PP. O PPR
+  // estava faltando na tabela e caia no cinza do DEFAULT_SWATCH.
+  // Ressalva de 1994 em PARTY_COLORS_BY_YEAR.
   'PP': '#6391d4',
   'PPB': '#6391d4',
+  'PPR': '#6391d4',
   'PPL': '#c6a815',
   'PROS': '#e6661e',
   'PRTB': '#1a7e2f',
@@ -551,9 +555,28 @@ function getProportionalListColorKey(groupName, composition, dominantParty = '')
     || getNormalizedPartyColorKey(groupName);
 }
 
+// Cores que valem em UM ano so, porque a sigla nao designava a mesma coisa.
+//
+// 1994 e o caso: PP e PPR eram partidos DIFERENTES e concorreram separados (193
+// e 289 candidatos a deputado federal). O PP vinha de PST+PTR, o PPR de
+// PDS+PDC; os dois so viraram PPB em 1995, que depois voltou a se chamar PP.
+// Como a cor e a da linhagem, os dois cairiam no mesmo azul e o mapa de 1994
+// nao os distinguiria — entao naquele ano o PP sai do tom da familia.
+const PARTY_COLORS_BY_YEAR = {
+  '1994': { PP: '#1687AB' }
+};
+
+function getYearScopedPartyColor(cleanParty) {
+  const doAno = PARTY_COLORS_BY_YEAR[String(STATE?.currentElectionYear || '')];
+  return doAno?.[cleanParty] || '';
+}
+
 function getResolvedPartyColor(partido) {
   const cleanParty = getFederationColorPartyKey(partido) || getNormalizedPartyColorKey(partido);
+  // Fica depois do CUSTOM para a cor escolhida pelo usuario continuar mandando,
+  // e antes das tabelas fixas para vencer a cor da linhagem.
   return CUSTOM_PARTY_COLORS.get(cleanParty)
+    || getYearScopedPartyColor(cleanParty)
     || PARTY_COLOR_OVERRIDES.get(cleanParty)
     || PARTY_COLORS.get(cleanParty)
     || DEFAULT_SWATCH;

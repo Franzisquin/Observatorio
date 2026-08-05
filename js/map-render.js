@@ -3891,31 +3891,20 @@ function renderMunicipalStatewidePartyResults(summary, uf) {
     return;
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'grid';
   const totalMunicipios = results.reduce((sum, item) => sum + item.count, 0);
 
-  results.forEach((result) => {
-    const pct = totalMunicipios > 0 ? (result.count / totalMunicipios) : 0;
-    const div = document.createElement('div');
-    div.className = 'cand';
-    div.innerHTML = `
-      <div class="cand-indicator" style="background:${result.color}"></div>
-      <div class="cand-name-wrapper">
-        <div class="cand-name" title="${escapeHtml(result.partido)}">
-          <span class="scroll-text">${escapeHtml(result.partido)}</span>
-        </div>
-      </div>
-      <div class="cand-bar-wrapper">
-        <div class="cand-bar-fill" style="background:${result.color}; width:${pct * 100}%;"></div>
-        <div class="cand-votos">${fmtInt(result.count)}</div>
-        <div class="cand-pct">${fmtPct(pct)}</div>
-      </div>
-    `;
-    grid.appendChild(div);
-  });
+  // Aqui a contagem sao PREFEITURAS, nao votos: entra na coluna de cadeiras,
+  // que e a primeira da ordem padrao.
+  dom.resultsContent.innerHTML = buildStandardResultsTable(
+    results.map((result) => ({
+      label: result.partido,
+      color: result.color,
+      seats: result.count,
+      pct: totalMunicipios > 0 ? (result.count / totalMunicipios) : 0
+    })),
+    { labelHeader: 'Partido', seatsHeader: 'Prefeituras' }
+  );
 
-  dom.resultsContent.appendChild(grid);
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       <div class="metric-item"><span>Partidos vencedores</span><strong>${fmtInt(results.length)}</strong></div>
