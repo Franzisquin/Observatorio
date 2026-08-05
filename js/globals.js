@@ -220,6 +220,18 @@ function clearZipCache() {
     ZIP_READERS.clear();
   }
 
+  // Leitores por Range (ver fetchJsonFromZipEntryRanged): sao promises, entao
+  // o close() so faz sentido depois de resolvida — e um reader por range nao
+  // segura os bytes do zip, so o handle da URL.
+  if (typeof ZIP_RANGE_READERS !== 'undefined') {
+    ZIP_RANGE_READERS.forEach((pending) => {
+      Promise.resolve(pending)
+        .then((reader) => { try { reader?.close?.(); } catch (e) { /* nada a fechar */ } })
+        .catch(() => { });
+    });
+    ZIP_RANGE_READERS.clear();
+  }
+
   // Limpa também detalhes de candidatos que podem ser pesados
   CANDIDATE_DETAILS = null;
   CANDIDATE_DETAILS_PROMISE = null;

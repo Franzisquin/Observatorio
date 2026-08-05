@@ -2247,7 +2247,7 @@ function renderAbaResultado(res) {
           <div class="cand-mini-bar-wrap">
             <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, e.pctValidos))}%; background-color: ${e.cor};"></div>
           </div>
-          ${partido ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(partido)}</div>` : ''}
+          ${partido ? `<div class="cand-partido-text">${escapeHtml(partido)}</div>` : ''}
         </td>
         <td class="align-center cand-votes-text">
           ${fmtInt(e.votos)}

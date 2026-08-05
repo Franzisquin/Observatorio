@@ -32,6 +32,52 @@ async function getZipReader(zipUrl) {
   return reader;
 }
 
+// Leitor por HTTP Range: le so o diretorio central do zip e, depois, apenas os
+// bytes da entrada pedida. Serve para o caso em que se quer UMA entrada
+// pequena de um zip grande — o *_resumo.json (~3 KB) de um zip de deputados de
+// ~800 KB. Multiplicado por 27 UFs e a diferenca entre ~70 KB e ~22 MB.
+//
+// Cache separado do ZIP_READERS de proposito: o reader por range nao tem os
+// bytes do zip em memoria, entao ler a entrada GRANDE por ele faria mais uma
+// viagem a rede. Quem quer o arquivo inteiro continua caindo em getZipReader.
+const ZIP_RANGE_READERS = new Map();
+
+function supportsZipRangeReader() {
+  return typeof unzipit !== 'undefined' && typeof unzipit.HTTPRangeReader === 'function';
+}
+
+async function getZipRangeReader(zipUrl) {
+  let reader = ZIP_RANGE_READERS.get(zipUrl);
+  if (!reader) {
+    reader = unzipit.unzip(new unzipit.HTTPRangeReader(zipUrl));
+    ZIP_RANGE_READERS.set(zipUrl, reader);
+    reader.catch(() => {
+      if (ZIP_RANGE_READERS.get(zipUrl) === reader) ZIP_RANGE_READERS.delete(zipUrl);
+    });
+  }
+  return reader;
+}
+
+// Igual a fetchJsonFromZipEntry, mas tentando o range primeiro. Cai no
+// download inteiro se o servidor nao aceitar Range (ou se algo falhar no
+// caminho), entao e sempre seguro chamar no lugar da versao normal.
+async function fetchJsonFromZipEntryRanged(zipUrl, filename = null, matcher = null) {
+  if (supportsZipRangeReader() && !ZIP_READERS.has(zipUrl)) {
+    try {
+      const reader = await getZipRangeReader(zipUrl);
+      const found = findZipEntryInReader(reader, filename, matcher);
+      if (found) {
+        const parsed = JSON.parse(await found.entry.text());
+        if (typeof cleanCandNamesMetadata === 'function') cleanCandNamesMetadata(parsed, zipUrl);
+        return { data: parsed, name: found.name };
+      }
+    } catch (error) {
+      ZIP_RANGE_READERS.delete(zipUrl);
+    }
+  }
+  return fetchJsonFromZipEntry(zipUrl, filename, matcher);
+}
+
 function findZipEntryInReader(reader, filename = null, matcher = null) {
   const entries = reader?.entries || {};
 

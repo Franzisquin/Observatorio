@@ -867,7 +867,7 @@ function renderResultsPanel(props, cargo) {
           <div class="cand-mini-bar-wrap">
             <div class="cand-mini-bar" style="width: ${Math.min(100, Math.max(0, r.pct * 100))}%; background-color: ${sw};"></div>
           </div>
-          ${r.partido ? `<div style="font-size: 0.65rem; color: var(--muted); margin-top: 2px;">${escapeHtml(r.partido)}</div>` : ''}
+          ${r.partido ? `<div class="cand-partido-text">${escapeHtml(r.partido)}</div>` : ''}
         </td>
         <td class="align-center cand-votes-text">
           ${fmtInt(r.votos)}
