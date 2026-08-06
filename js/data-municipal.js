@@ -1024,11 +1024,18 @@ async function loadMunicipalBaseFromGpkg2020(uf, municipio, muniCode, resultKeys
 
     const municipioAliases = getMunicipioAliasSlugs(municipio);
     const rows = [];
+    // 2020 e o unico ano cujo GPKG traz linhas repetidas (49 no pais, 9 so na
+    // capital paulista): mesma zona, local, nome e coordenada. Sem este corte o
+    // marcador sai em dobro e toda contagem por local infla.
+    const vistos = new Set();
     stmt.bind([ufNorm]);
     while (stmt.step()) {
       const row = stmt.getAsObject();
       if (!municipioAliases.includes(normalizeMunicipioSlug(row.nm_localidade))) continue;
       if (!isValidBrazilCoordinate(Number(row.long), Number(row.lat))) continue;
+      const chave = `${parseInt(row.nr_zona, 10)}_${parseInt(row.nr_locvot, 10)}`;
+      if (vistos.has(chave)) continue;
+      vistos.add(chave);
       rows.push(row);
     }
     stmt.free();

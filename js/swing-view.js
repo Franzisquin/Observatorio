@@ -23,11 +23,13 @@
  *   "{zona}_{cd_municipio_tse}_M"
  *
  * Disso sai TODA a hierarquia sem precisar de mais nenhum arquivo:
- *   local     -> "{muni}|{local}"   (soma as zonas: um mesmo predio pode
- *                                    atender duas zonas no mesmo ano, e zona
- *                                    e renumerada entre eleicoes — o par
- *                                    (municipio, local) e que e a identidade
- *                                    estavel do local de votacao)
+ *   local     -> a propria chave    (nr_locvot e numerado DENTRO da zona, nao
+ *                                    do municipio: em SP o local 1090 existe
+ *                                    em 50 zonas — sao 50 predios diferentes.
+ *                                    A identidade do local e a tripla inteira.
+ *                                    Predio renumerado entre as eleicoes e
+ *                                    recuperado pelo nome, em
+ *                                    ensureSwingStationAliases.)
  *   municipio -> cd_municipio_tse   -> IBGE7 pela ponte TSE_TO_IBGE
  *   regiao    -> IBGE7              -> REGION_INDEX.muni[ibge7][nivel]
  *   estado    -> a propria UF do arquivo
@@ -317,7 +319,7 @@ function buildSwingSideAggregates(payloadsByUf) {
     Object.entries(payload?.RESULTS || {}).forEach(([resultKey, voteMap]) => {
       const parsed = parseSwingResultKey(resultKey);
       if (!parsed) return;
-      bump(byStation, `${parsed.muni}|${parsed.local}`, voteMap);
+      bump(byStation, resultKey, voteMap);
       bump(byMuni, parsed.muni, voteMap);
       bump(byUf, ufKey, voteMap);
     });
@@ -528,7 +530,15 @@ function swingRowsForLevel(level) {
   if (!dataset) return new Map();
 
   if (level === 'uf') return joinSwingSides(dataset.A.byUf, dataset.B.byUf);
-  if (level === 'locais') return joinSwingSides(dataset.A.byStation, dataset.B.byStation);
+  if (level === 'locais') {
+    // O lado mais antigo entra com as chaves dos predios renumerados ja
+    // reescritas para as do lado mais novo (ver ensureSwingStationAliases).
+    const antigo = swingGeometrySidesNewestFirst()[1] || null;
+    const byStation = (side) => (side === antigo
+      ? aliasStationMap(dataset[side].byStation, SWING._stationAlias)
+      : dataset[side].byStation);
+    return joinSwingSides(byStation('A'), byStation('B'));
+  }
   if (level === 'municipios') return joinSwingSides(dataset.A.byMuni, dataset.B.byMuni);
   return joinSwingSides(
     rollupSwingByRegion(dataset.A.byMuni, level),
@@ -729,27 +739,119 @@ async function loadSwingStationBase(side, uf) {
   return loader(ufNorm);
 }
 
-// Chave "{muni}|{local}" de uma feature de local de votacao.
+// Chave "{zona}_{muni}_{local}" de uma feature de local — a mesma do RESULTS.
+// parseSwingResultKey entra aqui so como VALIDADOR: o ID_UNICO dos GeoJSON
+// antigos e "LOC_######" (id de predio, nao de local) e nao parseia, caindo no
+// fallback abaixo.
 function swingStationKeyFromProps(props) {
   if (!props) return '';
   const fullKey = String(props.id_unico || props.local_key || props.ID_UNICO || '');
-  const parsed = parseSwingResultKey(fullKey);
-  if (parsed) return `${parsed.muni}|${parsed.local}`;
+  if (parseSwingResultKey(fullKey)) return fullKey;
 
+  const zona = parseInt(props.nr_zona, 10);
+  const local = parseInt(props.nr_locvot, 10);
   const muni = String(props.cd_localidade_tse || '').trim();
-  const local = String(props.nr_locvot ?? '').trim();
-  if (muni && local) return `${muni}|${parseInt(local, 10)}`;
+  if (muni && Number.isFinite(zona) && Number.isFinite(local)) return `${zona}_${muni}_${local}`;
   return '';
+}
+
+// Prefere a geometria do ano mais RECENTE do par (nao necessariamente o lado B:
+// nada impede o usuario de por a eleicao mais nova em A). Alem de ser a malha
+// mais completa, e a que descreve o local como ele esta hoje.
+function swingGeometrySidesNewestFirst() {
+  return ['A', 'B']
+    .filter((side) => SWING_GEOMETRY_YEARS.has(String(SWING[side].year)))
+    .sort((s1, s2) => Number(SWING[s2].year) - Number(SWING[s1].year));
+}
+
+// Nome do predio reduzido ao que sobrevive a mudanca de grafia entre os anos:
+// "E.E. Prof. Joao XXIII" e "EE PROF JOAO XXIII" viram a mesma chave.
+const swingLocalNameKey = (nome) => norm(nome).replace(/[^A-Z0-9]/g, '');
+
+// Locais que existem nas duas eleicoes mas foram RENUMERADOS (mudou a zona e/ou
+// o numero) nao casam pela chave. Este passo os recupera pelo NOME do predio —
+// que so existe na geometria, e por isso ela precisa carregar antes do join.
+//
+// So aceita nome que aparece UMA UNICA vez em cada lado entre as chaves que
+// sobraram sem par: nome repetido (um "EMEF JARDIM SAO PAULO" em cada ponta da
+// cidade) casaria predio errado, e um par errado e pior que um local a menos.
+async function buildSwingStationAliases() {
+  const alias = new Map();
+  const dataset = SWING.dataset;
+  const sides = swingGeometrySidesNewestFirst();
+  if (!dataset || sides.length < 2) return alias;
+
+  const [novo, antigo] = sides; // sides vem do mais novo para o mais antigo
+  const uf = String(SWING.scope).toUpperCase();
+
+  const nomesPorLado = {};
+  for (const side of sides) {
+    let base = null;
+    try {
+      base = await loadSwingStationBase(side, uf);
+    } catch (error) {
+      console.warn(`[Swing] Sem geometria de ${SWING[side].year} para casar renumerados:`, error);
+    }
+    const porChave = new Map();
+    (base?.features || []).forEach((feature) => {
+      const key = swingStationKeyFromProps(feature?.properties);
+      const nome = swingLocalNameKey(feature?.properties?.nm_locvot);
+      if (key && nome) porChave.set(key, nome);
+    });
+    nomesPorLado[side] = porChave;
+  }
+
+  // nome -> chave, guardando null quando o nome se repete (ambiguo, descartado).
+  const indexarUnicos = (side, outro) => {
+    const nomes = nomesPorLado[side] || new Map();
+    const outroKeys = dataset[outro].byStation;
+    const porNome = new Map();
+    dataset[side].byStation.forEach((_entry, key) => {
+      if (outroKeys.has(key)) return; // ja casou pela chave
+      const nome = nomes.get(key);
+      if (!nome) return;
+      porNome.set(nome, porNome.has(nome) ? null : key);
+    });
+    return porNome;
+  };
+
+  const novosSemPar = indexarUnicos(novo, antigo);
+  indexarUnicos(antigo, novo).forEach((keyAntiga, nome) => {
+    const keyNova = novosSemPar.get(nome);
+    if (keyAntiga && keyNova) alias.set(keyAntiga, keyNova);
+  });
+
+  return alias;
+}
+
+// Memoiza a PROMISE, nao o resultado: renderSwingMap pode ser chamado de novo
+// antes do primeiro await terminar, e duas montagens em paralelo leriam o GPKG
+// duas vezes e a segunda enxergaria um alias ainda vazio.
+async function ensureSwingStationAliases() {
+  if (!SWING._stationAliasPromise) {
+    SWING._stationAliasPromise = buildSwingStationAliases();
+  }
+  SWING._stationAlias = await SWING._stationAliasPromise;
+  return SWING._stationAlias;
+}
+
+// Copia do byStation do lado mais antigo com as chaves renumeradas reescritas
+// para a chave do lado novo, para o join enxergar as duas como a mesma unidade.
+function aliasStationMap(map, alias) {
+  if (!alias?.size) return map;
+  const out = new Map(map);
+  alias.forEach((destino, origem) => {
+    const entry = out.get(origem);
+    if (!entry || out.has(destino)) return; // nunca sobrescreve uma chave real
+    out.delete(origem);
+    out.set(destino, entry);
+  });
+  return out;
 }
 
 async function buildSwingStationFeatures(rows) {
   const uf = String(SWING.scope).toUpperCase();
-  // Prefere a geometria do ano mais RECENTE do par (nao necessariamente o lado
-  // B: nada impede o usuario de por a eleicao mais nova em A). Alem de ser a
-  // malha mais completa, e a que descreve o local como ele esta hoje.
-  const sides = ['A', 'B']
-    .filter((side) => SWING_GEOMETRY_YEARS.has(String(SWING[side].year)))
-    .sort((s1, s2) => Number(SWING[s2].year) - Number(SWING[s1].year));
+  const sides = swingGeometrySidesNewestFirst();
 
   const seen = new Set();
   const features = [];
@@ -836,7 +938,7 @@ function swingRowLabel(key, props) {
     return nome || String(props?.NM_MUN || props?.nm_mun || key);
   }
   if (SWING.level === 'locais') {
-    const nome = props?.nm_locvot ? safeToTitleCase(props.nm_locvot) : `Local ${String(key).split('|')[1] || ''}`;
+    const nome = props?.nm_locvot ? safeToTitleCase(props.nm_locvot) : `Local ${String(key).split('_')[2] || ''}`;
     return nome;
   }
   return getRegionalEntryLabel(SWING.level, key, SWING.scope) || String(key);
@@ -1094,6 +1196,13 @@ function clearNormalLayers() {
 async function renderSwingMap() {
   const generation = ++SWING.generation;
   const level = SWING.level;
+
+  // O casamento dos locais renumerados sai do nome do predio, que so existe na
+  // geometria — entao ela carrega ANTES do join, so neste nivel.
+  if (level === 'locais') {
+    await ensureSwingStationAliases();
+    if (generation !== SWING.generation) return;
+  }
 
   SWING.rows = swingRowsForLevel(level);
 
@@ -1688,6 +1797,8 @@ async function applySwing({ reloadData = true } = {}) {
   try {
     if (reloadData || !SWING.dataset) {
       SWING.dataset = await buildSwingDataset();
+      SWING._stationAlias = null;
+      SWING._stationAliasPromise = null;
     }
     SWING.selectedKey = null;
     await renderSwingMap();
