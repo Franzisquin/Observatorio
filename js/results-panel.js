@@ -305,7 +305,7 @@ function aggregatePropsList(listOfProps) {
   if (listOfProps.length === 0) return {};
   const agg = { ...listOfProps[0] };
   const textKeys = new Set([
-    'local_id', 'ano', 'sg_uf', 'cd_localid', 'cod_locali', 'nr_zona',
+    'local_id', 'hist_id', 'ano', 'sg_uf', 'cd_localid', 'cod_locali', 'nr_zona',
     'nr_locvot', 'nr_cep', 'nm_localidade', 'nm_locvot', 'ds_enderec',
     'ds_bairro', 'SG_UF', 'CD_MUNICIPIO', 'NR_ZONA', 'NR_LOCAL_VOTACAO'
   ]);

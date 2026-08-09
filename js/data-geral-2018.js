@@ -35,7 +35,8 @@ function buildGeneral2018Feature(row) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -137,7 +138,7 @@ async function loadGeneralStateBaseFromGpkg2018(uf) {
     const db = await getGeneral2018Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2018_ENRIQUECIDO
       WHERE sg_uf = ?
     `);

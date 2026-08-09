@@ -283,7 +283,8 @@ function buildMunicipal2016Feature(row, muniCode) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -322,7 +323,8 @@ function buildMunicipal2012Feature(row, muniCode) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -361,7 +363,8 @@ function buildMunicipal2008Feature(row, muniCode) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -400,7 +403,8 @@ function buildMunicipal2020Feature(row, muniCode) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -439,7 +443,8 @@ function buildMunicipal2024Feature(row, muniCode) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }

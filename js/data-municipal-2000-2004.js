@@ -17,7 +17,7 @@ async function loadMunicipalBaseFromGpkg2006(uf, municipio, muniCode, resultKeys
     const db = await getGeneral2006Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2006_padronizado
       WHERE sg_uf = ?
     `);

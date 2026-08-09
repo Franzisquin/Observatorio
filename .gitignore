@@ -26,3 +26,10 @@ malhas/
 analise_swing_regioes_imediatas.md
 scripts/analisar_swing_rgi.py
 
+# Release 0.15 do geocode_br_polling_stations (601 MB; o CSV de locais sozinho tem
+# 190 MB e o de paineis 37 MB, acima do limite do GitHub). E insumo, nao saida: o
+# que o site usa ja foi gravado nos GPKGs de resultados_geo/ por
+# scripts/atualizar_locais_geocode_v15.py e scripts/gravar_hist_id_gpkg.py.
+# Baixar de novo em https://github.com/fdhidalgo/geocode_br_polling_stations
+version_15_geocode/
+

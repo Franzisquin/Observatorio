@@ -392,6 +392,11 @@ function buildPresidentHistoryAliases(props) {
   const lat = Number(getProp(props, 'lat'));
   const lon = Number(getProp(props, 'long'));
 
+  // Identidade calculada offline (scripts/gerar_identidade_historico.py) e gravada
+  // tanto no GPKG quanto nos arquivos de historico. Quando existe, e busca exata e
+  // dispensa toda a escada abaixo — que continua ai para os locais sem hist_id.
+  pushAlias('hist_id', getProp(props, 'hist_id'));
+
   pushAlias('local_key', localKey);
   if (uf && city && Number.isFinite(zona) && Number.isFinite(local)) {
     pushAlias('city_zone_local', `${uf}|${city}|${zona}_${local}`);
@@ -438,6 +443,10 @@ function resolvePresidentHistoryIdentity(history, props) {
     if (Array.isArray(found)) {
       const match = history.match_types?.[found[1]] || 'local_key';
       const confidenceByMatch = {
+        // Acima de local_key: o hist_id ja sabe que a escola trocou de zona/local
+        // entre eleicoes, e que o TSE as vezes reusa um numero de local para outro
+        // predio. Quando ele existe, tem de ganhar de qualquer heuristica.
+        hist_id: 1.2,
         local_key: 1,
         city_zone_local: 0.8,
         name_bairro: 0.65,

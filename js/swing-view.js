@@ -1279,24 +1279,67 @@ function swingScopeLabel() {
   return SWING.scope === 'BR' ? 'Brasil' : (UF_MAP.get(SWING.scope) || SWING.scope);
 }
 
+// Unidades do ranking. Nas municipais o mapa e sempre por LOCAL, mas ranquear
+// local produz uma lista de escolas — e um predio nao e um territorio: os
+// extremos acabam sendo sempre as unidades minusculas (presidio, internato),
+// onde uma duzia de votos vira dezenas de p.p. Por bairro a leitura e da cidade.
+//
+// So vale para cargo municipal: numa eleicao estadual por local, "CENTRO" e
+// bairro de dezenas de municipios ao mesmo tempo e a soma nao significaria nada.
+//
+// O swing do bairro sai da SOMA dos votos, nao da media dos swings dos locais —
+// media daria o mesmo peso a um colegio de 300 e a um de 4.000 eleitores.
+function swingRankingEntries() {
+  const rows = Array.from(SWING.rows.values())
+    .filter((row) => row.a.total > 0 && row.b.total > 0);
+
+  if (!swingIsMunicipalOffice() || SWING.level !== 'locais') {
+    return rows.map((row) => ({
+      label: swingRowLabel(row.key, SWING._propsByKey?.get(row.key)),
+      swing: row.swing
+    }));
+  }
+
+  const porBairro = new Map();
+  rows.forEach((row) => {
+    const bairro = String(SWING._propsByKey?.get(row.key)?.ds_bairro || '').trim();
+    if (!bairro) return;
+    const chave = norm(bairro); // funde variacao de caixa/acento entre os anos
+    let acc = porBairro.get(chave);
+    if (!acc) {
+      acc = { label: toTitleCase(bairro), aVotes: 0, aTotal: 0, bVotes: 0, bTotal: 0 };
+      porBairro.set(chave, acc);
+    }
+    acc.aVotes += row.a.votes;
+    acc.aTotal += row.a.total;
+    acc.bVotes += row.b.votes;
+    acc.bTotal += row.b.total;
+  });
+
+  return Array.from(porBairro.values())
+    .filter((acc) => acc.aTotal > 0 && acc.bTotal > 0)
+    .map((acc) => ({
+      label: acc.label,
+      swing: (acc.bVotes / acc.bTotal - acc.aVotes / acc.aTotal) * 100
+    }));
+}
+
 // Ranking dos maiores swings do recorte, para dar leitura ao mapa sem exigir
 // clique em cada unidade.
 function buildSwingRanking() {
   if (!SWING.rows?.size) return '';
 
-  const entries = Array.from(SWING.rows.values())
-    .filter((row) => row.a.total > 0 && row.b.total > 0);
+  const entries = swingRankingEntries();
   if (entries.length < 2) return '';
 
-  const labelFor = (row) => swingRowLabel(row.key, SWING._propsByKey?.get(row.key));
   const sorted = entries.slice().sort((a, b) => b.swing - a.swing);
   const top = sorted.slice(0, 5);
   const bottom = sorted.slice(-5).reverse();
 
-  const renderList = (list) => list.map((row) => `
+  const renderList = (list) => list.map((item) => `
     <li>
-      <span class="swing-rank-name">${escapeHtml(labelFor(row))}</span>
-      <span class="swing-rank-value ${row.swing >= 0 ? 'swing-pos' : 'swing-neg'}">${fmtSwing(row.swing)}</span>
+      <span class="swing-rank-name">${escapeHtml(item.label)}</span>
+      <span class="swing-rank-value ${item.swing >= 0 ? 'swing-pos' : 'swing-neg'}">${fmtSwing(item.swing)}</span>
     </li>
   `).join('');
 

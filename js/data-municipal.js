@@ -858,7 +858,7 @@ async function loadMunicipalBaseFromGpkg2016(uf, municipio, muniCode, resultKeys
     const db = await getMunicipal2016Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2016_ENRIQUECIDO
       WHERE sg_uf = ?
     `);
@@ -911,7 +911,7 @@ async function loadMunicipalBaseFromGpkg2012(uf, municipio, muniCode, resultKeys
     const db = await getMunicipal2012Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2012_ENRIQUECIDO
       WHERE sg_uf = ?
     `);
@@ -964,7 +964,7 @@ async function loadMunicipalBaseFromGpkg2008(uf, municipio, muniCode, resultKeys
     const db = await getMunicipal2008Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2008_padronizado
       WHERE sg_uf = ?
     `);
@@ -1017,7 +1017,7 @@ async function loadMunicipalBaseFromGpkg2020(uf, municipio, muniCode, resultKeys
     const db = await getMunicipal2020Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2020_ENRIQUECIDO
       WHERE sg_uf = ?
     `);
@@ -1077,7 +1077,7 @@ async function loadMunicipalBaseFromGpkg2024(uf, municipio, muniCode, resultKeys
     const db = await getMunicipal2024Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2024_atualizado_2
       WHERE sg_uf = ?
     `);

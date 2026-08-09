@@ -30,7 +30,8 @@ function buildGeneral2014Feature(row) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: row.tipo_match || null
+      tipo_match: row.tipo_match || null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -104,7 +105,8 @@ function buildGeneral2014SupFeature(row) {
       ds_bairro: row.ds_bairro,
       long: longitude,
       lat: latitude,
-      tipo_match: null
+      tipo_match: null,
+      hist_id: row.hist_id ?? null
     }
   };
 }
@@ -130,7 +132,7 @@ function mergeGeneralCensoJson2014(baseGeo, censusJson, preserveKeys = false) {
 
   // Campos de identidade/posicao que nao podem ser sobrescritos quando a base
   // ja traz a chave correta do GPKG (caso suplementar).
-  const PRESERVED_KEYS = new Set(['id_unico', 'ID_UNICO', 'local_key', 'local_id', 'cd_localidade_tse', 'long', 'lat']);
+  const PRESERVED_KEYS = new Set(['id_unico', 'ID_UNICO', 'local_key', 'local_id', 'cd_localidade_tse', 'long', 'lat', 'hist_id']);
 
   const censusByCityZoneLocal = new Map();
   const censusByNameBairro = new Map();
@@ -195,7 +197,7 @@ async function loadGeneralStateBaseFromGpkg2014(uf) {
     const db = await getGeneral2014Database();
     const stmt = db.prepare(`
       SELECT sg_uf, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat, tipo_match
+             ds_endereco, ds_bairro, long, lat, tipo_match, hist_id
       FROM locais_votacao_2014_ENRIQUECIDO
       WHERE sg_uf = ?
     `);
@@ -246,7 +248,7 @@ async function loadGeneralStateBaseFromSupGpkg2014(uf) {
     const db = await getGeneral2014SupDatabase();
     const stmt = db.prepare(`
       SELECT sg_uf, cd_localidade_tse, cod_localidade_ibge, nr_zona, nr_locvot, nm_localidade, nm_locvot,
-             ds_endereco, ds_bairro, long, lat
+             ds_endereco, ds_bairro, long, lat, hist_id
       FROM locais_votacao_2014_am_suplementar
       WHERE sg_uf = ?
     `);

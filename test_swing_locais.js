@@ -67,11 +67,14 @@ function loadApp() {
     .join('\n;\n')
     + `\n;globalThis.__api = {
          SWING, buildSwingSideAggregates, swingRowsForLevel,
-         ensureSwingStationAliases, aliasStationMap,
+         ensureSwingStationAliases, aliasStationMap, swingRankingEntries,
          swingLocalNameKey, swingStationKeyFromProps
        };`;
 
-  const ctx = vm.createContext({ console });
+  // toTitleCase mora em ui-helpers.js, que registra listeners de DOM no topo do
+  // arquivo. Nao vale arrastar o bootstrap inteiro para ca so pela capitalizacao,
+  // que e enfeite de exibicao e nao a logica sob teste.
+  const ctx = vm.createContext({ console, toTitleCase: (s) => String(s || '') });
   vm.runInContext(src, ctx, { filename: 'app-bundle.js' });
   return { api: ctx.__api, ctx };
 }
@@ -95,7 +98,7 @@ function lerGeometria(ano, tabela) {
   const db = new DatabaseSync(tmp);
   try {
     linhas = db.prepare(`
-      SELECT nr_zona, nr_locvot, nm_locvot, lat, long
+      SELECT nr_zona, nr_locvot, nm_locvot, ds_bairro, lat, long
       FROM ${tabela} WHERE sg_uf = 'SP' AND cod_localidade_ibge = ?
     `).all(IBGE_SP);
   } finally {
@@ -119,7 +122,7 @@ function lerGeometria(ano, tabela) {
       geometry: { type: 'Point', coordinates: [long, lat] },
       properties: {
         id_unico: chave, local_key: chave, nr_zona: zona, nr_locvot: local,
-        cd_localidade_tse: MUNI_SP, nm_locvot: row.nm_locvot
+        cd_localidade_tse: MUNI_SP, nm_locvot: row.nm_locvot, ds_bairro: row.ds_bairro
       }
     });
   }
@@ -182,11 +185,65 @@ async function main() {
   assert.strictEqual(forcado.size, 2, 'nao pode fundir duas unidades reais');
   assert.strictEqual(forcado.get('1_9_1').total, 10);
 
+  // 5. Ranking das municipais agrega por BAIRRO, ponderado pelos votos.
+  // _propsByKey e montado em renderSwingMap a partir das features desenhadas;
+  // aqui reproduzimos o mesmo (geometria nova primeiro, a antiga so completa).
+  SWING.rows = comAlias;
+  SWING._propsByKey = new Map();
+  for (const ano of [2024, 2020]) {
+    for (const feature of geo[ano].features) {
+      const k = api.swingStationKeyFromProps(feature.properties);
+      if (comAlias.has(k) && !SWING._propsByKey.has(k)) SWING._propsByKey.set(k, feature.properties);
+    }
+  }
+
+  const ranking = api.swingRankingEntries();
+  assert.ok(ranking.length < comAlias.size / 2, 'bairro tem que agregar varios locais');
+  assert.ok(ranking.length > 300, `agregou demais, veio ${ranking.length} bairros`);
+  assert.ok(ranking.every((e) => isFinite(e.swing)), 'todo bairro precisa de swing numerico');
+
+  // O bairro com mais locais: o swing tem que sair da SOMA dos votos, nao da
+  // media dos swings dos locais — e os dois numeros precisam ser diferentes,
+  // senao a ponderacao nao esta valendo nada.
+  const porBairro = new Map();
+  for (const [k, row] of comAlias) {
+    const bairro = String(SWING._propsByKey.get(k)?.ds_bairro || '').trim();
+    if (!bairro || !(row.a.total > 0 && row.b.total > 0)) continue;
+    if (!porBairro.has(bairro)) porBairro.set(bairro, []);
+    porBairro.get(bairro).push(row);
+  }
+  const [nomeMaior, locais] = [...porBairro].sort((x, y) => y[1].length - x[1].length)[0];
+  const soma = (f) => locais.reduce((s, r) => s + f(r), 0);
+  const ponderado = (soma((r) => r.b.votes) / soma((r) => r.b.total)
+                   - soma((r) => r.a.votes) / soma((r) => r.a.total)) * 100;
+  const media = soma((r) => r.swing) / locais.length;
+
+  const alvo = ranking.find((e) => e.label.toUpperCase() === nomeMaior.toUpperCase());
+  assert.ok(alvo, `bairro ${nomeMaior} deveria estar no ranking`);
+  assert.ok(Math.abs(alvo.swing - ponderado) < 1e-9, 'swing do bairro = soma dos votos');
+  assert.ok(Math.abs(ponderado - media) > 1e-6, 'ponderado tem que diferir da media simples');
+
+  // A razao de ser da mudanca: os extremos do ranking deixam de ser unidades de
+  // eleitorado minusculo (presidio, internato — dezenas de votos), que por local
+  // ocupavam as duas pontas com swings de +33 e -22 p.p.
+  const extremos = [...ranking].sort((x, y) => y.swing - x.swing);
+  const votosDoBairro = (label) => (porBairro.get(
+    [...porBairro.keys()].find((b) => b.toUpperCase() === label.toUpperCase())
+  ) || []).reduce((s, r) => s + r.b.total, 0);
+  const menorPonta = Math.min(...[...extremos.slice(0, 5), ...extremos.slice(-5)]
+    .map((e) => votosDoBairro(e.label)));
+  assert.ok(menorPonta >= 500,
+    `ponta do ranking com eleitorado minusculo (${menorPonta} votos)`);
+
   console.log('byStation 2020/2024 ....... %d / %d locais', a.byStation.size, b.byStation.size);
   console.log('join so pela chave ........ %d', semAlias.size);
   console.log('renumerados resgatados .... %d', alias.size);
   console.log('join final ................ %d de 2062 (%s%%)',
     comAlias.size, (comAlias.size / 2062 * 100).toFixed(1));
+  console.log('ranking agregado em ....... %d bairros', ranking.length);
+  console.log('  %s (%d locais): ponderado %s vs media simples %s',
+    nomeMaior, locais.length, ponderado.toFixed(2), media.toFixed(2));
+  console.log('  menor eleitorado nas pontas do ranking: %d votos', menorPonta);
   console.log('\nOK');
 }
 
