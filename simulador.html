@@ -108,11 +108,16 @@
 
       <!-- Faixa de contexto sobre o mapa: onde estou e o que estou vendo -->
       <div class="sim-map-bar" id="simMapBar">
-        <div class="sim-breadcrumb" id="simBreadcrumb"></div>
-        <div class="sim-mode-switch" id="simModeSwitch">
-          <button class="sim-mode-btn active" data-mode="estado">Estado</button>
-          <button class="sim-mode-btn" data-mode="municipio">Município</button>
+        <!-- Cargo simulado. O de governador roda um estado por vez, entao o
+             <select> ao lado so aparece nesse modo. -->
+        <div class="sim-mode-switch sim-eleicao-switch" id="simEleicaoSwitch">
+          <button class="sim-mode-btn active" data-cargo="presidente">Presidente</button>
+          <button class="sim-mode-btn" data-cargo="governador">Governador</button>
         </div>
+        <select id="simUfGov" class="sim-uf-gov" title="Estado simulado" hidden></select>
+        <div class="sim-breadcrumb" id="simBreadcrumb"></div>
+        <!-- Recortes do mapa: reescritos por simRenderModoMapa conforme o cargo -->
+        <div class="sim-mode-switch" id="simModeSwitch"></div>
         <div class="sim-turno-switch" id="simTurnoSwitch" hidden>
           <button class="sim-turno-btn active" data-turno="1">1º turno</button>
           <button class="sim-turno-btn" data-turno="2">2º turno</button>
@@ -216,6 +221,13 @@
               <em>Ajuste fino territorial</em>
             </span>
           </button>
+          <button class="sim-nav-item" data-pane="rgi" hidden>
+            <span class="sim-nav-num">4</span>
+            <span>
+              <strong>Regiões imediatas</strong>
+              <em>Ajuste fino territorial</em>
+            </span>
+          </button>
           <button class="sim-nav-item" data-pane="demografia">
             <span class="sim-nav-num">5</span>
             <span>
@@ -239,6 +251,7 @@
           <section class="sim-pane" id="simPaneCenario" hidden></section>
           <section class="sim-pane" id="simPaneRegioes" hidden></section>
           <section class="sim-pane" id="simPaneRgint" hidden></section>
+          <section class="sim-pane" id="simPaneRgi" hidden></section>
           <section class="sim-pane" id="simPaneDemografia" hidden></section>
           <section class="sim-pane" id="simPaneTurno2" hidden></section>
         </div>

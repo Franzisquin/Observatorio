@@ -14,6 +14,7 @@
 
 const DATA_BASE_URL = 'resultados_geo/';
 const PACK_URL = DATA_BASE_URL + 'sim2026/';
+const PACK_GOV_URL = DATA_BASE_URL + 'simgov2026/';
 
 // ---------------------------------------------------------------- constantes
 
@@ -25,7 +26,10 @@ const PARTY_COLORS = new Map(Object.entries({
   'PRTB': '#1a7e2f', 'PSB': '#edd355', 'PSC': '#2f8e4f', 'PSD': '#eb8100',
   'PSDB': '#0097fd', 'PSOL': '#e95dd2', 'PSTU': '#620411', 'PT': '#ff3859',
   'PV': '#1f9439', 'REDE': '#7dd1d9', 'REPUBLICANOS': '#1f646b',
-  'SOLIDARIEDADE': '#ff633d', 'UNIÃO': '#2eccff', 'UP': '#5e5e5e', 'AGIR': '#254d88'
+  'SOLIDARIEDADE': '#ff633d', 'UNIÃO': '#2eccff', 'UP': '#5e5e5e', 'AGIR': '#254d88',
+  // So aparecem nos campos estaduais de 2022, quando o modo governador semeia
+  // os candidatos a partir do resultado real do estado.
+  'PATRIOTA': '#1c6b3c', 'PMB': '#0f9b6c', 'PTB': '#1f4e9c', 'PROS': '#ff8f1f'
 }));
 
 /* Eixo esquerda(-1) .. direita(+1), derivado exclusivamente do PARTIDO do
@@ -41,7 +45,8 @@ const POS_PARTIDO = {
   'PSDB': 0.15, 'SOLIDARIEDADE': 0.20, 'PSD': 0.25, 'AVANTE': 0.30,
   'PODE': 0.30, 'UNIÃO': 0.40, 'AGIR': 0.40, 'PRD': 0.40, 'PP': 0.45,
   'REPUBLICANOS': 0.50, 'DC': 0.50, 'PSC': 0.60, 'NOVO': 0.70,
-  'MISSÃO': 0.78, 'PL': 0.88, 'PRTB': 0.92
+  'MISSÃO': 0.78, 'PL': 0.88, 'PRTB': 0.92,
+  'PROS': 0.20, 'PTB': 0.45, 'PMB': 0.45, 'PATRIOTA': 0.70
 };
 
 // Dispersao do kernel de transferencia (portado de EUA Proporcional/scripts/16_irv.py).
@@ -68,6 +73,19 @@ const UF_MAP = new Map([
   ['SE', 'Sergipe'], ['TO', 'Tocantins']
 ]);
 
+/* Nome de cada recorte territorial na tela. O codigo usa as siglas curtas
+   ('mr', 'ri', 'rgi'), que sao as mesmas de regioes_ibge.json. */
+const NOME_NIVEL = {
+  mr: 'Macrorregiões',
+  ri: 'Regiões intermediárias',
+  rgi: 'Regiões imediatas'
+};
+const NOME_NIVEL_SING = {
+  mr: 'macrorregião',
+  ri: 'região intermediária',
+  rgi: 'região imediata'
+};
+
 const COR_OUTROS = '#7a8699';
 const COR_NULO = '#9aa0a6';
 const COR_ABST = '#4a5058';
@@ -75,6 +93,15 @@ const COR_ABST = '#4a5058';
 // ------------------------------------------------------------------- estado
 
 const SIM = {
+  /* Cargo simulado. O presidencial e uma eleicao nacional com candidatos fixos;
+     o de governador sao 27 disputas separadas, entao ele roda um estado por vez
+     (SIM.ufGov) e a etapa territorial obrigatoria passa a ser a REGIAO
+     INTERMEDIARIA, no lugar da macrorregiao. Ver nivelBase()/nivelRefino(). */
+  modo: 'presidente',      // 'presidente' | 'governador'
+  ufGov: null,             // UF simulada no modo governador
+  indiceGov: null,         // simgov2026/index.json
+  regioesGov: null,        // simgov2026/regioes_<UF>.json (da UF corrente)
+
   indice: null,            // sim2026/index.json
   baselineNacional: null,
   baselineUF: {},          // UF -> baseline
@@ -349,18 +376,90 @@ function editorParaVetor(ed) {
   return vet;
 }
 
+// ------------------------------------------------------------------ modo
+
+function ehGov() { return SIM.modo === 'governador'; }
+
+/* Metadados da UF simulada no modo governador (simgov2026/index.json). */
+function metaGov() {
+  return (ehGov() && SIM.indiceGov && SIM.indiceGov.ufs
+    && SIM.indiceGov.ufs[SIM.ufGov]) || null;
+}
+
+/* Os dois recortes territoriais do assistente, por modo.
+
+   Presidencial: a macrorregiao e a etapa OBRIGATORIA (e sobre ela que a
+   projecao base se apoia) e a regiao intermediaria e o refinamento.
+
+   Governador: como a simulacao ja esta confinada a um estado, a macrorregiao
+   nao diz nada — quem faz o papel de recorte base e a REGIAO INTERMEDIARIA, e o
+   refinamento desce para a REGIAO IMEDIATA. */
+function nivelBase() { return ehGov() ? 'ri' : 'mr'; }
+function nivelRefino() { return ehGov() ? 'rgi' : 'ri'; }
+
+/* Escopo do topo da hierarquia: o pais no presidencial, o estado no governador.
+   E o que substitui os testes literais por level === 'nacional'. */
+function escopoTopo() {
+  return ehGov() ? { level: 'uf', uf: SIM.ufGov } : { level: 'nacional' };
+}
+function noTopo(e) {
+  return chaveEscopo(e || SIM.escopo) === chaveEscopo(escopoTopo());
+}
+
+/* Origens da migracao de 2022. Fixas no presidencial (dimensao voto2022 do
+   pacote global); por estado no governador, porque a lista de candidatos muda
+   de uma UF para outra. */
 function origensLista() {
+  if (ehGov()) {
+    const m = metaGov();
+    return m ? m.origens.map(o => o.key) : [];
+  }
   const d = SIM.indice && SIM.indice.dimensions.find(x => x.key === 'voto2022');
   return d ? d.buckets.map(b => b.key) : Object.keys(ORIGENS_2022);
 }
 
+/* Rotulo e posicao ideologica de cada origem, na forma de ORIGENS_2022.
+   No governador a posicao sai do PARTIDO do candidato de 2022, pela mesma
+   tabela POS_PARTIDO que posiciona os candidatos de 2026. */
+function origensInfo() {
+  if (!ehGov()) return ORIGENS_2022;
+  const m = metaGov();
+  const fora = {};
+  (m ? m.origens : []).forEach(o => {
+    fora[o.key] = ORIGENS_2022[o.key] || {
+      pos: getPartyPos(o.partido),
+      rotulo: `Votou ${o.rotulo}${o.partido ? ' (' + o.partido + ')' : ''}`
+    };
+  });
+  return fora;
+}
+
+/* Peso de cada origem no eleitorado, para a tela de migracao. No governador sai
+   do agregado estadual ja gravado em regioes_<UF>.json — nao precisa de ida ao
+   worker. */
+function pesoOrigem(origem) {
+  if (!ehGov()) {
+    const sh = SIM.baselineNacional && SIM.baselineNacional.shares;
+    const d = SIM.indice && SIM.indice.dimensions.find(x => x.key === 'voto2022');
+    if (!sh || !sh.voto2022 || !d) return null;
+    const i = d.buckets.findIndex(b => b.key === origem);
+    return i >= 0 ? 100 * sh.voto2022[i] : null;
+  }
+  const reg = SIM.regioesGov && SIM.regioesGov.regioes
+    && SIM.regioesGov.regioes['uf:' + SIM.ufGov];
+  return reg && reg.pct_aptos ? (reg.pct_aptos[origem] || 0) : null;
+}
+
 // ------------------------------------------------------- candidatos
 
-function simAddCandidato(nome = '', partido = '') {
+function simAddCandidato(nome = '', partido = '', origem = null) {
   const c = {
     id: SIM.proxId++, nome, partido,
     cor: getPartyColor(partido) || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
-    pos: getPartyPos(partido)
+    pos: getPartyPos(partido),
+    // Modo governador: de qual candidatura de 2022 este candidato herda a
+    // geografia do voto. Nulo no presidencial, onde o vinculo e por partido.
+    origem
   };
   SIM.candidatos.push(c);
   // Um candidato novo entra ANTES de 'outros', deslocando todos os indices
@@ -454,11 +553,16 @@ function opsArray() {
   const manuais = Array.from(SIM.ops.values()).filter(
     o => o.validos || o.abstencao != null || o.nuloBranco != null
       || (o.demo && Object.keys(o.demo).length));
-  return opsRegionais('mr').concat(opsRegionais('ri')).concat(manuais);
+  return opsRegionais(nivelBase(), 'base')
+    .concat(opsRegionais(nivelRefino(), 'refino'))
+    .concat(manuais);
 }
 
 /* Vinculos de reduto ativos, no formato do worker. */
 function vinculosReduto() {
+  // No modo governador o candidato ja E uma origem de 2022, com a geografia
+  // real da votacao dele — o reduto duplicaria a mesma concentracao.
+  if (ehGov()) return [];
   return SIM.candidatos
     .filter(c => c.reduto)
     .map(c => ({ coluna: idxColuna('cand_' + c.id), reduto: c.reduto, forca: 1 }))
@@ -468,10 +572,11 @@ function vinculosReduto() {
 /* A simulacao so pode rodar depois dos dois inputs obrigatorios. */
 function prontoParaBase() {
   const migOk = origensLista().every(o => simTransferTotal(o) >= 0 && simTransferTotal(o) <= 100.5);
-  const regs = listaRegioes('mr');
-  regs.forEach(r => pesosDaRegiao(`mr:${r.codigo}`));   // recalcula se a migracao mudou
+  const nb = nivelBase();
+  const regs = listaRegioes(nb);
+  regs.forEach(r => pesosDaRegiao(`${nb}:${r.codigo}`));  // recalcula se a migracao mudou
   const regOk = regs.length > 0 && regs.every(r => {
-    const p = SIM.pesosRegiao[`mr:${r.codigo}`];
+    const p = SIM.pesosRegiao[`${nb}:${r.codigo}`];
     if (!p) return false;
     const s = simColunasValidas().reduce((a, c) => a + (p.validos[c.key] || 0), 0);
     return s > 0;
@@ -650,6 +755,11 @@ async function simCarregarDados() {
   SIM.qualidade = await fetchJSON(PACK_URL + 'baselines/qualidade.json').catch(() => null);
   SIM.regioes2022 = await fetchJSON(PACK_URL + 'baselines/regioes.json').catch(() => null);
 
+  /* Indice do pacote de governador. Opcional de proposito: sem ele a pagina
+     abre normalmente, so sem o modo governador — quem nao rodou
+     gerar_base_governador_2022.py nao pode ficar sem o simulador presidencial. */
+  SIM.indiceGov = await fetchJSON(PACK_GOV_URL + 'index.json').catch(() => null);
+
   diz('Carregando geografia…');
   SIM.estadosGeoJSON = await fetchJSON(DATA_BASE_URL + 'estados_brasil.geojson').catch(() => null);
   SIM.regioes = await fetchJSON(DATA_BASE_URL + 'regioes_ibge.json').catch(() => null);
@@ -685,6 +795,8 @@ async function baselineDosMunis(uf) {
    participacao . apoio) enquanto o slider e arrastado, sem ir ao worker. */
 async function simAtualizarShares() {
   const e = SIM.escopo;
+  // Os baselines demograficos descrevem o ELEITORADO de 2026, nao o pleito:
+  // valem igual nos dois modos.
   if (e.level === 'nacional') {
     SIM.shares = SIM.baselineNacional ? SIM.baselineNacional.shares : null;
   } else if (e.level === 'uf') {
@@ -915,22 +1027,72 @@ function fecharModal() {
 }
 
 // Etapas 4-6 só abrem depois da projeção base existir.
-const PANES = ['candidatos', 'cenario', 'regioes', 'rgint', 'demografia', 'turno2'];
-const PANES_POSTERIORES = new Set(['rgint', 'demografia', 'turno2']);
+/* Uniao das etapas dos dois modos — serve para esconder TODAS as secoes menos a
+   ativa. Quem decide o que aparece na navegacao e panes(), logo abaixo. */
+const PANES = ['candidatos', 'cenario', 'regioes', 'rgint', 'rgi', 'demografia', 'turno2'];
+
+/* As seis etapas de cada modo, na ordem em que aparecem na navegacao. A
+   diferenca esta so nos dois recortes territoriais: o presidencial vai de
+   macrorregiao para regiao intermediaria, o de governador de regiao
+   intermediaria para regiao imediata. */
+function panes() {
+  return ehGov()
+    ? ['candidatos', 'cenario', 'rgint', 'rgi', 'demografia', 'turno2']
+    : ['candidatos', 'cenario', 'regioes', 'rgint', 'demografia', 'turno2'];
+}
+/* Etapas que so abrem depois da projecao base existir: tudo que vem DEPOIS do
+   recorte obrigatorio. */
+function panesPosteriores() {
+  return new Set(ehGov()
+    ? ['rgi', 'demografia', 'turno2']
+    : ['rgint', 'demografia', 'turno2']);
+}
+/* Qual pane carrega o recorte obrigatorio no modo corrente. */
+function paneBase() { return ehGov() ? 'rgint' : 'regioes'; }
+
+/* Rotulos da navegacao, por etapa e por modo. */
+function rotuloPane(p) {
+  const comum = {
+    candidatos: ['Candidatos', 'Quem disputa'],
+    cenario: ['Migração 2022', 'Para onde vai cada voto'],
+    demografia: ['Demografia', 'Voto por grupo'],
+    turno2: ['Segundo turno', 'Transferência de votos']
+  };
+  if (comum[p]) return comum[p];
+  if (p === 'regioes') return ['Macrorregiões', 'Peso de cada região'];
+  if (p === 'rgint') {
+    return ['Regiões interm.', ehGov() ? 'Peso de cada região' : 'Ajuste fino territorial'];
+  }
+  return ['Regiões imediatas', 'Ajuste fino territorial'];
+}
 
 function simRenderModal() {
   const estado = prontoParaBase();
 
+  const doModo = panes();
+  const posteriores = panesPosteriores();
+  // Etapa ativa que nao existe neste modo (sobra de uma troca de cargo)
+  // deixaria o modal em branco.
+  if (!doModo.includes(SIM.paneAtivo)) SIM.paneAtivo = 'candidatos';
   document.querySelectorAll('#simModalNav .sim-nav-item').forEach(b => {
     const p = b.dataset.pane;
-    const travado = PANES_POSTERIORES.has(p) && !SIM.baseGerada;
+    const usado = doModo.indexOf(p);
+    b.hidden = usado < 0;
+    if (usado < 0) return;
+    const travado = posteriores.has(p) && !SIM.baseGerada;
     b.classList.toggle('active', p === SIM.paneAtivo);
     b.classList.toggle('travado', travado);
     b.disabled = travado;
     b.title = travado ? 'Disponível depois de gerar a projeção base' : '';
+    const rot = rotuloPane(p);
+    const forte = b.querySelector('strong');
+    const legenda = b.querySelector('em');
+    if (forte) forte.textContent = rot[0];
+    if (legenda) legenda.textContent = rot[1];
     const marca = b.querySelector('.sim-nav-num');
     if (marca) {
-      const feito = (p === 'cenario' && estado.migOk) || (p === 'regioes' && estado.regOk);
+      marca.textContent = String(usado + 1);
+      const feito = (p === 'cenario' && estado.migOk) || (p === paneBase() && estado.regOk);
       b.classList.toggle('feito', feito);
     }
   });
@@ -941,16 +1103,19 @@ function simRenderModal() {
 
   const hint = document.getElementById('simModalScopeHint');
   if (hint) {
-    const n = SIM.indice ? Object.values(SIM.indice.ufs).reduce((a, b) => a + b, 0) : 0;
+    const n = nLocaisEscopo();
+    const cargo = ehGov() ? `Governador — ${UF_MAP.get(SIM.ufGov) || SIM.ufGov} · ` : '';
+    const recorte = (NOME_NIVEL[nivelBase()] || '').toLowerCase();
     hint.textContent = SIM.baseGerada
-      ? `${rotuloEscopo(SIM.escopo)} — ${fmtInt(n)} locais de votação, eleitorado de 2026`
-      : `${fmtInt(n)} locais de votação · configure a migração e as macrorregiões para gerar a projeção`;
+      ? `${cargo}${rotuloEscopo(SIM.escopo)} — ${fmtInt(n)} locais de votação, eleitorado de 2026`
+      : `${cargo}${fmtInt(n)} locais de votação · configure a migração e as ${recorte} para gerar a projeção`;
   }
 
   if (SIM.paneAtivo === 'candidatos') renderPaneCandidatos();
   if (SIM.paneAtivo === 'cenario') renderPaneCenario();
   if (SIM.paneAtivo === 'regioes') renderPaneRegioes();
   if (SIM.paneAtivo === 'rgint') renderPaneRgint();
+  if (SIM.paneAtivo === 'rgi') renderPaneRgi();
   if (SIM.paneAtivo === 'demografia') renderPaneDemografia();
   if (SIM.paneAtivo === 'turno2') renderPaneTurno2();
 
@@ -961,7 +1126,7 @@ function simRenderModal() {
     btn.disabled = !estado.ok;
     btn.title = estado.ok ? ''
       : (!estado.migOk ? 'Cada linha da migração precisa somar 100%'
-        : 'Configure todas as macrorregiões');
+        : `Configure todas as ${(NOME_NIVEL[nivelBase()] || '').toLowerCase()}`);
   }
   renderNavFoot();
 }
@@ -977,14 +1142,14 @@ function renderNavFoot() {
         <div class="sim-check-item ${e.migOk ? 'ok' : ''}">
           <i>${e.migOk ? '✓' : '1'}</i> Migração de 2022</div>
         <div class="sim-check-item ${e.regOk ? 'ok' : ''}">
-          <i>${e.regOk ? '✓' : '2'}</i> Pesos por macrorregião</div>
+          <i>${e.regOk ? '✓' : '2'}</i> Pesos por ${NOME_NIVEL_SING[nivelBase()]}</div>
       </div>`;
     return;
   }
   const ent = entradasDe(res).filter(x => x.key.startsWith('cand_') || x.key === 'outros')
     .sort((a, b) => b.votos - a.votos).slice(0, 3);
   el.innerHTML = `<div class="sim-nav-preview">
-      <span class="sim-nav-preview-tit">Prévia nacional</span>
+      <span class="sim-nav-preview-tit">${ehGov() ? 'Prévia estadual' : 'Prévia nacional'}</span>
       ${ent.map(e => `<div class="sim-mini-row">
         <i style="background:${e.cor}"></i>
         <span>${escapeHtml(e.label)}</span>
@@ -998,6 +1163,13 @@ function renderNavFoot() {
 
 /* Redutos disponiveis no pacote (governadores de 2022 que disputam 2026).
    O vinculo e sugerido pelo nome do candidato e pode ser trocado a mao. */
+/* Locais de votacao dentro do escopo do modo: o pais no presidencial, o
+   estado no governador. */
+function nLocaisEscopo() {
+  if (ehGov()) { const m = metaGov(); return m ? m.locais : 0; }
+  return SIM.indice ? Object.values(SIM.indice.ufs).reduce((a, b) => a + b, 0) : 0;
+}
+
 function redutosDisponiveis() {
   return (SIM.indice && SIM.indice.redutos) || [];
 }
@@ -1015,14 +1187,20 @@ function redutoSugerido(cand) {
 
 function renderPaneCandidatos() {
   const el = document.getElementById('simPaneCandidatos');
-  const redutos = redutosDisponiveis();
+  const redutos = ehGov() ? [] : redutosDisponiveis();
+  // No modo governador cada candidato herda o resultado de uma das candidaturas
+  // de 2022 daquele estado. E esse vinculo que preenche os pesos territoriais —
+  // o analogo explicito do "PT herda Lula" chumbado no presidencial.
+  const heranca = ehGov() ? (metaGov() || { origens: [] }).origens.filter(o => o.partido) : [];
   el.innerHTML = `
     <header class="sim-pane-head">
-      <h4>Candidatos</h4>
+      <h4>Candidatos${ehGov() ? ` ao governo de ${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}` : ''}</h4>
       <p>A ordem aqui é a ordem em que aparecem no resultado. O
          <strong>partido</strong> posiciona o candidato no eixo
          esquerda–direita, e é isso que gera os valores sugeridos da migração de
-         2022 e da transferência de segundo turno — ambos editáveis depois.</p>
+         2022 e da transferência de segundo turno — ambos editáveis depois.
+         ${ehGov() ? `O campo <strong>herda de</strong> diz de qual candidatura de
+         2022 o candidato puxa a votação por região na etapa obrigatória.` : ''}</p>
     </header>
     <div class="sim-cand-list" id="simCandList">
       ${SIM.candidatos.map(c => {
@@ -1042,11 +1220,26 @@ function renderPaneCandidatos() {
             ${redutos.map(r => `<option value="${r.key}" ${c.reduto === r.key ? 'selected' : ''}
               >base em ${r.uf}</option>`).join('')}
           </select>` : ''}
+          ${heranca.length ? `
+          <select class="sim-cand-origem" data-id="${c.id}"
+                  title="De qual candidatura de 2022 este candidato herda a geografia do voto">
+            <option value="">não herda</option>
+            ${heranca.map(o => `<option value="${o.key}" ${c.origem === o.key ? 'selected' : ''}
+              >herda ${escapeHtml(o.rotulo)} (${fmtPct(o.pctValidos, 1)})</option>`).join('')}
+          </select>` : ''}
           <button class="sim-cand-remove" data-id="${c.id}" title="Remover">✕</button>
         </div>`;
       }).join('')}
     </div>
     <button class="sim-btn sim-btn-add" id="btnAddCand">+ Adicionar candidato</button>
+
+    ${ehGov() ? `<div class="sim-note" style="margin-top:14px">
+      <strong>Reedição de 2022.</strong> A lista já vem preenchida com quem
+      disputou o governo de ${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}
+      em 2022 e teve pelo menos ${fmtPct(SIM.indiceGov ? SIM.indiceGov.limiarOrigem : 1.5, 1)}
+      dos votos válidos. Troque nomes e partidos à vontade: o que amarra a
+      projeção ao resultado real é o campo <em>herda de</em>, não o nome.
+    </div>` : ''}
 
     ${redutos.length ? `<div class="sim-note" style="margin-top:14px">
       <strong>Reduto pessoal.</strong> ${redutos.map(r => escapeHtml(r.nome) + ' (' + r.uf + ')').join(' e ')}
@@ -1099,6 +1292,7 @@ function renderPaneCandidatos() {
     const cor = getPartyColor(c.partido);
     if (cor) c.cor = cor;
     c.pos = getPartyPos(c.partido);
+    if (ehGov() && !c.origem) c.origem = origemSugerida(c) || null;
     invalidar();
     renderPaneCandidatos();
   }));
@@ -1109,6 +1303,12 @@ function renderPaneCandidatos() {
   el.querySelectorAll('.sim-cand-reduto').forEach(s => s.addEventListener('change', e => {
     const c = SIM.candidatos.find(x => x.id === +e.target.dataset.id);
     if (c) { c.reduto = e.target.value || null; SIM.baseGerada = false; }
+  }));
+  /* Trocar a heranca muda os valores sugeridos de toda regiao ainda nao editada
+     — quem recalcula e assinaturaMigracao, que ja inclui `origem`. */
+  el.querySelectorAll('.sim-cand-origem').forEach(s => s.addEventListener('change', e => {
+    const c = SIM.candidatos.find(x => x.id === +e.target.dataset.id);
+    if (c) { c.origem = e.target.value || null; SIM.baseGerada = false; }
   }));
   el.querySelectorAll('.sim-cand-remove').forEach(b => b.addEventListener('click', e => {
     simRemoveCandidato(+e.target.dataset.id);
@@ -1142,18 +1342,19 @@ function renderPaneCenario() {
          cadastro desde então aparece diluído em todas as linhas.</p>
     </header>
     ${origensLista().map(origem => {
-    const cfg = ORIGENS_2022[origem] || { rotulo: origem };
+    const cfg = origensInfo()[origem] || { rotulo: origem };
     const total = simTransferTotal(origem);
     const ok = total >= 0 && total <= 100.5;
     const linha = SIM.transfer[origem] || {};
-    const peso = SIM.shares && SIM.shares.voto2022
-      ? SIM.shares.voto2022[origensLista().indexOf(origem)] : null;
+    // No presidencial o peso vem do escopo ja carregado no worker; no
+    // governador ele esta no agregado estadual de simgov2026.
+    const peso = pesoOrigem(origem);
     return `
       <div class="sim-block" data-origem="${origem}">
         <div class="sim-block-head">
           <div>
             <strong>${escapeHtml(cfg.rotulo || origem)}</strong>
-            ${peso != null ? `<small>${fmtPct(100 * peso)} do eleitorado</small>` : ''}
+            ${peso != null ? `<small>${fmtPct(peso)} do eleitorado</small>` : ''}
           </div>
           <span class="sim-total ${ok ? 'ok' : 'bad'}">${fmtPct(total)}</span>
         </div>
@@ -1495,34 +1696,58 @@ function listaRegioes(nivel) {
   const mm = SIM.regioes && SIM.regioes.muni_to_region;
   if (!mm) return [];
 
+  /* prontoParaBase() chama isto a cada render do modal, e varrer os 5.571
+     municipios de novo a cada tecla e desperdicio — ainda mais no modo
+     governador, onde so um estado interessa. O cache cai sozinho ao trocar de
+     modo ou de UF, que e quando o recorte muda. */
+  const selo = `${SIM.modo}|${SIM.ufGov || ''}|${nivel}`;
+  SIM._cacheRegioes = SIM._cacheRegioes || {};
+  if (SIM._cacheRegioes[selo]) return SIM._cacheRegioes[selo];
+
   const nomesRI = {};
   const ufDaRI = {};
   const porUf = (SIM.regioes && SIM.regioes.rgint_by_uf) || {};
   for (const uf in porUf) {
     (porUf[uf] || []).forEach(r => { nomesRI[String(r.cd)] = r.nome; ufDaRI[String(r.cd)] = uf; });
   }
+  const infoRGI = (SIM.regioes && SIM.regioes.rgi) || {};
+
+  const codigoDe = (r) => (nivel === 'rgi' ? r.rgi : nivel === 'ri' ? r.ri : r.mr);
+  const ufFiltro = ehGov() ? SIM.ufGov : null;
 
   const grupos = new Map();
   for (const ibge in mm) {
     const r = mm[ibge];
-    const cod = nivel === 'ri' ? r.ri : r.mr;
+    const cod = codigoDe(r);
     if (cod == null) continue;
     const chave = String(cod);
+    // A RG imediata herda a UF da intermediaria que a contem: nem uma nem outra
+    // cruza fronteira estadual.
+    const paiRI = nivel === 'rgi'
+      ? String((infoRGI[chave] && infoRGI[chave].rgint) || r.ri || '')
+      : chave;
+    const uf = nivel === 'mr' ? '' : (ufDaRI[paiRI] || '');
+    if (ufFiltro && uf !== ufFiltro) continue;
     if (!grupos.has(chave)) {
       const macro = SIM.regioes.macro && SIM.regioes.macro[chave];
       grupos.set(chave, {
         codigo: chave,
-        nome: nivel === 'ri'
-          ? (nomesRI[chave] || 'Região ' + chave)
-          : ((macro && macro.nome) || 'Macrorregião ' + chave),
-        uf: nivel === 'ri' ? (ufDaRI[chave] || '') : '',
+        nome: nivel === 'rgi'
+          ? ((infoRGI[chave] && infoRGI[chave].nome) || 'Região ' + chave)
+          : nivel === 'ri'
+            ? (nomesRI[chave] || 'Região ' + chave)
+            : ((macro && macro.nome) || 'Macrorregião ' + chave),
+        uf,
+        rgint: nivel === 'rgi' ? paiRI : '',
         munis: []
       });
     }
     grupos.get(chave).munis.push(Number(ibge));
   }
-  return Array.from(grupos.values()).sort((a, b) =>
+  const fora = Array.from(grupos.values()).sort((a, b) =>
     (a.uf || '').localeCompare(b.uf || '') || a.nome.localeCompare(b.nome, 'pt-BR'));
+  SIM._cacheRegioes[selo] = fora;
+  return fora;
 }
 
 /* Valores sugeridos de uma regiao: a migracao de 2022 aplicada a composicao
@@ -1533,6 +1758,7 @@ function listaRegioes(nivel) {
    Abstencao e nulos vem diretos de 2022, sem passar pela transferencia: sao
    grandezas independentes da divisao entre candidatos. */
 function pesosRegionaisPadrao(chaveRegiao) {
+  if (ehGov()) return pesosRegionaisPadraoGov(chaveRegiao);
   const reg = SIM.regioes2022 && SIM.regioes2022.regioes && SIM.regioes2022.regioes[chaveRegiao];
   if (!reg) return null;
   const cols = simColunas();
@@ -1560,11 +1786,58 @@ function pesosRegionaisPadrao(chaveRegiao) {
   };
 }
 
+/* A mesma ideia no modo governador, so que sem nome chumbado.
+
+   No presidencial da para escrever "PT herda Lula, PL herda Bolsonaro" no
+   codigo, porque as origens sao sempre as mesmas duas. Aqui as origens sao os
+   candidatos ao governo daquele estado em 2022, entao o vinculo e um campo do
+   proprio candidato (`c.origem`, sugerido ao semear e editavel na etapa 1). */
+function pesosRegionaisPadraoGov(chaveRegiao) {
+  const reg = SIM.regioesGov && SIM.regioesGov.regioes && SIM.regioesGov.regioes[chaveRegiao];
+  if (!reg) return null;
+  const validas = simColunasValidas();
+  const pv = reg.pct_validos || {};
+
+  const alvos = {};
+  validas.forEach(c => { alvos[c.key] = 0; });
+  simColunas().forEach(c => {
+    const org = c.cand && c.cand.origem;
+    if (org && pv[org] != null) alvos[c.key] = pv[org];
+  });
+  // A coluna 'outros' de 2026 herda o 'outros' de 2022 quando nenhum candidato
+  // reivindicou essa origem — senao o residuo simplesmente sumiria.
+  const reivindicado = simColunas().some(c => c.cand && c.cand.origem === 'outros');
+  if (!reivindicado && pv.outros != null) alvos.outros = pv.outros;
+
+  return {
+    validos: alvos,
+    abstencao: reg.pct_aptos ? (reg.pct_aptos.abstencao || 0) : 0,
+    nuloBranco: reg.pct_aptos ? (reg.pct_aptos.nulo_branco || 0) : 0
+  };
+}
+
+/* Origem de 2022 sugerida para um candidato: mesmo nome, senao mesmo partido.
+   Vale so no modo governador — e o analogo de redutoSugerido. */
+function origemSugerida(cand) {
+  const m = metaGov();
+  if (!m || !cand) return '';
+  const nome = normalizePartyKey(cand.nome);
+  const partido = normalizePartyKey(cand.partido);
+  const cands = m.origens.filter(o => o.partido);
+  const porNome = nome && cands.find(o => normalizePartyKey(o.rotulo) === nome);
+  if (porNome) return porNome.key;
+  const porPartido = partido && cands.find(o => normalizePartyKey(o.partido) === partido);
+  return porPartido ? porPartido.key : '';
+}
+
 /* Assinatura do que os pesos regionais dependem: a matriz de migracao e o
    conjunto de candidatos. Mudou qualquer um dos dois, os valores sugeridos
    precisam ser recalculados. */
 function assinaturaMigracao() {
-  return SIM.candidatos.map(c => c.id).join(',') + '|'
+  // O vinculo `origem` entra na assinatura: no modo governador e ele que decide
+  // qual percentual de 2022 cada candidato herda, entao troca-lo tem de
+  // recalcular as regioes que o usuario ainda nao editou.
+  return SIM.candidatos.map(c => `${c.id}:${c.origem || ''}`).join(',') + '|'
     + origensLista().map(o => {
       const l = SIM.transfer[o] || {};
       return simColunas().map(c => (l[c.key] || 0).toFixed(2)).join(',');
@@ -1624,18 +1897,18 @@ function pesosSimuladosDaRegiao(regiao) {
 
 /* Pesos que o painel exibe. Editado pelo usuario sempre vence; senao, a
    macrorregiao parte de 2022 e a regiao intermediaria parte da simulacao. */
-function pesosParaPainel(nivel, regiao) {
+function pesosParaPainel(nivel, regiao, papel) {
   const chave = `${nivel}:${regiao.codigo}`;
-  if (nivel !== 'ri') return pesosDaRegiao(chave);
+  if (papel !== 'refino') return pesosDaRegiao(chave);
   if (SIM.regiaoTocada[chave] && SIM.pesosRegiao[chave]) return SIM.pesosRegiao[chave];
   return pesosSimuladosDaRegiao(regiao);
 }
 
 /* Materializa o derivado em SIM.pesosRegiao na primeira edicao — a partir dai a
    regiao para de acompanhar a simulacao e passa a ser meta do usuario. */
-function pesosParaEdicao(nivel, regiao) {
+function pesosParaEdicao(nivel, regiao, papel) {
   const chave = `${nivel}:${regiao.codigo}`;
-  if (nivel !== 'ri') return pesosDaRegiao(chave);
+  if (papel !== 'refino') return pesosDaRegiao(chave);
   if (!SIM.pesosRegiao[chave]) {
     const p = pesosSimuladosDaRegiao(regiao);
     if (!p) return null;
@@ -1644,11 +1917,21 @@ function pesosParaEdicao(nivel, regiao) {
   return SIM.pesosRegiao[chave];
 }
 
+/* Cada modo usa dois dos tres recortes, e o painel e o mesmo nos dois papeis:
+
+     presidente   base = macrorregiao   refinamento = RG intermediaria
+     governador   base = RG intermediaria   refinamento = RG imediata
+
+   O painel de RGINT e reaproveitado nos dois modos, mudando so de papel — no
+   presidencial ele e refinamento, no governador e a etapa obrigatoria. */
 function renderPaneRegioes() {
-  return renderRegioes('simPaneRegioes', 'mr');
+  return renderRegioes('simPaneRegioes', 'mr', 'base');
 }
 function renderPaneRgint() {
-  return renderRegioes('simPaneRgint', 'ri');
+  return renderRegioes('simPaneRgint', 'ri', ehGov() ? 'base' : 'refino');
+}
+function renderPaneRgi() {
+  return renderRegioes('simPaneRgi', 'rgi', 'refino');
 }
 
 /* Painel de metas territoriais, usado nos dois niveis.
@@ -1661,63 +1944,90 @@ function renderPaneRgint() {
    Os candidatos somam 100% ENTRE SI (divisao dos votos validos). Abstencao e
    nulos ficam fora dessa soma, cada um como percentual do eleitorado apto —
    e o que define quanto do eleitorado chega a ser distribuido. */
-function renderRegioes(idPane, nivel) {
+function renderRegioes(idPane, nivel, papel) {
   const el = document.getElementById(idPane);
+  if (!el) return;
   const todas = listaRegioes(nivel);
   const validas = simColunasValidas();
+  const rotuloNivel = NOME_NIVEL[nivel] || 'Regiões';
 
-  if (!todas.length || (nivel === 'mr' && !SIM.regioes2022)) {
-    el.innerHTML = `<header class="sim-pane-head"><h4>Regiões</h4></header>
+  const temReferencia = papel !== 'base'
+    || (ehGov() ? !!SIM.regioesGov : !!SIM.regioes2022);
+  if (!todas.length || !temReferencia) {
+    const arq = ehGov()
+      ? `<code>simgov2026/regioes_${SIM.ufGov || 'UF'}.json</code>`
+      : '<code>baselines/regioes.json</code>';
+    const script = ehGov()
+      ? '<code>scripts/gerar_base_governador_2022.py</code>'
+      : '<code>scripts/gerar_base_2026.py</code>';
+    el.innerHTML = `<header class="sim-pane-head"><h4>${rotuloNivel}</h4></header>
       <div class="sim-note">Agregados regionais de 2022 indisponíveis
-        (<code>baselines/regioes.json</code>). Rode <code>scripts/gerar_base_2026.py</code>.</div>`;
+        (${arq}). Rode ${script}.</div>`;
     return;
   }
-  if (nivel === 'ri' && !SIM.agregado) {
-    el.innerHTML = `<header class="sim-pane-head"><h4>Regiões intermediárias</h4></header>
+  if (papel === 'refino' && !SIM.agregado) {
+    el.innerHTML = `<header class="sim-pane-head"><h4>${rotuloNivel}</h4></header>
       <div class="sim-note">Gere a projeção base antes: os valores desta etapa saem
         da simulação já calculada, não de 2022.</div>`;
     return;
   }
 
-  const ufFiltro = nivel === 'ri' ? (SIM._ufRegiao || SIM.selectedUF || 'SP') : null;
-  const regs = nivel === 'ri' ? todas.filter(r => r.uf === ufFiltro) : todas;
+  // O seletor de UF so existe no presidencial: no governador a simulacao ja
+  // esta confinada a um estado e todas as regioes da lista sao dele.
+  const ufFiltro = (!ehGov() && papel === 'refino')
+    ? (SIM._ufRegiao || SIM.selectedUF || 'SP') : null;
+  const regs = ufFiltro ? todas.filter(r => r.uf === ufFiltro) : todas;
 
-  const cabecalho = nivel === 'mr' ? `
+  // O DF tem uma RGINT e uma RGI só: a meta ali vale para o estado inteiro, e
+  // sem a nota o painel parece incompleto.
+  const ufDaNota = regs.length === 1 ? (regs[0].uf || SIM.ufGov) : null;
+  const nota = ufDaNota
+    ? `<p class="sim-note">${escapeHtml(UF_MAP.get(ufDaNota) || ufDaNota)}
+         tem uma região só neste recorte, então a meta aqui vale para o estado
+         inteiro.</p>` : '';
+
+  const cabecalho = papel === 'base' ? `
     <header class="sim-pane-head">
-      <h4>Pesos por macrorregião <span class="sim-req">obrigatório</span></h4>
+      <h4>Pesos por ${escapeHtml(rotuloNivel.toLowerCase())}
+        <span class="sim-req">obrigatório</span></h4>
       <p>Os valores já vêm carregados com o resultado <strong>real do 1º turno
-         de 2022</strong> em cada região, passado pela migração que você
-         definiu na etapa anterior. Ajuste o que quiser: é sobre esta base que a
-         inferência ecológica distribui o resto.</p>
+         de 2022</strong>${ehGov() ? ' para o governo do estado' : ''} em cada
+         região, passado pela migração que você definiu na etapa anterior.
+         Ajuste o que quiser: é sobre esta base que a inferência ecológica
+         distribui o resto.</p>
+      ${nota}
     </header>` : `
     <header class="sim-pane-head">
-      <h4>Regiões intermediárias</h4>
+      <h4>${escapeHtml(rotuloNivel)}</h4>
       <p>Refinamento opcional sobre a projeção já criada. Os valores mostrados são
          os da <strong>simulação atual</strong> em cada região — migração,
-         macrorregiões e demografias já aplicadas — e acompanham sozinhos qualquer
-         mudança nessas etapas, até você editá-los. Uma meta aqui tem prioridade
-         sobre a macrorregião que contém a região.</p>
+         ${escapeHtml((NOME_NIVEL[nivelBase()] || '').toLowerCase())} e demografias
+         já aplicadas — e acompanham sozinhos qualquer mudança nessas etapas, até
+         você editá-los. Uma meta aqui tem prioridade sobre a região maior que
+         contém esta.</p>
+      ${nota}
     </header>
     <div class="sim-final-pick">
-      <label>Estado
+      ${ufFiltro ? `<label>Estado
         <select id="simUfRegiao">
           ${Array.from(UF_MAP.entries()).sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
       .map(([s, n]) => `<option value="${s}" ${s === ufFiltro ? 'selected' : ''}>${escapeHtml(n)}</option>`).join('')}
         </select>
-      </label>
-      <button class="sim-btn sim-btn-ghost" id="btnZerarRgint">Limpar as desta UF</button>
+      </label>` : ''}
+      <button class="sim-btn sim-btn-ghost" id="btnZerarRgint">${ufFiltro ? 'Limpar as desta UF' : 'Limpar todas'}</button>
     </div>`;
 
   el.innerHTML = cabecalho + regs.map(r => {
     const chave = `${nivel}:${r.codigo}`;
-    const p = pesosParaPainel(nivel, r);
+    const p = pesosParaPainel(nivel, r, papel);
     if (!p) return '';
     const total = validas.reduce((s, c) => s + (p.validos[c.key] || 0), 0);
     const tocado = !!SIM.regiaoTocada[chave];
-    const ref = SIM.regioes2022 && SIM.regioes2022.regioes[chave];
+    const fonteRef = ehGov() ? SIM.regioesGov : SIM.regioes2022;
+    const ref = fonteRef && fonteRef.regioes && fonteRef.regioes[chave];
     const aptos = p.aptos != null ? p.aptos : (ref ? ref.aptos : null);
     const origem = tocado ? ' · ajustado'
-      : (nivel === 'ri' ? ' · valores da simulação' : ' · valores de 2022');
+      : (papel === 'refino' ? ' · valores da simulação' : ' · valores de 2022');
     return `
       <div class="sim-block ${tocado ? 'ativo' : ''}" data-reg="${chave}">
         <div class="sim-block-head">
@@ -1752,7 +2062,7 @@ function renderRegioes(idPane, nivel) {
             </div>`).join('')}
           <div class="sim-bucket-foot">
             <small>Comparecimento projetado: ${fmtPct(100 - (p.abstencao || 0))}</small>
-            <button class="sim-btn sim-btn-mini sim-btn-ghost" data-reset-reg="${chave}">${nivel === 'ri' ? 'Voltar ao simulado' : 'Voltar a 2022'}</button>
+            <button class="sim-btn sim-btn-mini sim-btn-ghost" data-reset-reg="${chave}">${papel === 'refino' ? 'Voltar ao simulado' : 'Voltar a 2022'}</button>
           </div>
         </div>
       </div>`;
@@ -1763,7 +2073,7 @@ function renderRegioes(idPane, nivel) {
   // Trava de 100% (travar100): o slider de um candidato nunca passa do que sobra
   // dos outros.
   const setarValido = (chave, col, v) => {
-    const p = pesosParaEdicao(nivel, porChave.get(chave));
+    const p = pesosParaEdicao(nivel, porChave.get(chave), papel);
     if (!p) return;
     v = travar100(v, validas.filter(c => c.key !== col)
       .reduce((s, c) => s + (p.validos[c.key] || 0), 0));
@@ -1783,7 +2093,7 @@ function renderRegioes(idPane, nivel) {
     box.classList.add('ativo');
   };
   const setarTurnout = (chave, campo, v) => {
-    const p = pesosParaEdicao(nivel, porChave.get(chave));
+    const p = pesosParaEdicao(nivel, porChave.get(chave), papel);
     if (!p) return;
     const outro = campo === 'abstencao' ? (p.nuloBranco || 0) : (p.abstencao || 0);
     p[campo] = clamp(v, 0, Math.max(0, 95 - outro));
@@ -1811,34 +2121,36 @@ function renderRegioes(idPane, nivel) {
     delete SIM.pesosRegiao[chave];
     delete SIM.regiaoTocada[chave];
     SIM.baseGerada = false;
-    renderRegioes(idPane, nivel);
+    renderRegioes(idPane, nivel, papel);
   }));
   const selUf = document.getElementById('simUfRegiao');
   if (selUf) selUf.addEventListener('change', e => {
     SIM._ufRegiao = e.target.value;
-    renderRegioes(idPane, nivel);
+    renderRegioes(idPane, nivel, papel);
   });
   const zerar = document.getElementById('btnZerarRgint');
   if (zerar) zerar.addEventListener('click', () => {
     regs.forEach(r => {
-      delete SIM.pesosRegiao[`ri:${r.codigo}`];
-      delete SIM.regiaoTocada[`ri:${r.codigo}`];
+      delete SIM.pesosRegiao[`${nivel}:${r.codigo}`];
+      delete SIM.regiaoTocada[`${nivel}:${r.codigo}`];
     });
     simCalcular();
-    renderRegioes(idPane, nivel);
+    renderRegioes(idPane, nivel, papel);
   });
 }
 
 /* Converte os pesos regionais nas ops que o worker entende. So entram as
    regioes efetivamente configuradas neste nivel. */
-function opsRegionais(nivel) {
+function opsRegionais(nivel, papel) {
   sincronizarPesosRegionais();
   const fora = [];
   listaRegioes(nivel).forEach(r => {
     const chave = `${nivel}:${r.codigo}`;
-    const p = nivel === 'mr' ? pesosDaRegiao(chave) : SIM.pesosRegiao[chave];
+    const p = papel === 'base' ? pesosDaRegiao(chave) : SIM.pesosRegiao[chave];
     if (!p) return;
-    if (nivel === 'ri' && !SIM.regiaoTocada[chave]) return;  // RGINT so se editada
+    // O refinamento so vira meta depois de editado a mao; enquanto nao for, ele
+    // apenas ACOMPANHA a simulacao e nao deve virar op nenhuma.
+    if (papel === 'refino' && !SIM.regiaoTocada[chave]) return;
     const validos = new Array(simColunas().length).fill(null);
     const soma = simColunasValidas().reduce((s, c) => s + (p.validos[c.key] || 0), 0);
     if (soma > 0) {
@@ -2132,7 +2444,7 @@ function simRenderSidebar() {
       const e = prontoParaBase();
       msg.textContent = e.ok
         ? 'Cenário pronto. Gere a projeção base para ver os resultados.'
-        : 'Configure a migração de 2022 e os pesos das macrorregiões para gerar a projeção.';
+        : `Configure a migração de 2022 e os pesos das ${(NOME_NIVEL[nivelBase()] || '').toLowerCase()} para gerar a projeção.`;
       if (btn) {
         btn.hidden = false;
         btn.textContent = e.ok ? 'Gerar projeção base' : 'Configurar simulação';
@@ -2282,7 +2594,7 @@ function renderAbaResultado(res) {
     </div>`;
 
   const callout = document.getElementById('simRunoffCallout');
-  if (SIM.turno === 1 && SIM.escopo.level === 'nacional') {
+  if (SIM.turno === 1 && noTopo()) {
     callout.innerHTML = simPrecisaSegundoTurno()
       ? `<div class="sim-callout">
            <strong>Vai a segundo turno.</strong>
@@ -2300,11 +2612,13 @@ function renderAbaResultado(res) {
 
 function renderAbaAjustar(res) {
   const el = document.getElementById('simTabAjustar');
-  if (SIM.escopo.level === 'nacional') {
-    el.innerHTML = `<p class="sim-hint">As metas nacionais ficam no editor de cenário,
-        nas etapas de migração e macrorregiões.</p>
-      <button class="sim-btn sim-btn-apply" id="btnAjNacional">Abrir metas por macrorregião</button>`;
-    document.getElementById('btnAjNacional').addEventListener('click', () => abrirModal('regioes'));
+  if (noTopo()) {
+    const recorte = (NOME_NIVEL[nivelBase()] || '').toLowerCase();
+    const alvo = ehGov() ? 'estaduais' : 'nacionais';
+    el.innerHTML = `<p class="sim-hint">As metas ${alvo} ficam no editor de cenário,
+        nas etapas de migração e ${escapeHtml(recorte)}.</p>
+      <button class="sim-btn sim-btn-apply" id="btnAjNacional">Abrir metas por ${escapeHtml(NOME_NIVEL_SING[nivelBase()])}</button>`;
+    document.getElementById('btnAjNacional').addEventListener('click', () => abrirModal(paneBase()));
     return;
   }
   const validas = simColunasValidas();
@@ -2504,10 +2818,19 @@ const ALL_UFS = [
 ];
 
 function simRenderMapa() {
-  const modo = SIM.modoMapa || 'estado';
+  const modo = SIM.modoMapa || (ehGov() ? 'ri' : 'estado');
   document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.mode === modo);
   });
+
+  /* No modo governador nao ha mapa nacional: os recortes disponiveis sao os
+     mesmos do assistente (RG intermediaria e imediata) mais o municipal. */
+  if (ehGov()) {
+    if (!SIM.ufGov) return;
+    if (SIM.selectedMuni) return simRenderMapaLocais(SIM.ufGov, SIM.selectedMuni);
+    if (modo === 'ri' || modo === 'rgi') return simRenderMapaRegioes(SIM.ufGov, modo);
+    return simRenderMapaMunicipios(SIM.ufGov);
+  }
 
   if (modo === 'municipio') {
     if (SIM.selectedUF) return simRenderMapaMunicipios(SIM.selectedUF);
@@ -2516,6 +2839,84 @@ function simRenderMapa() {
 
   if (SIM.selectedUF) return simRenderMapaMunicipios(SIM.selectedUF);
   return simRenderMapaEstados();
+}
+
+/* Botoes de recorte do mapa, reescritos conforme o cargo. No presidencial sao
+   Estado/Municipio; no governador, os dois recortes do assistente mais o
+   municipal — que e onde o usuario desce para ajustar caso a caso. */
+function simRenderModoMapa() {
+  const box = document.getElementById('simModeSwitch');
+  if (!box) return;
+  const opcoes = ehGov()
+    ? [['ri', 'RG interm.'], ['rgi', 'RG imediatas'], ['municipio', 'Municípios']]
+    : [['estado', 'Estado'], ['municipio', 'Município']];
+  if (!opcoes.some(([v]) => v === SIM.modoMapa)) SIM.modoMapa = opcoes[0][0];
+  box.innerHTML = opcoes.map(([v, rot]) =>
+    `<button class="sim-mode-btn ${v === SIM.modoMapa ? 'active' : ''}" data-mode="${v}"
+      >${rot}</button>`).join('');
+  box.querySelectorAll('.sim-mode-btn').forEach(b => b.addEventListener('click', () => {
+    SIM.modoMapa = b.dataset.mode;
+    // Trocar de recorte volta ao topo: um municipio selecionado nao faz sentido
+    // com o mapa mostrando regioes.
+    if (SIM.modoMapa !== 'municipio') SIM.selectedMuni = null;
+    simRenderMapa();
+    simRenderBreadcrumb();
+  }));
+}
+
+/* Coropletico por recorte regional (RG intermediaria ou imediata) de uma UF.
+
+   Clone estrutural de simRenderMapaMunicipios: as malhas de regioes_rgint/ e
+   regioes_rgi/ ja trazem CD_REG/NM_REG, e o resultado de cada regiao sai do
+   mesmo resultadoDoEscopo que o painel de metas usa — assim o mapa e os
+   sliders nunca podem divergir. */
+async function simRenderMapaRegioes(uf, nivel) {
+  const ag = agregadoAtivo();
+  const pasta = nivel === 'rgi' ? 'regioes_rgi' : 'regioes_rgint';
+  const selo = `${nivel}:${uf}`;
+  SIM.regiaoGeoCache = SIM.regiaoGeoCache || {};
+  if (!SIM.regiaoGeoCache[selo]) {
+    SIM.regiaoGeoCache[selo] = await fetchJSON(
+      DATA_BASE_URL + `${pasta}/${pasta}_${uf}.geojson`).catch(() => null);
+  }
+  const geo = SIM.regiaoGeoCache[selo];
+  if (!geo) return simRenderMapaMunicipios(uf);
+
+  // codigo da regiao -> municipios dela, para agregar o resultado.
+  const porCodigo = new Map(listaRegioes(nivel).map(r => [String(r.codigo), r]));
+  const resDe = (cd) => {
+    const reg = porCodigo.get(String(cd));
+    if (!reg || !ag) return null;
+    return resultadoDoEscopo({ level: 'regiao', uf, ibges: reg.munis }, ag);
+  };
+
+  limparCamadas('regioesLayer');
+  if (SIM.regioesLayer) { simMap.removeLayer(SIM.regioesLayer); SIM.regioesLayer = null; }
+
+  SIM.regioesLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-regioes', type: 'polygon', tooltipClass: 'district-nyt-tooltip',
+    styleFn: f => {
+      const cd = String(f.properties.CD_REG);
+      const res = resDe(cd);
+      const sel = String(SIM.regiaoSel || '') === cd;
+      return {
+        fillColor: corDoResultado(res),
+        fillOpacity: sel ? 0.88 : (res && res.aptos > 0 ? 0.78 : 0.25),
+        color: '#ffffff',
+        weight: sel ? 1.2 : 0.4,
+        opacity: sel ? 1.0 : 0.85
+      };
+    },
+    tooltipFn: f => tooltipResultado(f.properties.NM_REG || 'Região',
+      resDe(String(f.properties.CD_REG))),
+    onClick: f => simSelecionarRegiao(nivel, String(f.properties.CD_REG))
+  });
+  SIM.regioesLayer.setFeatures(geo.features || []);
+  SIM.regioesLayer.addTo(simMap);
+  const b = SIM.regioesLayer.getBounds();
+  if (b.isValid()) MLCompat.fitMapToBounds(simMap, b, { animate: false });
+  simRenderLegenda();
+  scheduleSimMapRefresh();
 }
 
 async function simRenderMapaTodosMunicipios() {
@@ -2594,7 +2995,7 @@ async function simRenderMapaTodosMunicipios() {
 }
 
 function limparCamadas(exceto) {
-  ['estadosLayer', 'municipiosLayer', 'locaisLayer'].forEach(k => {
+  ['estadosLayer', 'municipiosLayer', 'locaisLayer', 'regioesLayer'].forEach(k => {
     if (k !== exceto && SIM[k]) { simMap.removeLayer(SIM[k]); SIM[k] = null; }
   });
 }
@@ -2735,7 +3136,7 @@ async function simRenderMapaLocais(uf, ibge) {
 function simRenderLegenda() {
   const el = document.getElementById('simMapLegend');
   if (!el) return;
-  const res = resultadoDoEscopo({ level: 'nacional' }, agregadoAtivo());
+  const res = resultadoDoEscopo(escopoTopo(), agregadoAtivo());
   if (!res) { el.innerHTML = ''; return; }
 
   const ent = entradasDe(res).filter(x => x.key !== 'nuloBranco' && x.key !== 'abstencao' && x.key !== 'outros' && x.label.toLowerCase() !== 'outros')
@@ -2806,12 +3207,21 @@ function simAjustarZoomOffset() {
 
 function simRenderBreadcrumb() {
   const el = document.getElementById('simBreadcrumb');
-  const partes = [`<button data-nivel="br">Brasil</button>`];
-  if (SIM.selectedUF) partes.push(`<button data-nivel="uf">${escapeHtml(UF_MAP.get(SIM.selectedUF) || SIM.selectedUF)}</button>`);
+  // O topo e o pais no presidencial e o estado no governador.
+  const partes = ehGov()
+    ? [`<button data-nivel="topo">${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}</button>`]
+    : [`<button data-nivel="topo">Brasil</button>`];
+  if (!ehGov() && SIM.selectedUF) {
+    partes.push(`<button data-nivel="uf">${escapeHtml(UF_MAP.get(SIM.selectedUF) || SIM.selectedUF)}</button>`);
+  }
+  if (ehGov() && SIM.regiaoSel && !SIM.selectedMuni) {
+    const reg = listaRegioes(SIM.nivelSel || 'ri').find(r => String(r.codigo) === String(SIM.regiaoSel));
+    if (reg) partes.push(`<span>${escapeHtml(reg.nome)}</span>`);
+  }
   if (SIM.selectedMuni) partes.push(`<span>${escapeHtml(SIM.nomesMuni[SIM.selectedMuni] || 'Município')}</span>`);
   el.innerHTML = partes.join('<em>›</em>');
   el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    if (b.dataset.nivel === 'br') simSelecionarBrasil();
+    if (b.dataset.nivel === 'topo') simSelecionarTopo();
     else simSelecionarUF(SIM.selectedUF);
   }));
 }
@@ -2832,6 +3242,25 @@ function simSelecionarBrasil() {
   SIM.selectedUF = null; SIM.selectedMuni = null;
   trocarEscopo({ level: 'nacional' });
 }
+/* Volta ao topo da hierarquia do modo: o pais, ou o estado no governador. */
+function simSelecionarTopo() {
+  if (!ehGov()) return simSelecionarBrasil();
+  SIM.selectedMuni = null; SIM.regiaoSel = null; SIM.nivelSel = null;
+  trocarEscopo(escopoTopo());
+}
+/* Uma regiao (RGINT ou RGI) vira escopo do painel lateral, como o municipio. */
+function simSelecionarRegiao(nivel, codigo) {
+  const reg = listaRegioes(nivel).find(r => String(r.codigo) === String(codigo));
+  if (!reg) return;
+  SIM.regiaoSel = String(codigo);
+  SIM.nivelSel = nivel;
+  SIM.selectedMuni = null;
+  if (SIM.abaSidebar === 'demografia') SIM.abaSidebar = 'resultado';
+  trocarEscopo({
+    level: 'regiao', nivel, regiao: reg.codigo, nome: reg.nome,
+    uf: reg.uf || SIM.ufGov, ibges: reg.munis
+  });
+}
 function simSelecionarUF(uf) {
   if (!uf) return simSelecionarBrasil();
   SIM.selectedUF = uf; SIM.selectedMuni = null;
@@ -2843,6 +3272,10 @@ function simSelecionarMuni(uf, ibge) {
   trocarEscopo({ level: 'municipio', uf, ibges: [ibge] });
 }
 function simVoltar() {
+  if (ehGov()) {
+    if (SIM.selectedMuni && SIM.regiaoSel) return simSelecionarRegiao(SIM.nivelSel, SIM.regiaoSel);
+    return simSelecionarTopo();
+  }
   if (SIM.selectedMuni) return simSelecionarUF(SIM.selectedUF);
   if (SIM.selectedUF) return simSelecionarBrasil();
 }
@@ -2860,11 +3293,24 @@ function simVoltar() {
 // v5: 'tocados' (Set global de buckets) deu lugar a 'demoEdit' (edicoes por
 // escopo). Restaurar um v4 aqui marcaria buckets como fixos sem valor nenhum
 // para exibir — descartar e o comportamento correto.
-const CENARIO_VERSAO = 5;
+// v6: o cenario passou a valer para um cargo (e, no governador, para uma UF).
+// Um v5 restaurado no modo governador traria candidatos presidenciais e uma
+// matriz de migracao com origens de outro pleito.
+const CENARIO_VERSAO = 6;
+
+/* Cada cargo — e cada estado, no governador — guarda o seu proprio cenario.
+   Sem isto, abrir SP por cima do RJ restauraria candidatos e migracao do RJ com
+   as origens erradas. A chave do presidencial e a antiga, para nao invalidar os
+   cenarios ja salvos por quem usa a pagina. */
+function chaveArmazenamento() {
+  return ehGov() ? `simgov2026_cenario_${SIM.ufGov}` : 'sim2026_cenario';
+}
 
 function cenarioSerializado() {
   return {
     versao: CENARIO_VERSAO,
+    modo: SIM.modo,
+    uf: SIM.ufGov,
     origens: origensLista(),          // conferido na restauracao
     candidatos: SIM.candidatos,
     proxId: SIM.proxId,
@@ -2883,18 +3329,19 @@ function cenarioSerializado() {
   };
 }
 function salvarLocal() {
-  try { localStorage.setItem('sim2026_cenario', JSON.stringify(cenarioSerializado())); }
+  if (ehGov() && !SIM.ufGov) return;
+  try { localStorage.setItem(chaveArmazenamento(), JSON.stringify(cenarioSerializado())); }
   catch (e) { /* cota cheia: o cenario continua na memoria */ }
 }
 function descartarCenario(motivo) {
-  try { localStorage.removeItem('sim2026_cenario'); } catch (e) { /* ok */ }
+  try { localStorage.removeItem(chaveArmazenamento()); } catch (e) { /* ok */ }
   console.info('[sim2026] cenário salvo descartado: ' + motivo);
   return false;
 }
 
 function restaurarLocal() {
   let bruto = null;
-  try { bruto = localStorage.getItem('sim2026_cenario'); } catch (e) { return false; }
+  try { bruto = localStorage.getItem(chaveArmazenamento()); } catch (e) { return false; }
   if (!bruto) return false;
 
   let c;
@@ -2904,6 +3351,10 @@ function restaurarLocal() {
   // Cenário de uma versão anterior do esquema: descartar em vez de misturar.
   if (c.versao !== CENARIO_VERSAO) {
     return descartarCenario(`versão ${c.versao} != ${CENARIO_VERSAO}`);
+  }
+  // Cargo e estado têm de ser os mesmos: as colunas e as origens dependem deles.
+  if ((c.modo || 'presidente') !== SIM.modo || (c.uf || null) !== SIM.ufGov) {
+    return descartarCenario(`cenário de ${c.modo || 'presidente'}${c.uf ? '/' + c.uf : ''}`);
   }
   // Mesmo na versão certa, as origens têm de bater com o pacote carregado.
   const origens = origensLista();
@@ -2951,6 +3402,12 @@ function importarObjetoCenario(c) {
     simAvisar('Arquivo JSON inválido: nenhum candidato encontrado.');
     return false;
   }
+  if ((c.modo || 'presidente') !== SIM.modo || (c.uf || null) !== SIM.ufGov) {
+    const de = c.modo === 'governador' ? `governador de ${c.uf}` : 'presidente';
+    const para = ehGov() ? `governador de ${SIM.ufGov}` : 'presidente';
+    simAvisar(`Arquivo JSON é de ${de} e a tela está em ${para}.`);
+    return false;
+  }
   const origens = origensLista();
   const salvas = c.origens || Object.keys(c.transfer || {});
   if (salvas.length !== origens.length || !origens.every(o => salvas.includes(o))) {
@@ -2988,7 +3445,7 @@ function baixarCenario() {
   const blob = new Blob([JSON.stringify(cenarioSerializado(), null, 1)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'cenario_2026.json';
+  a.download = ehGov() ? `cenario_gov_2026_${SIM.ufGov}.json` : 'cenario_2026.json';
   a.click();
   URL.revokeObjectURL(a.href);
 }
@@ -3003,6 +3460,106 @@ function candidatosPadrao() {
   simAddCandidato('Renan Santos', 'MISSÃO');
   simAddCandidato('Ronaldo Caiado', 'PSD');
   simAddCandidato('Romeu Zema', 'NOVO');
+}
+
+/* O estado abre com a reedicao de 2022: cada candidatura que virou origem entra
+   como candidato, ja com a heranca apontando para ela mesma. E um ponto de
+   partida com significado — a projecao base sai identica a eleicao real —, e o
+   usuario edita nomes e partidos por cima. */
+function candidatosPadraoGov() {
+  const m = metaGov();
+  if (!m) return;
+  m.origens.filter(o => o.partido).forEach(o => {
+    simAddCandidato(o.rotulo, o.partido, o.key);
+  });
+}
+
+/* Troca de cargo (e de estado, no modo governador).
+
+   Muda tudo que e posicional de uma vez: as COLUNAS (candidatos) e as LINHAS
+   (origens de 2022) da matriz de migracao. Qualquer meta guardada vira um vetor
+   sem significado, entao o estado inteiro e zerado — mesma razao documentada em
+   esquecerEdicoesPosicionais. */
+async function entrarModo(modo, uf) {
+  if (modo === SIM.modo && (modo !== 'governador' || uf === SIM.ufGov)) return;
+  if (SIM.baseGerada && !window.confirm(
+    'Trocar de cargo ou de estado descarta o cenário aberto nesta tela. Continuar?')) {
+    simRenderSeletorCargo();
+    return;
+  }
+  salvarLocal();                      // guarda o cenario que esta saindo
+
+  SIM.modo = modo;
+  SIM.ufGov = modo === 'governador' ? uf : null;
+  SIM.candidatos = [];
+  SIM.proxId = 1;
+  esquecerEdicoesPosicionais();       // ops + demoEdit
+  SIM.pesosRegiao = {};
+  SIM.regiaoTocada = {};
+  SIM._assinaturaMigracao = null;
+  SIM._cacheRegioes = {};
+  SIM.agregado = SIM.agregado2T = SIM.support = SIM.shares = null;
+  SIM.t2 = { finalistas: null, matriz: null, chaveMatriz: null, porGrupo: null, comparecimento: 0 };
+  SIM.baseGerada = false;
+  SIM.turno = 1;
+  SIM.selectedMuni = null;
+  SIM.regiaoSel = null;
+
+  document.getElementById('mapLoader').classList.add('visible');
+  try {
+    if (modo === 'governador') {
+      SIM.regioesGov = await fetchJSON(PACK_GOV_URL + `regioes_${uf}.json`);
+      const r = await simEnviar({
+        type: 'loadGov', baseDir: new URL(PACK_GOV_URL, location.href).href, uf
+      });
+      if (r.type !== 'govLoaded') throw new Error(r.erro || 'falha ao carregar o pacote');
+      SIM.selectedUF = uf;
+      SIM.modoMapa = 'ri';
+    } else {
+      SIM.regioesGov = null;
+      await simEnviar({ type: 'loadGov', uf: null });
+      SIM.selectedUF = null;
+      SIM.modoMapa = 'estado';
+    }
+  } catch (e) {
+    console.error(e);
+    simAvisar('Não foi possível carregar o pacote: ' + e.message);
+    document.getElementById('mapLoader').classList.remove('visible');
+    return;
+  }
+  document.getElementById('mapLoader').classList.remove('visible');
+
+  SIM.escopo = escopoTopo();
+  try { localStorage.setItem('sim2026_modo', JSON.stringify({ modo, uf: SIM.ufGov })); }
+  catch (e) { /* ok */ }
+
+  if (!restaurarLocal()) {
+    modo === 'governador' ? candidatosPadraoGov() : candidatosPadrao();
+    SIM.transfer = simTransferPadrao();
+  }
+  semearRegioesBase();
+  simRenderSeletorCargo();
+  simRenderModoMapa();
+  if (SIM.baseGerada) await simCalcular();
+  simRenderTudo();
+  abrirModal('candidatos');
+}
+
+/* Os pesos do recorte obrigatorio ja nascem com o resultado real de 2022; a
+   etapa continua obrigatoria porque o usuario precisa revisar e confirmar. */
+function semearRegioesBase() {
+  const nb = nivelBase();
+  listaRegioes(nb).forEach(r => pesosDaRegiao(`${nb}:${r.codigo}`));
+}
+
+/* Barra de cargo/UF acima do mapa. */
+function simRenderSeletorCargo() {
+  document.querySelectorAll('#simEleicaoSwitch .sim-mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.cargo === SIM.modo));
+  const sel = document.getElementById('simUfGov');
+  if (!sel) return;
+  sel.hidden = !ehGov();
+  if (ehGov()) sel.value = SIM.ufGov || '';
 }
 
 async function initSimulador() {
@@ -3053,16 +3610,60 @@ async function initSimulador() {
   }
   document.getElementById('mapLoader').classList.remove('visible');
 
+  // Popula o seletor de estado e liga a barra de cargo antes de qualquer
+  // restauracao: e ela que decide QUAL cenario restaurar.
+  const selUfGov = document.getElementById('simUfGov');
+  if (selUfGov) {
+    const disp = SIM.indiceGov ? SIM.indiceGov.ufs : {};
+    selUfGov.innerHTML = Array.from(UF_MAP.entries())
+      .filter(([sg]) => disp[sg])
+      .sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))
+      .map(([sg, nome]) => `<option value="${sg}">${escapeHtml(nome)}</option>`).join('');
+    selUfGov.addEventListener('change', e => entrarModo('governador', e.target.value));
+  }
+  document.querySelectorAll('#simEleicaoSwitch .sim-mode-btn').forEach(b =>
+    b.addEventListener('click', () => {
+      const cargo = b.dataset.cargo;
+      entrarModo(cargo, cargo === 'governador'
+        ? (SIM.ufGov || (selUfGov && selUfGov.value) || 'SP') : null);
+    }));
+
+  /* Cargo da ultima sessao. So mexe em SIM.modo/ufGov e carrega o pacote — a
+     restauracao do cenario e o resto do boot seguem o caminho normal logo
+     abaixo, agora ja no modo certo. Se o pacote de governador nao existir,
+     cai no presidencial sem reclamar: a pagina tem de abrir de qualquer jeito. */
+  let ultimo = null;
+  try { ultimo = JSON.parse(localStorage.getItem('sim2026_modo') || 'null'); }
+  catch (e) { /* ok */ }
+  if (ultimo && ultimo.modo === 'governador' && ultimo.uf
+    && SIM.indiceGov && SIM.indiceGov.ufs[ultimo.uf]) {
+    try {
+      SIM.regioesGov = await fetchJSON(PACK_GOV_URL + `regioes_${ultimo.uf}.json`);
+      const r = await simEnviar({
+        type: 'loadGov', baseDir: new URL(PACK_GOV_URL, location.href).href, uf: ultimo.uf
+      });
+      if (r.type === 'govLoaded') {
+        SIM.modo = 'governador';
+        SIM.ufGov = ultimo.uf;
+        SIM.selectedUF = ultimo.uf;
+        SIM.modoMapa = 'ri';
+        SIM.escopo = escopoTopo();
+      }
+    } catch (e) {
+      console.warn('[simgov2026] não foi possível retomar o modo governador:', e.message);
+      SIM.regioesGov = null;
+    }
+  }
+
   const primeiraVisita = !restaurarLocal();
   if (primeiraVisita) {
-    candidatosPadrao();
+    ehGov() ? candidatosPadraoGov() : candidatosPadrao();
     SIM.transfer = simTransferPadrao();
   }
   // Sugere o reduto pelo nome (Zema -> MG, Caiado -> GO); continua editavel.
   SIM.candidatos.forEach(c => { if (c.reduto === undefined) c.reduto = redutoSugerido(c) || null; });
-  // As macrorregioes ja nascem com o resultado real de 2022 carregado; a etapa
-  // continua obrigatoria porque o usuario precisa revisar e confirmar.
-  listaRegioes('mr').forEach(r => pesosDaRegiao(`mr:${r.codigo}`));
+  semearRegioesBase();
+  simRenderSeletorCargo();
 
   // Ligacoes de UI
   const btnAbrir = document.getElementById('btnAbrirConfig');
@@ -3071,11 +3672,11 @@ async function initSimulador() {
   document.getElementById('btnEditSimGlobalLeft').addEventListener('click', () => abrirModal());
   document.getElementById('btnEmptyConfigLeft').addEventListener('click', () => {
     const e = prontoParaBase();
-    abrirModal(e.ok ? 'regioes' : (e.migOk ? 'regioes' : 'cenario'));
+    abrirModal(e.migOk ? paneBase() : 'cenario');
   });
   document.getElementById('btnEmptyConfig').addEventListener('click', () => {
     const e = prontoParaBase();
-    abrirModal(e.ok ? 'regioes' : (e.migOk ? 'regioes' : 'cenario'));
+    abrirModal(e.migOk ? paneBase() : 'cenario');
   });
 
   // Sync left sidebar mode switches with the main (right-side) ones
@@ -3138,13 +3739,14 @@ async function initSimulador() {
   });
   document.getElementById('btnResetSim').addEventListener('click', async () => {
     SIM.candidatos = []; SIM.proxId = 1;
-    candidatosPadrao();
+    ehGov() ? candidatosPadraoGov() : candidatosPadrao();
     SIM.candidatos.forEach(c => { if (c.reduto === undefined) c.reduto = redutoSugerido(c) || null; });
     SIM.transfer = simTransferPadrao();
     SIM.migracaoTocada = false;
     SIM.pesosRegiao = {};
     SIM.regiaoTocada = {};
     SIM._assinaturaMigracao = null;
+    SIM._cacheRegioes = {};
     SIM.ops.clear();
     SIM.demoEdit = {};
     SIM.baseGerada = false;
@@ -3153,11 +3755,12 @@ async function initSimulador() {
     SIM.support = null;
     SIM.shares = null;
     SIM.t2 = { finalistas: null, matriz: null, porGrupo: null, comparecimento: 0, chaveMatriz: null };
-    SIM.escopo = { level: 'nacional' };
-    SIM.selectedUF = null;
+    SIM.escopo = escopoTopo();
+    SIM.selectedUF = ehGov() ? SIM.ufGov : null;
     SIM.selectedMuni = null;
+    SIM.regiaoSel = null;
     SIM.paneAtivo = 'candidatos';
-    try { localStorage.removeItem('sim2026_cenario'); } catch (e) { /* ok */ }
+    try { localStorage.removeItem(chaveArmazenamento()); } catch (e) { /* ok */ }
     simRenderTudo();
     simRenderBreadcrumb();
     abrirModal('candidatos');
@@ -3173,12 +3776,9 @@ async function initSimulador() {
     simRenderTudo();
   }));
 
-  document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(b => b.addEventListener('click', () => {
-    SIM.modoMapa = b.dataset.mode;
-    document.querySelectorAll('#simModeSwitch .sim-mode-btn').forEach(x =>
-      x.classList.toggle('active', x === b));
-    simRenderMapa();
-  }));
+  // Os botoes de recorte do mapa sao reescritos por modo, entao quem os liga e
+  // simRenderModoMapa — ligar aqui perderia o handler no primeiro re-render.
+  simRenderModoMapa();
 
   document.querySelectorAll('#simGradientModeSwitch .sim-color-btn').forEach(b => b.addEventListener('click', () => {
     SIM.modoColorizacao = b.dataset.value;

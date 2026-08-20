@@ -56,6 +56,19 @@ let ultimoCur = null;        // ultima superficie calculada (p/ pedidos leves)
 let ultimoCur2T = null;      // idem, ja transferida para o 2o turno
 let ultimoNP = 0;
 
+/* --------------------------------------------------------- modo governador
+
+   A eleicao para governador sao 27 disputas independentes, com candidatos
+   diferentes em cada estado — nao cabe na dimensao voto2022, que e global e
+   fixa. Entao ela vem de um pacote lateral (simgov2026/gov_<UF>.bin), alinhado
+   LINHA A LINHA com locais_<UF>.bin: as fracoes de 2022 mudam, o eleitorado de
+   2026 continua sendo o mesmo do pacote presidencial.
+
+   Enquanto `gov` estiver definido, o worker enxerga apenas a fatia daquela UF —
+   ver `faixa()`. Com `gov === null` tudo se comporta exatamente como antes. */
+let govIdx = null;           // simgov2026/index.json (cache entre trocas de UF)
+let gov = null;              // { uf, ini, qtd, nOrig, fracs, flags, origens }
+
 // ---------------------------------------------------------------- utils
 
 function post(msg) { self.postMessage(msg); }
@@ -156,14 +169,93 @@ async function carregar(baseDir) {
   });
 }
 
+/* Carrega (ou descarrega, com uf=null) o pacote de governador de uma UF.
+
+   O sidecar e alinhado LINHA A LINHA com locais_<UF>.bin. Se esse alinhamento
+   quebrar, os votos de 2022 vao para o local errado e NADA denuncia isso: o
+   total do estado continua correto, porque as mesmas linhas sao somadas. Por
+   isso a validacao e em tres camadas e roda por inteiro a cada troca de UF —
+   O(n) uma vez, contra um erro que passaria despercebido para sempre. */
+async function carregarGov(baseDir, uf, reqId) {
+  if (!uf) {
+    gov = null;
+    ultimoCur = ultimoCur2T = null;
+    post({ type: 'govLoaded', reqId, uf: null });
+    return;
+  }
+  if (!carregado) throw new Error('pacote presidencial ainda nao carregado');
+  if (!govIdx) govIdx = await (await buscar(baseDir + 'index.json')).json();
+
+  const meta = govIdx.ufs && govIdx.ufs[uf];
+  if (!meta) throw new Error(`simgov2026: nao ha pacote de governador para ${uf}`);
+  const fatia = fatiaUf[uf];
+  if (!fatia) throw new Error(`${uf} nao existe no pacote presidencial`);
+  const [ini, qtd] = fatia;
+
+  if (meta.locais !== qtd) {
+    throw new Error(`gov_${uf}.bin foi gerado para ${meta.locais} locais e ` +
+      `locais_${uf}.bin tem ${qtd} — pacotes de rodadas diferentes; ` +
+      `rode scripts/gerar_base_governador_2022.py --uf ${uf}`);
+  }
+  const HB = govIdx.headerBytes, RB = meta.recordBytes;
+  if (RB !== HB + meta.nOrigens) {
+    throw new Error(`gov_${uf}.bin: recordBytes=${RB} nao bate com ` +
+      `${HB} + ${meta.nOrigens} origens`);
+  }
+
+  const buf = await (await buscar(baseDir + `gov_${uf}.bin`)).arrayBuffer();
+  if (buf.byteLength !== qtd * RB) {
+    throw new Error(`gov_${uf}.bin: ${buf.byteLength} bytes, esperado ${qtd * RB}`);
+  }
+  const dv = new DataView(buf);
+  const bytes = new Uint8Array(buf);
+  const nOrig = meta.nOrigens;
+  const fr = new Uint8Array(qtd * nOrig);
+  const fl = new Uint8Array(qtd);
+
+  for (let r = 0; r < qtd; r++) {
+    const o = r * RB, i = ini + r;
+    if (dv.getUint32(o, true) !== cdMunicipio[i]
+      || dv.getUint16(o + 4, true) !== nrZona[i]
+      || dv.getUint16(o + 6, true) !== nrLocvot[i]) {
+      throw new Error(`gov_${uf}.bin fora de alinhamento na linha ${r}: ` +
+        `sidecar (${dv.getUint32(o, true)}, ${dv.getUint16(o + 4, true)}, ` +
+        `${dv.getUint16(o + 6, true)}) vs pacote (${cdMunicipio[i]}, ` +
+        `${nrZona[i]}, ${nrLocvot[i]}) — regere o pacote de governador`);
+    }
+    fl[r] = bytes[o + 8];
+    fr.set(bytes.subarray(o + HB, o + HB + nOrig), r * nOrig);
+  }
+
+  gov = { uf, ini, qtd, nOrig, fracs: fr, flags: fl,
+          origens: (meta.origens || []).map(o => o.key) };
+  // A superficie guardada e de outro cargo: descartar em vez de servir errado.
+  ultimoCur = ultimoCur2T = null;
+
+  let aptos = 0, imputados = 0;
+  for (let r = 0; r < qtd; r++) { aptos += aptosArr[ini + r]; imputados += (fl[r] & 1); }
+  post({ type: 'govLoaded', reqId, uf, locais: qtd, aptos, imputados,
+         origens: meta.origens || [] });
+}
+
 // ------------------------------------------------------------ escopo
 
+/* Faixa de locais que o modo corrente enxerga: o pais inteiro no presidencial,
+   so a UF escolhida no modo governador. Todo laco que antes ia de 0 a N passa
+   por aqui, e com `gov === null` a faixa e [0, N] — o caminho presidencial
+   continua identico. */
+function faixa() { return gov ? [gov.ini, gov.ini + gov.qtd] : [0, N]; }
+
 /* Indices afetados por um escopo. 'nacional' devolve null como atalho para
-   "todos" — evita materializar um array de 80 mil posicoes no caminho quente. */
+   "toda a faixa ativa" — evita materializar um array de 95 mil posicoes no
+   caminho quente. */
 function afetados(escopo) {
   if (!escopo || escopo.level === 'nacional') return null;
   const fora = [];
   if (escopo.level === 'uf') {
+    // No modo governador so existe uma UF; pedir outra e escopo vazio, nao a
+    // fatia dela (que esta fora da simulacao corrente).
+    if (gov && escopo.uf !== gov.uf) return fora;
     const fatia = fatiaUf[escopo.uf];
     if (!fatia) return fora;
     for (let i = fatia[0]; i < fatia[0] + fatia[1]; i++) fora.push(i);
@@ -175,8 +267,9 @@ function afetados(escopo) {
   if (escopo.level === 'municipio' || escopo.level === 'regiao') {
     const alvo = new Set((escopo.ibges || [escopo.ibge]).map(Number));
     const fatia = escopo.uf ? fatiaUf[escopo.uf] : null;
-    const ini = fatia ? fatia[0] : 0;
-    const fim = fatia ? fatia[0] + fatia[1] : N;
+    const padrao = faixa();
+    const ini = fatia ? fatia[0] : padrao[0];
+    const fim = fatia ? fatia[0] + fatia[1] : padrao[1];
     for (let i = ini; i < fim; i++) if (alvo.has(codIbge[i])) fora.push(i);
     return fora;
   }
@@ -184,11 +277,11 @@ function afetados(escopo) {
 }
 
 function iterar(idx, fn) {
-  if (idx === null) { for (let i = 0; i < N; i++) fn(i); }
+  if (idx === null) { const [a, b] = faixa(); for (let i = a; i < b; i++) fn(i); }
   else { for (let a = 0; a < idx.length; a++) fn(idx[a]); }
 }
 
-function tamanho(idx) { return idx === null ? N : idx.length; }
+function tamanho(idx) { return idx === null ? (gov ? gov.qtd : N) : idx.length; }
 
 // ------------------------------------------------- base a partir de 2022
 
@@ -198,8 +291,11 @@ function tamanho(idx) { return idx === null ? N : idx.length; }
    seguranca para que o total do local seja exatamente os aptos. */
 function montarBase(transf, np) {
   const cur = new Float64Array(N * np);
-  if (!idxVoto2022) return cur;
-  const nOrig = idxVoto2022.n, off = idxVoto2022.offset;
+  if (!gov && !idxVoto2022) return cur;
+  // Presidencial: a composicao de 2022 e uma dimensao do pacote global.
+  // Governador: vem do sidecar da UF, que tem uma linha por local da fatia.
+  const nOrig = gov ? gov.nOrig : idxVoto2022.n;
+  const off = gov ? 0 : idxVoto2022.offset;
 
   const T = new Float64Array(nOrig * np);
   for (let o = 0; o < nOrig; o++) {
@@ -212,11 +308,15 @@ function montarBase(transf, np) {
 
   const fv = new Float64Array(np);
   const saida = new Int32Array(np);
-  for (let i = 0; i < N; i++) {
-    const tot = aptosArr[i], fb = i * NB;
+  const origem = gov ? gov.fracs : fracs;
+  const passo = gov ? gov.nOrig : NB;
+  const desloc = gov ? gov.ini : 0;
+  const [iniF, fimF] = faixa();
+  for (let i = iniF; i < fimF; i++) {
+    const tot = aptosArr[i], fb = (i - desloc) * passo;
     fv.fill(0);
     for (let o = 0; o < nOrig; o++) {
-      const peso = fracs[fb + off + o] / QUANT;
+      const peso = origem[fb + off + o] / QUANT;
       if (!peso) continue;
       const eleitores = tot * peso;
       for (let p = 0; p < np; p++) fv[p] += eleitores * T[o * np + p];
@@ -620,6 +720,9 @@ function fatiaVotos(fat, col, np, cur) {
 }
 
 function aplicarRedutos(cur, np, vinculos, iNulo, iAbst) {
+  // No modo governador o reduto seria redundante: o proprio candidato ja e uma
+  // origem da migracao, com a geografia real da votacao dele de 2022.
+  if (gov) return;
   if (!vinculos || !vinculos.length || !IDX.redutos) return;
   const nR = IDX.redutos.length;
   if (!nR) return;
@@ -782,15 +885,23 @@ function aplicarRedutos(cur, np, vinculos, iNulo, iAbst) {
 
 // ------------------------------------------------------------ agregacao
 
+/* No modo governador a faixa e uma UF so, entao `brasil` vale o total DAQUELE
+   ESTADO. E de proposito: o front le agregado.brasil para o resultado do topo,
+   o veredito de 2o turno e a legenda, e assim tudo isso passa a valer para o
+   estado sem nenhuma ramificacao la. */
 function agregar(cur, np, detalheUfs) {
   const brasil = new Float64Array(np);
   const porUf = {};
   const porMuni = {};
   let aptosBR = 0;
 
-  for (const uf in fatiaUf) porUf[uf] = { aptos: 0, votos: new Float64Array(np) };
+  for (const uf in fatiaUf) {
+    if (gov && uf !== gov.uf) continue;
+    porUf[uf] = { aptos: 0, votos: new Float64Array(np) };
+  }
 
-  for (let i = 0; i < N; i++) {
+  const [iniA, fimA] = faixa();
+  for (let i = iniA; i < fimA; i++) {
     const uf = ufDeIdx[i], vb = i * np, tot = aptosArr[i];
     aptosBR += tot;
     const u = porUf[uf];
@@ -871,7 +982,10 @@ function turno2(msg) {
 
   const brasil = new Float64Array(np);
   const porUf = {}, porMuni = {};
-  for (const uf in fatiaUf) porUf[uf] = { aptos: 0, votos: new Float64Array(np) };
+  for (const uf in fatiaUf) {
+    if (gov && uf !== gov.uf) continue;
+    porUf[uf] = { aptos: 0, votos: new Float64Array(np) };
+  }
 
   const saida = new Float64Array(np);
   const linha = new Float64Array(4);
@@ -880,7 +994,8 @@ function turno2(msg) {
   // mostrar o 2o turno com a mesma transferencia diferenciada por grupo.
   ultimoCur2T = new Float64Array(N * np);
 
-  for (let i = 0; i < N; i++) {
+  const [ini2, fim2] = faixa();
+  for (let i = ini2; i < fim2; i++) {
     const vb = i * np, fb = i * NB, tot = aptosArr[i];
     saida.fill(0);
     saida[iA] = ultimoCur[vb + iA];
@@ -954,12 +1069,14 @@ function calcular(msg) {
   // 1) migracao de 2022 -> superficie base
   const cur = montarBase(msg.transfer, np);
 
-  /* 2) Replay determinista, na ordem em que a simulacao e construida:
-        nacional -> macrorregiao -> UF -> regiao intermediaria -> municipio. */
-  const rank = { nacional: 0, mr: 1, uf: 2, ri: 3, municipio: 4 };
+  /* 2) Replay determinista, do recorte mais amplo para o mais especifico:
+        nacional -> macrorregiao -> UF -> RG intermediaria -> RG imediata ->
+        municipio. O mais especifico sempre vence, porque e aplicado depois.
+        No modo governador so os tres ultimos niveis aparecem. */
+  const rank = { nacional: 0, mr: 1, uf: 2, ri: 3, rgi: 4, municipio: 5 };
   const rankDe = (o) => {
     const s = o.scope || {};
-    if (s.level === 'regiao') return rank[s.nivel === 'ri' ? 'ri' : 'mr'];
+    if (s.level === 'regiao') return rank[s.nivel] != null ? rank[s.nivel] : rank.mr;
     return rank[s.level] != null ? rank[s.level] : 9;
   };
   const ops = (msg.ops || []).slice().sort((a, b) => rankDe(a) - rankDe(b));
@@ -987,6 +1104,8 @@ self.onmessage = async (ev) => {
   try {
     if (msg.type === 'load') {
       await carregar(msg.baseDir);
+    } else if (msg.type === 'loadGov') {
+      await carregarGov(msg.baseDir, msg.uf || null, msg.reqId);
     } else if (msg.type === 'compute') {
       if (!carregado) { post({ type: 'error', erro: 'pacotes ainda nao carregados' }); return; }
       calcular(msg);

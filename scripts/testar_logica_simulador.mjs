@@ -49,7 +49,12 @@ const criar = new Function(
             restaurarLocal, cenarioSerializado, CENARIO_VERSAO,
             pesosDaRegiao, sincronizarPesosRegionais, assinaturaMigracao,
             travar100, vetorParaEditor, editorParaVetor, simAplicarSupport,
-            bucketsFixados, opDoEscopo, pesosSimuladosDaRegiao, resultadoDoEscopo };`
+            bucketsFixados, opDoEscopo, pesosSimuladosDaRegiao, resultadoDoEscopo,
+            ehGov, metaGov, nivelBase, nivelRefino, escopoTopo, noTopo,
+            origensInfo, pesoOrigem, origemSugerida, pesosRegionaisPadrao,
+            listaRegioes, opsRegionais, opsArray, prontoParaBase, panes,
+            panesPosteriores, paneBase, rotuloPane, chaveArmazenamento,
+            candidatosPadraoGov, chaveEscopo, nLocaisEscopo };`
 );
 const M = criar(janela, documento, localStorageFalso, {}, {}, function () { }, () => { });
 
@@ -289,6 +294,236 @@ console.log('\nRegioes intermediarias saem da simulacao, nao de 2022');
 
   ok(M.pesosSimuladosDaRegiao({ codigo: '9999', munis: [999999] }) === null,
     'regiao sem municipio na simulacao devolve null em vez de zeros');
+}
+
+// ============================================================================
+// MODO GOVERNADOR
+// ============================================================================
+
+/* Estado do RJ em 2022, com os numeros reais do pacote (simgov2026). E o
+   estado de teste do harness do worker, entao os dois casam. */
+const IDX_GOV = {
+  limiarOrigem: 1.5,
+  ufs: {
+    RJ: {
+      uf: 'RJ', locais: 5050, nOrigens: 7, recordBytes: 16,
+      origens: [
+        { key: 'claudio_castro', rotulo: 'Cláudio Castro', partido: 'PL', pctValidos: 58.64, pctAptos: 41.02 },
+        { key: 'marcelo_freixo', rotulo: 'Marcelo Freixo', partido: 'PSB', pctValidos: 27.37, pctAptos: 19.15 },
+        { key: 'rodrigo_neves', rotulo: 'Rodrigo Neves', partido: 'PDT', pctValidos: 8.00, pctAptos: 5.60 },
+        { key: 'paulo_ganime', rotulo: 'Paulo Ganime', partido: 'NOVO', pctValidos: 5.31, pctAptos: 3.71 },
+        { key: 'outros', rotulo: 'Outros candidatos', pctValidos: 0.68, pctAptos: 0.47 },
+        { key: 'nulo_branco', rotulo: 'Nulo ou branco', pctAptos: 5.90 },
+        { key: 'abstencao', rotulo: 'Não compareceu', pctAptos: 22.87 }
+      ]
+    }
+  }
+};
+const REG_GOV = {
+  uf: 'RJ',
+  origens: ['claudio_castro', 'marcelo_freixo', 'rodrigo_neves', 'paulo_ganime',
+    'outros', 'nulo_branco', 'abstencao'],
+  regioes: {
+    'uf:RJ': {
+      nivel: 'uf', codigo: 'RJ', aptos: 12857000,
+      pct_aptos: { claudio_castro: 41.02, marcelo_freixo: 19.15, rodrigo_neves: 5.60, paulo_ganime: 3.71, outros: 0.47, nulo_branco: 5.90, abstencao: 22.87 },
+      pct_validos: { claudio_castro: 58.64, marcelo_freixo: 27.37, rodrigo_neves: 8.00, paulo_ganime: 5.31, outros: 0.68 }
+    },
+    'ri:3301': {
+      nivel: 'ri', codigo: '3301', nome: 'Rio de Janeiro', aptos: 9000000,
+      pct_aptos: { claudio_castro: 39.0, marcelo_freixo: 21.0, rodrigo_neves: 5.5, paulo_ganime: 4.0, outros: 0.5, nulo_branco: 6.1, abstencao: 23.5 },
+      pct_validos: { claudio_castro: 56.5, marcelo_freixo: 30.4, rodrigo_neves: 8.0, paulo_ganime: 4.4, outros: 0.7 }
+    },
+    'rgi:330001': {
+      nivel: 'rgi', codigo: '330001', nome: 'Rio de Janeiro', rgint: '3301', aptos: 7000000,
+      pct_aptos: { claudio_castro: 38.0, marcelo_freixo: 22.0, rodrigo_neves: 5.0, paulo_ganime: 4.2, outros: 0.5, nulo_branco: 6.2, abstencao: 23.6 },
+      pct_validos: { claudio_castro: 55.0, marcelo_freixo: 31.9, rodrigo_neves: 7.2, paulo_ganime: 5.2, outros: 0.7 }
+    }
+  }
+};
+
+function entrarGovNoTeste() {
+  M.SIM.modo = 'governador';
+  M.SIM.ufGov = 'RJ';
+  M.SIM.indiceGov = IDX_GOV;
+  M.SIM.regioesGov = REG_GOV;
+  M.SIM.candidatos = [];
+  M.SIM.proxId = 1;
+  M.SIM.pesosRegiao = {};
+  M.SIM.regiaoTocada = {};
+  M.SIM._assinaturaMigracao = null;
+  M.SIM._cacheRegioes = {};
+  M.SIM.ops.clear();
+  M.SIM.regioes = {
+    muni_to_region: {
+      3300100: { ri: '3301', rgi: '330001', mr: '3', nome: 'Angra dos Reis' },
+      3300209: { ri: '3301', rgi: '330001', mr: '3', nome: 'Aperibé' },
+      3300308: { ri: '3301', rgi: '330002', mr: '3', nome: 'Araruama' },
+      3500100: { ri: '3501', rgi: '350001', mr: '3', nome: 'Adamantina' }
+    },
+    rgint_by_uf: { RJ: [{ cd: '3301', nome: 'Rio de Janeiro' }], SP: [{ cd: '3501', nome: 'São Paulo' }] },
+    rgi: {
+      330001: { nome: 'Rio de Janeiro', rgint: '3301' },
+      330002: { nome: 'Araruama', rgint: '3301' },
+      350001: { nome: 'São Paulo', rgint: '3501' }
+    },
+    macro: { 3: { nome: 'Sudeste' } }
+  };
+  M.SIM.escopo = M.escopoTopo();
+}
+
+console.log('\nModo governador: origens e niveis');
+{
+  entrarGovNoTeste();
+  ok(M.ehGov(), 'o modo fica ativo');
+  ok(M.origensLista().join(',') === REG_GOV.origens.join(','),
+    'as origens sao as do estado', `${M.origensLista().length} origens`);
+  ok(M.nivelBase() === 'ri' && M.nivelRefino() === 'rgi',
+    'RGINT vira a etapa obrigatoria e RGI o refinamento');
+  ok(M.escopoTopo().level === 'uf' && M.escopoTopo().uf === 'RJ',
+    'o topo da hierarquia e o estado');
+  ok(M.nLocaisEscopo() === 5050, 'conta os locais do estado, nao do pais');
+  ok(M.chaveArmazenamento() === 'simgov2026_cenario_RJ',
+    'cada estado guarda o proprio cenario', M.chaveArmazenamento());
+
+  const info = M.origensInfo();
+  ok(info.claudio_castro.pos === M.getPartyPos('PL'),
+    'a posicao da origem sai do partido dela em 2022');
+  ok(perto(M.pesoOrigem('claudio_castro'), 41.02, 0.01),
+    'o peso da origem sai do agregado estadual', `${M.pesoOrigem('claudio_castro')}%`);
+}
+
+console.log('\nModo governador: etapas do assistente');
+{
+  ok(!M.panes().includes('regioes'), 'nao ha etapa de macrorregiao');
+  ok(M.panes().join(',') === 'candidatos,cenario,rgint,rgi,demografia,turno2',
+    'as seis etapas na ordem certa', M.panes().join(' > '));
+  ok(M.paneBase() === 'rgint', 'a etapa obrigatoria e a de RGINT');
+  ok(M.panesPosteriores().has('rgi') && !M.panesPosteriores().has('rgint'),
+    'RGINT abre de cara; RGI so depois da projecao base');
+  ok(M.rotuloPane('rgint')[1] === 'Peso de cada região',
+    'a RGINT e apresentada como peso, nao como ajuste fino');
+}
+
+console.log('\nModo governador: heranca de 2022');
+{
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  ok(M.SIM.candidatos.length === 4,
+    'o estado abre com os candidatos de 2022', M.SIM.candidatos.map(c => c.nome).join(', '));
+  ok(M.SIM.candidatos[0].origem === 'claudio_castro',
+    'cada candidato ja vem vinculado a propria candidatura de 2022');
+  ok(M.SIM.candidatos[0].partido === 'PL' && M.SIM.candidatos[0].cor === M.getPartyColor('PL'),
+    'partido e cor vem do dado real');
+
+  const p = M.pesosRegionaisPadrao('ri:3301');
+  const cols = M.simColunas();
+  const idxCastro = cols.findIndex(c => c.cand && c.cand.origem === 'claudio_castro');
+  const idxFreixo = cols.findIndex(c => c.cand && c.cand.origem === 'marcelo_freixo');
+  ok(perto(p.validos[cols[idxCastro].key], 56.5, 0.01),
+    'o candidato herda o percentual da regiao', `${p.validos[cols[idxCastro].key]}%`);
+  ok(perto(p.validos[cols[idxFreixo].key], 30.4, 0.01), 'idem para o segundo colocado');
+  ok(perto(p.abstencao, 23.5, 0.01) && perto(p.nuloBranco, 6.1, 0.01),
+    'abstencao e nulos vem direto de 2022, sem passar pela migracao');
+
+  // Sem heranca o candidato nao puxa percentual nenhum — e o que permite
+  // simular um nome novo, sem passado no estado.
+  const novo = M.simAddCandidato('Candidata Nova', 'PSOL');
+  const p2 = M.pesosRegionaisPadrao('ri:3301');
+  ok((p2.validos['cand_' + novo.id] || 0) === 0,
+    'candidato sem heranca comeca zerado');
+
+  ok(M.origemSugerida({ nome: 'Marcelo Freixo', partido: '' }) === 'marcelo_freixo',
+    'a heranca e sugerida pelo nome');
+  ok(M.origemSugerida({ nome: 'Outro Nome', partido: 'PDT' }) === 'rodrigo_neves',
+    'e, na falta do nome, pelo partido');
+  ok(M.origemSugerida({ nome: 'Outro Nome', partido: 'PSOL' }) === '',
+    'quem nao casa com ninguem fica sem heranca');
+}
+
+console.log('\nModo governador: assinatura e ops');
+{
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  const antes = M.assinaturaMigracao();
+  M.SIM.candidatos[0].origem = 'marcelo_freixo';
+  ok(M.assinaturaMigracao() !== antes,
+    'trocar a heranca muda a assinatura da migracao');
+
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  M.listaRegioes('ri').forEach(r => M.pesosDaRegiao(`ri:${r.codigo}`));
+  const opsBase = M.opsRegionais('ri', 'base');
+  ok(opsBase.length === 1 && opsBase[0].scope.nivel === 'ri',
+    'a etapa obrigatoria emite op mesmo sem edicao', `${opsBase.length} op(s)`);
+  ok(M.opsRegionais('rgi', 'refino').length === 0,
+    'o refinamento so emite op depois de editado');
+
+  M.SIM.pesosRegiao['rgi:330001'] = {
+    validos: { [M.simColunas()[0].key]: 100 }, abstencao: 20, nuloBranco: 5
+  };
+  M.SIM.regiaoTocada['rgi:330001'] = true;
+  const ops = M.opsArray();
+  const ordem = ops.filter(o => o.scope.level === 'regiao').map(o => o.scope.nivel);
+  ok(ordem.join(',') === 'ri,rgi',
+    'RGINT vem antes da RGI, para a mais especifica vencer', ordem.join(' > '));
+  ok(ops.some(o => o.scope.nivel === 'rgi'), 'a RGI editada vira op');
+}
+
+console.log('\nModo governador: porta de entrada da projecao');
+{
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  M.SIM.transfer = M.simTransferPadrao();
+  // Migracao vazia: cada linha soma 0, o que e valido (<=100), mas as regioes
+  // ainda nao tem divisao nenhuma entre candidatos.
+  M.SIM.pesosRegiao = {};
+  M.SIM._assinaturaMigracao = null;
+  const e1 = M.prontoParaBase();
+  ok(e1.regOk === true,
+    'as RGINT ja nascem preenchidas com 2022, entao a porta abre');
+
+  M.SIM.pesosRegiao['ri:3301'] = { validos: {}, abstencao: 20, nuloBranco: 5 };
+  M.SIM.regiaoTocada['ri:3301'] = true;
+  ok(M.prontoParaBase().regOk === false,
+    'zerar todos os candidatos de uma RGINT fecha a porta');
+}
+
+console.log('\nModo governador: separacao dos cenarios salvos');
+{
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  const cen = M.cenarioSerializado();
+  ok(cen.modo === 'governador' && cen.uf === 'RJ',
+    'o cenario grava cargo e estado');
+
+  armazem.set('simgov2026_cenario_RJ', JSON.stringify(
+    Object.assign({}, cen, { modo: 'presidente', uf: null })));
+  ok(M.restaurarLocal() === false,
+    'cenario de outro cargo e descartado, nao misturado');
+
+  armazem.set('simgov2026_cenario_RJ', JSON.stringify(
+    Object.assign({}, cen, { uf: 'SP' })));
+  ok(M.restaurarLocal() === false, 'cenario de outro estado tambem');
+
+  armazem.set('simgov2026_cenario_RJ', JSON.stringify(cen));
+  ok(M.restaurarLocal() === true, 'o cenario do proprio estado volta');
+}
+
+console.log('\nVolta ao modo presidencial');
+{
+  M.SIM.modo = 'presidente';
+  M.SIM.ufGov = null;
+  M.SIM._cacheRegioes = {};
+  ok(!M.ehGov() && M.nivelBase() === 'mr' && M.nivelRefino() === 'ri',
+    'os niveis voltam a macrorregiao e RGINT');
+  ok(M.origensLista().join(',') === 'lula,bolsonaro,outros,nulo_branco,abstencao',
+    'as origens voltam a ser as presidenciais');
+  ok(M.chaveArmazenamento() === 'sim2026_cenario',
+    'a chave do presidencial continua a antiga');
+  ok(M.escopoTopo().level === 'nacional', 'o topo volta a ser o pais');
+  ok(M.panes().includes('regioes') && !M.panes().includes('rgi'),
+    'a etapa de macrorregiao volta e a de RGI some');
 }
 
 console.log(falhas === 0 ? '\nTUDO OK' : `\n${falhas} FALHA(S)`);

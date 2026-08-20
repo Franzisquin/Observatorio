@@ -1271,7 +1271,8 @@
   font-weight: 600;
 }
 
-.sim-final-pick select {
+.sim-final-pick select,
+.sim-uf-gov {
   padding: 6px 9px;
   background: var(--card);
   color: var(--text);
@@ -1648,7 +1649,8 @@
   cursor: default;
 }
 
-.sim-cand-reduto {
+.sim-cand-reduto,
+.sim-cand-origem {
   flex-shrink: 0;
   max-width: 118px;
   padding: 5px 7px;
@@ -1748,4 +1750,34 @@
   color: #ffffff;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* ---------------------------------------------------- seletor de cargo/UF
+
+   O modo governador simula um estado por vez, entao a barra do mapa ganha o
+   par cargo + estado. Reaproveita .sim-mode-switch/.sim-mode-btn, que ja
+   existem para os recortes do mapa. */
+.sim-eleicao-switch {
+  margin-right: 4px;
+}
+
+.sim-uf-gov {
+  flex-shrink: 0;
+  max-width: 168px;
+}
+
+.sim-uf-gov[hidden] {
+  display: none;
+}
+
+/* .sim-nav-item e display:flex, que sobrepoe o `hidden` do HTML: sem isto as
+   etapas que nao pertencem ao modo corrente continuariam visiveis. */
+.sim-nav-item[hidden] {
+  display: none;
+}
+
+/* Nota das UFs com uma regiao so no recorte (o DF), dentro do cabecalho da
+   etapa em vez de solta no corpo. */
+.sim-pane-head .sim-note {
+  margin-top: 8px;
 }
