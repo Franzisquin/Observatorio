@@ -1754,20 +1754,77 @@
 
 /* ---------------------------------------------------- seletor de cargo/UF
 
-   O modo governador simula um estado por vez, entao a barra do mapa ganha o
-   par cargo + estado. Reaproveita .sim-mode-switch/.sim-mode-btn, que ja
-   existem para os recortes do mapa. */
-.sim-eleicao-switch {
-  margin-right: 4px;
+   Faixa entre o cabecalho do modal e as etapas. O cargo vem antes de tudo
+   porque define TODAS as etapas — quais candidatos, quais origens de 2022 e
+   qual recorte territorial e o obrigatorio. Reaproveita
+   .sim-mode-switch/.sim-mode-btn, que ja existem para os recortes do mapa. */
+.sim-modal-cargo {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--card) 45%, transparent);
+}
+
+.sim-cargo-rot {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Dentro do modal a faixa nao flutua sobre o mapa: sem sombra nem blur. */
+.sim-modal-cargo .sim-mode-switch {
+  background: var(--card);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.sim-modal-cargo .sim-mode-btn {
+  padding: 5px 14px;
+}
+
+.sim-modal-cargo .sim-mode-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sim-cargo-uf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-cargo-uf[hidden] {
+  display: none;
 }
 
 .sim-uf-gov {
   flex-shrink: 0;
-  max-width: 168px;
+  max-width: 200px;
 }
 
-.sim-uf-gov[hidden] {
-  display: none;
+/* Some antes de espremer o resto da faixa. */
+.sim-cargo-nota {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+@media (max-width: 720px) {
+  .sim-modal-cargo {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .sim-cargo-nota {
+    display: none;
+  }
 }
 
 /* .sim-nav-item e display:flex, que sobrepoe o `hidden` do HTML: sem isto as

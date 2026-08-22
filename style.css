@@ -7,7 +7,7 @@
   --accent: #7a7a7a;
   --accent-hover: #919191;
   --accent-rgb: 122, 122, 122;
-  --accent-2: #f59e0b;
+  --accent-2: #16a2f3;
   --ok: #22c55e;
   --warn: #eab308;
   --err: #ef4444;
@@ -35,7 +35,7 @@
   --accent: #707070;
   --accent-hover: #5a5a5a;
   --accent-rgb: 112, 112, 112;
-  --accent-2: #d97706;
+  --accent-2: #0d7bc9;
   --ok: #16a34a;
   --warn: #ca8a04;
   --err: #dc2626;
@@ -1105,15 +1105,15 @@ body {
 }
 
 .button.primary {
-  background: linear-gradient(90deg, #10b981, #f59e0b);
+  background: linear-gradient(90deg, #107ac6, #0aafe6);
   color: #fff;
   border-color: transparent;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 2px 8px rgba(16, 122, 198, 0.3);
 }
 
 .button.primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 4px 16px rgba(16, 122, 198, 0.4);
   transform: translateY(-1px);
 }
 
@@ -3782,7 +3782,7 @@ input:disabled {
 .side-left .search-input:focus,
 .side-left .searchwrap input:focus {
   border-color: var(--accent-2);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15); /* Orange glow matching accent-2 */
+  box-shadow: 0 0 0 2px rgba(22, 162, 243, 0.15); /* Blue glow matching accent-2 */
   outline: none;
 }
 
@@ -3915,7 +3915,7 @@ input:disabled {
 
 .custom-select-search:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+  box-shadow: 0 0 0 2px rgba(22, 162, 243, 0.15);
 }
 
 .custom-select-option.highlighted {

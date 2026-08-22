@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simulador Eleitoral 2026 - Observatório</title>
+  <title>Simulador Eleitoral 2026 - ElectoMaps</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <meta name="description"
     content="Simulador de cenários eleitorais 2026 com eleitorado do TSE por local de votação, editor demográfico com inferência ecológica e simulação de segundo turno." />
@@ -24,7 +24,7 @@
   <!-- TOP TOOLBAR -->
   <div class="app-toolbar">
     <div class="toolbar-center">
-      <a href="index.html" class="toolbar-logo">Observatório</a>
+      <a href="index.html" class="toolbar-logo">ElectoMaps</a>
       <span class="toolbar-page">Simulador Eleitoral 2026</span>
     </div>
     <div class="toolbar-right">
@@ -108,13 +108,6 @@
 
       <!-- Faixa de contexto sobre o mapa: onde estou e o que estou vendo -->
       <div class="sim-map-bar" id="simMapBar">
-        <!-- Cargo simulado. O de governador roda um estado por vez, entao o
-             <select> ao lado so aparece nesse modo. -->
-        <div class="sim-mode-switch sim-eleicao-switch" id="simEleicaoSwitch">
-          <button class="sim-mode-btn active" data-cargo="presidente">Presidente</button>
-          <button class="sim-mode-btn" data-cargo="governador">Governador</button>
-        </div>
-        <select id="simUfGov" class="sim-uf-gov" title="Estado simulado" hidden></select>
         <div class="sim-breadcrumb" id="simBreadcrumb"></div>
         <!-- Recortes do mapa: reescritos por simRenderModoMapa conforme o cargo -->
         <div class="sim-mode-switch" id="simModeSwitch"></div>
@@ -188,6 +181,23 @@
         </div>
       </div>
 
+      <!-- Cargo simulado. Vem antes das etapas porque define todas elas: quais
+           candidatos, quais origens de 2022 e qual recorte territorial e o
+           obrigatorio. O de governador roda um estado por vez, entao o <select>
+           ao lado so aparece nesse modo. -->
+      <div class="sim-modal-cargo">
+        <span class="sim-cargo-rot">Cargo</span>
+        <div class="sim-mode-switch sim-eleicao-switch" id="simEleicaoSwitch">
+          <button class="sim-mode-btn active" data-cargo="presidente">Presidente</button>
+          <button class="sim-mode-btn" data-cargo="governador">Governador</button>
+        </div>
+        <label class="sim-cargo-uf" id="simUfGovWrap" hidden>
+          <span class="sim-cargo-rot">Estado</span>
+          <select id="simUfGov" class="sim-uf-gov" title="Estado simulado"></select>
+        </label>
+        <span class="sim-cargo-nota" id="simCargoNota"></span>
+      </div>
+
       <div class="sim-modal-body">
         <nav class="sim-modal-nav" id="simModalNav">
           <div class="sim-nav-grupo">Projeção base</div>
@@ -213,7 +223,7 @@
             </span>
           </button>
 
-          <div class="sim-nav-grupo">Refinamentos</div>
+          <div class="sim-nav-grupo" id="simNavGrupoRefino">Refinamentos</div>
           <button class="sim-nav-item" data-pane="rgint">
             <span class="sim-nav-num">4</span>
             <span>

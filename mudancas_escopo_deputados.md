@@ -1,6 +1,6 @@
 # Resumo Técnico: Ajustes de Escopo Eleitoral e Interface (Deputados e Vereadores)
 
-Este documento detalha as mudanças lógicas e de interface de usuário (UI) realizadas nas telas de resultados proporcionais (Deputado Federal, Deputado Estadual/Distrital e Vereador) do **Visualizador Eleitoral - Observatório**.
+Este documento detalha as mudanças lógicas e de interface de usuário (UI) realizadas nas telas de resultados proporcionais (Deputado Federal, Deputado Estadual/Distrital e Vereador) do **Visualizador Eleitoral - ElectoMaps**.
 
 As modificações visam garantir a precisão matemática da aplicação da **Lei das Eleições** (QE, QP, Sobras e cláusula 80/20) e simplificar a UI com foco em minimalismo e excelente experiência de uso.
 
@@ -60,7 +60,7 @@ O sistema agora detecta e explica essa exceção de forma automática no hover d
 ### Lógica Temporal Dinâmica (Linha do Tempo 2006-2024)
 
 > [!IMPORTANT]
-> A legislação eleitoral brasileira mudou drasticamente ao longo das últimas duas décadas. Para garantir fidelidade aos dados passados, o painel do Observatório agora calcula as regras proporcionais dinamicamente de acordo com o ano da eleição selecionada:
+> A legislação eleitoral brasileira mudou drasticamente ao longo das últimas duas décadas. Para garantir fidelidade aos dados passados, o painel do ElectoMaps agora calcula as regras proporcionais dinamicamente de acordo com o ano da eleição selecionada:
 
 1. **Epoch 1: Até 2016 (Eleições de 2006 a 2016)**
    - *Modelo Tradicional de 2 Fases (Sem barreiras partidárias)*.

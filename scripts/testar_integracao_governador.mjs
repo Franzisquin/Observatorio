@@ -127,7 +127,8 @@ const M = new Function(
             nivelBase, nivelRefino, listaRegioes, pesosDaRegiao, semearRegioesBase,
             entradasDe, resultadoDoEscopo, escopoTopo, simTransferPadrao,
             simFinalistas, simPrecisaSegundoTurno, simRenderTudo, simEnviar,
-            nLocaisEscopo, PACK_GOV_URL };`
+            nLocaisEscopo, semearCenarioPadrao, pesosRegionaisPadrao,
+            pesosParaPainel, listaRegioes, nivelBase, PACK_GOV_URL };`
 )(janela, documento, localStorageFalso, {}, MLCompatFalso, criarWorker, fetchLocal,
   { href: BASE.href }, () => true);
 
@@ -162,8 +163,7 @@ console.log('\nEntrar no modo governador (RJ)');
   M.SIM.candidatos = [];
   M.SIM.proxId = 1;
   M.SIM._cacheRegioes = {};
-  M.candidatosPadraoGov();
-  M.SIM.transfer = M.simTransferPadrao();
+  M.semearCenarioPadrao();
 
   ok(M.SIM.candidatos.length === 4,
     'candidatos semeados de 2022', M.SIM.candidatos.map((c) => `${c.nome} (${c.partido})`).join(', '));
@@ -178,20 +178,15 @@ console.log('\nEntrar no modo governador (RJ)');
     'as RGI do RJ aparecem e nenhuma vem de outro estado', `${rgis.length} regiões`);
 }
 
-console.log('\nProjeção base: migração identidade reproduz 2022');
+console.log('\nProjeção base: a migração semeada reproduz 2022');
 {
-  // Cada origem vai inteira para o candidato que a herda.
-  const cols = M.simColunas();
-  M.origensLista().forEach((o) => {
-    const linha = {};
-    cols.forEach((c) => { linha[c.key] = 0; });
-    const dono = cols.find((c) => c.cand && c.cand.origem === o);
-    if (dono) linha[dono.key] = 100;
-    else if (o === 'outros') linha.outros = 100;
-    else if (o === 'nulo_branco') linha.nuloBranco = 100;
-    else if (o === 'abstencao') linha.abstencao = 100;
-    M.SIM.transfer[o] = linha;
-  });
+  /* Nada de montar matriz à mão: semearCenarioPadrao já deixou cada candidatura
+     de 2022 indo inteira para si mesma. É exatamente o que o usuário vê ao
+     abrir o estado, e é ela — não um campo separado no candidato — que liga o
+     candidato ao resultado real. */
+  ok(M.origensLista().every((o) => Math.abs(
+    M.simColunas().reduce((a, c) => a + (M.SIM.transfer[o][c.key] || 0), 0) - 100) < 0.01),
+  'toda linha da migração semeada soma 100%');
 
   M.SIM.pesosRegiao = {};
   M.SIM.regiaoTocada = {};
@@ -219,10 +214,14 @@ console.log('\nProjeção base: migração identidade reproduz 2022');
   const meta = M.metaGov();
   ent.forEach((e) => {
     const cand = M.SIM.candidatos.find((c) => 'cand_' + c.id === e.key);
-    const oficial = meta.origens.find((o) => o.key === cand.origem);
-    ok(perto(e.pctValidos, oficial.pctValidos, 0.6),
+    // Qual candidatura de 2022 alimenta esta coluna: lido da matriz, que é onde
+    // a ligação mora agora.
+    const origem = M.origensLista().find((o) => (M.SIM.transfer[o] || {})[e.key] === 100);
+    const oficial = meta.origens.find((o) => o.key === origem);
+    ok(!!oficial && perto(e.pctValidos, oficial.pctValidos, 0.6),
       `${cand.nome} reproduz 2022`,
-      `${e.pctValidos.toFixed(2)}% vs ${oficial.pctValidos.toFixed(2)}% oficial`);
+      oficial ? `${e.pctValidos.toFixed(2)}% vs ${oficial.pctValidos.toFixed(2)}% oficial`
+        : 'sem origem correspondente na matriz');
   });
 
   const venc = M.entradasDe(res).filter((x) => x.key.startsWith('cand_'))
@@ -254,6 +253,81 @@ console.log('\nMeta numa RG imediata desloca só aquela região');
 
   const forasteiro = M.SIM.agregado.municipios['3500105'] || M.SIM.agregado.municipios['3550308'];
   ok(!forasteiro, 'nenhum município de fora do RJ entrou no agregado');
+}
+
+/* O painel da etapa obrigatória tem de abrir com o resultado REAL de 2022 da
+   região, do mesmo jeito que a macrorregião abre no presidencial. O bug que
+   isto tranca: rotear abstenção/nulos pela matriz de migração fazia uma região
+   aparecer com 94% de abstenção e todos os candidatos em zero. */
+console.log('\nPainel de RG intermediária abre com os totais de 2022 (PE)');
+{
+  M.SIM.regioesGov = await (await fetchLocal(M.PACK_GOV_URL + 'regioes_PE.json')).json();
+  const r = await M.simEnviar({
+    type: 'loadGov', baseDir: new URL(M.PACK_GOV_URL, BASE.href).href, uf: 'PE',
+  });
+  ok(r.type === 'govLoaded', 'PE carrega', r.erro || `${r.locais} locais`);
+
+  M.SIM.ufGov = 'PE';
+  M.SIM.selectedUF = 'PE';
+  M.SIM.escopo = M.escopoTopo();
+  M.SIM.candidatos = [];
+  M.SIM.proxId = 1;
+  M.SIM.ops.clear();
+  M.SIM.pesosRegiao = {};
+  M.SIM.regiaoTocada = {};
+  M.SIM._assinaturaMigracao = null;
+  M.SIM._cacheRegioes = {};
+  M.semearCenarioPadrao();
+
+  const regs = M.listaRegioes('ri');
+  const alvo = regs.find((x) => x.codigo === '2603');
+  ok(!!alvo, 'a RGINT de Serra Talhada existe', alvo ? alvo.nome : '-');
+
+  const oficial = M.SIM.regioesGov.regioes['ri:2603'];
+  const p = M.pesosParaPainel('ri', alvo, 'base');
+  const porNome = (n) => {
+    const c = M.SIM.candidatos.find((x) => x.nome === n);
+    return c ? p.validos['cand_' + c.id] : null;
+  };
+
+  ok(perto(porNome('Marília Arraes'), oficial.pct_validos.marilia_arraes, 0.01),
+    'cada candidato abre com o % real dele na região',
+    `Marília ${porNome('Marília Arraes').toFixed(2)}% vs ${oficial.pct_validos.marilia_arraes}% oficial`);
+  ok(perto(porNome('Danilo Cabral'), oficial.pct_validos.danilo_cabral, 0.01),
+    'idem para o segundo colocado da região',
+    `Danilo ${porNome('Danilo Cabral').toFixed(2)}%`);
+  ok(perto(p.validos.outros, oficial.pct_validos.outros, 0.01),
+    '"Outros" também recebe a fatia de 2022', `${p.validos.outros.toFixed(2)}%`);
+
+  ok(perto(p.abstencao, oficial.pct_aptos.abstencao, 0.01),
+    'abstenção é a de 2022, não a que a migração produziria',
+    `${p.abstencao.toFixed(2)}% (o bug mostrava 94%)`);
+  ok(perto(p.nuloBranco, oficial.pct_aptos.nulo_branco, 0.01),
+    'nulos e brancos idem', `${p.nuloBranco.toFixed(2)}%`);
+
+  const total = Object.values(p.validos).reduce((a, b) => a + b, 0);
+  ok(perto(total, 100, 0.05), 'os válidos somam 100% entre si', `${total.toFixed(2)}%`);
+  ok(perto(100 - p.abstencao, 100 - oficial.pct_aptos.abstencao, 0.01),
+    'o comparecimento projetado bate com 2022',
+    `${(100 - p.abstencao).toFixed(2)}% (o bug mostrava 5,98%)`);
+
+  // Todas as RGINTs do estado, não só a do print.
+  let pior = 0, onde = '';
+  regs.forEach((reg) => {
+    const of = M.SIM.regioesGov.regioes[`ri:${reg.codigo}`];
+    const pp = M.pesosParaPainel('ri', reg, 'base');
+    Object.keys(of.pct_validos).forEach((k) => {
+      const col = k === 'outros'
+        ? 'outros'
+        : 'cand_' + M.SIM.candidatos[M.origensLista().indexOf(k)].id;
+      const d = Math.abs((pp.validos[col] || 0) - of.pct_validos[k]);
+      if (d > pior) { pior = d; onde = `${reg.nome}/${k}`; }
+    });
+    const da = Math.abs(pp.abstencao - of.pct_aptos.abstencao);
+    if (da > pior) { pior = da; onde = `${reg.nome}/abstencao`; }
+  });
+  ok(pior < 0.02, 'as 4 RGINTs de PE abrem com os números de 2022',
+    `pior desvio ${pior.toFixed(4)} p.p. em ${onde}`);
 }
 
 console.log('\nVoltar ao presidencial pelo mesmo worker');

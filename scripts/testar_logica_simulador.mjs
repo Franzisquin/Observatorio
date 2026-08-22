@@ -51,7 +51,7 @@ const criar = new Function(
             travar100, vetorParaEditor, editorParaVetor, simAplicarSupport,
             bucketsFixados, opDoEscopo, pesosSimuladosDaRegiao, resultadoDoEscopo,
             ehGov, metaGov, nivelBase, nivelRefino, escopoTopo, noTopo,
-            origensInfo, pesoOrigem, origemSugerida, pesosRegionaisPadrao,
+            origensInfo, pesoOrigem, pesosRegionaisPadrao, semearCenarioPadrao,
             listaRegioes, opsRegionais, opsArray, prontoParaBase, panes,
             panesPosteriores, paneBase, rotuloPane, chaveArmazenamento,
             candidatosPadraoGov, chaveEscopo, nLocaisEscopo };`
@@ -405,40 +405,72 @@ console.log('\nModo governador: etapas do assistente');
     'a RGINT e apresentada como peso, nao como ajuste fino');
 }
 
-console.log('\nModo governador: heranca de 2022');
+console.log('\nModo governador: a migração É a herança');
 {
   entrarGovNoTeste();
   M.candidatosPadraoGov();
   ok(M.SIM.candidatos.length === 4,
     'o estado abre com os candidatos de 2022', M.SIM.candidatos.map(c => c.nome).join(', '));
-  ok(M.SIM.candidatos[0].origem === 'claudio_castro',
-    'cada candidato ja vem vinculado a propria candidatura de 2022');
+  ok(M.SIM.candidatos[0].origem === undefined,
+    'o candidato NAO tem campo de heranca — quem liga e a matriz de migracao');
   ok(M.SIM.candidatos[0].partido === 'PL' && M.SIM.candidatos[0].cor === M.getPartyColor('PL'),
     'partido e cor vem do dado real');
 
-  const p = M.pesosRegionaisPadrao('ri:3301');
   const cols = M.simColunas();
-  const idxCastro = cols.findIndex(c => c.cand && c.cand.origem === 'claudio_castro');
-  const idxFreixo = cols.findIndex(c => c.cand && c.cand.origem === 'marcelo_freixo');
-  ok(perto(p.validos[cols[idxCastro].key], 56.5, 0.01),
-    'o candidato herda o percentual da regiao', `${p.validos[cols[idxCastro].key]}%`);
-  ok(perto(p.validos[cols[idxFreixo].key], 30.4, 0.01), 'idem para o segundo colocado');
-  ok(perto(p.abstencao, 23.5, 0.01) && perto(p.nuloBranco, 6.1, 0.01),
-    'abstencao e nulos vem direto de 2022, sem passar pela migracao');
+  const kCastro = 'cand_' + M.SIM.candidatos[0].id;
+  const kFreixo = 'cand_' + M.SIM.candidatos[1].id;
+  ok(M.SIM.transfer.claudio_castro[kCastro] === 100
+    && M.SIM.transfer.marcelo_freixo[kFreixo] === 100,
+    'a migração já nasce mandando cada candidatura de 2022 para si mesma');
+  ok(M.SIM.transfer.abstencao.abstencao === 100
+    && M.SIM.transfer.nulo_branco.nuloBranco === 100
+    && M.SIM.transfer.outros.outros === 100,
+    'abstenção, nulos e outros também');
 
-  // Sem heranca o candidato nao puxa percentual nenhum — e o que permite
-  // simular um nome novo, sem passado no estado.
-  const novo = M.simAddCandidato('Candidata Nova', 'PSOL');
+  /* Com a identidade semeada, a etapa obrigatória abre com o resultado REAL de
+     2022 da região — o mesmo contrato da macrorregião no presidencial. */
+  const p = M.pesosRegionaisPadrao('ri:3301');
+  const of = REG_GOV.regioes['ri:3301'];
+  ok(perto(p.validos[kCastro], of.pct_validos.claudio_castro, 0.01),
+    'o candidato abre com o % real dele na região', `${p.validos[kCastro].toFixed(2)}%`);
+  ok(perto(p.validos[kFreixo], of.pct_validos.marcelo_freixo, 0.01),
+    'idem para o segundo colocado');
+  ok(perto(p.abstencao, of.pct_aptos.abstencao, 0.01)
+    && perto(p.nuloBranco, of.pct_aptos.nulo_branco, 0.01),
+    'abstenção e nulos vêm DIRETO de 2022, sem passar pela migração',
+    `abst ${p.abstencao}%`);
+  ok(perto(Object.values(p.validos).reduce((a, b) => a + b, 0), 100, 0.02),
+    'os válidos somam 100% entre si');
+
+  // Redirecionar uma linha da migração move o peso da região junto — é essa a
+  // ligação que substitui o antigo campo "herda de".
+  M.SIM.transfer.claudio_castro = Object.assign({}, M.SIM.transfer.claudio_castro,
+    { [kCastro]: 0, [kFreixo]: 100 });
+  M.SIM._assinaturaMigracao = null;
+  M.SIM.pesosRegiao = {};
   const p2 = M.pesosRegionaisPadrao('ri:3301');
-  ok((p2.validos['cand_' + novo.id] || 0) === 0,
-    'candidato sem heranca comeca zerado');
+  const somado = of.pct_validos.claudio_castro + of.pct_validos.marcelo_freixo;
+  ok(perto(p2.validos[kFreixo], somado, 0.01) && perto(p2.validos[kCastro], 0, 0.01),
+    'mudar a migração move a votação de 2022 de um candidato para o outro',
+    `${p2.validos[kFreixo].toFixed(2)}%`);
 
-  ok(M.origemSugerida({ nome: 'Marcelo Freixo', partido: '' }) === 'marcelo_freixo',
-    'a heranca e sugerida pelo nome');
-  ok(M.origemSugerida({ nome: 'Outro Nome', partido: 'PDT' }) === 'rodrigo_neves',
-    'e, na falta do nome, pelo partido');
-  ok(M.origemSugerida({ nome: 'Outro Nome', partido: 'PSOL' }) === '',
-    'quem nao casa com ninguem fica sem heranca');
+  /* Linha zerada: aquela votação de 2022 fica sem dono e o total cai abaixo de
+     100 — igual ao presidencial, onde a fatia de "outros" não é atribuída. O
+     que NÃO pode acontecer é ela virar abstenção: era esse o bug que deixava a
+     região com 94% de abstenção e todo candidato em zero. */
+  entrarGovNoTeste();
+  M.candidatosPadraoGov();
+  M.SIM.transfer.claudio_castro = {};
+  M.SIM.pesosRegiao = {};
+  M.SIM._assinaturaMigracao = null;
+  const p3 = M.pesosRegionaisPadrao('ri:3301');
+  ok(perto(p3.abstencao, of.pct_aptos.abstencao, 0.01),
+    'linha de migração vazia NÃO infla a abstenção', `${p3.abstencao}%`);
+  ok(perto(p3.validos[kCastro], 0, 0.01)
+    && perto(Object.values(p3.validos).reduce((a, b) => a + b, 0),
+      100 - of.pct_validos.claudio_castro, 0.02),
+    'a votação sem destino apenas deixa de ser atribuída',
+    `total ${Object.values(p3.validos).reduce((a, b) => a + b, 0).toFixed(2)}%`);
 }
 
 console.log('\nModo governador: assinatura e ops');
@@ -446,9 +478,10 @@ console.log('\nModo governador: assinatura e ops');
   entrarGovNoTeste();
   M.candidatosPadraoGov();
   const antes = M.assinaturaMigracao();
-  M.SIM.candidatos[0].origem = 'marcelo_freixo';
+  const k0 = 'cand_' + M.SIM.candidatos[0].id;
+  M.SIM.transfer.claudio_castro[k0] = 40;
   ok(M.assinaturaMigracao() !== antes,
-    'trocar a heranca muda a assinatura da migracao');
+    'mexer na migração muda a assinatura, e as regiões não editadas recalculam');
 
   entrarGovNoTeste();
   M.candidatosPadraoGov();
@@ -474,14 +507,19 @@ console.log('\nModo governador: porta de entrada da projecao');
 {
   entrarGovNoTeste();
   M.candidatosPadraoGov();
-  M.SIM.transfer = M.simTransferPadrao();
-  // Migracao vazia: cada linha soma 0, o que e valido (<=100), mas as regioes
-  // ainda nao tem divisao nenhuma entre candidatos.
   M.SIM.pesosRegiao = {};
   M.SIM._assinaturaMigracao = null;
   const e1 = M.prontoParaBase();
   ok(e1.regOk === true,
-    'as RGINT ja nascem preenchidas com 2022, entao a porta abre');
+    'com a migração semeada, as RGINT já nascem válidas e a porta abre');
+
+  // Migração toda zerada: nenhuma votação de 2022 tem destino, então a etapa
+  // obrigatória passa a exigir intervenção — que é o correto.
+  M.SIM.transfer = M.simTransferPadrao();
+  M.SIM.pesosRegiao = {};
+  M.SIM._assinaturaMigracao = null;
+  ok(M.prontoParaBase().regOk === false,
+    'zerar a migração inteira fecha a porta');
 
   M.SIM.pesosRegiao['ri:3301'] = { validos: {}, abstencao: 20, nuloBranco: 5 };
   M.SIM.regiaoTocada['ri:3301'] = true;
@@ -492,7 +530,7 @@ console.log('\nModo governador: porta de entrada da projecao');
 console.log('\nModo governador: separacao dos cenarios salvos');
 {
   entrarGovNoTeste();
-  M.candidatosPadraoGov();
+  M.semearCenarioPadrao();
   const cen = M.cenarioSerializado();
   ok(cen.modo === 'governador' && cen.uf === 'RJ',
     'o cenario grava cargo e estado');

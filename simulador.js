@@ -452,14 +452,11 @@ function pesoOrigem(origem) {
 
 // ------------------------------------------------------- candidatos
 
-function simAddCandidato(nome = '', partido = '', origem = null) {
+function simAddCandidato(nome = '', partido = '') {
   const c = {
     id: SIM.proxId++, nome, partido,
     cor: getPartyColor(partido) || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
-    pos: getPartyPos(partido),
-    // Modo governador: de qual candidatura de 2022 este candidato herda a
-    // geografia do voto. Nulo no presidencial, onde o vinculo e por partido.
-    origem
+    pos: getPartyPos(partido)
   };
   SIM.candidatos.push(c);
   // Um candidato novo entra ANTES de 'outros', deslocando todos os indices
@@ -1068,12 +1065,26 @@ function rotuloPane(p) {
 
 function simRenderModal() {
   const estado = prontoParaBase();
+  simRenderSeletorCargo();
 
   const doModo = panes();
   const posteriores = panesPosteriores();
   // Etapa ativa que nao existe neste modo (sobra de uma troca de cargo)
   // deixaria o modal em branco.
   if (!doModo.includes(SIM.paneAtivo)) SIM.paneAtivo = 'candidatos';
+
+  /* A divisoria "Refinamentos" acompanha o modo. No presidencial ela cai antes
+     da RGINT; no governador a RGINT E a etapa obrigatoria, entao a divisoria
+     desce para antes da RG imediata. Sem isto o assistente diria que o recorte
+     obrigatorio e um refinamento — que e o oposto do que ele e. */
+  const divisoria = document.getElementById('simNavGrupoRefino');
+  const primeiroRefino = doModo.find(p => posteriores.has(p));
+  if (divisoria && primeiroRefino) {
+    const alvo = document.querySelector(`#simModalNav .sim-nav-item[data-pane="${primeiroRefino}"]`);
+    if (alvo && alvo.previousElementSibling !== divisoria) {
+      alvo.parentNode.insertBefore(divisoria, alvo);
+    }
+  }
   document.querySelectorAll('#simModalNav .sim-nav-item').forEach(b => {
     const p = b.dataset.pane;
     const usado = doModo.indexOf(p);
@@ -1188,19 +1199,13 @@ function redutoSugerido(cand) {
 function renderPaneCandidatos() {
   const el = document.getElementById('simPaneCandidatos');
   const redutos = ehGov() ? [] : redutosDisponiveis();
-  // No modo governador cada candidato herda o resultado de uma das candidaturas
-  // de 2022 daquele estado. E esse vinculo que preenche os pesos territoriais —
-  // o analogo explicito do "PT herda Lula" chumbado no presidencial.
-  const heranca = ehGov() ? (metaGov() || { origens: [] }).origens.filter(o => o.partido) : [];
   el.innerHTML = `
     <header class="sim-pane-head">
       <h4>Candidatos${ehGov() ? ` ao governo de ${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}` : ''}</h4>
       <p>A ordem aqui é a ordem em que aparecem no resultado. O
          <strong>partido</strong> posiciona o candidato no eixo
          esquerda–direita, e é isso que gera os valores sugeridos da migração de
-         2022 e da transferência de segundo turno — ambos editáveis depois.
-         ${ehGov() ? `O campo <strong>herda de</strong> diz de qual candidatura de
-         2022 o candidato puxa a votação por região na etapa obrigatória.` : ''}</p>
+         2022 e da transferência de segundo turno — ambos editáveis depois.</p>
     </header>
     <div class="sim-cand-list" id="simCandList">
       ${SIM.candidatos.map(c => {
@@ -1220,13 +1225,6 @@ function renderPaneCandidatos() {
             ${redutos.map(r => `<option value="${r.key}" ${c.reduto === r.key ? 'selected' : ''}
               >base em ${r.uf}</option>`).join('')}
           </select>` : ''}
-          ${heranca.length ? `
-          <select class="sim-cand-origem" data-id="${c.id}"
-                  title="De qual candidatura de 2022 este candidato herda a geografia do voto">
-            <option value="">não herda</option>
-            ${heranca.map(o => `<option value="${o.key}" ${c.origem === o.key ? 'selected' : ''}
-              >herda ${escapeHtml(o.rotulo)} (${fmtPct(o.pctValidos, 1)})</option>`).join('')}
-          </select>` : ''}
           <button class="sim-cand-remove" data-id="${c.id}" title="Remover">✕</button>
         </div>`;
       }).join('')}
@@ -1237,8 +1235,9 @@ function renderPaneCandidatos() {
       <strong>Reedição de 2022.</strong> A lista já vem preenchida com quem
       disputou o governo de ${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}
       em 2022 e teve pelo menos ${fmtPct(SIM.indiceGov ? SIM.indiceGov.limiarOrigem : 1.5, 1)}
-      dos votos válidos. Troque nomes e partidos à vontade: o que amarra a
-      projeção ao resultado real é o campo <em>herda de</em>, não o nome.
+      dos votos válidos. Troque nomes e partidos à vontade — quem amarra cada
+      candidato ao resultado real é a <strong>migração de 2022</strong>, na
+      etapa seguinte, já preenchida com cada candidatura indo para si mesma.
     </div>` : ''}
 
     ${redutos.length ? `<div class="sim-note" style="margin-top:14px">
@@ -1259,9 +1258,20 @@ function renderPaneCandidatos() {
     </div>`;
 
   const invalidar = () => {
-    // Mexer nos candidatos muda o numero de colunas: as metas guardadas viram
-    // vetores posicionais sem sentido e a projecao precisa ser refeita.
-    SIM.transfer = simTransferPadrao();
+    /* Mexer nos candidatos muda o numero de colunas: as metas guardadas viram
+       vetores posicionais sem sentido e a projecao precisa ser refeita.
+
+       A migracao e PODADA, nao zerada: ela e indexada por chave de coluna, nao
+       por posicao, entao o que sobrevive continua valendo. Zerar destruia a
+       matriz inteira so porque o usuario corrigiu um partido — e, no modo
+       governador, levaria junto a identidade semeada, deixando todos os pesos
+       territoriais em zero. */
+    const chaves = new Set(simColunas().map(c => c.key));
+    origensLista().forEach(o => {
+      const linha = SIM.transfer[o] || {};
+      Object.keys(linha).forEach(k => { if (!chaves.has(k)) delete linha[k]; });
+      SIM.transfer[o] = linha;
+    });
     SIM.t2.chaveMatriz = null;
     SIM.baseGerada = false;
   };
@@ -1292,7 +1302,6 @@ function renderPaneCandidatos() {
     const cor = getPartyColor(c.partido);
     if (cor) c.cor = cor;
     c.pos = getPartyPos(c.partido);
-    if (ehGov() && !c.origem) c.origem = origemSugerida(c) || null;
     invalidar();
     renderPaneCandidatos();
   }));
@@ -1303,12 +1312,6 @@ function renderPaneCandidatos() {
   el.querySelectorAll('.sim-cand-reduto').forEach(s => s.addEventListener('change', e => {
     const c = SIM.candidatos.find(x => x.id === +e.target.dataset.id);
     if (c) { c.reduto = e.target.value || null; SIM.baseGerada = false; }
-  }));
-  /* Trocar a heranca muda os valores sugeridos de toda regiao ainda nao editada
-     — quem recalcula e assinaturaMigracao, que ja inclui `origem`. */
-  el.querySelectorAll('.sim-cand-origem').forEach(s => s.addEventListener('change', e => {
-    const c = SIM.candidatos.find(x => x.id === +e.target.dataset.id);
-    if (c) { c.origem = e.target.value || null; SIM.baseGerada = false; }
   }));
   el.querySelectorAll('.sim-cand-remove').forEach(b => b.addEventListener('click', e => {
     simRemoveCandidato(+e.target.dataset.id);
@@ -1786,58 +1789,63 @@ function pesosRegionaisPadrao(chaveRegiao) {
   };
 }
 
-/* A mesma ideia no modo governador, so que sem nome chumbado.
+/* Mesmo contrato do ramo presidencial, sem nome chumbado.
 
-   No presidencial da para escrever "PT herda Lula, PL herda Bolsonaro" no
-   codigo, porque as origens sao sempre as mesmas duas. Aqui as origens sao os
-   candidatos ao governo daquele estado em 2022, entao o vinculo e um campo do
-   proprio candidato (`c.origem`, sugerido ao semear e editavel na etapa 1). */
+   Duas grandezas INDEPENDENTES, e essa separacao e o ponto:
+
+     - abstencao e nulo/branco vem DIRETO de pct_aptos de 2022, sem passar pela
+       migracao. Sao percentuais do eleitorado apto, nao divisao entre
+       candidatos — exatamente como no presidencial. Rotea-los pela matriz era
+       um erro: uma linha de migracao ainda vazia empurrava o eleitorado todo
+       para a abstencao e a regiao aparecia com 94% de abstencao.
+
+     - a divisao entre candidatos e o pct_validos REAL da regiao em 2022,
+       roteado pela matriz de migracao. E ela que diz qual candidato de 2026
+       recebe a votacao de cada candidatura de 2022 — o papel que no
+       presidencial cabe ao atalho "PT herda Lula, PL herda Bolsonaro". Por isso
+       nao existe um campo "herda de" no candidato.
+
+   Como a migracao ja nasce semeada com a identidade (ver candidatosPadraoGov),
+   a etapa abre com o resultado real do estado, igual a macrorregiao no
+   presidencial. Os alvos NAO sao renormalizados para 100: com a identidade eles
+   somam 100 sozinhos, e se o usuario zerar uma linha o total cai — o que e a
+   leitura honesta de "essa votacao de 2022 nao foi para ninguem", igual ao
+   presidencial, onde a fatia de "outros" fica sem dono. */
 function pesosRegionaisPadraoGov(chaveRegiao) {
   const reg = SIM.regioesGov && SIM.regioesGov.regioes && SIM.regioesGov.regioes[chaveRegiao];
   if (!reg) return null;
   const validas = simColunasValidas();
   const pv = reg.pct_validos || {};
+  const pa = reg.pct_aptos || {};
 
   const alvos = {};
   validas.forEach(c => { alvos[c.key] = 0; });
-  simColunas().forEach(c => {
-    const org = c.cand && c.cand.origem;
-    if (org && pv[org] != null) alvos[c.key] = pv[org];
+
+  origensLista().forEach(origem => {
+    const peso = pv[origem];        // so candidaturas e 'outros' tem pct_validos
+    if (!peso) return;
+    const linha = SIM.transfer[origem] || {};
+    // So as colunas de candidato: o que a linha manda para abstencao ou nulos
+    // nao entra nesta divisao, que e entre validos.
+    const soma = validas.reduce((a, c) => a + Math.max(0, linha[c.key] || 0), 0);
+    if (soma <= 0) return;          // origem sem destino: fica sem dono
+    validas.forEach(c => {
+      alvos[c.key] += peso * Math.max(0, linha[c.key] || 0) / soma;
+    });
   });
-  // A coluna 'outros' de 2026 herda o 'outros' de 2022 quando nenhum candidato
-  // reivindicou essa origem — senao o residuo simplesmente sumiria.
-  const reivindicado = simColunas().some(c => c.cand && c.cand.origem === 'outros');
-  if (!reivindicado && pv.outros != null) alvos.outros = pv.outros;
 
   return {
     validos: alvos,
-    abstencao: reg.pct_aptos ? (reg.pct_aptos.abstencao || 0) : 0,
-    nuloBranco: reg.pct_aptos ? (reg.pct_aptos.nulo_branco || 0) : 0
+    abstencao: pa.abstencao || 0,
+    nuloBranco: pa.nulo_branco || 0
   };
-}
-
-/* Origem de 2022 sugerida para um candidato: mesmo nome, senao mesmo partido.
-   Vale so no modo governador — e o analogo de redutoSugerido. */
-function origemSugerida(cand) {
-  const m = metaGov();
-  if (!m || !cand) return '';
-  const nome = normalizePartyKey(cand.nome);
-  const partido = normalizePartyKey(cand.partido);
-  const cands = m.origens.filter(o => o.partido);
-  const porNome = nome && cands.find(o => normalizePartyKey(o.rotulo) === nome);
-  if (porNome) return porNome.key;
-  const porPartido = partido && cands.find(o => normalizePartyKey(o.partido) === partido);
-  return porPartido ? porPartido.key : '';
 }
 
 /* Assinatura do que os pesos regionais dependem: a matriz de migracao e o
    conjunto de candidatos. Mudou qualquer um dos dois, os valores sugeridos
    precisam ser recalculados. */
 function assinaturaMigracao() {
-  // O vinculo `origem` entra na assinatura: no modo governador e ele que decide
-  // qual percentual de 2022 cada candidato herda, entao troca-lo tem de
-  // recalcular as regioes que o usuario ainda nao editou.
-  return SIM.candidatos.map(c => `${c.id}:${c.origem || ''}`).join(',') + '|'
+  return SIM.candidatos.map(c => c.id).join(',') + '|'
     + origensLista().map(o => {
       const l = SIM.transfer[o] || {};
       return simColunas().map(c => (l[c.key] || 0).toFixed(2)).join(',');
@@ -3296,7 +3304,11 @@ function simVoltar() {
 // v6: o cenario passou a valer para um cargo (e, no governador, para uma UF).
 // Um v5 restaurado no modo governador traria candidatos presidenciais e uma
 // matriz de migracao com origens de outro pleito.
-const CENARIO_VERSAO = 6;
+// v7: no governador a migracao passou a nascer semeada com a identidade (cada
+// candidatura de 2022 indo para si mesma), e os pesos territoriais derivam
+// dela. Um v6 restaura a matriz vazia que se usava antes e abre a etapa
+// obrigatoria inteira em zero.
+const CENARIO_VERSAO = 7;
 
 /* Cada cargo — e cada estado, no governador — guarda o seu proprio cenario.
    Sem isto, abrir SP por cima do RJ restauraria candidatos e migracao do RJ com
@@ -3463,14 +3475,40 @@ function candidatosPadrao() {
 }
 
 /* O estado abre com a reedicao de 2022: cada candidatura que virou origem entra
-   como candidato, ja com a heranca apontando para ela mesma. E um ponto de
-   partida com significado — a projecao base sai identica a eleicao real —, e o
-   usuario edita nomes e partidos por cima. */
+   como candidato, e a MIGRACAO ja nasce mandando cada candidatura de 2022
+   inteira para si mesma.
+
+   E o ponto de partida com significado — a projecao base sai igual a eleicao
+   real do estado — e, principalmente, e onde a "heranca" mora. Nao ha um campo
+   separado ligando candidato a candidatura de 2022: essa ligacao E a matriz de
+   migracao, que o usuario edita na etapa 2 como bem entender.
+
+   O presidencial continua abrindo com a matriz zerada de propósito: la os
+   candidatos de 2026 nao sao os de 2022, entao nao existe identidade para
+   assumir. */
+/* Cenario inicial do modo corrente: candidatos e migracao juntos.
+
+   Os dois vem em par de proposito. No governador a migracao inicial e a
+   identidade sobre os candidatos recem-criados; separar as duas coisas fazia o
+   chamador zerar a matriz logo depois de monta-la. */
+function semearCenarioPadrao() {
+  if (ehGov()) return candidatosPadraoGov();
+  candidatosPadrao();
+  SIM.transfer = simTransferPadrao();
+}
+
 function candidatosPadraoGov() {
   const m = metaGov();
   if (!m) return;
-  m.origens.filter(o => o.partido).forEach(o => {
-    simAddCandidato(o.rotulo, o.partido, o.key);
+  SIM.transfer = simTransferPadrao();
+  m.origens.forEach(o => {
+    const linha = SIM.transfer[o.key];
+    if (!linha) return;
+    if (o.key === 'nulo_branco') { linha.nuloBranco = 100; return; }
+    if (o.key === 'abstencao') { linha.abstencao = 100; return; }
+    if (o.key === 'outros') { linha.outros = 100; return; }
+    const c = simAddCandidato(o.rotulo, o.partido);
+    linha['cand_' + c.id] = 100;
   });
 }
 
@@ -3533,10 +3571,7 @@ async function entrarModo(modo, uf) {
   try { localStorage.setItem('sim2026_modo', JSON.stringify({ modo, uf: SIM.ufGov })); }
   catch (e) { /* ok */ }
 
-  if (!restaurarLocal()) {
-    modo === 'governador' ? candidatosPadraoGov() : candidatosPadrao();
-    SIM.transfer = simTransferPadrao();
-  }
+  if (!restaurarLocal()) semearCenarioPadrao();
   semearRegioesBase();
   simRenderSeletorCargo();
   simRenderModoMapa();
@@ -3552,14 +3587,32 @@ function semearRegioesBase() {
   listaRegioes(nb).forEach(r => pesosDaRegiao(`${nb}:${r.codigo}`));
 }
 
-/* Barra de cargo/UF acima do mapa. */
+/* Faixa de cargo do modal, logo acima das etapas.
+
+   Fica aqui e nao na barra do mapa porque o cargo nao e um recorte de
+   visualizacao: e o que define quais candidatos existem, quais sao as origens
+   de 2022 e qual recorte territorial e o obrigatorio. Trocar o cargo refaz as
+   seis etapas. */
 function simRenderSeletorCargo() {
-  document.querySelectorAll('#simEleicaoSwitch .sim-mode-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.cargo === SIM.modo));
+  document.querySelectorAll('#simEleicaoSwitch .sim-mode-btn').forEach(b => {
+    const gov = b.dataset.cargo === 'governador';
+    b.classList.toggle('active', b.dataset.cargo === SIM.modo);
+    // Sem o pacote de governador em disco a opcao simplesmente nao existe.
+    b.disabled = gov && !(SIM.indiceGov && SIM.indiceGov.ufs);
+    b.title = b.disabled
+      ? 'Rode scripts/gerar_base_governador_2022.py para habilitar' : '';
+  });
+  const wrap = document.getElementById('simUfGovWrap');
+  if (wrap) wrap.hidden = !ehGov();
   const sel = document.getElementById('simUfGov');
-  if (!sel) return;
-  sel.hidden = !ehGov();
-  if (ehGov()) sel.value = SIM.ufGov || '';
+  if (sel && ehGov()) sel.value = SIM.ufGov || '';
+
+  const nota = document.getElementById('simCargoNota');
+  if (nota) {
+    nota.textContent = ehGov()
+      ? 'Uma eleição por estado: candidatos e pesos são os do estado escolhido.'
+      : 'Eleição nacional, com o eleitorado das 27 unidades da federação.';
+  }
 }
 
 async function initSimulador() {
@@ -3656,10 +3709,7 @@ async function initSimulador() {
   }
 
   const primeiraVisita = !restaurarLocal();
-  if (primeiraVisita) {
-    ehGov() ? candidatosPadraoGov() : candidatosPadrao();
-    SIM.transfer = simTransferPadrao();
-  }
+  if (primeiraVisita) semearCenarioPadrao();
   // Sugere o reduto pelo nome (Zema -> MG, Caiado -> GO); continua editavel.
   SIM.candidatos.forEach(c => { if (c.reduto === undefined) c.reduto = redutoSugerido(c) || null; });
   semearRegioesBase();
@@ -3739,9 +3789,8 @@ async function initSimulador() {
   });
   document.getElementById('btnResetSim').addEventListener('click', async () => {
     SIM.candidatos = []; SIM.proxId = 1;
-    ehGov() ? candidatosPadraoGov() : candidatosPadrao();
+    semearCenarioPadrao();
     SIM.candidatos.forEach(c => { if (c.reduto === undefined) c.reduto = redutoSugerido(c) || null; });
-    SIM.transfer = simTransferPadrao();
     SIM.migracaoTocada = false;
     SIM.pesosRegiao = {};
     SIM.regiaoTocada = {};
