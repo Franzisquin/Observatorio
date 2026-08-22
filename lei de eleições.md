@@ -8,7 +8,7 @@
 
 ## 📘 Guia Prático das Três Fases de Partilha Proporcional
 
-Para facilitar a consulta e a compreensão dos cálculos automatizados no Observatório, segue o resumo prático de como funciona a distribuição de cadeiras para **Deputado Federal, Estadual/Distrital e Vereador**, incluindo a jurisprudência recente do Supremo Tribunal Federal (STF):
+Para facilitar a consulta e a compreensão dos cálculos automatizados no ElectoMaps, segue o resumo prático de como funciona a distribuição de cadeiras para **Deputado Federal, Estadual/Distrital e Vereador**, incluindo a jurisprudência recente do Supremo Tribunal Federal (STF):
 
 ### 1ª Fase: Quociente Partidário (Vagas Regulares)
 *É a rodada principal onde se distribui a maior parte das cadeiras utilizando o voto direto do eleitor.*

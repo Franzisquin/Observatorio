@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Observatório</title>
+    <title>ElectoMaps</title>
     <link rel="icon" type="image/png" href="favicon.png">
-    <meta name="description" content="Observatório — plataforma de análise eleitoral e dados políticos do Brasil." />
+    <meta name="description" content="ElectoMaps — plataforma de análise eleitoral e dados políticos do Brasil." />
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -20,7 +20,7 @@
     <!-- STICKY NAVBAR -->
     <nav class="navbar" id="navbar">
         <div class="nav-container">
-            <a href="/" class="nav-logo">Observatório</a>
+            <a href="/" class="nav-logo">ElectoMaps</a>
             <div class="nav-links">
                 <a href="eleicoes.html" class="nav-link">Mapa Eleitoral</a>
                 <a href="apuracao.html" class="nav-link">Apuração</a>
@@ -39,7 +39,7 @@
         </div>
         <div class="hero-content">
             <p class="hero-eyebrow">Análise política baseada em dados</p>
-            <h1 class="hero-title">Observatório</h1>
+            <h1 class="hero-title">ElectoMaps</h1>
             <p class="hero-subtitle">A ferramenta mais completa para visualizar os dados que moldam a democracia
                 brasileira</p>
             <div class="hero-actions">
@@ -71,7 +71,7 @@
                 </a>
 
                 <a href="simulador.html" class="feature-card" id="card-simulador">
-                    <div class="feature-icon icon-green">
+                    <div class="feature-icon icon-cyan">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                             stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M12 20V10" />
@@ -123,7 +123,7 @@
             <p class="section-eyebrow">Sobre o projeto</p>
             <h2 class="section-title">Dados abertos, análise independente</h2>
             <p class="about-text">
-                O <strong>Observatório</strong> é uma plataforma independente dedicada à análise aprofundada da política
+                O <strong>ElectoMaps</strong> é uma plataforma independente dedicada à análise aprofundada da política
                 brasileira. Reunimos dados eleitorais históricos desde 2006, ferramentas de simulação de cenários,
                 agregação de pesquisas e projeções em tempo real — tudo em um só lugar, com visualizações interativas e
                 acessíveis a qualquer cidadão interessado em compreender a democracia do Brasil.
@@ -141,7 +141,7 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-brand">
-                    <span class="footer-logo">Observatório</span>
+                    <span class="footer-logo">ElectoMaps</span>
                     <p class="footer-tagline">Análise eleitoral brasileira</p>
                 </div>
                 <div class="footer-col">
@@ -154,12 +154,12 @@
                 </div>
                 <div class="footer-col">
                     <h4>Contato</h4>
-                    <a href="https://x.com/luizdaniel__" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
-                    <a href="mailto:medeirosld28@gmail.com">E-mail</a>
+                    <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
+                    <a href="mailto:electomaps@gmail.com">E-mail</a>
                 </div>
             </div>
             <div class="footer-bottom">
-                <span>&copy; 2025 Observatório. Dados abertos, análise independente.</span>
+                <span>&copy; 2026 ElectoMaps. Dados abertos, análise independente.</span>
             </div>
         </div>
     </footer>
@@ -326,20 +326,20 @@
 
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-                    // Green flow worm
-                    const flowGreen = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    flowGreen.setAttribute('d', d);
-                    flowGreen.setAttribute('class', 'state-flow-green');
+                    // Deep blue flow worm
+                    const flowBlue = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    flowBlue.setAttribute('d', d);
+                    flowBlue.setAttribute('class', 'state-flow-blue');
                     const delayVal = index * 0.45;
-                    flowGreen.style.animationDelay = `-${delayVal.toFixed(2)}s`;
-                    g.appendChild(flowGreen);
+                    flowBlue.style.animationDelay = `-${delayVal.toFixed(2)}s`;
+                    g.appendChild(flowBlue);
 
-                    // Yellow flow worm (chasing green with 6s offset)
-                    const flowYellow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    flowYellow.setAttribute('d', d);
-                    flowYellow.setAttribute('class', 'state-flow-yellow');
-                    flowYellow.style.animationDelay = `-${(delayVal + 6).toFixed(2)}s`;
-                    g.appendChild(flowYellow);
+                    // Cyan flow worm (chasing the blue one with 6s offset)
+                    const flowCyan = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    flowCyan.setAttribute('d', d);
+                    flowCyan.setAttribute('class', 'state-flow-cyan');
+                    flowCyan.style.animationDelay = `-${(delayVal + 6).toFixed(2)}s`;
+                    g.appendChild(flowCyan);
 
                     svg.appendChild(g);
                 });

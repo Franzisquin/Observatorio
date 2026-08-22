@@ -1,0 +1,3388 @@
+{
+ "versao": 1,
+ "quant": 255,
+ "packBase": "sim2026",
+ "headerBytes": 9,
+ "limiarOrigem": 1.5,
+ "maxOrigens": 6,
+ "ufs": {
+  "AC": {
+   "uf": "AC",
+   "locais": 679,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 634,
+   "imputados": 45,
+   "origens": [
+    {
+     "key": "gladson_cameli",
+     "rotulo": "Gladson Cameli",
+     "partido": "PP",
+     "situacao": "eleito",
+     "pctValidos": 56.7511,
+     "pctAptos": 41.228
+    },
+    {
+     "key": "jorge_viana",
+     "rotulo": "Jorge Viana",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 24.2065,
+     "pctAptos": 17.5853
+    },
+    {
+     "key": "mara_rocha",
+     "rotulo": "Mara Rocha",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 11.0579,
+     "pctAptos": 8.0332
+    },
+    {
+     "key": "petecao",
+     "rotulo": "Petecão",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.4212,
+     "pctAptos": 4.6648
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.5633,
+     "pctAptos": 1.1357
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 4.9109
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.4419
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Gladson Cameli",
+     "partido": "PP",
+     "situacao": "eleito",
+     "pctValidos": 56.7511,
+     "origem": true
+    },
+    {
+     "nome": "Jorge Viana",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 24.2065,
+     "origem": true
+    },
+    {
+     "nome": "Mara Rocha",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 11.0579,
+     "origem": true
+    },
+    {
+     "nome": "Petecão",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.4212,
+     "origem": true
+    },
+    {
+     "nome": "Marcio Bittar",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.1188,
+     "origem": false
+    },
+    {
+     "nome": "Professor Nilson",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2637,
+     "origem": false
+    },
+    {
+     "nome": "David Hall",
+     "partido": "AGIR",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1807,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "AL": {
+   "uf": "AL",
+   "locais": 1085,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 933,
+   "imputados": 152,
+   "origens": [
+    {
+     "key": "paulo_dantas",
+     "rotulo": "Paulo Dantas",
+     "partido": "MDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 46.6397,
+     "pctAptos": 30.5215
+    },
+    {
+     "key": "rodrigo_cunha",
+     "rotulo": "Rodrigo Cunha",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.7885,
+     "pctAptos": 17.5307
+    },
+    {
+     "key": "collor",
+     "rotulo": "Collor",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.7083,
+     "pctAptos": 9.6253
+    },
+    {
+     "key": "rui_palmeira",
+     "rotulo": "Rui Palmeira",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 10.3771,
+     "pctAptos": 6.7909
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.4865,
+     "pctAptos": 0.9727
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 12.1684
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.3905
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Paulo Dantas",
+     "partido": "MDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 46.6397,
+     "origem": true
+    },
+    {
+     "nome": "Rodrigo Cunha",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.7885,
+     "origem": true
+    },
+    {
+     "nome": "Collor",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.7083,
+     "origem": true
+    },
+    {
+     "nome": "Rui Palmeira",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 10.3771,
+     "origem": true
+    },
+    {
+     "nome": "Professor Cicero Albuquerque",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.1676,
+     "origem": false
+    },
+    {
+     "nome": "Bombeiro Luciano Fontes",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1801,
+     "origem": false
+    },
+    {
+     "nome": "Luciano Almeida",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1388,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Paulo Dantas",
+      "partido": "MDB",
+      "situacao": "eleito"
+     },
+     {
+      "nome": "Rodrigo Cunha",
+      "partido": "UNIÃO",
+      "situacao": "nao_eleito"
+     }
+    ]
+   }
+  },
+  "AM": {
+   "uf": "AM",
+   "locais": 1650,
+   "nOrigens": 8,
+   "recordBytes": 17,
+   "casados": 1460,
+   "imputados": 190,
+   "origens": [
+    {
+     "key": "wilson_lima",
+     "rotulo": "Wilson Lima",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 42.822,
+     "pctAptos": 31.0114
+    },
+    {
+     "key": "eduardo_braga",
+     "rotulo": "Eduardo Braga",
+     "partido": "MDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 20.9892,
+     "pctAptos": 15.2002
+    },
+    {
+     "key": "amazonino_mendes",
+     "rotulo": "Amazonino Mendes",
+     "partido": "CIDADANIA",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.5634,
+     "pctAptos": 13.4435
+    },
+    {
+     "key": "ricardo_nicolau",
+     "rotulo": "Ricardo Nicolau",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 11.3659,
+     "pctAptos": 8.2311
+    },
+    {
+     "key": "carol_braz",
+     "rotulo": "Carol Braz",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.5505,
+     "pctAptos": 3.2954
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.7092,
+     "pctAptos": 1.2378
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 7.4324
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 20.1482
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Wilson Lima",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 42.822,
+     "origem": true
+    },
+    {
+     "nome": "Eduardo Braga",
+     "partido": "MDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 20.9892,
+     "origem": true
+    },
+    {
+     "nome": "Amazonino Mendes",
+     "partido": "CIDADANIA",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.5634,
+     "origem": true
+    },
+    {
+     "nome": "Ricardo Nicolau",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 11.3659,
+     "origem": true
+    },
+    {
+     "nome": "Carol Braz",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.5505,
+     "origem": true
+    },
+    {
+     "nome": "Dr Israel Tuyuka",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.1089,
+     "origem": false
+    },
+    {
+     "nome": "Henrique Oliveira",
+     "partido": "PODE",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.5013,
+     "origem": false
+    },
+    {
+     "nome": "Nair Blair",
+     "partido": "AGIR",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.099,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Eduardo Braga",
+      "partido": "MDB",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Wilson Lima",
+      "partido": "UNIÃO",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "AP": {
+   "uf": "AP",
+   "locais": 382,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 283,
+   "imputados": 99,
+   "origens": [
+    {
+     "key": "clecio",
+     "rotulo": "Clécio",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "eleito",
+     "pctValidos": 53.6881,
+     "pctAptos": 40.4431
+    },
+    {
+     "key": "jaime_nunes",
+     "rotulo": "Jaime Nunes",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 42.5817,
+     "pctAptos": 32.0766
+    },
+    {
+     "key": "gesiel_de_oliveira",
+     "rotulo": "Gesiel de Oliveira",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.1034,
+     "pctAptos": 1.5845
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.6268,
+     "pctAptos": 1.2255
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 5.1497
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 19.5207
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Clécio",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "eleito",
+     "pctValidos": 53.6881,
+     "origem": true
+    },
+    {
+     "nome": "Jaime Nunes",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 42.5817,
+     "origem": true
+    },
+    {
+     "nome": "Gesiel de Oliveira",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.1034,
+     "origem": true
+    },
+    {
+     "nome": "Gilvam Borges",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.0899,
+     "origem": false
+    },
+    {
+     "nome": "Gianfranco",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.3837,
+     "origem": false
+    },
+    {
+     "nome": "Jairo Palheta",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1532,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "BA": {
+   "uf": "BA",
+   "locais": 9324,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 8667,
+   "imputados": 657,
+   "origens": [
+    {
+     "key": "jeronimo",
+     "rotulo": "Jerônimo",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 49.4452,
+     "pctAptos": 35.6561
+    },
+    {
+     "key": "acm_neto",
+     "rotulo": "Acm Neto",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 40.7966,
+     "pctAptos": 29.4194
+    },
+    {
+     "key": "joao_roma",
+     "rotulo": "João Roma",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.0815,
+     "pctAptos": 6.5489
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.6767,
+     "pctAptos": 0.488
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.5336
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 21.354
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Jerônimo",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 49.4452,
+     "origem": true
+    },
+    {
+     "nome": "Acm Neto",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 40.7966,
+     "origem": true
+    },
+    {
+     "nome": "João Roma",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.0815,
+     "origem": true
+    },
+    {
+     "nome": "Kleber Rosa",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.5934,
+     "origem": false
+    },
+    {
+     "nome": "Giovani Damico",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0732,
+     "origem": false
+    },
+    {
+     "nome": "Marcelo Millet",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0102,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Acm Neto",
+      "partido": "UNIÃO",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Jerônimo",
+      "partido": "PT",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "CE": {
+   "uf": "CE",
+   "locais": 6783,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 6305,
+   "imputados": 478,
+   "origens": [
+    {
+     "key": "elmano_de_freitas",
+     "rotulo": "Elmano de Freitas",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 54.0173,
+     "pctAptos": 41.188
+    },
+    {
+     "key": "capitao_wagner",
+     "rotulo": "Capitão Wagner",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 31.7224,
+     "pctAptos": 24.1882
+    },
+    {
+     "key": "roberto_claudio",
+     "rotulo": "Roberto Cláudio",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.1372,
+     "pctAptos": 10.7795
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.1232,
+     "pctAptos": 0.0939
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.2268
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 17.5236
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Elmano de Freitas",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 54.0173,
+     "origem": true
+    },
+    {
+     "nome": "Capitão Wagner",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 31.7224,
+     "origem": true
+    },
+    {
+     "nome": "Roberto Cláudio",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.1372,
+     "origem": true
+    },
+    {
+     "nome": "Chico Malta",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.058,
+     "origem": false
+    },
+    {
+     "nome": "Serley Leal",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0362,
+     "origem": false
+    },
+    {
+     "nome": "Zé Batista",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.029,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "DF": {
+   "uf": "DF",
+   "locais": 614,
+   "nOrigens": 9,
+   "recordBytes": 18,
+   "casados": 593,
+   "imputados": 21,
+   "origens": [
+    {
+     "key": "ibaneis_rocha",
+     "rotulo": "Ibaneis Rocha",
+     "partido": "MDB",
+     "situacao": "eleito",
+     "pctValidos": 50.2975,
+     "pctAptos": 37.7163
+    },
+    {
+     "key": "leandro_grass",
+     "rotulo": "Leandro Grass",
+     "partido": "PV",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.2524,
+     "pctAptos": 19.6858
+    },
+    {
+     "key": "paulo_octavio_po",
+     "rotulo": "Paulo Octávio Po",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.4733,
+     "pctAptos": 5.604
+    },
+    {
+     "key": "coronel_moreno",
+     "rotulo": "Coronel Moreno",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 5.6844,
+     "pctAptos": 4.2625
+    },
+    {
+     "key": "leila_do_volei",
+     "rotulo": "Leila do Vôlei",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.8083,
+     "pctAptos": 3.6056
+    },
+    {
+     "key": "izalci",
+     "rotulo": "Izalci",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.2638,
+     "pctAptos": 3.1973
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.2202,
+     "pctAptos": 0.915
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.8883
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.1253
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Ibaneis Rocha",
+     "partido": "MDB",
+     "situacao": "eleito",
+     "pctValidos": 50.2975,
+     "origem": true
+    },
+    {
+     "nome": "Leandro Grass",
+     "partido": "PV",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.2524,
+     "origem": true
+    },
+    {
+     "nome": "Paulo Octávio Po",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.4733,
+     "origem": true
+    },
+    {
+     "nome": "Coronel Moreno",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 5.6844,
+     "origem": true
+    },
+    {
+     "nome": "Leila do Vôlei",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.8083,
+     "origem": true
+    },
+    {
+     "nome": "Izalci",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.2638,
+     "origem": true
+    },
+    {
+     "nome": "Keka Bagno",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.8223,
+     "origem": false
+    },
+    {
+     "nome": "Lucas Salles",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2548,
+     "origem": false
+    },
+    {
+     "nome": "Teodoro da Cruz Téo",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0698,
+     "origem": false
+    },
+    {
+     "nome": "Robson",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0508,
+     "origem": false
+    },
+    {
+     "nome": "Renan Arruda",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0225,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "ES": {
+   "uf": "ES",
+   "locais": 1768,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 1658,
+   "imputados": 110,
+   "origens": [
+    {
+     "key": "renato_casagrande",
+     "rotulo": "Renato Casagrande",
+     "partido": "PSB",
+     "situacao": "segundo_turno",
+     "pctValidos": 46.9398,
+     "pctAptos": 33.4211
+    },
+    {
+     "key": "manato",
+     "rotulo": "Manato",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.4783,
+     "pctAptos": 27.3965
+    },
+    {
+     "key": "guerino_zanon",
+     "rotulo": "Guerino Zanon",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.0256,
+     "pctAptos": 5.0022
+    },
+    {
+     "key": "audifax",
+     "rotulo": "Audifax",
+     "partido": "REDE",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.513,
+     "pctAptos": 4.6372
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.0434,
+     "pctAptos": 0.7429
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 7.9042
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 20.8959
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Renato Casagrande",
+     "partido": "PSB",
+     "situacao": "segundo_turno",
+     "pctValidos": 46.9398,
+     "origem": true
+    },
+    {
+     "nome": "Manato",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.4783,
+     "origem": true
+    },
+    {
+     "nome": "Guerino Zanon",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.0256,
+     "origem": true
+    },
+    {
+     "nome": "Audifax",
+     "partido": "REDE",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.513,
+     "origem": true
+    },
+    {
+     "nome": "Aridelmo",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.7587,
+     "origem": false
+    },
+    {
+     "nome": "Capitão Vinicius Sousa",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2165,
+     "origem": false
+    },
+    {
+     "nome": "Claudio Paiva",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0682,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Manato",
+      "partido": "PL",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Renato Casagrande",
+      "partido": "PSB",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "GO": {
+   "uf": "GO",
+   "locais": 2494,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 2341,
+   "imputados": 153,
+   "origens": [
+    {
+     "key": "ronaldo_caiado",
+     "rotulo": "Ronaldo Caiado",
+     "partido": "UNIÃO",
+     "situacao": "eleito",
+     "pctValidos": 51.8052,
+     "pctAptos": 37.0981
+    },
+    {
+     "key": "gustavo_mendanha",
+     "rotulo": "Gustavo Mendanha",
+     "partido": "PATRIOTA",
+     "situacao": "nao_eleito",
+     "pctValidos": 25.2026,
+     "pctAptos": 18.0478
+    },
+    {
+     "key": "major_vitor_hugo",
+     "rotulo": "Major Vitor Hugo",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.8108,
+     "pctAptos": 10.6061
+    },
+    {
+     "key": "wolmir_amado",
+     "rotulo": "Wolmir Amado",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.9831,
+     "pctAptos": 5.0007
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.1982,
+     "pctAptos": 0.8581
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.5564
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 21.8328
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Ronaldo Caiado",
+     "partido": "UNIÃO",
+     "situacao": "eleito",
+     "pctValidos": 51.8052,
+     "origem": true
+    },
+    {
+     "nome": "Gustavo Mendanha",
+     "partido": "PATRIOTA",
+     "situacao": "nao_eleito",
+     "pctValidos": 25.2026,
+     "origem": true
+    },
+    {
+     "nome": "Major Vitor Hugo",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.8108,
+     "origem": true
+    },
+    {
+     "nome": "Wolmir Amado",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.9831,
+     "origem": true
+    },
+    {
+     "nome": "Cintia Dias",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.5613,
+     "origem": false
+    },
+    {
+     "nome": "Edigar Diniz",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2742,
+     "origem": false
+    },
+    {
+     "nome": "Professora Helga",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2005,
+     "origem": false
+    },
+    {
+     "nome": "Professor Pantaleão",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1548,
+     "origem": false
+    },
+    {
+     "nome": "Vinícius Paixão",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0074,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "MA": {
+   "uf": "MA",
+   "locais": 5886,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 5413,
+   "imputados": 473,
+   "origens": [
+    {
+     "key": "carlos_brandao",
+     "rotulo": "Carlos Brandão",
+     "partido": "PSB",
+     "situacao": "eleito",
+     "pctValidos": 51.2899,
+     "pctAptos": 35.1079
+    },
+    {
+     "key": "lahesio_bonfim",
+     "rotulo": "Lahesio Bonfim",
+     "partido": "PSC",
+     "situacao": "nao_eleito",
+     "pctValidos": 24.8665,
+     "pctAptos": 17.0211
+    },
+    {
+     "key": "weverton",
+     "rotulo": "Weverton",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 20.7095,
+     "pctAptos": 14.1757
+    },
+    {
+     "key": "edivaldo",
+     "rotulo": "Edivaldo",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.5098,
+     "pctAptos": 1.718
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.6243,
+     "pctAptos": 0.4273
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 9.3033
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.2467
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Carlos Brandão",
+     "partido": "PSB",
+     "situacao": "eleito",
+     "pctValidos": 51.2899,
+     "origem": true
+    },
+    {
+     "nome": "Lahesio Bonfim",
+     "partido": "PSC",
+     "situacao": "nao_eleito",
+     "pctValidos": 24.8665,
+     "origem": true
+    },
+    {
+     "nome": "Weverton",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 20.7095,
+     "origem": true
+    },
+    {
+     "nome": "Edivaldo",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.5098,
+     "origem": true
+    },
+    {
+     "nome": "Enilton Rodrigues",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2068,
+     "origem": false
+    },
+    {
+     "nome": "Hertz Dias",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1505,
+     "origem": false
+    },
+    {
+     "nome": "Simplicio",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1452,
+     "origem": false
+    },
+    {
+     "nome": "Professor Joas Moraes",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.067,
+     "origem": false
+    },
+    {
+     "nome": "Frankle Costa",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0548,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "MG": {
+   "uf": "MG",
+   "locais": 10251,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 9707,
+   "imputados": 544,
+   "origens": [
+    {
+     "key": "zema",
+     "rotulo": "Zema",
+     "partido": "NOVO",
+     "situacao": "eleito",
+     "pctValidos": 56.1849,
+     "pctAptos": 37.4229
+    },
+    {
+     "key": "kalil",
+     "rotulo": "Kalil",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 35.0819,
+     "pctAptos": 23.3669
+    },
+    {
+     "key": "carlos_viana",
+     "rotulo": "Carlos Viana",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.2263,
+     "pctAptos": 4.8132
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.5069,
+     "pctAptos": 1.0037
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 11.0358
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.3576
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Zema",
+     "partido": "NOVO",
+     "situacao": "eleito",
+     "pctValidos": 56.1849,
+     "origem": true
+    },
+    {
+     "nome": "Kalil",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 35.0819,
+     "origem": true
+    },
+    {
+     "nome": "Carlos Viana",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.2263,
+     "origem": true
+    },
+    {
+     "nome": "Marcus Pestana",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.559,
+     "origem": false
+    },
+    {
+     "nome": "Lorene Figueiredo",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.4139,
+     "origem": false
+    },
+    {
+     "nome": "Cabo Tristao",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1454,
+     "origem": false
+    },
+    {
+     "nome": "Indira Xavier",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1439,
+     "origem": false
+    },
+    {
+     "nome": "Renata Regina",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1154,
+     "origem": false
+    },
+    {
+     "nome": "Vanessa Portugal",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1107,
+     "origem": false
+    },
+    {
+     "nome": "Lourdes Francisco",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0185,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "MS": {
+   "uf": "MS",
+   "locais": 1033,
+   "nOrigens": 9,
+   "recordBytes": 18,
+   "casados": 971,
+   "imputados": 62,
+   "origens": [
+    {
+     "key": "capitao_contar",
+     "rotulo": "Capitão Contar",
+     "partido": "PRTB",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.7147,
+     "pctAptos": 19.2514
+    },
+    {
+     "key": "eduardo_riedel",
+     "rotulo": "Eduardo Riedel",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 25.1648,
+     "pctAptos": 18.1345
+    },
+    {
+     "key": "andre_puccinelli",
+     "rotulo": "André Puccinelli",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 17.1778,
+     "pctAptos": 12.3789
+    },
+    {
+     "key": "rose_modesto",
+     "rotulo": "Rose Modesto",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 12.4161,
+     "pctAptos": 8.9474
+    },
+    {
+     "key": "giselle",
+     "rotulo": "Giselle",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.4238,
+     "pctAptos": 6.7911
+    },
+    {
+     "key": "marquinhos_trad",
+     "rotulo": "Marquinhos Trad",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 8.6757,
+     "pctAptos": 6.252
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.4271,
+     "pctAptos": 0.3078
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 5.7218
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.2152
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Capitão Contar",
+     "partido": "PRTB",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.7147,
+     "origem": true
+    },
+    {
+     "nome": "Eduardo Riedel",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 25.1648,
+     "origem": true
+    },
+    {
+     "nome": "André Puccinelli",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 17.1778,
+     "origem": true
+    },
+    {
+     "nome": "Rose Modesto",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 12.4161,
+     "origem": true
+    },
+    {
+     "nome": "Giselle",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.4238,
+     "origem": true
+    },
+    {
+     "nome": "Marquinhos Trad",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 8.6757,
+     "origem": true
+    },
+    {
+     "nome": "Adonis Marcos",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.226,
+     "origem": false
+    },
+    {
+     "nome": "Magno de Souza",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2011,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Capitão Contar",
+      "partido": "PRTB",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Eduardo Riedel",
+      "partido": "PSDB",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "MT": {
+   "uf": "MT",
+   "locais": 1519,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 1376,
+   "imputados": 143,
+   "origens": [
+    {
+     "key": "mauro_mendes",
+     "rotulo": "Mauro Mendes",
+     "partido": "UNIÃO",
+     "situacao": "eleito",
+     "pctValidos": 68.4523,
+     "pctAptos": 45.1279
+    },
+    {
+     "key": "marcia_pinheiro",
+     "rotulo": "Marcia Pinheiro",
+     "partido": "PV",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.4089,
+     "pctAptos": 10.8177
+    },
+    {
+     "key": "pastor_marcos_ritela",
+     "rotulo": "Pastor Marcos Ritela",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.3435,
+     "pctAptos": 9.4561
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.7952,
+     "pctAptos": 0.5243
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 10.5597
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 23.5143
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Mauro Mendes",
+     "partido": "UNIÃO",
+     "situacao": "eleito",
+     "pctValidos": 68.4523,
+     "origem": true
+    },
+    {
+     "nome": "Marcia Pinheiro",
+     "partido": "PV",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.4089,
+     "origem": true
+    },
+    {
+     "nome": "Pastor Marcos Ritela",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.3435,
+     "origem": true
+    },
+    {
+     "nome": "Moisés Franz",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.7952,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "PA": {
+   "uf": "PA",
+   "locais": 5919,
+   "nOrigens": 5,
+   "recordBytes": 14,
+   "casados": 5123,
+   "imputados": 796,
+   "origens": [
+    {
+     "key": "helder",
+     "rotulo": "Helder",
+     "partido": "MDB",
+     "situacao": "eleito",
+     "pctValidos": 70.4073,
+     "pctAptos": 51.28
+    },
+    {
+     "key": "zequinha_marinho",
+     "rotulo": "Zequinha Marinho",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 27.1278,
+     "pctAptos": 19.7581
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 2.4649,
+     "pctAptos": 1.7953
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 5.8857
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 21.281
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Helder",
+     "partido": "MDB",
+     "situacao": "eleito",
+     "pctValidos": 70.4073,
+     "origem": true
+    },
+    {
+     "nome": "Zequinha Marinho",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 27.1278,
+     "origem": true
+    },
+    {
+     "nome": "Adolfo Oliveira",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.2836,
+     "origem": false
+    },
+    {
+     "nome": "Dr. Felipe",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.7093,
+     "origem": false
+    },
+    {
+     "nome": "Major Marcony",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2074,
+     "origem": false
+    },
+    {
+     "nome": "Sofia Couto",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1209,
+     "origem": false
+    },
+    {
+     "nome": "Cleber Rabelo",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1141,
+     "origem": false
+    },
+    {
+     "nome": "Paulo Roseira",
+     "partido": "AGIR",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0296,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "PB": {
+   "uf": "PB",
+   "locais": 1843,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 1602,
+   "imputados": 241,
+   "origens": [
+    {
+     "key": "joao",
+     "rotulo": "João",
+     "partido": "PSB",
+     "situacao": "segundo_turno",
+     "pctValidos": 39.6547,
+     "pctAptos": 27.9186
+    },
+    {
+     "key": "pedro_cunha_lima",
+     "rotulo": "Pedro Cunha Lima",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 23.8962,
+     "pctAptos": 16.8239
+    },
+    {
+     "key": "nilvan_ferreira",
+     "rotulo": "Nilvan Ferreira",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.6796,
+     "pctAptos": 13.1512
+    },
+    {
+     "key": "veneziano",
+     "rotulo": "Veneziano",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 17.1593,
+     "pctAptos": 12.0809
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.6101,
+     "pctAptos": 0.4295
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 12.134
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 17.4619
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "João",
+     "partido": "PSB",
+     "situacao": "segundo_turno",
+     "pctValidos": 39.6547,
+     "origem": true
+    },
+    {
+     "nome": "Pedro Cunha Lima",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 23.8962,
+     "origem": true
+    },
+    {
+     "nome": "Nilvan Ferreira",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.6796,
+     "origem": true
+    },
+    {
+     "nome": "Veneziano",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 17.1593,
+     "origem": true
+    },
+    {
+     "nome": "Adjany Simplicio",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.4395,
+     "origem": false
+    },
+    {
+     "nome": "Major Fábio",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1128,
+     "origem": false
+    },
+    {
+     "nome": "Nascimento",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0449,
+     "origem": false
+    },
+    {
+     "nome": "Adriano Trajano",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0129,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "João",
+      "partido": "PSB",
+      "situacao": "eleito"
+     },
+     {
+      "nome": "Pedro Cunha Lima",
+      "partido": "PSDB",
+      "situacao": "nao_eleito"
+     }
+    ]
+   }
+  },
+  "PE": {
+   "uf": "PE",
+   "locais": 3374,
+   "nOrigens": 8,
+   "recordBytes": 17,
+   "casados": 3054,
+   "imputados": 320,
+   "origens": [
+    {
+     "key": "marilia_arraes",
+     "rotulo": "Marília Arraes",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "segundo_turno",
+     "pctValidos": 23.9664,
+     "pctAptos": 16.7594
+    },
+    {
+     "key": "raquel_lyra",
+     "rotulo": "Raquel Lyra",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 20.5802,
+     "pctAptos": 14.3915
+    },
+    {
+     "key": "anderson_ferreira",
+     "rotulo": "Anderson Ferreira",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.1476,
+     "pctAptos": 12.6904
+    },
+    {
+     "key": "danilo_cabral",
+     "rotulo": "Danilo Cabral",
+     "partido": "PSB",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.0617,
+     "pctAptos": 12.6303
+    },
+    {
+     "key": "miguel_coelho",
+     "rotulo": "Miguel Coelho",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.0402,
+     "pctAptos": 12.6153
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.2039,
+     "pctAptos": 0.8419
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 11.7876
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.2835
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Marília Arraes",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "segundo_turno",
+     "pctValidos": 23.9664,
+     "origem": true
+    },
+    {
+     "nome": "Raquel Lyra",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 20.5802,
+     "origem": true
+    },
+    {
+     "nome": "Anderson Ferreira",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.1476,
+     "origem": true
+    },
+    {
+     "nome": "Danilo Cabral",
+     "partido": "PSB",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.0617,
+     "origem": true
+    },
+    {
+     "nome": "Miguel Coelho",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.0402,
+     "origem": true
+    },
+    {
+     "nome": "Jones Manoel",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.6917,
+     "origem": false
+    },
+    {
+     "nome": "João Arnaldo",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.256,
+     "origem": false
+    },
+    {
+     "nome": "Pastor Wellington",
+     "partido": "PTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1635,
+     "origem": false
+    },
+    {
+     "nome": "Jadilson Bombeiro",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0496,
+     "origem": false
+    },
+    {
+     "nome": "Claudia Ribeiro",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0356,
+     "origem": false
+    },
+    {
+     "nome": "Ubiracy Olímpio",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0075,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Marília Arraes",
+      "partido": "SOLIDARIEDADE",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Raquel Lyra",
+      "partido": "PSDB",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "PI": {
+   "uf": "PI",
+   "locais": 3500,
+   "nOrigens": 5,
+   "recordBytes": 14,
+   "casados": 3273,
+   "imputados": 227,
+   "origens": [
+    {
+     "key": "rafael_fonteles",
+     "rotulo": "Rafael Fonteles",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 56.7199,
+     "pctAptos": 43.3859
+    },
+    {
+     "key": "silvio_mendes",
+     "rotulo": "Silvio Mendes",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 41.2913,
+     "pctAptos": 31.5843
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.9887,
+     "pctAptos": 1.5212
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 5.7566
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 17.752
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Rafael Fonteles",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 56.7199,
+     "origem": true
+    },
+    {
+     "nome": "Silvio Mendes",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 41.2913,
+     "origem": true
+    },
+    {
+     "nome": "Coronel Diego Melo",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.7929,
+     "origem": false
+    },
+    {
+     "nome": "Gessy Lima",
+     "partido": "PSC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.6719,
+     "origem": false
+    },
+    {
+     "nome": "Madalena Nunes",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2421,
+     "origem": false
+    },
+    {
+     "nome": "Lourdes Melo",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0979,
+     "origem": false
+    },
+    {
+     "nome": "Geraldo Carvalho",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0725,
+     "origem": false
+    },
+    {
+     "nome": "Ravenna Castro",
+     "partido": "PMN",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0594,
+     "origem": false
+    },
+    {
+     "nome": "Gustavo Henrique",
+     "partido": "PATRIOTA",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0522,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "PR": {
+   "uf": "PR",
+   "locais": 4841,
+   "nOrigens": 6,
+   "recordBytes": 15,
+   "casados": 4527,
+   "imputados": 314,
+   "origens": [
+    {
+     "key": "carlos_massa_ratinho_junior",
+     "rotulo": "Carlos Massa Ratinho Junior",
+     "partido": "PSD",
+     "situacao": "eleito",
+     "pctValidos": 69.6437,
+     "pctAptos": 50.0354
+    },
+    {
+     "key": "requiao",
+     "rotulo": "Requião",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.2308,
+     "pctAptos": 18.8454
+    },
+    {
+     "key": "gomyde",
+     "rotulo": "Gomyde",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.0835,
+     "pctAptos": 1.4969
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 2.042,
+     "pctAptos": 1.4671
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 8.5233
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 19.6319
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Carlos Massa Ratinho Junior",
+     "partido": "PSD",
+     "situacao": "eleito",
+     "pctValidos": 69.6437,
+     "origem": true
+    },
+    {
+     "nome": "Requião",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.2308,
+     "origem": true
+    },
+    {
+     "nome": "Gomyde",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.0835,
+     "origem": true
+    },
+    {
+     "nome": "Joni Correia",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.8326,
+     "origem": false
+    },
+    {
+     "nome": "Professora Angela",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.7086,
+     "origem": false
+    },
+    {
+     "nome": "Vivi Motta",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2228,
+     "origem": false
+    },
+    {
+     "nome": "Solange Ferreira Bueno",
+     "partido": "PMN",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1697,
+     "origem": false
+    },
+    {
+     "nome": "Professor Ivan",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0739,
+     "origem": false
+    },
+    {
+     "nome": "Adriano Teixeira",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0344,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "RJ": {
+   "uf": "RJ",
+   "locais": 5050,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 4631,
+   "imputados": 419,
+   "origens": [
+    {
+     "key": "claudio_castro",
+     "rotulo": "Cláudio Castro",
+     "partido": "PL",
+     "situacao": "eleito",
+     "pctValidos": 58.6402,
+     "pctAptos": 38.4369
+    },
+    {
+     "key": "marcelo_freixo",
+     "rotulo": "Marcelo Freixo",
+     "partido": "PSB",
+     "situacao": "nao_eleito",
+     "pctValidos": 27.3675,
+     "pctAptos": 17.9386
+    },
+    {
+     "key": "rodrigo_neves",
+     "rotulo": "Rodrigo Neves",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.9961,
+     "pctAptos": 5.2412
+    },
+    {
+     "key": "paulo_ganime",
+     "rotulo": "Paulo Ganime",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 5.3116,
+     "pctAptos": 3.4816
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.6846,
+     "pctAptos": 0.4487
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 11.5847
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 22.8683
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Cláudio Castro",
+     "partido": "PL",
+     "situacao": "eleito",
+     "pctValidos": 58.6402,
+     "origem": true
+    },
+    {
+     "nome": "Marcelo Freixo",
+     "partido": "PSB",
+     "situacao": "nao_eleito",
+     "pctValidos": 27.3675,
+     "origem": true
+    },
+    {
+     "nome": "Rodrigo Neves",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.9961,
+     "origem": true
+    },
+    {
+     "nome": "Paulo Ganime",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 5.3116,
+     "origem": true
+    },
+    {
+     "nome": "Juliete",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.3252,
+     "origem": false
+    },
+    {
+     "nome": "Cyro Garcia",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1502,
+     "origem": false
+    },
+    {
+     "nome": "Eduardo Serra",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1291,
+     "origem": false
+    },
+    {
+     "nome": "Wilson Witzel",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0582,
+     "origem": false
+    },
+    {
+     "nome": "Luiz Eugênio",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0219,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "RN": {
+   "uf": "RN",
+   "locais": 1583,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 1444,
+   "imputados": 139,
+   "origens": [
+    {
+     "key": "fatima_bezerra",
+     "rotulo": "Fatima Bezerra",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 58.3112,
+     "pctAptos": 41.7527
+    },
+    {
+     "key": "fabio_dantas",
+     "rotulo": "Fabio Dantas",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 22.2234,
+     "pctAptos": 15.9127
+    },
+    {
+     "key": "capitao_styvenson",
+     "rotulo": "Capitão Styvenson",
+     "partido": "PODE",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.8034,
+     "pctAptos": 12.0318
+    },
+    {
+     "key": "clorisa_linhares",
+     "rotulo": "Clorisa Linhares",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.1329,
+     "pctAptos": 1.5273
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.529,
+     "pctAptos": 0.3788
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 10.0907
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.3061
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Fatima Bezerra",
+     "partido": "PT",
+     "situacao": "eleito",
+     "pctValidos": 58.3112,
+     "origem": true
+    },
+    {
+     "nome": "Fabio Dantas",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 22.2234,
+     "origem": true
+    },
+    {
+     "nome": "Capitão Styvenson",
+     "partido": "PODE",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.8034,
+     "origem": true
+    },
+    {
+     "nome": "Clorisa Linhares",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.1329,
+     "origem": true
+    },
+    {
+     "nome": "Danniel Morais",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2018,
+     "origem": false
+    },
+    {
+     "nome": "Rosália Fernandes",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1332,
+     "origem": false
+    },
+    {
+     "nome": "Nazareno Neris",
+     "partido": "PMN",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0724,
+     "origem": false
+    },
+    {
+     "nome": "Bento",
+     "partido": "PRTB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0644,
+     "origem": false
+    },
+    {
+     "nome": "Rodrigo Vieira",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0571,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "RO": {
+   "uf": "RO",
+   "locais": 674,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 618,
+   "imputados": 56,
+   "origens": [
+    {
+     "key": "coronel_marcos_rocha",
+     "rotulo": "Coronel Marcos Rocha",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.8845,
+     "pctAptos": 26.8794
+    },
+    {
+     "key": "marcos_rogerio",
+     "rotulo": "Marcos Rogerio",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 37.0475,
+     "pctAptos": 25.6095
+    },
+    {
+     "key": "leo_moraes",
+     "rotulo": "Léo Moraes",
+     "partido": "PODE",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.0627,
+     "pctAptos": 9.721
+    },
+    {
+     "key": "daniel_pereira",
+     "rotulo": "Daniel Pereira",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.5749,
+     "pctAptos": 6.6188
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.4304,
+     "pctAptos": 0.2975
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.13
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 24.7438
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Coronel Marcos Rocha",
+     "partido": "UNIÃO",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.8845,
+     "origem": true
+    },
+    {
+     "nome": "Marcos Rogerio",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 37.0475,
+     "origem": true
+    },
+    {
+     "nome": "Léo Moraes",
+     "partido": "PODE",
+     "situacao": "nao_eleito",
+     "pctValidos": 14.0627,
+     "origem": true
+    },
+    {
+     "nome": "Daniel Pereira",
+     "partido": "SOLIDARIEDADE",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.5749,
+     "origem": true
+    },
+    {
+     "nome": "Pimenta de Rondonia",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.4304,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Coronel Marcos Rocha",
+      "partido": "UNIÃO",
+      "situacao": "eleito"
+     },
+     {
+      "nome": "Marcos Rogerio",
+      "partido": "PL",
+      "situacao": "nao_eleito"
+     }
+    ]
+   }
+  },
+  "RR": {
+   "uf": "RR",
+   "locais": 386,
+   "nOrigens": 5,
+   "recordBytes": 14,
+   "casados": 284,
+   "imputados": 102,
+   "origens": [
+    {
+     "key": "antonio_denarium",
+     "rotulo": "Antonio Denarium",
+     "partido": "PP",
+     "situacao": "eleito",
+     "pctValidos": 56.4723,
+     "pctAptos": 44.5032
+    },
+    {
+     "key": "teresa_surita",
+     "rotulo": "Teresa Surita",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 41.1362,
+     "pctAptos": 32.4175
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 2.3916,
+     "pctAptos": 1.8847
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 4.1965
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 16.9981
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Antonio Denarium",
+     "partido": "PP",
+     "situacao": "eleito",
+     "pctValidos": 56.4723,
+     "origem": true
+    },
+    {
+     "nome": "Teresa Surita",
+     "partido": "MDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 41.1362,
+     "origem": true
+    },
+    {
+     "nome": "Fábio Almeida",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.3301,
+     "origem": false
+    },
+    {
+     "nome": "Juraci Escurinho",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.65,
+     "origem": false
+    },
+    {
+     "nome": "Rudson Leite",
+     "partido": "PV",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.4115,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  },
+  "RS": {
+   "uf": "RS",
+   "locais": 7819,
+   "nOrigens": 9,
+   "recordBytes": 18,
+   "casados": 7522,
+   "imputados": 297,
+   "origens": [
+    {
+     "key": "onyx_lorenzoni",
+     "rotulo": "Onyx Lorenzoni",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 37.5011,
+     "pctAptos": 27.7314
+    },
+    {
+     "key": "eduardo_leite",
+     "rotulo": "Eduardo Leite",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.8081,
+     "pctAptos": 19.824
+    },
+    {
+     "key": "edegar_pretto",
+     "rotulo": "Edegar Pretto",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.7696,
+     "pctAptos": 19.7956
+    },
+    {
+     "key": "luis_carlos_heinze",
+     "rotulo": "Luis Carlos Heinze",
+     "partido": "PP",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.275,
+     "pctAptos": 3.1612
+    },
+    {
+     "key": "argenta",
+     "rotulo": "Argenta",
+     "partido": "PSC",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.9978,
+     "pctAptos": 1.4773
+    },
+    {
+     "key": "vieira_da_cunha",
+     "rotulo": "Vieira da Cunha",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.5997,
+     "pctAptos": 1.1829
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.0487,
+     "pctAptos": 0.7755
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 6.1873
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 19.8647
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Onyx Lorenzoni",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 37.5011,
+     "origem": true
+    },
+    {
+     "nome": "Eduardo Leite",
+     "partido": "PSDB",
+     "situacao": "segundo_turno",
+     "pctValidos": 26.8081,
+     "origem": true
+    },
+    {
+     "nome": "Edegar Pretto",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 26.7696,
+     "origem": true
+    },
+    {
+     "nome": "Luis Carlos Heinze",
+     "partido": "PP",
+     "situacao": "nao_eleito",
+     "pctValidos": 4.275,
+     "origem": true
+    },
+    {
+     "nome": "Argenta",
+     "partido": "PSC",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.9978,
+     "origem": true
+    },
+    {
+     "nome": "Vieira da Cunha",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.5997,
+     "origem": true
+    },
+    {
+     "nome": "Ricardo Jobim",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.6122,
+     "origem": false
+    },
+    {
+     "nome": "Vicente Bogo",
+     "partido": "PSB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2711,
+     "origem": false
+    },
+    {
+     "nome": "Rejane de Oliveira",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0984,
+     "origem": false
+    },
+    {
+     "nome": "Carlos Messalla",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.063,
+     "origem": false
+    },
+    {
+     "nome": "Cesar Augusto",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0039,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Eduardo Leite",
+      "partido": "PSDB",
+      "situacao": "eleito"
+     },
+     {
+      "nome": "Onyx Lorenzoni",
+      "partido": "PL",
+      "situacao": "nao_eleito"
+     }
+    ]
+   }
+  },
+  "SC": {
+   "uf": "SC",
+   "locais": 3473,
+   "nOrigens": 9,
+   "recordBytes": 18,
+   "casados": 3253,
+   "imputados": 220,
+   "origens": [
+    {
+     "key": "jorginho_mello",
+     "rotulo": "Jorginho Mello",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.6078,
+     "pctAptos": 28.646
+    },
+    {
+     "key": "decio_lima",
+     "rotulo": "Décio Lima",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 17.4151,
+     "pctAptos": 12.9216
+    },
+    {
+     "key": "moises",
+     "rotulo": "Moisés",
+     "partido": "REPUBLICANOS",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.988,
+     "pctAptos": 12.6047
+    },
+    {
+     "key": "gean_loureiro",
+     "rotulo": "Gean Loureiro",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 13.6118,
+     "pctAptos": 10.0996
+    },
+    {
+     "key": "esperidiao_amin",
+     "rotulo": "Esperidião Amin",
+     "partido": "PP",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.7527,
+     "pctAptos": 7.2363
+    },
+    {
+     "key": "odair_tramontin",
+     "rotulo": "Odair Tramontin",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.795,
+     "pctAptos": 2.0738
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.8295,
+     "pctAptos": 0.6155
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 7.085
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.7176
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Jorginho Mello",
+     "partido": "PL",
+     "situacao": "segundo_turno",
+     "pctValidos": 38.6078,
+     "origem": true
+    },
+    {
+     "nome": "Décio Lima",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 17.4151,
+     "origem": true
+    },
+    {
+     "nome": "Moisés",
+     "partido": "REPUBLICANOS",
+     "situacao": "nao_eleito",
+     "pctValidos": 16.988,
+     "origem": true
+    },
+    {
+     "nome": "Gean Loureiro",
+     "partido": "UNIÃO",
+     "situacao": "nao_eleito",
+     "pctValidos": 13.6118,
+     "origem": true
+    },
+    {
+     "nome": "Esperidião Amin",
+     "partido": "PP",
+     "situacao": "nao_eleito",
+     "pctValidos": 9.7527,
+     "origem": true
+    },
+    {
+     "nome": "Odair Tramontin",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 2.795,
+     "origem": true
+    },
+    {
+     "nome": "Jorge Boeira",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.6078,
+     "origem": false
+    },
+    {
+     "nome": "Professor Alex Alano",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1077,
+     "origem": false
+    },
+    {
+     "nome": "Ralf Zimmer",
+     "partido": "PROS",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0938,
+     "origem": false
+    },
+    {
+     "nome": "Leandro Borges",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0203,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Décio Lima",
+      "partido": "PT",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Jorginho Mello",
+      "partido": "PL",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "SE": {
+   "uf": "SE",
+   "locais": 1209,
+   "nOrigens": 8,
+   "recordBytes": 17,
+   "casados": 1115,
+   "imputados": 94,
+   "origens": [
+    {
+     "key": "valmir_de_francisquinho",
+     "rotulo": "Valmir de Francisquinho",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 37.6624,
+     "pctAptos": 27.4001
+    },
+    {
+     "key": "rogerio_carvalho",
+     "rotulo": "Rogério Carvalho",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 27.8647,
+     "pctAptos": 20.2721
+    },
+    {
+     "key": "fabio",
+     "rotulo": "Fábio",
+     "partido": "PSD",
+     "situacao": "segundo_turno",
+     "pctValidos": 24.2574,
+     "pctAptos": 17.6477
+    },
+    {
+     "key": "delegado_alessandro",
+     "rotulo": "Delegado Alessandro",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.7849,
+     "pctAptos": 4.9361
+    },
+    {
+     "key": "niully_campos",
+     "rotulo": "Niully Campos",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 3.0732,
+     "pctAptos": 2.2358
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 0.3574,
+     "pctAptos": 0.26
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 8.7805
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.4677
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Valmir de Francisquinho",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 37.6624,
+     "origem": true
+    },
+    {
+     "nome": "Rogério Carvalho",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 27.8647,
+     "origem": true
+    },
+    {
+     "nome": "Fábio",
+     "partido": "PSD",
+     "situacao": "segundo_turno",
+     "pctValidos": 24.2574,
+     "origem": true
+    },
+    {
+     "nome": "Delegado Alessandro",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 6.7849,
+     "origem": true
+    },
+    {
+     "nome": "Niully Campos",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 3.0732,
+     "origem": true
+    },
+    {
+     "nome": "Dr Cláudio Médico Geriatra",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2184,
+     "origem": false
+    },
+    {
+     "nome": "Prof Aroldo Felix",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0859,
+     "origem": false
+    },
+    {
+     "nome": "Elinos Sabino",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0531,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Fábio",
+      "partido": "PSD",
+      "situacao": "eleito"
+     },
+     {
+      "nome": "Rogério Carvalho",
+      "partido": "PT",
+      "situacao": "nao_eleito"
+     }
+    ]
+   }
+  },
+  "SP": {
+   "uf": "SP",
+   "locais": 11022,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 10190,
+   "imputados": 832,
+   "origens": [
+    {
+     "key": "tarcisio",
+     "rotulo": "Tarcísio",
+     "partido": "REPUBLICANOS",
+     "situacao": "segundo_turno",
+     "pctValidos": 42.3166,
+     "pctAptos": 28.4909
+    },
+    {
+     "key": "fernando_haddad",
+     "rotulo": "Fernando Haddad",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 35.7011,
+     "pctAptos": 24.0368
+    },
+    {
+     "key": "rodrigo_garcia",
+     "rotulo": "Rodrigo Garcia",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.3976,
+     "pctAptos": 12.3867
+    },
+    {
+     "key": "vinicius_poit",
+     "rotulo": "Vinicius Poit",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.6657,
+     "pctAptos": 1.1215
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.9191,
+     "pctAptos": 1.2921
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 10.9423
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 21.7298
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Tarcísio",
+     "partido": "REPUBLICANOS",
+     "situacao": "segundo_turno",
+     "pctValidos": 42.3166,
+     "origem": true
+    },
+    {
+     "nome": "Fernando Haddad",
+     "partido": "PT",
+     "situacao": "segundo_turno",
+     "pctValidos": 35.7011,
+     "origem": true
+    },
+    {
+     "nome": "Rodrigo Garcia",
+     "partido": "PSDB",
+     "situacao": "nao_eleito",
+     "pctValidos": 18.3976,
+     "origem": true
+    },
+    {
+     "nome": "Vinicius Poit",
+     "partido": "NOVO",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.6657,
+     "origem": true
+    },
+    {
+     "nome": "Elvis Cezar",
+     "partido": "PDT",
+     "situacao": "nao_eleito",
+     "pctValidos": 1.2063,
+     "origem": false
+    },
+    {
+     "nome": "Carol Vigliar",
+     "partido": "UP",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.3801,
+     "origem": false
+    },
+    {
+     "nome": "Gabriel Colombo",
+     "partido": "PCB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.2001,
+     "origem": false
+    },
+    {
+     "nome": "Altino",
+     "partido": "PSTU",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0636,
+     "origem": false
+    },
+    {
+     "nome": "Antonio Jorge",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0462,
+     "origem": false
+    },
+    {
+     "nome": "Edson Dorta",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0227,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": true,
+    "finalistas": [
+     {
+      "nome": "Fernando Haddad",
+      "partido": "PT",
+      "situacao": "nao_eleito"
+     },
+     {
+      "nome": "Tarcísio",
+      "partido": "REPUBLICANOS",
+      "situacao": "eleito"
+     }
+    ]
+   }
+  },
+  "TO": {
+   "uf": "TO",
+   "locais": 935,
+   "nOrigens": 7,
+   "recordBytes": 16,
+   "casados": 835,
+   "imputados": 100,
+   "origens": [
+    {
+     "key": "wanderlei_barbosa",
+     "rotulo": "Wanderlei Barbosa",
+     "partido": "REPUBLICANOS",
+     "situacao": "eleito",
+     "pctValidos": 58.1376,
+     "pctAptos": 43.9994
+    },
+    {
+     "key": "ronaldo_dimas",
+     "rotulo": "Ronaldo Dimas",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 22.5019,
+     "pctAptos": 17.0298
+    },
+    {
+     "key": "paulo_mourao",
+     "rotulo": "Paulo Mourão",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 10.6427,
+     "pctAptos": 8.0546
+    },
+    {
+     "key": "iraja",
+     "rotulo": "Irajá",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.6126,
+     "pctAptos": 5.7614
+    },
+    {
+     "key": "outros",
+     "rotulo": "Outros candidatos",
+     "pctValidos": 1.1052,
+     "pctAptos": 0.8364
+    },
+    {
+     "key": "nulo_branco",
+     "rotulo": "Nulo ou branco",
+     "pctAptos": 5.6088
+    },
+    {
+     "key": "abstencao",
+     "rotulo": "Nao compareceu",
+     "pctAptos": 18.7097
+    }
+   ],
+   "candidatos2022": [
+    {
+     "nome": "Wanderlei Barbosa",
+     "partido": "REPUBLICANOS",
+     "situacao": "eleito",
+     "pctValidos": 58.1376,
+     "origem": true
+    },
+    {
+     "nome": "Ronaldo Dimas",
+     "partido": "PL",
+     "situacao": "nao_eleito",
+     "pctValidos": 22.5019,
+     "origem": true
+    },
+    {
+     "nome": "Paulo Mourão",
+     "partido": "PT",
+     "situacao": "nao_eleito",
+     "pctValidos": 10.6427,
+     "origem": true
+    },
+    {
+     "nome": "Irajá",
+     "partido": "PSD",
+     "situacao": "nao_eleito",
+     "pctValidos": 7.6126,
+     "origem": true
+    },
+    {
+     "nome": "Coronel Ricardo Macedo",
+     "partido": "PMB",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.6089,
+     "origem": false
+    },
+    {
+     "nome": "Karol Chaves",
+     "partido": "PSOL",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.3011,
+     "origem": false
+    },
+    {
+     "nome": "Dr Luciano do Oswaldo Cruz",
+     "partido": "DC",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.1488,
+     "origem": false
+    },
+    {
+     "nome": "Carmen Hannud",
+     "partido": "PCO",
+     "situacao": "nao_eleito",
+     "pctValidos": 0.0464,
+     "origem": false
+    }
+   ],
+   "turno2": {
+    "houve": false,
+    "finalistas": []
+   }
+  }
+ }
+}

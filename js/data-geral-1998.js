@@ -206,7 +206,7 @@ async function onClickLoadData_Geral_1998() {
   const year = STATE.currentElectionYear;
 
   if (currentOffice === 'deputado') {
-    showToast('Deputados de 1998 ainda nao disponiveis no Observatorio.', 'info');
+    showToast('Deputados de 1998 ainda nao disponiveis no ElectoMaps.', 'info');
     return;
   }
 

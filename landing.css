@@ -1,5 +1,5 @@
 /* ============================================
-   LANDING PAGE — OBSERVATÓRIO
+   LANDING PAGE — ELECTOMAPS
    Style: Redistricter-inspired
    ============================================ */
 
@@ -192,13 +192,13 @@ body {
 }
 
 .btn-gradient {
-  background: linear-gradient(90deg, #10b981, #f59e0b);
+  background: linear-gradient(90deg, #107ac6, #0aafe6);
   color: #ffffff;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  box-shadow: 0 4px 14px rgba(16, 122, 198, 0.35);
 }
 
 .btn-gradient:hover {
-  box-shadow: 0 6px 24px rgba(4, 120, 87, 0.5);
+  box-shadow: 0 6px 24px rgba(11, 67, 132, 0.5);
   transform: translateY(-2px);
 }
 
@@ -283,7 +283,7 @@ a.feature-card {
 }
 
 a.feature-card:hover {
-  border-color: #10b981;
+  border-color: #107ac6;
 }
 
 .feature-icon {
@@ -297,13 +297,13 @@ a.feature-card:hover {
 }
 
 .icon-blue {
-  background: #ecfdf5;
-  color: #10b981;
+  background: #e7f6fd;
+  color: #107ac6;
 }
 
-.icon-green {
-  background: #ecfdf5;
-  color: #059669;
+.icon-cyan {
+  background: #e7f6fd;
+  color: #0891b2;
 }
 
 .icon-orange {
@@ -335,7 +335,7 @@ a.feature-card:hover {
 .feature-cta {
   font-size: 0.82rem;
   font-weight: 600;
-  color: #10b981;
+  color: #107ac6;
   letter-spacing: 0.2px;
 }
 
@@ -557,25 +557,25 @@ a.feature-card:hover {
   stroke: none;
 }
 
-.state-flow-green {
+.state-flow-blue {
   fill: none;
-  stroke: #009739;
+  stroke: #0572d1;
   stroke-width: 0.52px;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 60, 240;
-  filter: drop-shadow(0 0 2px rgba(0, 151, 57, 0.5));
+  filter: drop-shadow(0 0 2px rgba(5, 114, 209, 0.5));
   animation: dashFlow 12s linear infinite;
 }
 
-.state-flow-yellow {
+.state-flow-cyan {
   fill: none;
-  stroke: #fedf00;
+  stroke: #2ed8fa;
   stroke-width: 0.52px;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-dasharray: 60, 240;
-  filter: drop-shadow(0 0 2px rgba(254, 223, 0, 0.5));
+  filter: drop-shadow(0 0 2px rgba(46, 216, 250, 0.5));
   animation: dashFlow 12s linear infinite;
 }
 

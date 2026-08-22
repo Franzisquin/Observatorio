@@ -1,21 +1,93 @@
-MIT License
+ElectoMaps — Todos os direitos reservados / All Rights Reserved
 
-Copyright (c) 2026 Luiz Daniel Medeiros
+Copyright (c) 2026 ElectoMaps. Todos os direitos reservados.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+═══════════════════════════════════════════════════════════════════════════
+PORTUGUÊS
+═══════════════════════════════════════════════════════════════════════════
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+1. TITULARIDADE
+
+Este software, incluindo seu código-fonte, sua interface, seu design, seus
+textos, suas marcas e os demais materiais que compõem o site ElectoMaps
+(em conjunto, a "Obra"), é de titularidade exclusiva do detentor do direito
+autoral indicado acima, e está protegido pela Lei nº 9.610/1998 (Direitos
+Autorais), pela Lei nº 9.609/1998 (Programa de Computador) e pelos tratados
+internacionais aplicáveis.
+
+2. RESERVA DE DIREITOS
+
+Todos os direitos são reservados. Nenhuma licença, expressa ou implícita, é
+concedida por este documento. É vedado, sem autorização prévia e por escrito
+do titular, usar, copiar, reproduzir, modificar, adaptar, traduzir, mesclar,
+publicar, distribuir, sublicenciar, vender, alugar, executar publicamente,
+descompilar, aplicar engenharia reversa ou criar obras derivadas da Obra, no
+todo ou em parte, por qualquer meio ou processo.
+
+3. ACESSO AO SITE
+
+A disponibilização pública do site não constitui licença sobre a Obra. É
+permitido apenas o acesso e a consulta ao site por meio de navegador, para
+fins pessoais e não comerciais, na forma em que é oferecido.
+
+4. DADOS PÚBLICOS DE TERCEIROS
+
+Os dados eleitorais, geográficos e demográficos originais — obtidos junto ao
+Tribunal Superior Eleitoral (TSE), ao IBGE e a outras fontes públicas — não
+são objeto desta reserva de direitos e permanecem sujeitos aos termos de suas
+respectivas fontes. A reserva alcança o software, o tratamento, a organização,
+a apresentação e os textos autorais desenvolvidos pelo ElectoMaps.
+
+5. COMPONENTES DE TERCEIROS
+
+O site utiliza bibliotecas de terceiros (entre elas MapLibre GL JS, D3.js,
+sql.js e unzipit), cada uma regida por sua própria licença. Nada neste
+documento altera ou restringe os direitos concedidos por essas licenças.
+
+6. AUSÊNCIA DE GARANTIA
+
+A OBRA É FORNECIDA "NO ESTADO EM QUE SE ENCONTRA", SEM GARANTIA DE QUALQUER
+NATUREZA, EXPRESSA OU IMPLÍCITA, INCLUSIVE QUANTO À EXATIDÃO DOS DADOS
+APRESENTADOS, À ADEQUAÇÃO A UMA FINALIDADE ESPECÍFICA E À NÃO VIOLAÇÃO DE
+DIREITOS. EM NENHUMA HIPÓTESE O TITULAR RESPONDERÁ POR QUAISQUER DANOS OU
+PREJUÍZOS DECORRENTES DO USO OU DA IMPOSSIBILIDADE DE USO DA OBRA.
+
+7. AUTORIZAÇÕES
+
+Pedidos de autorização de uso devem ser dirigidos a electomaps@gmail.com.
+
+
+═══════════════════════════════════════════════════════════════════════════
+ENGLISH
+═══════════════════════════════════════════════════════════════════════════
+
+Copyright (c) 2026 ElectoMaps. All Rights Reserved.
+
+This software, including its source code, interface, design, text, marks and
+all other materials comprising the ElectoMaps website (the "Work"), is the
+exclusive property of the copyright holder named above.
+
+No license, express or implied, is granted by this document. No part of the
+Work may be used, copied, reproduced, modified, adapted, translated, merged,
+published, distributed, sublicensed, sold, rented, publicly performed,
+decompiled, reverse engineered, or used to create derivative works, by any
+means, without the prior written permission of the copyright holder.
+
+Public availability of the website does not constitute a license to the Work.
+Access and consultation through a web browser, for personal and non-commercial
+purposes and in the form offered, is permitted.
+
+Underlying public electoral, geographic and demographic data obtained from the
+Brazilian Superior Electoral Court (TSE), IBGE and other public sources are not
+covered by this reservation and remain subject to the terms of their sources.
+Third-party libraries used by the site (including MapLibre GL JS, D3.js, sql.js
+and unzipit) remain governed by their own licenses.
+
+THE WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING WITHOUT LIMITATION AS TO THE ACCURACY OF THE DATA PRESENTED, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM THE USE
+OR INABILITY TO USE THE WORK.
+
+Permission requests: electomaps@gmail.com

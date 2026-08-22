@@ -599,17 +599,26 @@ function swingScopeUfs() {
   return [String(SWING.scope).toUpperCase()];
 }
 
+// Niveis que precisam da quebra por MUNICIPIO nos dados (o resumo por UF nao
+// serve). No escopo nacional isso decide entre baixar 27 resumos de ~3 KB ou os
+// 27 arquivos completos (~1,6 MB comprimidos por eleicao).
+const SWING_MUNI_DETAIL_LEVELS = new Set(['municipios', 'rgint', 'rgi', 'meso', 'micro', 'locais']);
+
+function swingLevelNeedsMuniDetail(level = SWING.level) {
+  return SWING_MUNI_DETAIL_LEVELS.has(level);
+}
+
 async function loadSwingSide(side, onProgress) {
   const cfg = SWING[side];
   const office = SWING.office;
   const subtype = SWING.subtype;
   const ufs = swingScopeUfs();
 
-  // Escopo nacional: o resumo por UF (poucos KB cada) basta para o nivel de
-  // estados, que e o unico nivel que faz sentido desenhar no pais inteiro.
-  // Baixar o JSON completo das 27 UFs so para somar por estado seria dezenas
-  // de MB por eleicao — e sao duas.
-  if (SWING.scope === 'BR') {
+  // Escopo nacional no nivel de ESTADOS: o resumo por UF (poucos KB cada) ja
+  // responde, e baixar os arquivos completos so para somar por estado seria
+  // desperdicio. Nos niveis regionais o resumo nao serve — nao tem quebra por
+  // municipio — e ai vale o custo dos 27 arquivos completos.
+  if (SWING.scope === 'BR' && !swingLevelNeedsMuniDetail()) {
     const totalsByUf = {};
     let done = 0;
     await Promise.all(ufs.map(async (uf) => {
@@ -660,7 +669,13 @@ async function buildSwingDataset() {
     loadSwingSide('B', (p) => { progress.B = p; report(); })
   ]);
 
-  return { A: aggA, B: aggB };
+  // A granularidade fica gravada no dataset: trocar para um nivel mais fino do
+  // que o que foi baixado exige recarga, e e swingRedraw quem checa isso.
+  return {
+    A: aggA,
+    B: aggB,
+    granularity: (SWING.scope !== 'BR' || swingLevelNeedsMuniDetail()) ? 'muni' : 'uf'
+  };
 }
 
 /* ==========================================================================
@@ -697,6 +712,64 @@ async function fetchSwingMunicipalPolygons(uf) {
     if (SWING_POLYGON_CACHE.get(cacheKey) === promise) SWING_POLYGON_CACHE.delete(cacheKey);
   });
   return promise;
+}
+
+// Malha de regioes. Num estado e o arquivo da UF; no pais, as 27 malhas
+// concatenadas (2 a 4 MB somadas, conforme o nivel). Os codigos de regiao do
+// IBGE sao unicos entre UFs — conferido nos quatro niveis — entao as feicoes
+// podem entrar todas na mesma camada sem prefixo de estado.
+async function fetchSwingRegionPolygons(level, scope) {
+  if (String(scope).toUpperCase() !== 'BR') {
+    return fetchRegionPolygonGeoJSON(level, scope);
+  }
+
+  const cacheKey = `regioes|${level}|BR`;
+  if (SWING_POLYGON_CACHE.has(cacheKey)) return SWING_POLYGON_CACHE.get(cacheKey);
+
+  const promise = (async () => {
+    const partes = await Promise.all(ALL_STATE_SIGLAS.map(async (uf) => {
+      try {
+        return await fetchRegionPolygonGeoJSON(level, uf);
+      } catch (error) {
+        console.warn(`[Swing] Malha ${level} de ${uf} indisponível:`, error);
+        return null;
+      }
+    }));
+
+    const features = partes.flatMap((parte) => parte?.features || []);
+    if (!features.length) throw new Error(`Malha nacional de ${SWING_LEVEL_LABEL[level]} não encontrada.`);
+    return { type: 'FeatureCollection', features };
+  })();
+
+  SWING_POLYGON_CACHE.set(cacheKey, promise);
+  promise.catch(() => {
+    if (SWING_POLYGON_CACHE.get(cacheKey) === promise) SWING_POLYGON_CACHE.delete(cacheKey);
+  });
+  return promise;
+}
+
+// Indice codigo -> { nome, uf } de um nivel, atravessando as UFs. Necessario no
+// escopo nacional, onde getRegionalEntryLabel (que exige saber a UF) nao serve.
+const SWING_REGION_LABEL_CACHE = new Map();
+
+function getSwingRegionLabelIndex(level) {
+  const cached = SWING_REGION_LABEL_CACHE.get(level);
+  if (cached?.size) return cached;
+
+  const index = new Map();
+  Object.entries(REGION_INDEX.niveis?.[level] || {}).forEach(([uf, codigos]) => {
+    Object.entries(codigos || {}).forEach(([codigo, nome]) => {
+      index.set(String(codigo), { nome, uf });
+    });
+  });
+  // Nao cacheia vazio: REGION_INDEX carrega de forma assincrona e uma consulta
+  // antecipada congelaria um indice sem nada.
+  if (index.size) SWING_REGION_LABEL_CACHE.set(level, index);
+  return index;
+}
+
+function swingRegionEntry(level, code) {
+  return getSwingRegionLabelIndex(level).get(String(code)) || null;
 }
 
 // Base geolocalizada dos locais de votacao de um ano, se existir GPKG dele.
@@ -938,10 +1011,15 @@ function swingRowLabel(key, props) {
     return nome || String(props?.NM_MUN || props?.nm_mun || key);
   }
   if (SWING.level === 'locais') {
-    const nome = props?.nm_locvot ? safeToTitleCase(props.nm_locvot) : `Local ${String(key).split('_')[2] || ''}`;
-    return nome;
+    // A chave do local e a propria chave do RESULTS, "{zona}_{municipio}_{local}":
+    // o numero do local e a terceira parte.
+    return props?.nm_locvot
+      ? safeToTitleCase(props.nm_locvot)
+      : `Local ${String(key).split('_')[2] || ''}`;
   }
-  return getRegionalEntryLabel(SWING.level, key, SWING.scope) || String(key);
+  return swingRegionEntry(SWING.level, key)?.nome
+    || getRegionalEntryLabel(SWING.level, key, SWING.scope)
+    || String(key);
 }
 
 function swingRowSubtitle(key, props) {
@@ -952,7 +1030,13 @@ function swingRowSubtitle(key, props) {
   }
   if (SWING.level === 'municipios') return UF_MAP.get(SWING.scope) || SWING.scope;
   if (SWING.level === 'uf') return 'Brasil';
-  return `${SWING_LEVEL_LABEL[SWING.level]} • ${UF_MAP.get(SWING.scope) || SWING.scope}`;
+  // No pais inteiro, a UF da regiao e o que localiza o leitor; dentro de um
+  // estado ela seria redundante.
+  const ufRegiao = swingRegionEntry(SWING.level, key)?.uf;
+  const local = (SWING.scope === 'BR' && ufRegiao)
+    ? (UF_MAP.get(ufRegiao) || ufRegiao)
+    : (UF_MAP.get(SWING.scope) || SWING.scope);
+  return `${SWING_LEVEL_LABEL[SWING.level]} • ${local}`;
 }
 
 /* ==========================================================================
@@ -1229,7 +1313,7 @@ async function renderSwingMap() {
     if (generation !== SWING.generation) return;
     features = geojson.features || [];
   } else {
-    const geojson = await fetchRegionPolygonGeoJSON(level, SWING.scope);
+    const geojson = await fetchSwingRegionPolygons(level, SWING.scope);
     if (generation !== SWING.generation) return;
     features = geojson?.features || [];
   }
@@ -1663,7 +1747,13 @@ function populateSwingYearSelects() {
 
 function swingAvailableLevels() {
   if (SWING.office === 'prefeito') return ['locais'];
-  if (SWING.scope === 'BR') return ['uf'];
+
+  // No pais inteiro entram os quatro niveis regionais do IBGE, que sao
+  // particoes de cada UF mas se juntam numa malha nacional sem ambiguidade
+  // (os codigos nao colidem entre estados). Ficam de fora:
+  //   - municipios: 5.570 poligonos e ~11 MB de malha, pesado demais de padrao;
+  //   - locais: centenas de milhares de pontos, so faz sentido dentro de uma UF.
+  if (SWING.scope === 'BR') return ['uf', 'rgint', 'rgi', 'meso', 'micro'];
 
   const levels = ['municipios', 'rgint', 'rgi', 'meso', 'micro'];
   if (swingSupportsStationLevel()) levels.push('locais');
@@ -1673,6 +1763,7 @@ function swingAvailableLevels() {
 // Locais so existem se as DUAS eleicoes tiverem resultado por local e ao menos
 // uma delas tiver GPKG com as coordenadas.
 function swingSupportsStationLevel() {
+  if (SWING.scope === 'BR') return false;
   const a = String(SWING.A.year);
   const b = String(SWING.B.year);
   if (SWING_MUNI_ONLY_YEARS.has(a) || SWING_MUNI_ONLY_YEARS.has(b)) return false;
@@ -1834,8 +1925,11 @@ async function applySwing({ reloadData = true } = {}) {
   }
 
   SWING.loading = true;
-  setSwingStatus('Carregando as duas eleições…', 'info');
-  showMapLoading('Montando a comparação…', 0);
+  // O nacional em nivel regional le os 27 arquivos completos de cada eleicao;
+  // avisar disso evita a impressao de travamento.
+  const pesado = SWING.scope === 'BR' && swingLevelNeedsMuniDetail();
+  setSwingStatus(pesado ? 'Carregando as 27 UFs das duas eleições…' : 'Carregando as duas eleições…', 'info');
+  showMapLoading(pesado ? 'Carregando as 27 UFs das duas eleições…' : 'Montando a comparação…', 0);
 
   try {
     if (reloadData || !SWING.dataset) {
@@ -1868,6 +1962,14 @@ async function applySwing({ reloadData = true } = {}) {
 // distribuicao completa de votos, nenhum desses depende de ir a rede.
 async function swingRedraw(mensagem = 'Redesenhando…') {
   if (!SWING.dataset) return;
+
+  // Subir de "estados" para um nivel regional no escopo nacional exige dados
+  // por municipio, que o carregamento por resumo nao trouxe: aqui a troca de
+  // nivel deixa de ser redesenho e vira recarga.
+  if (swingLevelNeedsMuniDetail() && SWING.dataset.granularity !== 'muni') {
+    return applySwing();
+  }
+
   showMapLoading(mensagem);
   try {
     SWING.selectedKey = null;
