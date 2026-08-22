@@ -211,8 +211,10 @@ async function loadMajoritariaCargo2002(cargo, uf) {
     }
   }
 
-  // Mapa de pontos: GPKG 2006 (o que bater bateu).
+  // Mapa de pontos: GPKG 2006 (o que bater bateu), completado na RM de Sao Paulo
+  // pelo suplemento do CEM -- sem ele, 573 das 2.581 urnas da RMSP ficam sem ponto.
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+  await applyRmspSupplement(geojson, 2002, resultKeys);
 
   // Compila muniNameMap e muniIbgeMap limpos a partir da base 2006 e Censo 2006
   const muniNameMap = new Map();
@@ -316,10 +318,13 @@ async function adjustEmancCityTotals(year, cargo, ufs, muniNameMap, cityTotals, 
 }
 
 async function buildDeputyBaseGeojson2002(uf) {
-  // Pontos: GPKG 2006 (o que bater bateu)
+  // Pontos: GPKG 2006 (o que bater bateu) + suplemento do CEM na RMSP, para a aba
+  // de deputado nao mostrar um mapa mais furado que a de presidente.
   const resultKeys = collectLoadedDeputyResultKeys();
   const baseGeo = await loadGeneralStateBaseFromGpkg2006(uf);
-  return filterGeneralFeatures2006(baseGeo, resultKeys);
+  const geojson = filterGeneralFeatures2006(baseGeo, resultKeys);
+  await applyRmspSupplement(geojson, 2002, resultKeys);
+  return geojson;
 }
 
 async function onClickLoadData_Geral_2002() {

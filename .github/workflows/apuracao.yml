@@ -1,0 +1,81 @@
+name: Apuração ao vivo
+
+# Job longo disparado a mao, nao cron: o `schedule` do Actions tem granularidade
+# minima de 5 minutos e atrasa sob carga. O loop fica dentro do proprio job, que
+# pode durar ate 6 horas (limite do runner).
+#
+# Publica os snapshots numa branch orfa (`apuracao-data`), que o site le por
+# raw.githubusercontent. Orfa porque este repositorio tem ~3,8 GB: a branch de
+# dados nasce vazia e cada publicacao usa --amend, entao ela fica sempre com um
+# unico commit de poucos megabytes.
+#
+# Repositorio publico => minutos de Actions gratuitos e ilimitados.
+
+on:
+  workflow_dispatch:
+    inputs:
+      eleicao:
+        description: "Codigo da eleicao (sai do ele-c.json; divulgado as vesperas)"
+        required: true
+      cargos:
+        description: "Codigos separados por virgula"
+        default: "0001,0003,0005,0006,0007"
+      ambiente:
+        description: "Pasta de ambiente no CDN: oficial, ou a do simulado"
+        default: "oficial"
+      minutos:
+        description: "Duracao do plantao (o runner corta em 6h)"
+        default: "300"
+      intervalo_alto:
+        description: "Segundos entre voltas da camada BR+UF"
+        default: "45"
+      intervalo_mun:
+        description: "Segundos entre voltas da camada municipal"
+        default: "240"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apuracao
+  cancel-in-progress: false
+
+jobs:
+  plantao:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout dos scripts
+        uses: actions/checkout@v4
+        with:
+          # Sem blobs e so a pasta dos scripts: o checkout completo deste repo
+          # passa de 3 GB e levaria mais tempo que a propria coleta.
+          filter: blob:none
+          sparse-checkout: scripts/apuracao
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Preparar a branch de dados
+        run: |
+          mkdir -p publicar
+          cd publicar
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git checkout -q --orphan apuracao-data
+
+      - name: Plantao
+        run: |
+          python scripts/apuracao/plantao.py \
+            --eleicao "${{ inputs.eleicao }}" \
+            --cargos "${{ inputs.cargos }}" \
+            --ambiente "${{ inputs.ambiente }}" \
+            --minutos "${{ inputs.minutos }}" \
+            --intervalo-alto "${{ inputs.intervalo_alto }}" \
+            --intervalo-mun "${{ inputs.intervalo_mun }}" \
+            --saida publicar \
+            --publicar --branch apuracao-data

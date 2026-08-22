@@ -961,46 +961,10 @@ function cleanCandNamesMetadata(data, yearOrZipUrl) {
 
   if (year !== '2000' && year !== '2004') return;
 
-  const mapping = {
-    10: 'PRB',
-    11: year === '2000' ? 'PPB' : 'PP',
-    12: 'PDT',
-    13: 'PT',
-    14: 'PTB',
-    15: 'PMDB',
-    16: 'PSTU',
-    17: 'PSL',
-    18: 'REDE',
-    19: 'PODE',
-    20: 'PSC',
-    21: 'PCB',
-    22: 'PL',
-    23: 'PPS',
-    24: 'PAN',
-    25: 'PFL',
-    26: 'PAN',
-    27: 'PSDC',
-    28: 'PRTB',
-    29: 'PCO',
-    30: 'NOVO',
-    31: 'PHS',
-    33: 'PMN',
-    35: 'PMB',
-    36: 'PTC',
-    40: 'PSB',
-    43: 'PV',
-    44: 'PRP',
-    45: 'PSDB',
-    50: 'PSOL',
-    51: 'PEN',
-    54: 'PPL',
-    55: 'PSD',
-    56: 'PRONA',
-    65: 'PC do B',
-    70: 'AVANTE',
-    77: 'SOLIDARIEDADE',
-    90: 'PROS'
-  };
+  // Numeros por ano vem de js/party-numbers.js, extraido do proprio acervo. A
+  // tabela que ficava aqui misturava eras (19 'PODE', 18 'REDE', 10 'PRB',
+  // 70 'AVANTE') — siglas que nao existiam em 2000/2004.
+  const siglaDoNumero = (pNum) => siglaForPartyNumber(pNum, year);
 
   Object.entries(candNames).forEach(([candId, meta]) => {
     if (!meta || !Array.isArray(meta) || meta.length < 2) return;
@@ -1013,8 +977,8 @@ function cleanCandNamesMetadata(data, yearOrZipUrl) {
       (party.includes(' ') && !['PC DO B', 'PT DO B', 'PC DOB', 'P DO B'].includes(party.toUpperCase()));
       
     if (isNameConfusion) {
-      const pNum = parseInt(String(candId).substring(0, 2), 10);
-      const correctParty = mapping[pNum] || `P${pNum}`;
+      const pNum = String(candId).substring(0, 2);
+      const correctParty = siglaDoNumero(pNum) || `P${parseInt(pNum, 10)}`;
       meta[1] = correctParty;
       party = correctParty;
     }
@@ -1053,8 +1017,8 @@ function cleanCandNamesMetadata(data, yearOrZipUrl) {
                 }
               }
               if (candId) {
-                const pNum = parseInt(String(candId).substring(0, 2), 10);
-                const correctParty = mapping[pNum] || `P${pNum}`;
+                const pNum = String(candId).substring(0, 2);
+                const correctParty = siglaDoNumero(pNum) || `P${parseInt(pNum, 10)}`;
                 const newKey = `${name} (${correctParty}) (${status}) ${turno}`.trim();
                 cleanedVotes[newKey] = votes;
                 return;

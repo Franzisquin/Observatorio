@@ -155,6 +155,21 @@ def main():
     for c in (con22, con06, con18):
         c.close()
 
+    # ---- 1b) RMSP 1998: predio que so existe como SECAO no acervo
+    #
+    # A E.E. Senador Alexandre Marcondes Filho (Sao Paulo) e 371_71072_C3131 em 1998
+    # (voto so em chaves de secao, sem local) e 371_71072_1163 em 2002, com o mesmo
+    # hist_id. Antes disto o mapa desenhava o predio mas o painel pulava 1998.
+    hist_sp = json.loads(zipfile.ZipFile(
+        "resultados_geo/Historico Governador/historico_governador_SP.zip"
+    ).read("historico_governador_SP.json"))
+    achado = hist_sp["aliases"].get("hist_id:1529")
+    assert achado, "hist_id:1529 (Marcondes Filho) sumiu do historico de governador SP"
+    anos_mf = [r[0] for r in hist_sp["identities"][achado[0]]]
+    assert 1998 in anos_mf, f"1998 faltando no Marcondes Filho: {anos_mf}"
+    assert anos_mf == sorted(anos_mf), f"anos fora de ordem: {anos_mf}"
+    print(f"  ok  Marcondes Filho (so secao em 1998): anos {anos_mf}")
+
     # ---- 2) taxa de resolucao e 3) nao perdeu registro
     print()
     print(f"  {'uf':<4}{'locais':>8}{'resolvidos':>12}{'por hist_id':>13}"

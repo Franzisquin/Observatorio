@@ -15,16 +15,21 @@ __pycache__/
 # em resultados_geo/eleitorado_2026/ entram no repo.
 scratch/eleitorado/2026/
 
+# Snapshots da apuracao gerados por scripts/apuracao/coleta.py. Sao saida
+# regeneravel e efemera: na noite da eleicao quem publica e o workflow, na
+# branch orfa apuracao-data, nao o repo principal.
+scratch/apuracao/
+
 # Shapefiles de regiao do IBGE (280 MB; cada .shp tem 47-92 MB, acima do aviso de
 # 50 MB do GitHub). Sao insumo de scripts/gerar_malhas_regioes.py — o que o site
 # usa e a saida em resultados_geo/regioes_*/ (13,5 MB) e regioes_index.json.
 malhas/
 
-# Analise avulsa das regioes imediatas mais oscilantes nas presidenciais. Nao e
-# usada pelo site — nem o .md nem o script sao carregados por eleicoes.html.
-# Ficam no disco de quem gerou, fora do controle de versao.
+# Analise avulsa das regioes imediatas e municipios mais oscilantes nas presidenciais.
 analise_swing_regioes_imediatas.md
+analise_swing_municipios.md
 scripts/analisar_swing_rgi.py
+scratch/
 
 # Release 0.15 do geocode_br_polling_stations (601 MB; o CSV de locais sozinho tem
 # 190 MB e o de paineis 37 MB, acima do limite do GitHub). E insumo, nao saida: o

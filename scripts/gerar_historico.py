@@ -72,6 +72,25 @@ _CONN = {}
 _LOCAIS = {}
 _RESULTADOS = {}
 _TSE_IBGE = None
+_SUPLEMENTO = None
+
+SUPLEMENTO_ZIP = "resultados_geo/locais_suplemento_rmsp.zip"
+
+
+def suplemento_rmsp():
+    """Locais da RM de Sao Paulo em 1998/2002 vindos do CEM, casados com o TSE por
+    assinatura de votos (scripts/gerar_suplemento_rmsp.py).
+
+    Sem isto, 571 urnas de 2002 na RMSP nao entram no historico: elas nao existem na
+    malha de 2006, que e de onde os anos pre-2006 tiram os locais."""
+    global _SUPLEMENTO
+    if _SUPLEMENTO is None:
+        _SUPLEMENTO = {}
+        if os.path.exists(SUPLEMENTO_ZIP):
+            with zipfile.ZipFile(SUPLEMENTO_ZIP) as z:
+                _SUPLEMENTO = json.loads(
+                    z.read("locais_suplemento_rmsp.json").decode("utf-8"))
+    return _SUPLEMENTO
 
 
 def tse_para_ibge():
@@ -142,6 +161,72 @@ def carregar_resultados(cargo, ano, uf):
     return saida
 
 
+def candidatos(cargo, ano, turno, uf="SP"):
+    """cand_names do acervo, para transformar voto em registro de historico."""
+    chave = ("meta", cargo, ano, turno, uf)
+    if chave not in _RESULTADOS:
+        caminho = G.find_results_zip(cargo, ano, turno, uf)
+        nomes = {}
+        if caminho:
+            with zipfile.ZipFile(caminho) as z:
+                nome = next(n for n in z.namelist()
+                            if n.endswith(".json") and not n.endswith("_resumo.json"))
+                dados = json.loads(z.read(nome).decode("utf-8"))
+                nomes = dados.get("METADATA", {}).get("cand_names", {})
+        _RESULTADOS[chave] = nomes
+    return _RESULTADOS[chave]
+
+
+def registros_suplemento(cargo, ano, uf):
+    """Registros de historico das estacoes do CEM que so existem como SECAO.
+
+    Em 1998 na RMSP, 295 predios nao tem chave de local no acervo -- os votos deles
+    estao espalhados em chaves {zona}_{municipio}_S{n}, que nenhum local reivindica.
+    O mapa ja desenha esses predios (js/data-geral-2006.js, applyRmspSecoes1998); sem
+    isto aqui, eles apareceriam no mapa mas o painel Historico pularia 1998, mesmo
+    tendo o mesmo hist_id do local de 2002 em diante.
+
+    O numero de local do registro e o COD_LV do CEM, que nao e numeracao do TSE --
+    serve so para distinguir os registros; a identidade vem do hist_id.
+    """
+    if uf != "SP":
+        return []
+    estacoes = suplemento_rmsp().get(str(ano), {}).get("estacoes", [])
+    saida = []
+    for e in estacoes:
+        por_turno = e.get("votos", {}).get(cargo, {})
+        if not por_turno:
+            continue
+        turnos = []
+        for turno in (1, 2):
+            votos = por_turno.get(f"{turno}T")
+            if not votos:
+                continue
+            r = G.compute_turn_record(f"{turno}T", votos, candidatos(cargo, ano, turno, uf))
+            if r:
+                turnos.append(r)
+        if not turnos:
+            continue
+        try:
+            local = int(str(e["chave"]).rsplit("C", 1)[1])
+        except (IndexError, ValueError):
+            local = 0
+        registro = [ano, e.get("nm_localidade", ""), e.get("nm_locvot", ""),
+                    e.get("ds_bairro", ""), e["nr_zona"], local,
+                    f"{e['nr_zona']}_{local}", turnos]
+        props = {
+            "sg_uf": uf, "nr_zona": e["nr_zona"], "nr_locvot": local,
+            "nm_localidade": e.get("nm_localidade", ""),
+            "nm_locvot": e.get("nm_locvot", ""),
+            "ds_endereco": e.get("ds_endereco", ""),
+            "ds_bairro": e.get("ds_bairro", ""),
+            "lat": e.get("lat", 0.0), "long": e.get("long", 0.0),
+            "hist_id": e.get("hist_id"), "id_unico": e["chave"],
+        }
+        saida.append((e.get("hist_id"), e["nr_zona"], local, registro, props))
+    return saida
+
+
 def conexao(ano, tmpdir):
     if ano in _CONN:
         return _CONN[ano]
@@ -165,10 +250,12 @@ def locais(uf, ano, tmpdir):
                                          resgatar as ~900 linhas por ano cujo
                                          cod_localidade_ibge vem zerado
     """
-    malha = ANO_MALHA.get(ano, ano)
-    if (uf, malha) in _LOCAIS:
-        return _LOCAIS[(uf, malha)]
+    # Cache pelo ANO, nao pela malha: 1998 e 2002 leem os dois o GPKG de 2006 mas
+    # recebem suplementos diferentes da RMSP.
+    if (uf, ano) in _LOCAIS:
+        return _LOCAIS[(uf, ano)]
 
+    malha = ANO_MALHA.get(ano, ano)
     con, tabela = conexao(malha, tmpdir)
     por_ibge, por_zl = {}, {}
     quantos = defaultdict(int)
@@ -201,8 +288,40 @@ def locais(uf, ano, tmpdir):
         por_zl[(zona, local)] = props
 
     por_zl = {k: v for k, v in por_zl.items() if quantos[k] == 1}
-    _LOCAIS[(uf, malha)] = (por_ibge, por_zl)
-    return _LOCAIS[(uf, malha)]
+
+    # Suplemento do CEM na RM de Sao Paulo: coordenada medida no ano da eleicao e,
+    # nas urnas que a malha de 2006 nao tem, o local inteiro.
+    supl = (suplemento_rmsp().get(str(ano), {}).get("locais", {})
+            if uf == "SP" else {})
+    if supl:
+        ponte = tse_para_ibge()
+        for chave, reg in supl.items():
+            partes = chave.split("_")
+            try:
+                zona, cd, local = int(partes[0]), int(partes[1]), int(partes[2])
+            except (IndexError, ValueError):
+                continue
+            ibge = ponte.get(str(cd))
+            if not ibge:
+                continue
+            props = por_ibge.get((zona, ibge, local))
+            if props is None:
+                props = {
+                    "sg_uf": uf, "nr_zona": zona, "nr_locvot": local,
+                    "nm_localidade": reg.get("nm_localidade", ""),
+                    "nm_locvot": reg.get("nm_locvot", ""),
+                    "ds_endereco": reg.get("ds_endereco", ""),
+                    "ds_bairro": reg.get("ds_bairro", ""),
+                    "hist_id": reg.get("hist_id"),
+                }
+                por_ibge[(zona, ibge, local)] = props
+            props["lat"] = reg["lat"]
+            props["long"] = reg["long"]
+            if reg.get("hist_id") is not None:
+                props["hist_id"] = reg["hist_id"]
+
+    _LOCAIS[(uf, ano)] = (por_ibge, por_zl)
+    return _LOCAIS[(uf, ano)]
 
 
 def montar(cargo, uf, anos, tmpdir, filtro_cdmun=None):
@@ -228,13 +347,26 @@ def montar(cargo, uf, anos, tmpdir, filtro_cdmun=None):
             por_identidade[chave].append((ano, info, res))
             props_de.setdefault(chave, []).append(dict(info, id_unico=res["results_key"]))
 
+    # Predios que so existem como SECAO no acervo de 1998 (RMSP): o voto deles nao
+    # tem chave de local, entao nao vem do laco acima. O mapa ja os desenha; sem
+    # isto o painel pularia 1998 num predio que tem 2002 em diante.
+    extras = defaultdict(list)
+    if filtro_cdmun is None and 1998 in anos:
+        for hist_id, zona, local, registro, props in registros_suplemento(cargo, 1998, uf):
+            chave = ("h", hist_id) if hist_id is not None else ("zl", zona, local)
+            extras[chave].append(registro)
+            props_de.setdefault(chave, []).append(props)
+
     identities, aliases = [], {}
-    for chave in sorted(por_identidade, key=lambda c: (str(c[0]), tuple(map(str, c[1:])))):
-        membros = sorted(por_identidade[chave], key=lambda m: m[0])
+    todas = set(por_identidade) | set(extras)
+    for chave in sorted(todas, key=lambda c: (str(c[0]), tuple(map(str, c[1:])))):
+        membros = sorted(por_identidade.get(chave, []), key=lambda m: m[0])
         registros = [[ano, info["nm_localidade"], info["nm_locvot"], info["ds_bairro"],
                       info["nr_zona"], info["nr_locvot"],
                       f"{info['nr_zona']}_{info['nr_locvot']}", res["turn_records"]]
                      for ano, info, res in membros]
+        registros.extend(extras.get(chave, []))
+        registros.sort(key=lambda r: G.get_history_year_sort_value(r[0]))
         if not registros:
             continue
         idx = len(identities)
