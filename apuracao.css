@@ -1,201 +1,622 @@
-/* Apuracao ao vivo — so o que a pagina acrescenta ao style.css do site.
-   Layout, tipografia, cores e as linhas de candidato (.cand*) vem de la. */
+/* ===========================================================================
+   ElectoMaps — apuração ao vivo
 
-.apu-selo {
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-  padding: 3px 8px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  white-space: nowrap;
+   Constrói sobre os tokens de portal.css. Arquitetura de informação no
+   vocabulário de noite de eleição: barra de estado ao vivo, resultado
+   majoritário em linhas com foto e barra, mapa grande, e tabela de
+   desagregação clicável.
+   =========================================================================== */
+
+/* ---------------------------------------------------------------- estrutura */
+
+.apu-main { padding-bottom: clamp(48px, 7vw, 96px); }
+
+.apu-head {
+  padding: clamp(22px, 3vw, 34px) 0 clamp(18px, 2.4vw, 26px);
+  border-bottom: 1px solid var(--line);
 }
 
-.apu-selo.apu-simulado {
-  color: var(--warn);
-  border-color: var(--warn);
-}
-
-.apu-escopo {
+.apu-kicker {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 14px;
 }
 
-.apu-escopo h3 {
-  margin: 0;
+.apu-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #b42318;
 }
 
-/* Barra de andamento: a informacao mais importante da noite fica no topo e
-   ocupa a largura toda. */
-.apu-progresso-barra {
-  height: 8px;
-  background: var(--chip);
-  border-radius: var(--radius-lg);
+.apu-live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d92d20;
+  animation: apuPulse 2s ease-in-out infinite;
+}
+
+@keyframes apuPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.apu-live.is-off { color: var(--muted); }
+.apu-live.is-off::before { background: var(--muted); animation: none; }
+
+/* Selo de ensaio. Amarelo forte de propósito: dado simulado não pode ser
+   confundido com apuração em curso nem por um instante. */
+.apu-selo {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  background: #fde047;
+  color: #422006;
+  border: 1px solid #ca8a04;
+}
+
+.apu-selo.is-on { display: inline-flex; }
+
+.apu-stamp {
+  font-size: 0.74rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-title {
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 4.6vw, 3.1rem);
+  font-weight: 500;
+  line-height: 1.06;
+  letter-spacing: -0.026em;
+}
+
+.apu-sub {
+  margin-top: 10px;
+  font-size: 0.95rem;
+  color: var(--ink-2);
+  font-weight: 300;
+}
+
+/* ------------------------------------------------------------- andamento */
+
+.apu-progress { margin-top: clamp(16px, 2.2vw, 22px); max-width: 560px; }
+
+.apu-progress-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+}
+
+.apu-progress-pct {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-progress-lab { font-size: 0.78rem; color: var(--muted); }
+
+.apu-bar {
+  height: 6px;
+  background: var(--paper-3);
+  border-radius: 99px;
   overflow: hidden;
 }
 
-.apu-progresso-barra span {
+.apu-bar > span {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--ok);
-  transition: width .6s ease;
+  background: var(--ink);
+  border-radius: 99px;
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.apu-progresso-rot {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  margin-top: 6px;
-  font-size: 0.82rem;
-}
 
-.apu-progresso-rot strong {
-  font-variant-numeric: tabular-nums;
-}
+/* --------------------------------------------------------------- palco
 
-.apu-aviso {
-  margin-top: 10px;
-  padding: 8px 10px;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--text-sec);
-  border-left: 3px solid var(--warn);
-  background: rgba(234, 179, 8, 0.08);
-}
+   O mapa toma toda a altura util abaixo da barra do site, e o painel fica
+   encostado na borda direita da janela — por isso o palco vive fora de .wrap,
+   que tem largura maxima e respiro lateral.
+   ------------------------------------------------------------------------ */
 
-.apu-ranking .cand:first-child .cand-name {
-  font-weight: 700;
-}
-
-/* Numeros de eleicao geral tem 7 digitos ("2.100.000"), contra 6 numa cidade.
-   Com a coluna de nome do visualizador (160px), o total era cortado dentro do
-   overflow da barra. */
-.apu-ranking .cand-name-wrapper-stack {
-  width: 112px;
-}
-
-.apu-ranking .cand-pct {
-  flex: 0 0 60px;
-}
-
-.apu-lider .cand-pct {
-  color: var(--text);
-}
-
-.apu-grade {
+.apu-stage {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) clamp(322px, 26vw, 412px);
+  height: calc(100vh - 68px);
+  min-height: 540px;
+  border-bottom: 1px solid var(--line);
 }
 
-.apu-celula {
+.apu-stage-map {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(10px, 1.8vw, 26px);
+  background: var(--paper-2);
+}
+
+.apu-stage-map .apu-map {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+
+.apu-stage-empty {
+  position: absolute;
+  inset: auto clamp(16px, 4vw, 48px) clamp(16px, 3vw, 32px);
+  max-width: 46ch;
+  padding: 18px 20px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.apu-stage-empty h3 {
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.apu-stage-empty p {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  font-weight: 300;
+}
+
+/* painel encostado */
+
+.apu-dock {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  padding: 6px 8px;
-  background: var(--chip);
-  border-radius: var(--radius-md);
+  min-height: 0;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
 }
 
-.apu-celula strong {
-  font-variant-numeric: tabular-nums;
-  font-size: 0.95rem;
+.apu-dock-head {
+  padding: clamp(18px, 2vw, 26px) clamp(18px, 1.8vw, 24px) clamp(16px, 1.8vw, 22px);
+  border-bottom: 1px solid var(--line);
+  flex: none;
 }
 
-.apu-celula .apu-rot,
-.apu-celula .muted {
-  font-size: 0.7rem;
+.apu-dock-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(16px, 1.8vw, 22px) clamp(18px, 1.8vw, 24px) clamp(28px, 3vw, 40px);
+}
+
+.apu-dock-rot {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .apu-stage {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: 0;
+  }
+  .apu-stage-map { height: 58vh; }
+  .apu-dock { border-left: 0; border-top: 1px solid var(--line); }
+  .apu-dock-body { overflow: visible; }
+}
+
+/* ------------------------------------------------------------------ mapa */
+
+.apu-mapwrap {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.apu-map { display: block; width: 100%; height: auto; }
+
+.apu-map path {
+  stroke: var(--paper);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+  fill: var(--paper-3);
+  cursor: pointer;
+  transition: fill 0.45s ease, opacity 0.2s ease;
+}
+
+.apu-map path:hover { opacity: 0.72; }
+
+.apu-map path.is-empty { fill: var(--paper-3); cursor: default; }
+.apu-map path.is-empty:hover { opacity: 1; }
+
+.apu-maphead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.apu-maptitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--muted);
 }
 
-.apu-banc-linha {
+/* legenda de líderes */
+.apu-legend {
+  position: absolute;
+  left: clamp(14px, 2.4vw, 30px);
+  bottom: clamp(14px, 2vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 10px 13px;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  max-width: 46%;
+}
+
+.apu-legend:empty { display: none; }
+
+.apu-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--ink-2);
+}
+
+.apu-swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* balão do mapa */
+.apu-tip {
+  position: fixed;
+  z-index: 60;
+  pointer-events: none;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 9px 12px;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  max-width: 260px;
+  opacity: 0;
+  transition: opacity 0.14s ease;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22);
+}
+
+.apu-tip.is-on { opacity: 1; }
+.apu-tip b { font-weight: 700; }
+.apu-tip span { display: block; font-variant-numeric: tabular-nums; }
+
+/* --------------------------------------------------------- resultado macro */
+
+.apu-results { border-top: 2px solid var(--ink); }
+
+.apu-cand {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 0 13px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Sem foto e sem inicial (partido, agregado) a coluna some. */
+.apu-cand.is-photoless { grid-template-columns: minmax(0, 1fr) auto; }
+
+.apu-face {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--paper-3);
+  border: 1px solid var(--line);
+  display: block;
+}
+
+/* Enquanto a foto de urna nao existe — o TSE so publica depois de julgado o
+   registro — o lugar dela e ocupado por um disco com as iniciais, na cor do
+   partido. Mantem a coluna alinhada e nao finge ser retrato. */
+.apu-face-ph {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 0;
-  font-size: 0.8rem;
-  border-bottom: 1px solid rgba(125, 125, 125, 0.12);
+  justify-content: center;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--paper);
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  flex: none;
+  user-select: none;
 }
 
-.apu-banc-cor {
-  width: 4px;
-  align-self: stretch;
+/* Libre Franklin — o corte livre da Franklin que o NYT usa como NYT Franklin.
+   Peso fino, que e como o nome do candidato aparece no placar deles. */
+.apu-cand-name {
+  font-family: var(--sans);
+  font-size: 1.04rem;
+  font-weight: 300;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+}
+
+.apu-cand-party {
+  font-size: 0.75rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+.apu-cand-bar {
+  margin-top: 7px;
+  height: 9px;
+  background: var(--paper-3);
   border-radius: 2px;
-  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.apu-banc-nome {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.apu-cand-bar > span {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.apu-cand-nums { text-align: right; white-space: nowrap; }
+
+.apu-cand-pct {
+  font-family: var(--display);
+  font-size: 1.42rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.apu-cand-votes {
+  margin-top: 4px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-cand.is-lead .apu-cand-pct { color: var(--ink); }
+.apu-cand:not(.is-lead) { opacity: 0.82; }
+
+/* eleito / 2º turno */
+.apu-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--ink);
+  color: var(--paper);
+  vertical-align: middle;
+}
+
+/* -------------------------------------------------------------- lateral */
+
+.apu-aside { position: sticky; top: 88px; }
+
+@media (max-width: 940px) {
+  .apu-aside { position: static; }
+}
+
+.apu-card {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: clamp(16px, 2vw, 22px);
+}
+
+.apu-card + .apu-card { margin-top: 16px; }
+
+.apu-card h3 {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.apu-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+
+.apu-stat-v {
+  font-family: var(--display);
+  font-size: 1.16rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.apu-stat-l {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+/* ------------------------------------------------------------------ tabela */
+
+.apu-table-sec { padding-top: clamp(36px, 5vw, 62px); }
+
+.apu-table-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.apu-h2 {
+  font-family: var(--display);
+  font-size: clamp(1.3rem, 2.3vw, 1.75rem);
+  font-weight: 500;
+  letter-spacing: -0.018em;
+}
+
+.apu-table-wrap { overflow-x: auto; }
+
+.apu-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  min-width: 520px;
+}
+
+.apu-table thead th {
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 12px 10px 9px;
+  border-bottom: 2px solid var(--ink);
   white-space: nowrap;
 }
 
-.apu-banc-votos {
+.apu-table thead th.num,
+.apu-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.apu-table tbody td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.apu-table tbody tr { transition: background 0.16s ease; }
+.apu-table tbody tr:hover { background: var(--paper-2); }
+
+.apu-table a { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.apu-table a:hover { color: var(--brand); }
+
+.apu-lead-cell { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.apu-lead-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.apu-mini {
+  display: inline-block;
+  width: 54px;
+  height: 6px;
+  background: var(--paper-3);
+  border-radius: 99px;
+  overflow: hidden;
+  vertical-align: middle;
+}
+
+.apu-mini > span { display: block; height: 100%; border-radius: 99px; }
+
+/* ------------------------------------------------------------------ estados */
+
+.apu-empty {
+  padding: clamp(40px, 7vw, 90px) 0;
+  text-align: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: 3px;
+}
+
+.apu-empty h3 {
+  font-family: var(--display);
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  font-weight: 500;
+  margin-bottom: 10px;
+}
+
+.apu-empty p {
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  max-width: 52ch;
+  margin: 0 auto;
+  font-weight: 300;
+  line-height: 1.65;
+}
+
+.apu-skel {
+  background: linear-gradient(90deg, var(--paper-3) 25%, var(--paper-2) 37%, var(--paper-3) 63%);
+  background-size: 400% 100%;
+  animation: apuSkel 1.3s ease-in-out infinite;
+  border-radius: 2px;
+}
+
+@keyframes apuSkel {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apu-live::before, .apu-skel { animation: none; }
+  .apu-bar > span, .apu-cand-bar > span { transition: none; }
+}
+
+/* --------------------------------------------------- lista antes da urna */
+
+/* Zerado nao e derrota: sem voto contado, ninguem e desbotado. */
+.apu-cand.is-zero { opacity: 1; }
+.apu-cand.is-zero .apu-cand-pct { color: var(--muted); font-weight: 500; }
+.apu-cand.is-zero .apu-cand-bar > span { min-width: 2px; background: var(--line-strong) !important; }
+
+.apu-cand-sit {
+  display: inline-block;
+  margin-left: 8px;
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--muted);
-  font-variant-numeric: tabular-nums;
-  font-size: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 1px 6px;
+  vertical-align: middle;
 }
 
-.apu-banc-vagas {
-  min-width: 26px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
 
-.apu-banc-rodape {
-  margin-top: 6px;
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.apu-detalhe-topo {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding-bottom: 8px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.apu-detalhe-topo strong {
-  font-size: 1.2rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.apu-detalhe-topo .muted {
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.apu-vazio {
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.apu-loader {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 5;
-  padding: 6px 12px;
-  font-size: 0.78rem;
-  color: var(--text);
-  background: var(--card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-}
-
-@media (max-width: 1100px) {
-  .apu-grade {
-    grid-template-columns: 1fr;
-  }
-}
