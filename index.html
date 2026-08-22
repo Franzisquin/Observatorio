@@ -2,355 +2,205 @@
 <html lang="pt-BR">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ElectoMaps</title>
-    <link rel="icon" type="image/png" href="favicon.png">
-    <meta name="description" content="ElectoMaps — plataforma de análise eleitoral e dados políticos do Brasil." />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ElectoMaps</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <meta name="description"
+    content="ElectoMaps reúne portais nacionais de dados eleitorais: resultados históricos mapeados, simulação de cenários e análise demográfica do eleitorado." />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <!-- Oculta o corpo até o idioma ser resolvido; só roda com JS ativo, e
+       js/i18n.js tem um timeout de segurança que reexibe em qualquer caso. -->
+  <script>
+    var de = document.documentElement;
+    de.classList.add('i18n-boot');
+    de.classList.add('js');
+  </script>
 
-    <link rel="stylesheet" href="landing.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="portal.css" />
+  <script src="js/i18n.js" defer></script>
+  <script src="js/motion.js" defer></script>
 </head>
 
-<body>
+<body data-i18n-page="home">
 
-    <!-- STICKY NAVBAR -->
-    <nav class="navbar" id="navbar">
-        <div class="nav-container">
-            <a href="/" class="nav-logo">ElectoMaps</a>
-            <div class="nav-links">
-                <a href="eleicoes.html" class="nav-link">Mapa Eleitoral</a>
-                <a href="apuracao.html" class="nav-link">Apuração</a>
-                <a href="simulador.html" class="nav-link">Simulador</a>
-                <a href="#ferramentas" class="nav-link">Ferramentas</a>
-                <a href="#sobre" class="nav-link">Sobre</a>
-            </div>
-        </div>
-    </nav>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="index.html">ElectoMaps</a>
 
-    <!-- HERO SECTION — DARK -->
-    <section class="hero">
-        <div class="hero-bg">
-            <div id="brazil-map-container"></div>
-            <div class="hero-overlay"></div>
+      <nav class="topnav">
+        <a href="#portais" data-i18n="nav.portals">Portais</a>
+        <a href="#ferramentas" data-i18n="nav.inside">Ferramentas</a>
+        <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+      </nav>
+
+      <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:lang.label">
+        <button type="button" data-lang="pt" title="Português" data-i18n-attr="title:lang.pt">PT</button>
+        <button type="button" data-lang="en" title="Inglês" data-i18n-attr="title:lang.en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ----------------------------------------------------------- abertura -->
+    <!-- ------------------------------------------------------------- lema -->
+    <section class="hero has-mapbg">
+      <div class="mapbg mapbg-world" aria-hidden="true">
+        <svg viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice"><path d="M600 600 460 592 380 579 315 564 260 547 212 529 170 509 133 488 101 467 74 444 51 421 33 398 18 374 8 349 2 325 0 300 2 275 8 251 18 226 33 202 51 179 74 156 101 133 133 112 170 91 212 71 260 53 315 36 380 21 460 8 600 0"/><path d="M600 600 472 592 398 579 339 564 288 547 244 529 206 509 172 488 143 467 118 444 97 421 80 398 67 374 57 349 52 325 50 300 52 275 57 251 67 226 80 202 97 179 118 156 143 133 172 112 206 91 244 71 288 53 339 36 398 21 472 8 600 0"/><path d="M600 600 483 592 417 579 363 564 317 547 276 529 241 509 211 488 184 467 162 444 143 421 127 398 115 374 107 349 102 325 100 300 102 275 107 251 115 226 127 202 143 179 162 156 184 133 211 112 241 91 276 71 317 53 363 36 417 21 483 8 600 0"/><path d="M600 600 495 592 435 579 386 564 345 547 309 529 277 509 250 488 226 467 205 444 188 421 174 398 164 374 156 349 152 325 150 300 152 275 156 251 164 226 174 202 188 179 205 156 226 133 250 112 277 91 309 71 345 53 386 36 435 21 495 8 600 0"/><path d="M600 600 507 592 453 579 410 564 373 547 341 529 313 509 289 488 267 467 249 444 234 421 222 398 212 374 205 349 201 325 200 300 201 275 205 251 212 226 222 202 234 179 249 156 267 133 289 112 313 91 341 71 373 53 410 36 453 21 507 8 600 0"/><path d="M600 600 518 592 472 579 434 564 402 547 374 529 349 509 328 488 309 467 293 444 280 421 269 398 261 374 255 349 251 325 250 300 251 275 255 251 261 226 269 202 280 179 293 156 309 133 328 112 349 91 374 71 402 53 434 36 472 21 518 8 600 0"/><path d="M600 600 530 592 490 579 458 564 430 547 406 529 385 509 366 488 351 467 337 444 326 421 316 398 309 374 304 349 301 325 300 300 301 275 304 251 309 226 316 202 326 179 337 156 351 133 366 112 385 91 406 71 430 53 458 36 490 21 530 8 600 0"/><path d="M600 600 542 592 508 579 481 564 458 547 438 529 421 509 405 488 392 467 381 444 371 421 364 398 358 374 353 349 351 325 350 300 351 275 353 251 358 226 364 202 371 179 381 156 392 133 405 112 421 91 438 71 458 53 481 36 508 21 542 8 600 0"/><path d="M600 600 553 592 527 579 505 564 487 547 471 529 457 509 444 488 434 467 425 444 417 421 411 398 406 374 403 349 401 325 400 300 401 275 403 251 406 226 411 202 417 179 425 156 434 133 444 112 457 91 471 71 487 53 505 36 527 21 553 8 600 0"/><path d="M600 600 565 592 545 579 529 564 515 547 503 529 492 509 483 488 475 467 468 444 463 421 458 398 455 374 452 349 451 325 450 300 451 275 452 251 455 226 458 202 463 179 468 156 475 133 483 112 492 91 503 71 515 53 529 36 545 21 565 8 600 0"/><path d="M600 600 577 592 563 579 553 564 543 547 535 529 528 509 522 488 517 467 512 444 509 421 505 398 503 374 501 349 500 325 500 300 500 275 501 251 503 226 505 202 509 179 512 156 517 133 522 112 528 91 535 71 543 53 553 36 563 21 577 8 600 0"/><path d="M600 600 588 592 582 579 576 564 572 547 568 529 564 509 561 488 558 467 556 444 554 421 553 398 552 374 551 349 550 325 550 300 550 275 551 251 552 226 553 202 554 179 556 156 558 133 561 112 564 91 568 71 572 53 576 36 582 21 588 8 600 0"/><path d="M600 600 600 592 600 579 600 564 600 547 600 529 600 509 600 488 600 467 600 444 600 421 600 398 600 374 600 349 600 325 600 300 600 275 600 251 600 226 600 202 600 179 600 156 600 133 600 112 600 91 600 71 600 53 600 36 600 21 600 8 600 0"/><path d="M600 600 612 592 618 579 624 564 628 547 632 529 636 509 639 488 642 467 644 444 646 421 647 398 648 374 649 349 650 325 650 300 650 275 649 251 648 226 647 202 646 179 644 156 642 133 639 112 636 91 632 71 628 53 624 36 618 21 612 8 600 0"/><path d="M600 600 623 592 637 579 647 564 657 547 665 529 672 509 678 488 683 467 688 444 691 421 695 398 697 374 699 349 700 325 700 300 700 275 699 251 697 226 695 202 691 179 688 156 683 133 678 112 672 91 665 71 657 53 647 36 637 21 623 8 600 0"/><path d="M600 600 635 592 655 579 671 564 685 547 697 529 708 509 717 488 725 467 732 444 737 421 742 398 745 374 748 349 749 325 750 300 749 275 748 251 745 226 742 202 737 179 732 156 725 133 717 112 708 91 697 71 685 53 671 36 655 21 635 8 600 0"/><path d="M600 600 647 592 673 579 695 564 713 547 729 529 743 509 756 488 766 467 775 444 783 421 789 398 794 374 797 349 799 325 800 300 799 275 797 251 794 226 789 202 783 179 775 156 766 133 756 112 743 91 729 71 713 53 695 36 673 21 647 8 600 0"/><path d="M600 600 658 592 692 579 719 564 742 547 762 529 779 509 795 488 808 467 819 444 829 421 836 398 842 374 847 349 849 325 850 300 849 275 847 251 842 226 836 202 829 179 819 156 808 133 795 112 779 91 762 71 742 53 719 36 692 21 658 8 600 0"/><path d="M600 600 670 592 710 579 742 564 770 547 794 529 815 509 834 488 849 467 863 444 874 421 884 398 891 374 896 349 899 325 900 300 899 275 896 251 891 226 884 202 874 179 863 156 849 133 834 112 815 91 794 71 770 53 742 36 710 21 670 8 600 0"/><path d="M600 600 682 592 728 579 766 564 798 547 826 529 851 509 872 488 891 467 907 444 920 421 931 398 939 374 945 349 949 325 950 300 949 275 945 251 939 226 931 202 920 179 907 156 891 133 872 112 851 91 826 71 798 53 766 36 728 21 682 8 600 0"/><path d="M600 600 693 592 747 579 790 564 827 547 859 529 887 509 911 488 933 467 951 444 966 421 978 398 988 374 995 349 999 325 1000 300 999 275 995 251 988 226 978 202 966 179 951 156 933 133 911 112 887 91 859 71 827 53 790 36 747 21 693 8 600 0"/><path d="M600 600 705 592 765 579 814 564 855 547 891 529 923 509 950 488 974 467 995 444 1012 421 1026 398 1036 374 1044 349 1048 325 1050 300 1048 275 1044 251 1036 226 1026 202 1012 179 995 156 974 133 950 112 923 91 891 71 855 53 814 36 765 21 705 8 600 0"/><path d="M600 600 717 592 783 579 837 564 883 547 924 529 959 509 989 488 1016 467 1038 444 1057 421 1073 398 1085 374 1093 349 1098 325 1100 300 1098 275 1093 251 1085 226 1073 202 1057 179 1038 156 1016 133 989 112 959 91 924 71 883 53 837 36 783 21 717 8 600 0"/><path d="M600 600 728 592 802 579 861 564 912 547 956 529 994 509 1028 488 1057 467 1082 444 1103 421 1120 398 1133 374 1143 349 1148 325 1150 300 1148 275 1143 251 1133 226 1120 202 1103 179 1082 156 1057 133 1028 112 994 91 956 71 912 53 861 36 802 21 728 8 600 0"/><path d="M600 600 740 592 820 579 885 564 940 547 988 529 1030 509 1067 488 1099 467 1126 444 1149 421 1167 398 1182 374 1192 349 1198 325 1200 300 1198 275 1192 251 1182 226 1167 202 1149 179 1126 156 1099 133 1067 112 1030 91 988 71 940 53 885 36 820 21 740 8 600 0"/><path d="M346 572 854 572"/><path d="M212 529 988 529"/><path d="M116 478 1084 478"/><path d="M51 421 1149 421"/><path d="M13 361 1187 361"/><path d="M0 300 1200 300"/><path d="M13 239 1187 239"/><path d="M51 179 1149 179"/><path d="M116 122 1084 122"/><path d="M212 71 988 71"/><path d="M346 28 854 28"/></svg>
+      </div>
+      <div class="wrap">
+        <h1 class="motto reveal" data-reveal="now" data-i18n="home.motto">
+          Eleições detalhadas como você nunca viu.
+        </h1>
+        <div class="hero-actions reveal" data-reveal="now" style="--d:200ms">
+          <a class="btn btn-solid" href="#portais">
+            <span data-i18n="home.cta">Ver portais</span>
+            <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </a>
         </div>
-        <div class="hero-content">
-            <p class="hero-eyebrow">Análise política baseada em dados</p>
-            <h1 class="hero-title">ElectoMaps</h1>
-            <p class="hero-subtitle">A ferramenta mais completa para visualizar os dados que moldam a democracia
-                brasileira</p>
-            <div class="hero-actions">
-                <a href="eleicoes.html" class="btn btn-gradient">Explorar o mapa</a>
-                <a href="#ferramentas" class="btn btn-ghost">Ver ferramentas</a>
-            </div>
-        </div>
+      </div>
     </section>
 
-    <!-- FEATURES / TOOLS — WHITE -->
-    <section class="section section-white" id="ferramentas">
-        <div class="container">
-            <p class="section-eyebrow">Ferramentas</p>
-            <h2 class="section-title">Tudo que você precisa em um só lugar</h2>
-            <div class="features-grid">
-
-                <a href="eleicoes.html" class="feature-card" id="card-eleicoes">
-                    <div class="feature-icon icon-blue">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                            <circle cx="12" cy="10" r="3" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Eleições anteriores</h3>
-                    <p class="feature-desc">Explore resultados eleitorais de 2006 a 2024 com mapas interativos ponto a
-                        ponto, por local de votação, município e bairro.</p>
-                    <span class="feature-cta">Acessar →</span>
-                </a>
-
-                <a href="simulador.html" class="feature-card" id="card-simulador">
-                    <div class="feature-icon icon-cyan">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M12 20V10" />
-                            <path d="M18 20V4" />
-                            <path d="M6 20v-4" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Simulador de cenários</h3>
-                    <p class="feature-desc">Monte cenários hipotéticos de corridas presidenciais e estaduais com base em
-                        dados demográficos e padrões históricos.</p>
-                    <span class="feature-cta">Acessar →</span>
-                </a>
-
-                <div class="feature-card" id="card-agregador">
-                    <div class="feature-icon icon-orange">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="18" y1="20" x2="18" y2="10" />
-                            <line x1="12" y1="20" x2="12" y2="4" />
-                            <line x1="6" y1="20" x2="6" y2="14" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Agregador de pesquisas</h3>
-                    <p class="feature-desc">Pesquisas eleitorais compiladas e ponderadas, com médias móveis e
-                        visualização de tendências em tempo real.</p>
-                    <span class="feature-cta soon">Em breve</span>
-                </div>
-
-                <div class="feature-card" id="card-nowcast">
-                    <div class="feature-icon icon-purple">
-                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                        </svg>
-                    </div>
-                    <h3 class="feature-title">Nowcast</h3>
-                    <p class="feature-desc">Projeções em tempo real do cenário eleitoral com modelos estatísticos
-                        atualizados diariamente.</p>
-                    <span class="feature-cta soon">Em breve</span>
-                </div>
-
-            </div>
-        </div>
+    <!-- -------------------------------------------------------- pais por pais -->
+    <section class="lead">
+      <div class="wrap">
+        <h2 class="hero-title reveal" data-i18n="home.title">
+          Cartografia eleitoral, país por país.
+        </h2>
+        <p class="hero-lede reveal" style="--d:100ms" data-i18n="home.lede">
+          Cada país tem o seu portal: resultados oficiais mapeados até o local de votação, simulação de cenários e
+          leitura demográfica do eleitorado.
+        </p>
+      </div>
     </section>
 
-    <!-- ABOUT — SOFT BG -->
-    <section class="section section-soft" id="sobre">
-        <div class="container container-narrow">
-            <p class="section-eyebrow">Sobre o projeto</p>
-            <h2 class="section-title">Dados abertos, análise independente</h2>
-            <p class="about-text">
-                O <strong>ElectoMaps</strong> é uma plataforma independente dedicada à análise aprofundada da política
-                brasileira. Reunimos dados eleitorais históricos desde 2006, ferramentas de simulação de cenários,
-                agregação de pesquisas e projeções em tempo real — tudo em um só lugar, com visualizações interativas e
-                acessíveis a qualquer cidadão interessado em compreender a democracia do Brasil.
+    <!-- -------------------------------------------------- 01 · portais nacionais -->
+    <section class="section" id="portais">
+      <div class="wrap section-grid">
+        <div class="section-label reveal">
+          <h2 class="section-title" data-i18n="home.s1.title">Portais nacionais</h2>
+          <p class="section-note" data-i18n="home.s1.desc">
+            Um portal por país, com os dados e as ferramentas daquele sistema eleitoral.
+          </p>
+        </div>
+
+        <div>
+          <a class="portal reveal" href="brasil.html">
+            <div class="portal-body">
+              <h3 class="portal-name" data-i18n="home.br.name">Brasil</h3>
+              <p class="portal-desc" data-i18n="home.br.desc">
+                Resultados de eleições gerais e municipais mapeados do país inteiro até a urna, com camadas
+                demográficas do Censo.
+              </p>
+              <span class="portal-cta">
+                <span data-i18n="home.br.cta">Abrir portal</span>
+                <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </span>
+            </div>
+
+            <div class="portal-figure">
+              <svg class="geo-mark" viewBox="0 0 1000 864" role="img" aria-label="Brasil"><path d="M446 719 425 727 420 734 404 742 405 746 401 745 362 786 371 788 381 784 398 799 398 805 408 800 415 809 430 814 448 827 452 836 463 842 453 851 456 864 473 851 482 831 514 806 538 766 527 765 532 762 533 753 538 751 537 747 518 746 507 733 483 721 464 717 446 719Z"/><path d="M463 618 482 619 485 616 515 625 532 624 539 630 540 645 549 656 547 663 563 663 563 672 570 670 574 678 602 653 621 643 633 645 633 640 648 634 645 631 647 626 661 619 646 613 633 619 626 617 625 623 612 624 611 616 604 611 609 592 598 591 593 579 596 574 587 559 557 563 556 570 554 563 548 566 548 559 521 555 501 568 479 606 463 618Z"/><path d="M732 589 760 545 760 523 741 513 733 515 736 519 727 522 733 534 725 534 730 537 732 548 722 564 712 568 715 585 732 589Z"/><path d="M646 613 661 619 647 626 645 631 648 634 653 633 649 628 655 625 660 627 668 624 674 628 682 626 680 621 685 619 685 626 708 626 709 616 731 604 732 589 715 585 711 577 705 581 703 598 685 606 670 606 646 613Z"/><path d="M451 698 500 709 504 706 504 700 516 698 519 693 524 696 533 693 541 698 550 693 562 692 575 676 570 670 563 673 563 663 547 663 549 656 540 645 539 630 532 624 515 625 485 616 482 619 466 617 453 624 443 637 441 647 435 651 437 657 429 681 433 686 440 682 445 684 451 698Z"/><path d="M538 766 559 749 568 725 562 721 565 718 560 708 565 698 563 692 550 693 541 698 533 693 524 696 519 693 516 698 504 700 504 706 500 709 451 698 446 719 464 717 483 721 507 733 518 746 537 747 538 751 533 753 532 762 527 765 538 766Z"/><path d="M509 562 521 555 542 558 548 559 549 567 554 563 556 570 557 563 587 559 596 574 593 579 598 591 609 592 604 611 611 616 612 624 625 623 626 617 633 619 670 606 685 606 703 598 705 581 713 574 712 567 722 564 732 548 730 537 725 534 733 534 727 522 736 519 733 515 748 515 748 510 739 502 740 495 747 491 747 484 756 474 737 464 723 466 713 451 707 453 683 441 675 445 667 442 669 434 665 433 652 434 619 455 620 447 614 447 609 442 609 450 599 450 602 469 591 472 588 482 595 493 586 502 592 507 592 517 577 527 555 522 545 530 542 526 524 531 510 548 509 562Z"/><path d="M741 279 759 279 776 291 785 278 780 272 784 256 794 248 805 226 814 224 787 199 755 180 742 178 725 181 721 191 725 206 728 206 725 225 732 231 735 261 745 267 741 279Z"/><path d="M511 548 525 531 542 526 545 530 555 522 577 527 592 517 592 507 586 503 595 494 588 482 591 472 570 472 569 468 571 460 589 460 590 471 602 469 600 450 609 450 609 442 619 447 622 435 615 429 614 414 619 411 613 412 613 407 618 403 612 405 611 401 588 411 584 407 583 415 572 412 573 408 566 411 564 408 563 412 557 400 548 402 545 411 525 401 528 391 523 395 512 421 507 447 497 450 490 467 482 469 472 478 473 483 465 490 460 505 463 522 470 523 467 530 477 531 511 548Z"/><path d="M785 258 795 261 814 250 809 265 823 266 826 271 833 256 842 260 864 260 853 231 826 229 814 224 805 226 785 258Z"/><path d="M620 344 625 327 620 315 632 287 649 281 664 267 677 268 688 265 690 257 685 251 684 241 691 232 687 210 697 193 704 193 713 182 713 177 701 178 679 169 669 172 673 167 662 178 658 178 664 170 658 172 655 182 650 184 656 169 654 164 649 167 654 161 647 154 650 153 644 152 645 148 635 152 635 146 631 149 633 146 628 145 628 142 623 144 623 140 617 144 614 164 596 202 584 218 559 235 568 231 587 239 590 256 581 276 587 278 585 282 597 295 609 294 596 317 608 327 606 332 612 342 620 344Z"/><path d="M591 472 589 460 571 460 570 472 591 472Z"/><path d="M626 342 630 341 634 355 644 359 651 352 661 352 672 338 669 326 676 322 691 330 710 322 740 297 737 283 745 267 737 264 732 231 725 225 729 209 721 191 724 181 712 178 710 187 697 193 687 210 691 232 684 241 685 251 690 257 688 265 677 268 663 267 649 281 632 287 620 315 625 327 619 344 622 347 626 342Z"/><path d="M360 506 366 521 351 554 357 559 350 563 358 581 354 606 380 611 390 606 402 610 407 619 411 648 428 644 437 650 451 625 476 609 485 598 496 574 508 565 511 548 477 531 467 530 470 523 463 522 463 516 444 514 449 508 449 498 436 508 430 504 418 508 396 497 382 500 366 513 360 506Z"/><path d="M463 516 460 500 473 483 472 478 482 469 490 467 497 450 507 447 520 402 516 397 515 370 526 335 382 325 363 311 362 299 351 280 346 291 345 312 275 312 276 360 300 360 310 363 312 368 307 379 315 390 301 415 294 420 301 427 299 431 304 451 297 451 305 460 306 477 347 477 345 497 360 505 366 513 382 500 396 497 418 508 430 504 441 507 449 498 449 508 444 514 463 516Z"/><path d="M797 328 820 338 833 349 860 314 844 313 821 325 803 313 792 323 797 328Z"/><path d="M4 274 6 279 1 280 0 284 23 316 17 325 36 327 40 338 61 338 77 326 75 360 101 359 121 363 163 337 118 317 87 291 31 284 4 274Z"/><path d="M797 328 803 346 801 354 793 354 792 358 798 370 808 373 822 355 833 349 820 338 797 328Z"/><path d="M4 274 31 284 87 291 118 317 159 334 168 325 182 329 194 322 197 326 203 316 218 315 230 293 247 294 266 313 272 309 345 312 346 291 351 280 344 265 390 167 396 161 383 166 373 155 355 148 354 141 347 142 335 124 334 111 309 111 301 128 303 133 295 136 283 128 275 137 277 152 268 148 254 134 261 124 254 105 256 95 248 81 250 74 240 68 221 73 214 87 213 83 197 91 187 102 186 94 170 100 158 90 153 91 152 77 146 67 135 77 128 72 129 78 92 79 92 93 105 93 108 102 87 104 87 120 97 128 102 142 90 212 71 209 68 214 46 217 26 230 17 250 19 261 8 266 4 274Z"/><path d="M781 286 796 290 814 278 820 283 811 293 820 301 832 290 852 286 858 280 868 284 868 275 864 260 842 260 833 256 826 271 823 266 809 265 816 253 814 250 795 261 784 258 780 272 785 278 781 286Z"/><path d="M792 323 803 313 821 325 844 313 860 314 867 284 858 280 852 286 832 290 820 301 811 293 820 283 814 278 796 290 781 286 773 291 759 279 741 279 737 283 740 297 723 310 733 313 739 327 767 306 783 316 787 313 792 323Z"/><path d="M163 336 191 332 191 366 198 382 215 394 226 392 241 397 248 405 262 407 269 417 287 416 294 420 301 415 315 390 307 379 310 363 276 360 277 330 274 322 277 314 272 309 267 313 263 312 246 293 230 293 218 315 203 316 197 326 194 322 182 329 168 325 159 334 163 336Z"/><path d="M526 101 534 94 533 79 522 77 516 69 508 47 507 30 495 17 495 27 467 68 448 64 440 70 423 63 426 77 436 78 455 89 466 120 475 130 478 140 485 144 494 140 504 119 526 101Z"/><path d="M520 402 528 391 525 401 545 411 548 402 557 400 563 412 564 408 566 411 573 408 572 412 583 415 584 407 588 411 611 401 612 405 618 403 613 404 616 394 609 384 616 381 612 380 611 374 618 374 607 368 627 342 622 347 619 342 612 342 606 332 608 327 596 317 609 294 607 292 597 295 585 282 587 278 581 276 590 256 587 239 577 233 568 231 559 235 573 241 571 248 561 264 549 270 545 284 550 290 547 302 530 323 518 353 516 396 520 402Z"/><path d="M760 523 772 509 770 497 778 468 774 443 776 411 796 397 812 370 801 372 792 359 793 354 801 354 803 344 790 316 767 306 739 327 736 326 738 320 728 310 692 330 676 322 668 328 672 338 666 348 644 359 634 355 630 341 626 342 607 368 618 374 611 374 612 380 616 381 609 384 616 394 613 404 618 403 613 407 613 412 619 411 614 414 614 426 622 435 618 454 660 432 669 434 667 441 675 445 683 441 707 453 713 451 723 466 748 467 756 474 747 484 747 491 742 491 739 502 748 510 748 515 760 523Z"/><path d="M235 68 250 74 248 81 255 93 254 105 261 124 254 134 277 152 274 146 278 131 286 128 298 136 303 132 301 128 309 111 334 111 334 89 317 78 316 66 310 59 313 38 321 29 317 20 306 17 311 5 307 0 294 1 297 7 288 17 281 16 267 26 255 24 244 37 239 30 222 31 218 26 204 22 204 27 219 40 216 47 221 55 220 61 234 62 235 68Z"/><path d="M526 335 530 323 549 298 550 290 545 284 549 270 561 264 571 248 573 241 559 235 584 218 596 202 614 164 618 139 606 138 601 133 599 136 591 130 584 132 582 129 566 137 567 122 545 121 545 116 538 113 542 109 528 109 531 104 526 101 504 119 494 140 485 144 478 140 475 130 466 120 455 89 436 78 426 77 422 58 412 63 399 61 395 67 401 72 398 76 370 72 364 79 354 80 354 83 347 81 343 89 334 89 335 124 345 140 351 144 354 141 355 148 373 155 383 166 396 161 390 167 344 265 362 299 363 311 382 325 526 335Z"/></svg>
+            </div>
+          </a>
+
+          <div class="soon-note reveal" style="--d:120ms">
+            <p class="soon-title" data-i18n="home.soon.title">Novos portais</p>
+            <p class="soon-desc" data-i18n="home.soon.desc">
+              Outros portais nacionais estão em desenvolvimento. A estrutura do ElectoMaps é a mesma para qualquer
+              país: fonte oficial, reprocessamento e leitura geográfica fina.
             </p>
-            <p class="about-text">
-                Inspirado por plataformas como <em>FiveThirtyEight</em>, <em>270toWin</em> e <em>Redistricter</em>,
-                o projeto busca trazer o mesmo nível de sofisticação analítica para o contexto brasileiro, cobrindo
-                mais de 90 mil locais de votação em todo o território nacional.
-            </p>
+          </div>
         </div>
+      </div>
     </section>
 
-    <!-- FOOTER -->
-    <footer class="site-footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-brand">
-                    <span class="footer-logo">ElectoMaps</span>
-                    <p class="footer-tagline">Análise eleitoral brasileira</p>
-                </div>
-                <div class="footer-col">
-                    <h4>Ferramentas</h4>
-                    <a href="eleicoes.html">Mapa Eleitoral</a>
-                    <a href="apuracao.html">Apuração ao vivo</a>
-                    <a href="simulador.html">Simulador</a>
-                    <a href="#">Agregador</a>
-                    <a href="#">Nowcast</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Contato</h4>
-                    <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
-                    <a href="mailto:electomaps@gmail.com">E-mail</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <span>&copy; 2026 ElectoMaps. Dados abertos, análise independente.</span>
-            </div>
+    <!-- ------------------------------------------- 02 · o que há em cada portal -->
+    <section class="section" id="ferramentas">
+      <div class="wrap section-grid">
+        <div class="section-label reveal">
+          <h2 class="section-title" data-i18n="home.s2.title">O que há em cada portal</h2>
+          <p class="section-note" data-i18n="home.s2.desc">
+            A disponibilidade de cada ferramenta varia conforme os dados públicos de cada país.
+          </p>
         </div>
-    </footer>
 
-    <script>
-        // Sticky navbar background on scroll
-        const navbar = document.getElementById('navbar');
-        window.addEventListener('scroll', () => {
-            navbar.classList.toggle('scrolled', window.scrollY > 40);
-        });
+        <div class="deflist stagger">
+          <div class="deflist-row">
+            <h3 class="deflist-term" data-i18n="home.f1.title">Mapa eleitoral</h3>
+            <p class="deflist-desc" data-i18n="home.f1.desc">
+              Resultados oficiais em mapas interativos, do país inteiro até o local de votação individual.
+            </p>
+          </div>
+          <div class="deflist-row">
+            <h3 class="deflist-term" data-i18n="home.f2.title">Simulador de cenários</h3>
+            <p class="deflist-desc" data-i18n="home.f2.desc">
+              Você monta os seus próprios cenários: define quem disputa, move o eleitorado e vê a corrida se
+              recalcular sobre dados reais.
+            </p>
+          </div>
+          <div class="deflist-row">
+            <h3 class="deflist-term" data-i18n="home.f3.title">Agregador de pesquisas</h3>
+            <p class="deflist-desc" data-i18n="home.f3.desc">
+              Pesquisas eleitorais compiladas e ponderadas, com médias móveis e leitura de tendência.
+            </p>
+          </div>
+          <div class="deflist-row">
+            <h3 class="deflist-term" data-i18n="home.f4.title">Nowcast</h3>
+            <p class="deflist-desc" data-i18n="home.f4.desc">
+              Projeções do cenário eleitoral a partir de modelos estatísticos.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-        // Load and render interactive background Brazil vector map
-        const container = document.getElementById('brazil-map-container');
-        fetch('resultados_geo/estados_brasil.geojson')
-            .then(response => response.json())
-            .then(geojson => {
-                const width = 1200;
-                const height = 1100;
+  </main>
 
-                // Douglas-Peucker Simplification Algorithm
-                function simplifyDouglasPeucker(points, sqTolerance) {
-                    const len = points.length;
-                    if (len <= 2) return points;
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <p class="foot-logo">ElectoMaps</p>
+          <p class="foot-tagline" data-i18n="foot.tagline">Cartografia eleitoral independente</p>
+        </div>
 
-                    let maxSqDist = 0;
-                    let index = 0;
-                    const end = len - 1;
+        <div class="foot-col">
+          <h4 data-i18n="foot.portals">Portais</h4>
+          <a href="brasil.html" data-i18n="nav.brazil">Brasil</a>
+        </div>
 
-                    for (let i = 1; i < end; i++) {
-                        const sqDist = getSqSegDist(points[i], points[0], points[end]);
-                        if (sqDist > maxSqDist) {
-                            index = i;
-                            maxSqDist = sqDist;
-                        }
-                    }
+        <div class="foot-col">
+          <h4 data-i18n="foot.project">Projeto</h4>
+          <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+        </div>
 
-                    if (maxSqDist > sqTolerance) {
-                        const results1 = simplifyDouglasPeucker(points.slice(0, index + 1), sqTolerance);
-                        const results2 = simplifyDouglasPeucker(points.slice(index), sqTolerance);
-                        return results1.slice(0, results1.length - 1).concat(results2);
-                    }
-                    return [points[0], points[end]];
-                }
+        <div class="foot-col">
+          <h4 data-i18n="foot.contact">Contato</h4>
+          <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:electomaps@gmail.com" data-i18n="foot.email">E-mail</a>
+        </div>
+      </div>
 
-                function getSqSegDist(p, p1, p2) {
-                    let x = p1[0], y = p1[1],
-                        dx = p2[0] - x, dy = p2[1] - y;
+      <div class="foot-bottom">
+        <span data-i18n="foot.rights">© 2026 ElectoMaps. Todos os direitos reservados.</span>
+        <span data-i18n="foot.sources">Fontes oficiais, análise independente.</span>
+      </div>
+    </div>
+  </footer>
 
-                    if (dx !== 0 || dy !== 0) {
-                        let t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
-                        if (t > 1) {
-                            x = p2[0];
-                            y = p2[1];
-                        } else if (t > 0) {
-                            x += dx * t;
-                            y += dy * t;
-                        }
-                    }
-
-                    dx = p[0] - x;
-                    dy = p[1] - y;
-                    return dx * dx + dy * dy;
-                }
-
-                // Compute bounding box area for a feature (used for adaptive tolerance)
-                function featureBBoxArea(feature) {
-                    let fMinLon = 180, fMaxLon = -180, fMinLat = 90, fMaxLat = -90;
-                    const scanRing = ring => {
-                        ring.forEach(([lon, lat]) => {
-                            if (lon < fMinLon) fMinLon = lon;
-                            if (lon > fMaxLon) fMaxLon = lon;
-                            if (lat < fMinLat) fMinLat = lat;
-                            if (lat > fMaxLat) fMaxLat = lat;
-                        });
-                    };
-                    const g = feature.geometry;
-                    if (g.type === 'Polygon') g.coordinates.forEach(scanRing);
-                    else if (g.type === 'MultiPolygon') g.coordinates.forEach(p => p.forEach(scanRing));
-                    return (fMaxLon - fMinLon) * (fMaxLat - fMinLat);
-                }
-
-                // Find global bounds from geojson coordinates
-                let minLon = 180, maxLon = -180, minLat = 90, maxLat = -90;
-
-                geojson.features.forEach(f => {
-                    const processRing = ring => {
-                        ring.forEach(([lon, lat]) => {
-                            if (lon < minLon) minLon = lon;
-                            if (lon > maxLon) maxLon = lon;
-                            if (lat < minLat) minLat = lat;
-                            if (lat > maxLat) maxLat = lat;
-                        });
-                    };
-
-                    const geom = f.geometry;
-                    if (geom.type === 'Polygon') {
-                        geom.coordinates.forEach(processRing);
-                    } else if (geom.type === 'MultiPolygon') {
-                        geom.coordinates.forEach(polygon => polygon.forEach(processRing));
-                    }
-                });
-
-                const centerLon = (minLon + maxLon) / 2;
-                const centerLat = (minLat + maxLat) / 2;
-
-                const lonDiff = maxLon - minLon;
-                const latDiff = maxLat - minLat;
-                const scale = Math.min(width / lonDiff, height / latDiff) * 1.05;
-
-                const project = (lon, lat) => {
-                    const x = (lon - centerLon) * scale + width / 2;
-                    const y = -(lat - centerLat) * scale + height / 2;
-                    return [x, y];
-                };
-
-                // Compute the largest state bbox area for normalizing tolerance
-                const globalBBoxArea = lonDiff * latDiff;
-
-                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
-                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-
-                geojson.features.forEach((feature, index) => {
-                    const geom = feature.geometry;
-                    const coords = geom.coordinates;
-
-                    // Adaptive tolerance: larger states get more aggressive simplification,
-                    // smaller states (Acre, Sergipe, Alagoas, DF) get gentler simplification
-                    const bboxArea = featureBBoxArea(feature);
-                    const areaRatio = bboxArea / globalBBoxArea; // 0..1
-                    // Scale tolerance: small states (ratio < 0.02) → 0.003, large states → up to 0.015
-                    const sqTolerance = 0.003 + Math.min(areaRatio * 2, 1) * 0.012;
-
-                    const processPolygon = (rings) => {
-                        let pathStr = "";
-                        rings.forEach((ring) => {
-                            if (ring.length === 0) return;
-                            
-                            const simplified = simplifyDouglasPeucker(ring, sqTolerance);
-                            
-                            const [firstLon, firstLat] = simplified[0];
-                            const [firstX, firstY] = project(firstLon, firstLat);
-                            pathStr += ` M ${firstX.toFixed(1)} ${firstY.toFixed(1)}`;
-                            for (let i = 1; i < simplified.length; i++) {
-                                const [lon, lat] = simplified[i];
-                                const [x, y] = project(lon, lat);
-                                pathStr += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
-                            }
-                            pathStr += " Z";
-                        });
-                        return pathStr;
-                    };
-
-                    let d = "";
-                    if (geom.type === 'Polygon') {
-                        d = processPolygon(coords);
-                    } else if (geom.type === 'MultiPolygon') {
-                        coords.forEach(poly => {
-                            d += processPolygon(poly);
-                        });
-                    }
-
-                    if (!d) return;
-
-                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-                    // Deep blue flow worm
-                    const flowBlue = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    flowBlue.setAttribute('d', d);
-                    flowBlue.setAttribute('class', 'state-flow-blue');
-                    const delayVal = index * 0.45;
-                    flowBlue.style.animationDelay = `-${delayVal.toFixed(2)}s`;
-                    g.appendChild(flowBlue);
-
-                    // Cyan flow worm (chasing the blue one with 6s offset)
-                    const flowCyan = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                    flowCyan.setAttribute('d', d);
-                    flowCyan.setAttribute('class', 'state-flow-cyan');
-                    flowCyan.style.animationDelay = `-${(delayVal + 6).toFixed(2)}s`;
-                    g.appendChild(flowCyan);
-
-                    svg.appendChild(g);
-                });
-
-                container.innerHTML = '';
-                container.appendChild(svg);
-            })
-            .catch(err => {
-                console.error('Erro ao carregar o mapa do Brasil:', err);
-            });
-    </script>
 </body>
 
 </html>
