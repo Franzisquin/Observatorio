@@ -28,20 +28,26 @@
   <script src="js/motion.js" defer></script>
 </head>
 
-<body>
+<body data-i18n-page="home">
 
-    <!-- STICKY NAVBAR -->
-    <nav class="navbar" id="navbar">
-        <div class="nav-container">
-            <a href="/" class="nav-logo">ElectoMaps</a>
-            <div class="nav-links">
-                <a href="eleicoes.html" class="nav-link">Mapa Eleitoral</a>
-                <a href="simulador.html" class="nav-link">Simulador</a>
-                <a href="#ferramentas" class="nav-link">Ferramentas</a>
-                <a href="#sobre" class="nav-link">Sobre</a>
-            </div>
-        </div>
-    </nav>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="index.html">ElectoMaps</a>
+
+      <nav class="topnav">
+        <a href="#portais" data-i18n="nav.portals">Portais</a>
+        <a href="#ferramentas" data-i18n="nav.inside">Ferramentas</a>
+        <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+      </nav>
+
+      <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:lang.label">
+        <button type="button" data-lang="pt" title="Português" data-i18n-attr="title:lang.pt">PT</button>
+        <button type="button" data-lang="en" title="Inglês" data-i18n-attr="title:lang.en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
 
     <!-- ----------------------------------------------------------- abertura -->
     <!-- ------------------------------------------------------------- lema -->
@@ -161,32 +167,39 @@
       </div>
     </section>
 
-    <!-- FOOTER -->
-    <footer class="site-footer">
-        <div class="container">
-            <div class="footer-grid">
-                <div class="footer-brand">
-                    <span class="footer-logo">ElectoMaps</span>
-                    <p class="footer-tagline">Análise eleitoral brasileira</p>
-                </div>
-                <div class="footer-col">
-                    <h4>Ferramentas</h4>
-                    <a href="eleicoes.html">Mapa Eleitoral</a>
-                    <a href="simulador.html">Simulador</a>
-                    <a href="#">Agregador</a>
-                    <a href="#">Nowcast</a>
-                </div>
-                <div class="footer-col">
-                    <h4>Contato</h4>
-                    <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X (Twitter)</a>
-                    <a href="mailto:electomaps@gmail.com">E-mail</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <span>&copy; 2026 ElectoMaps. Dados abertos, análise independente.</span>
-            </div>
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <p class="foot-logo">ElectoMaps</p>
+          <p class="foot-tagline" data-i18n="foot.tagline">Cartografia eleitoral independente</p>
         </div>
-    </footer>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.portals">Portais</h4>
+          <a href="brasil.html" data-i18n="nav.brazil">Brasil</a>
+        </div>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.project">Projeto</h4>
+          <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+        </div>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.contact">Contato</h4>
+          <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:electomaps@gmail.com" data-i18n="foot.email">E-mail</a>
+        </div>
+      </div>
+
+      <div class="foot-bottom">
+        <span data-i18n="foot.rights">© 2026 ElectoMaps. Todos os direitos reservados.</span>
+        <span data-i18n="foot.sources">Fontes oficiais, análise independente.</span>
+      </div>
+    </div>
+  </footer>
 
 </body>
 
