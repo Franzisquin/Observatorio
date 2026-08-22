@@ -48,22 +48,79 @@ const APU = (function () {
     sc: 'Santa Catarina', se: 'Sergipe', sp: 'São Paulo', to: 'Tocantins'
   };
 
-  /* Mesma paleta partidária do resto do site (js/globals.js), reduzida aos
-     partidos que aparecem em disputa majoritária. */
+  /* Paleta partidária do site, derivada de PARTY_COLOR_OVERRIDES (js/globals.js)
+     — a predefinição que o visualizador pinta no mapa e que simulador.js
+     espelha —, completada com PARTY_COLORS para as siglas que a override não
+     cobre. Chaves já normalizadas: maiúsculas, sem acento, sem "FEDERAÇÃO ".
+
+     DEMOCRATA usa a cor do PMB: é o mesmo partido, renomeado. */
   const CORES = {
-    PT: '#C0122D', PL: '#30306C', PSDB: '#0096ff', MDB: '#009959', PP: '#3672c9',
-    PSD: '#ffa400', UNIÃO: '#054577', UNIAO: '#054577', PDT: '#FE8E6D',
-    PSB: '#FFCC00', PSOL: '#68018D', REPUBLICANOS: '#005CA9', PODE: '#00d663',
-    PSC: '#006f41', PCDOB: '#800314', PV: '#01652F', REDE: '#3ca08c',
-    CIDADANIA: '#ec008c', SOLIDARIEDADE: '#f37021', AVANTE: '#2eacb2',
-    NOVO: '#ec671c', PRTB: '#245ba0', PMN: '#CF7676', DC: '#c89721',
-    PSTU: '#c92127', PCO: '#9F030A', UP: '#000000', PCB: '#a8231c',
-    AGIR: '#316635', MOBILIZA: '#DD3333', PRD: '#007c3c', PTB: '#005533'
+    'AGIR': '#254d88', 'ARENA': '#4034b2', 'AVANTE': '#36aeba', 'CIDADANIA': '#ec5fa6',
+    'DC': '#809eff', 'DEM': '#6dbf36', 'DEMOCRATA': '#384ba8', 'MDB': '#16a250',
+    'MISSAO': '#fdbe21', 'MOBILIZA': '#dd3333', 'NOVO': '#ff6600', 'OUTROS': '#7a8699',
+    'PAN': '#ffff00', 'PASART': '#0000ff', 'PATRI': '#5fa72f', 'PATRIOTA': '#5fa72f',
+    'PC DO B': '#b4251d', 'PCB': '#c40823', 'PCDOB': '#b4251d', 'PCO': '#8e3d10',
+    'PDS': '#6391d4', 'PDT': '#ffad99', 'PEN': '#4aa561', 'PFL': '#6dbf36',
+    'PGT': '#006600', 'PH': '#ff8511', 'PHS': '#e25850', 'PJ': '#01369e', 'PL': '#304091',
+    'PMB': '#384ba8', 'PMDB': '#16a250', 'PMN': '#ff3333', 'PN': '#008000',
+    'PODE': '#23a840', 'PODEMOS': '#23a840', 'PP': '#6391d4', 'PPB': '#6391d4',
+    'PPL': '#c6a815', 'PPR': '#6391d4', 'PPS': '#ec5fa6', 'PR': '#304091', 'PRB': '#45bdc9',
+    'PRD': '#007c3c', 'PRN': '#009966', 'PRONA': '#0f6c36', 'PROS': '#e6661e',
+    'PRP': '#ffe099', 'PRTB': '#1a7e2f', 'PSB': '#edd355', 'PSC': '#2f8e4f',
+    'PSD': '#eb8100', 'PSDB': '#0097fd', 'PSDC': '#809eff', 'PSL': '#5dca53',
+    'PSOL': '#e95dd2', 'PSP46': '#533e40', 'PST': '#9370db', 'PSTU': '#620411',
+    'PT': '#ff3859', 'PT DO B': '#2eacb2', 'PTB': '#71def4', 'PTC': '#37c884',
+    'PTN': '#23a840', 'PTR': '#1a7e2f', 'PTRB': '#245ba0', 'PV': '#1f9439',
+    'REDE': '#7dd1d9', 'REPUBLICANOS': '#1f646b', 'SD': '#ff633d',
+    'SOLIDARIEDADE': '#ff633d', 'TOSSUP': '#cbd5e1', 'UNIAO': '#2eccff',
+    'UNIAO BRASIL': '#2eccff', 'UP': '#5e5e5e'
   };
+
+  /* Mesmas equivalências de getNormalizedPartyColorKey() no visualizador. */
+  const APELIDOS = {
+    PATRI: 'PATRIOTA', PODE: 'PODEMOS', SD: 'SOLIDARIEDADE',
+    'PC DO B': 'PCDOB', DEMOCRATA: 'PMB'
+  };
+
   const CINZA = '#94a3b8';
 
   function cor(sigla) {
-    return CORES[String(sigla || '').toUpperCase().replace(/\s+/g, '')] || CINZA;
+    let k = String(sigla || '').trim().toUpperCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/\s+/g, ' ').replace(/^FEDERACAO /, '');
+    if (APELIDOS[k]) k = APELIDOS[k];
+    return CORES[k] || CORES[k.replace(/\s+/g, '')] || CINZA;
+  }
+
+  /* ------------------------------------------------------------------ nomes */
+
+  /* O TSE devolve tudo em caixa alta. Baixar sem critério estragaria sigla e
+     inicial: JHC vira Jhc, ACM vira Acm. Palavra sem vogal fica como está. */
+  const PARTICULAS = new Set(['DE', 'DA', 'DO', 'DAS', 'DOS', 'E', 'DI', 'DU',
+    'DEL', 'DELLA', 'VAN', 'VON', 'Y', 'LA', 'LE', 'DOS', 'D']);
+
+  function capitalizar(palavra) {
+    if (!palavra) return palavra;
+    const nu = palavra.normalize('NFD').replace(/[̀-ͯ]/g, '');
+    /* Sigla ou inicial: sem vogal, ou pontuada no meio (A.C.M.). */
+    if (!/[AEIOU]/i.test(nu) || /\w\.\w/.test(palavra)) return palavra;
+    /* Maiuscula tambem depois de apostrofo: D'Avila, Sant'Anna, O'Brien. */
+    return (palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase())
+      .replace(/(['’])(\p{L})/gu, (_, ap, letra) => ap + letra.toUpperCase());
+  }
+
+  function nomeProprio(bruto) {
+    const texto = String(bruto || '').trim();
+    if (!texto) return '';
+    /* Só mexe se veio em caixa alta; nome já composto passa intacto. */
+    if (texto !== texto.toUpperCase()) return texto;
+
+    return texto.split(/(\s+|-)/).map((parte, i) => {
+      if (/^(\s+|-)$/.test(parte)) return parte;
+      const limpa = parte.replace(/[^\wÀ-ÿ]/g, '').toUpperCase();
+      if (i > 0 && PARTICULAS.has(limpa)) return parte.toLowerCase();
+      return capitalizar(parte);
+    }).join('');
   }
 
   /* ------------------------------------------------------------- formatação */
@@ -137,8 +194,8 @@ const APU = (function () {
         const d = (dicionario || {})[sq] || {};
         return {
           chave: sq,
-          nome: d.nome || sq,
-          urna: d.urna || d.nome || sq,
+          nome: nomeProprio(d.nome) || sq,
+          urna: nomeProprio(d.urna || d.nome) || sq,
           numero: d.numero || '',
           partido: d.partido || '',
           votos,
@@ -285,8 +342,8 @@ const APU = (function () {
       .filter(([, c]) => !alvo || String(c.uf).toUpperCase() === alvo)
       .map(([sq, c]) => ({
         chave: sq,
-        nome: c.nome || c.urna,
-        urna: c.urna || c.nome,
+        nome: nomeProprio(c.nome || c.urna),
+        urna: nomeProprio(c.urna || c.nome),
         numero: c.numero || '',
         partido: c.partido || '',
         coligacao: c.coligacao || '',
@@ -313,7 +370,7 @@ const APU = (function () {
 
   return {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES,
-    cor, fmt, snapshot, malha, ranking, lider, agregar, projetar,
+    cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar, projetar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo
   };

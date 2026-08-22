@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Central de apuração — ElectoMaps</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <meta name="description"
+    content="Central de apuração ao vivo: resultado presidencial em destaque e as disputas de governador e senador nos maiores colégios eleitorais. Dados oficiais do TSE." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@200;300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="portal.css" />
+  <link rel="stylesheet" href="apuracao.css" />
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="index.html">
+        ElectoMaps
+        <span class="brand-sep" aria-hidden="true">/</span>
+        <span class="brand-scope">Apuração</span>
+      </a>
+
+      <nav class="topnav">
+        <a href="#presidente">Presidente</a>
+        <a href="#governador">Governador</a>
+        <a href="#senado">Senado</a>
+        <a href="brasil.html">Brasil</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="apu-central">
+
+    <!-- ------------------------------------------------ presidente, em destaque -->
+    <section class="apu-destaque" id="presidente">
+      <div class="wrap">
+        <div class="apu-destaque-topo">
+          <div class="apu-kicker">
+            <span class="apu-live is-off" id="selLive">Aguardando</span>
+            <span class="apu-selo" id="selSimulado">Simulado</span>
+            <span class="apu-stamp" id="selCarimbo"></span>
+          </div>
+          <h1 class="apu-destaque-titulo">Presidente da República</h1>
+        </div>
+
+        <div class="apu-destaque-grid">
+          <div class="apu-destaque-coluna">
+            <div class="apu-results" id="placarPresidente"></div>
+
+            <div class="apu-destaque-andamento">
+              <div class="apu-progress">
+                <div class="apu-progress-top">
+                  <span class="apu-progress-pct" id="pctApurado">—</span>
+                  <span class="apu-progress-lab" id="secoesApuradas">seções totalizadas</span>
+                </div>
+                <div class="apu-bar"><span id="barraApurada"></span></div>
+              </div>
+              <a class="btn btn-solid" id="linkPresidente" href="apuracao-presidente.html">
+                <span>Abrir o mapa presidencial</span>
+                <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <div class="apu-destaque-mapa">
+            <svg class="apu-map" id="mapaNacional" viewBox="0 0 1000 864"
+              preserveAspectRatio="xMidYMid meet" role="img"
+              aria-label="Mapa do Brasil por unidade federativa"><path data-chave="rs" data-nome="Rio Grande do Sul" d="M446 719 425 727 420 734 404 742 405 746 401 745 362 786 371 788 381 784 398 799 398 805 408 800 415 809 430 814 448 827 452 836 463 842 453 851 456 864 473 851 482 831 514 806 538 766 527 765 532 762 533 753 538 751 537 747 518 746 507 733 483 721 464 717 446 719Z"></path><path data-chave="sp" data-nome="São Paulo" d="M463 618 482 619 485 616 515 625 532 624 539 630 540 645 549 656 547 663 563 663 563 672 570 670 574 678 602 653 621 643 633 645 633 640 648 634 645 631 647 626 661 619 646 613 633 619 626 617 625 623 612 624 611 616 604 611 609 592 598 591 593 579 596 574 587 559 557 563 556 570 554 563 548 566 548 559 521 555 501 568 479 606 463 618Z"></path><path data-chave="es" data-nome="Espírito Santo" d="M732 589 760 545 760 523 741 513 733 515 736 519 727 522 733 534 725 534 730 537 732 548 722 564 712 568 715 585 732 589Z"></path><path data-chave="rj" data-nome="Rio de Janeiro" d="M646 613 661 619 647 626 645 631 648 634 653 633 649 628 655 625 660 627 668 624 674 628 682 626 680 621 685 619 685 626 708 626 709 616 731 604 732 589 715 585 711 577 705 581 703 598 685 606 670 606 646 613Z"></path><path data-chave="pr" data-nome="Paraná" d="M451 698 500 709 504 706 504 700 516 698 519 693 524 696 533 693 541 698 550 693 562 692 575 676 570 670 563 673 563 663 547 663 549 656 540 645 539 630 532 624 515 625 485 616 482 619 466 617 453 624 443 637 441 647 435 651 437 657 429 681 433 686 440 682 445 684 451 698Z"></path><path data-chave="sc" data-nome="Santa Catarina" d="M538 766 559 749 568 725 562 721 565 718 560 708 565 698 563 692 550 693 541 698 533 693 524 696 519 693 516 698 504 700 504 706 500 709 451 698 446 719 464 717 483 721 507 733 518 746 537 747 538 751 533 753 532 762 527 765 538 766Z"></path><path data-chave="mg" data-nome="Minas Gerais" d="M509 562 521 555 542 558 548 559 549 567 554 563 556 570 557 563 587 559 596 574 593 579 598 591 609 592 604 611 611 616 612 624 625 623 626 617 633 619 670 606 685 606 703 598 705 581 713 574 712 567 722 564 732 548 730 537 725 534 733 534 727 522 736 519 733 515 748 515 748 510 739 502 740 495 747 491 747 484 756 474 737 464 723 466 713 451 707 453 683 441 675 445 667 442 669 434 665 433 652 434 619 455 620 447 614 447 609 442 609 450 599 450 602 469 591 472 588 482 595 493 586 502 592 507 592 517 577 527 555 522 545 530 542 526 524 531 510 548 509 562Z"></path><path data-chave="ce" data-nome="Ceará" d="M741 279 759 279 776 291 785 278 780 272 784 256 794 248 805 226 814 224 787 199 755 180 742 178 725 181 721 191 725 206 728 206 725 225 732 231 735 261 745 267 741 279Z"></path><path data-chave="go" data-nome="Goiás" d="M511 548 525 531 542 526 545 530 555 522 577 527 592 517 592 507 586 503 595 494 588 482 591 472 570 472 569 468 571 460 589 460 590 471 602 469 600 450 609 450 609 442 619 447 622 435 615 429 614 414 619 411 613 412 613 407 618 403 612 405 611 401 588 411 584 407 583 415 572 412 573 408 566 411 564 408 563 412 557 400 548 402 545 411 525 401 528 391 523 395 512 421 507 447 497 450 490 467 482 469 472 478 473 483 465 490 460 505 463 522 470 523 467 530 477 531 511 548Z"></path><path data-chave="rn" data-nome="Rio Grande do Norte" d="M785 258 795 261 814 250 809 265 823 266 826 271 833 256 842 260 864 260 853 231 826 229 814 224 805 226 785 258Z"></path><path data-chave="ma" data-nome="Maranhão" d="M620 344 625 327 620 315 632 287 649 281 664 267 677 268 688 265 690 257 685 251 684 241 691 232 687 210 697 193 704 193 713 182 713 177 701 178 679 169 669 172 673 167 662 178 658 178 664 170 658 172 655 182 650 184 656 169 654 164 649 167 654 161 647 154 650 153 644 152 645 148 635 152 635 146 631 149 633 146 628 145 628 142 623 144 623 140 617 144 614 164 596 202 584 218 559 235 568 231 587 239 590 256 581 276 587 278 585 282 597 295 609 294 596 317 608 327 606 332 612 342 620 344Z"></path><path data-chave="df" data-nome="Distrito Federal" d="M591 472 589 460 571 460 570 472 591 472Z"></path><path data-chave="pi" data-nome="Piauí" d="M626 342 630 341 634 355 644 359 651 352 661 352 672 338 669 326 676 322 691 330 710 322 740 297 737 283 745 267 737 264 732 231 725 225 729 209 721 191 724 181 712 178 710 187 697 193 687 210 691 232 684 241 685 251 690 257 688 265 677 268 663 267 649 281 632 287 620 315 625 327 619 344 622 347 626 342Z"></path><path data-chave="ms" data-nome="Mato Grosso do Sul" d="M360 506 366 521 351 554 357 559 350 563 358 581 354 606 380 611 390 606 402 610 407 619 411 648 428 644 437 650 451 625 476 609 485 598 496 574 508 565 511 548 477 531 467 530 470 523 463 522 463 516 444 514 449 508 449 498 436 508 430 504 418 508 396 497 382 500 366 513 360 506Z"></path><path data-chave="mt" data-nome="Mato Grosso" d="M463 516 460 500 473 483 472 478 482 469 490 467 497 450 507 447 520 402 516 397 515 370 526 335 382 325 363 311 362 299 351 280 346 291 345 312 275 312 276 360 300 360 310 363 312 368 307 379 315 390 301 415 294 420 301 427 299 431 304 451 297 451 305 460 306 477 347 477 345 497 360 505 366 513 382 500 396 497 418 508 430 504 441 507 449 498 449 508 444 514 463 516Z"></path><path data-chave="al" data-nome="Alagoas" d="M797 328 820 338 833 349 860 314 844 313 821 325 803 313 792 323 797 328Z"></path><path data-chave="ac" data-nome="Acre" d="M4 274 6 279 1 280 0 284 23 316 17 325 36 327 40 338 61 338 77 326 75 360 101 359 121 363 163 337 118 317 87 291 31 284 4 274Z"></path><path data-chave="se" data-nome="Sergipe" d="M797 328 803 346 801 354 793 354 792 358 798 370 808 373 822 355 833 349 820 338 797 328Z"></path><path data-chave="am" data-nome="Amazonas" d="M4 274 31 284 87 291 118 317 159 334 168 325 182 329 194 322 197 326 203 316 218 315 230 293 247 294 266 313 272 309 345 312 346 291 351 280 344 265 390 167 396 161 383 166 373 155 355 148 354 141 347 142 335 124 334 111 309 111 301 128 303 133 295 136 283 128 275 137 277 152 268 148 254 134 261 124 254 105 256 95 248 81 250 74 240 68 221 73 214 87 213 83 197 91 187 102 186 94 170 100 158 90 153 91 152 77 146 67 135 77 128 72 129 78 92 79 92 93 105 93 108 102 87 104 87 120 97 128 102 142 90 212 71 209 68 214 46 217 26 230 17 250 19 261 8 266 4 274Z"></path><path data-chave="pb" data-nome="Paraíba" d="M781 286 796 290 814 278 820 283 811 293 820 301 832 290 852 286 858 280 868 284 868 275 864 260 842 260 833 256 826 271 823 266 809 265 816 253 814 250 795 261 784 258 780 272 785 278 781 286Z"></path><path data-chave="pe" data-nome="Pernambuco" d="M792 323 803 313 821 325 844 313 860 314 867 284 858 280 852 286 832 290 820 301 811 293 820 283 814 278 796 290 781 286 773 291 759 279 741 279 737 283 740 297 723 310 733 313 739 327 767 306 783 316 787 313 792 323Z"></path><path data-chave="ro" data-nome="Rondônia" d="M163 336 191 332 191 366 198 382 215 394 226 392 241 397 248 405 262 407 269 417 287 416 294 420 301 415 315 390 307 379 310 363 276 360 277 330 274 322 277 314 272 309 267 313 263 312 246 293 230 293 218 315 203 316 197 326 194 322 182 329 168 325 159 334 163 336Z"></path><path data-chave="ap" data-nome="Amapá" d="M526 101 534 94 533 79 522 77 516 69 508 47 507 30 495 17 495 27 467 68 448 64 440 70 423 63 426 77 436 78 455 89 466 120 475 130 478 140 485 144 494 140 504 119 526 101Z"></path><path data-chave="to" data-nome="Tocantins" d="M520 402 528 391 525 401 545 411 548 402 557 400 563 412 564 408 566 411 573 408 572 412 583 415 584 407 588 411 611 401 612 405 618 403 613 404 616 394 609 384 616 381 612 380 611 374 618 374 607 368 627 342 622 347 619 342 612 342 606 332 608 327 596 317 609 294 607 292 597 295 585 282 587 278 581 276 590 256 587 239 577 233 568 231 559 235 573 241 571 248 561 264 549 270 545 284 550 290 547 302 530 323 518 353 516 396 520 402Z"></path><path data-chave="ba" data-nome="Bahia" d="M760 523 772 509 770 497 778 468 774 443 776 411 796 397 812 370 801 372 792 359 793 354 801 354 803 344 790 316 767 306 739 327 736 326 738 320 728 310 692 330 676 322 668 328 672 338 666 348 644 359 634 355 630 341 626 342 607 368 618 374 611 374 612 380 616 381 609 384 616 394 613 404 618 403 613 407 613 412 619 411 614 414 614 426 622 435 618 454 660 432 669 434 667 441 675 445 683 441 707 453 713 451 723 466 748 467 756 474 747 484 747 491 742 491 739 502 748 510 748 515 760 523Z"></path><path data-chave="rr" data-nome="Roraima" d="M235 68 250 74 248 81 255 93 254 105 261 124 254 134 277 152 274 146 278 131 286 128 298 136 303 132 301 128 309 111 334 111 334 89 317 78 316 66 310 59 313 38 321 29 317 20 306 17 311 5 307 0 294 1 297 7 288 17 281 16 267 26 255 24 244 37 239 30 222 31 218 26 204 22 204 27 219 40 216 47 221 55 220 61 234 62 235 68Z"></path><path data-chave="pa" data-nome="Pará" d="M526 335 530 323 549 298 550 290 545 284 549 270 561 264 571 248 573 241 559 235 584 218 596 202 614 164 618 139 606 138 601 133 599 136 591 130 584 132 582 129 566 137 567 122 545 121 545 116 538 113 542 109 528 109 531 104 526 101 504 119 494 140 485 144 478 140 475 130 466 120 455 89 436 78 426 77 422 58 412 63 399 61 395 67 401 72 398 76 370 72 364 79 354 80 354 83 347 81 343 89 334 89 335 124 345 140 351 144 354 141 355 148 373 155 383 166 396 161 390 167 344 265 362 299 363 311 382 325 526 335Z"></path></svg>
+            <p class="apu-progress-lab" id="notaMapa"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------------------------------------------- governador -->
+    <section class="apu-bloco" id="governador">
+      <div class="wrap">
+        <div class="apu-bloco-head">
+          <h2 class="apu-h2">Governador</h2>
+          <span class="apu-progress-lab" id="notaGov">Maiores colégios eleitorais</span>
+        </div>
+        <div class="apu-estados" id="gradeGov"></div>
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------------------- senado -->
+    <section class="apu-bloco" id="senado">
+      <div class="wrap">
+        <div class="apu-bloco-head">
+          <h2 class="apu-h2">Senado</h2>
+          <span class="apu-progress-lab" id="notaSen">Maiores colégios eleitorais</span>
+        </div>
+        <div class="apu-estados" id="gradeSen"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-bottom">
+        <span>© 2026 ElectoMaps. Todos os direitos reservados.</span>
+        <span>Resultados oficiais do Tribunal Superior Eleitoral.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/apuracao-dados.js"></script>
+  <script src="js/apuracao-ui.js"></script>
+  <script src="js/apuracao-central.js"></script>
+</body>
+
+</html>

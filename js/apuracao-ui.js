@@ -59,7 +59,9 @@ const APUUI = (function () {
     const secoes = $('secoesApuradas');
     const p = entrada ? Number(entrada.pst) || 0 : 0;
 
-    if (pct) pct.textContent = entrada ? APU.fmt.pct(p) + ' apurado' : '—';
+    /* Sem boletim o percentual e 0,00%, nao um travessao: zero apurado e um
+       numero, e e o mesmo que os cartoes de estado mostram. */
+    if (pct) pct.textContent = APU.fmt.pct(p) + ' apurado';
     if (barra) barra.style.width = Math.max(0, Math.min(100, p)) + '%';
     if (secoes) {
       secoes.textContent = entrada
@@ -124,7 +126,7 @@ const APUUI = (function () {
       const resto = lista.slice(limite).reduce((s, c) => s + c.votos, 0);
       el.insertAdjacentHTML('beforeend',
         `<div class="apu-cand is-photoless" style="opacity:.62">
-           <div><div class="apu-cand-name" style="font-size:.9rem">Demais (${lista.length - limite})</div></div>
+           <div><div class="apu-cand-name" style="font-size:.9rem">Outros (${lista.length - limite})</div></div>
            <div class="apu-cand-nums"><div class="apu-cand-votes">${APU.fmt.int(resto)}</div></div>
          </div>`);
     }
@@ -135,6 +137,10 @@ const APUUI = (function () {
   function participacao(entrada, alvo) {
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return;
+    /* Sem boletim nao ha participacao: esconde o titulo junto, em vez de deixar
+       um rotulo sobre nada. */
+    const rot = $('rotuloParticipacao');
+    if (rot) rot.hidden = !entrada;
     if (!entrada) { el.innerHTML = ''; return; }
 
     const cel = (v, l) => `<div><div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;

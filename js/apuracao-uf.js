@@ -73,8 +73,15 @@
     const nomeUF = APU.UF_NOMES[uf] || uf.toUpperCase();
     $('tituloUF').textContent = nomeUF;
     $('brandScope').textContent = nomeUF;
-    $('navNacional').href = 'apuracao.html' + sufixoParams();
-    $('voltar').href = 'apuracao.html' + sufixoParams();
+    /* Presidente tem mapa nacional proprio; os demais cargos voltam para a
+       central, que e onde governador e senador sao acompanhados. */
+    const destino = (APU.cfg.cargo === '0001' ? 'apuracao-presidente.html' : 'apuracao.html')
+      + sufixoParams();
+    $('navNacional').href = destino;
+    $('navNacional').textContent = APU.cfg.cargo === '0001' ? 'Mapa nacional' : 'Central';
+    $('voltar').href = destino;
+    const rot = $('voltar').querySelector('span');
+    if (rot) rot.textContent = APU.cfg.cargo === '0001' ? 'Apuração nacional' : 'Central de apuração';
     document.title = `${nomeUF} — ${nomeDoCargo()} — Apuração — ElectoMaps`;
 
     if (!dados) {

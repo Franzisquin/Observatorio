@@ -9,7 +9,9 @@
 
 /* ---------------------------------------------------------------- estrutura */
 
-.apu-main { padding-bottom: clamp(48px, 7vw, 96px); }
+/* Sem respiro no fim: o palco fecha exatamente na altura da janela, e um
+   padding aqui reintroduziria a barra de rolagem que ele evita. */
+.apu-main { padding-bottom: 0; }
 
 .apu-head {
   padding: clamp(22px, 3vw, 34px) 0 clamp(18px, 2.4vw, 26px);
@@ -79,22 +81,22 @@
 
 .apu-title {
   font-family: var(--display);
-  font-size: clamp(1.9rem, 4.6vw, 3.1rem);
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
   font-weight: 500;
   line-height: 1.06;
   letter-spacing: -0.026em;
 }
 
 .apu-sub {
-  margin-top: 10px;
-  font-size: 0.95rem;
+  margin-top: 5px;
+  font-size: 0.85rem;
   color: var(--ink-2);
   font-weight: 300;
 }
 
 /* ------------------------------------------------------------- andamento */
 
-.apu-progress { margin-top: clamp(16px, 2.2vw, 22px); max-width: 560px; }
+.apu-progress { margin-top: 12px; max-width: 560px; }
 
 .apu-progress-top {
   display: flex;
@@ -130,6 +132,37 @@
 }
 
 
+/* ------------------------------------------- dobra dupla (página estadual)
+
+   A página principal usa o palco em tela cheia; a estadual segue na retícula
+   rolável, porque ali o mapa divide a atenção com a tabela de municípios.
+   ------------------------------------------------------------------------ */
+
+.apu-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
+  gap: clamp(24px, 3.6vw, 56px);
+  align-items: start;
+  padding-top: clamp(24px, 3.4vw, 40px);
+}
+
+@media (max-width: 940px) {
+  .apu-grid { grid-template-columns: 1fr; }
+}
+
+/* Na estadual a legenda volta a ser bloco no fluxo, sob o mapa. */
+.apu-grid .apu-legend {
+  position: static;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 0;
+  border: 0;
+  background: none;
+  max-width: none;
+  margin-top: 12px;
+}
+
 /* --------------------------------------------------------------- palco
 
    O mapa toma toda a altura util abaixo da barra do site, e o painel fica
@@ -137,17 +170,31 @@
    que tem largura maxima e respiro lateral.
    ------------------------------------------------------------------------ */
 
+/* 68px da barra + 1px do fio inferior dela. Sem esse 1px o palco passava da
+   janela e nascia com barra de rolagem. dvh porque no celular a barra de
+   endereco encolhe a viewport e 100vh estoura. */
+:root { --apu-topbar: 69px; }
+
 .apu-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(322px, 26vw, 412px);
-  height: calc(100vh - 68px);
-  min-height: 540px;
+  /* Sem esta linha explícita o grid dimensiona a faixa por max-content: o SVG
+     do mapa impunha a própria altura natural e vazava da janela. */
+  grid-template-rows: minmax(0, 1fr);
+  height: calc(100dvh - var(--apu-topbar));
+  min-height: 400px;
   border-bottom: 1px solid var(--line);
+}
+
+@supports not (height: 100dvh) {
+  .apu-stage { height: calc(100vh - var(--apu-topbar)); }
 }
 
 .apu-stage-map {
   position: relative;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -159,6 +206,7 @@
   width: 100%;
   height: 100%;
   max-height: 100%;
+  min-height: 0;
 }
 
 .apu-stage-empty {
@@ -196,7 +244,7 @@
 }
 
 .apu-dock-head {
-  padding: clamp(18px, 2vw, 26px) clamp(18px, 1.8vw, 24px) clamp(16px, 1.8vw, 22px);
+  padding: clamp(14px, 1.6vw, 20px) clamp(16px, 1.6vw, 22px) clamp(12px, 1.4vw, 16px);
   border-bottom: 1px solid var(--line);
   flex: none;
 }
@@ -206,7 +254,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: clamp(16px, 1.8vw, 22px) clamp(18px, 1.8vw, 24px) clamp(28px, 3vw, 40px);
+  padding: clamp(14px, 1.5vw, 18px) clamp(16px, 1.6vw, 22px) clamp(14px, 1.5vw, 18px);
 }
 
 .apu-dock-rot {
@@ -331,10 +379,10 @@
 
 .apu-cand {
   display: grid;
-  grid-template-columns: 46px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 11px;
   align-items: center;
-  padding: 14px 0 13px;
+  padding: 6px 0 5px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -342,10 +390,13 @@
 .apu-cand.is-photoless { grid-template-columns: minmax(0, 1fr) auto; }
 
 .apu-face {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
+  /* A foto de urna e retrato 161x225; recortando pelo centro exato o queixo
+     entra e a testa sai. Subir o ponto de corte mantem o rosto enquadrado. */
+  object-position: 50% 28%;
   background: var(--paper-3);
   border: 1px solid var(--line);
   display: block;
@@ -355,14 +406,14 @@
    registro — o lugar dela e ocupado por um disco com as iniciais, na cor do
    partido. Mantem a coluna alinhada e nao finge ser retrato. */
 .apu-face-ph {
-  width: 46px;
-  height: 46px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--sans);
-  font-size: 0.78rem;
+  font-size: 0.66rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--paper);
@@ -375,22 +426,22 @@
    Peso fino, que e como o nome do candidato aparece no placar deles. */
 .apu-cand-name {
   font-family: var(--sans);
-  font-size: 1.04rem;
+  font-size: 0.95rem;
   font-weight: 300;
-  line-height: 1.25;
+  line-height: 1.22;
   letter-spacing: -0.005em;
 }
 
 .apu-cand-party {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--muted);
   letter-spacing: 0.03em;
   margin-top: 2px;
 }
 
 .apu-cand-bar {
-  margin-top: 7px;
-  height: 9px;
+  margin-top: 4px;
+  height: 6px;
   background: var(--paper-3);
   border-radius: 2px;
   overflow: hidden;
@@ -408,7 +459,7 @@
 
 .apu-cand-pct {
   font-family: var(--display);
-  font-size: 1.42rem;
+  font-size: 1.12rem;
   font-weight: 600;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -416,8 +467,8 @@
 }
 
 .apu-cand-votes {
-  margin-top: 4px;
-  font-size: 0.76rem;
+  margin-top: 2px;
+  font-size: 0.7rem;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -467,19 +518,19 @@
   margin-bottom: 14px;
 }
 
-.apu-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; }
+.apu-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 10px; }
 
 .apu-stat-v {
   font-family: var(--display);
-  font-size: 1.16rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
 }
 
 .apu-stat-l {
-  margin-top: 3px;
-  font-size: 0.72rem;
+  margin-top: 2px;
+  font-size: 0.66rem;
   color: var(--muted);
   line-height: 1.35;
 }
@@ -602,7 +653,7 @@
 /* Zerado nao e derrota: sem voto contado, ninguem e desbotado. */
 .apu-cand.is-zero { opacity: 1; }
 .apu-cand.is-zero .apu-cand-pct { color: var(--muted); font-weight: 500; }
-.apu-cand.is-zero .apu-cand-bar > span { min-width: 2px; background: var(--line-strong) !important; }
+.apu-cand.is-zero .apu-cand-bar > span { min-width: 3px; }
 
 .apu-cand-sit {
   display: inline-block;
@@ -618,5 +669,227 @@
   padding: 1px 6px;
   vertical-align: middle;
 }
+
+
+
+/* Crédito no pé do painel: numa página de painel, o rodapé completo do site
+   empurraria o palco para fora da janela. */
+.apu-credito {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* ------------------------------------------------------- voto no exterior
+
+   O eleitorado fora do país não tem território para pintar no mapa. Entra como
+   um globo no oceano, à esquerda do continente: mesma superfície clicável das
+   UFs, com `data-chave="zz"`, que é como o TSE identifica o exterior. Enquanto
+   o boletim não traz essa abrangência, fica no cinza neutro como qualquer
+   unidade sem apuração.
+   ------------------------------------------------------------------------ */
+
+.apu-exterior-grade {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 0.6;
+  opacity: 0.55;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.apu-exterior-rot {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--muted);
+  pointer-events: none;
+}
+
+.apu-map .apu-exterior-disco { stroke-width: 1; }
+
+/* ===========================================================================
+   CENTRAL DE APURAÇÃO
+
+   Porta de entrada da noite. Ao contrário da página presidencial, que é um
+   painel de tela cheia, esta rola: são três disputas empilhadas.
+   =========================================================================== */
+
+.apu-central { padding-bottom: clamp(40px, 5vw, 72px); }
+
+/* -------------------------------------------------------- presidente */
+
+.apu-destaque {
+  padding: clamp(22px, 3vw, 38px) 0 clamp(28px, 3.4vw, 44px);
+  border-bottom: 1px solid var(--line);
+  background: var(--paper-2);
+}
+
+.apu-destaque-topo { margin-bottom: clamp(14px, 2vw, 22px); }
+
+/* Andamento e chamada ficam abaixo da lista, fechando a coluna da esquerda. */
+.apu-destaque-andamento {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(16px, 2.4vw, 32px);
+  flex-wrap: wrap;
+  margin-top: clamp(16px, 2vw, 22px);
+}
+
+.apu-destaque-andamento .apu-progress { margin: 0; min-width: 220px; flex: 1; }
+.apu-destaque-andamento .btn { margin: 0; flex: none; }
+
+/* Placar e andamento à esquerda, mapa à direita ocupando toda a altura. */
+.apu-destaque-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: stretch;
+}
+
+.apu-destaque-coluna { display: flex; flex-direction: column; min-width: 0; }
+
+/* O SVG sai do fluxo para não impor a própria altura: quem manda na altura da
+   faixa é a coluna da esquerda, e o mapa se encaixa no que sobrar. */
+.apu-destaque-mapa {
+  position: relative;
+  min-width: 0;
+  min-height: 300px;
+}
+
+.apu-destaque-mapa .apu-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: calc(100% - 22px);
+}
+
+.apu-destaque-mapa .apu-progress-lab {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  text-align: right;
+}
+
+@media (max-width: 880px) {
+  .apu-destaque-grid { grid-template-columns: 1fr; gap: 24px; }
+  .apu-destaque-mapa { min-height: 0; height: 56vw; }
+}
+
+.apu-destaque-rot {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+  margin-bottom: 10px;
+}
+
+.apu-destaque-titulo {
+  font-family: var(--display);
+  font-size: clamp(1.9rem, 4vw, 2.9rem);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.026em;
+}
+
+.apu-destaque-placar .apu-results { border-top-width: 2px; }
+
+/* ------------------------------------------------------------ blocos */
+
+.apu-bloco { padding: clamp(30px, 4vw, 52px) 0 0; }
+
+.apu-bloco-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 10px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.apu-estados {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 12px;
+}
+
+.apu-estado {
+  display: block;
+  padding: 13px 15px 14px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  border-left: 3px solid var(--cor, var(--line-strong));
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.apu-estado:hover { background: var(--paper-2); border-color: var(--line-strong); }
+
+.apu-estado-head { margin-bottom: 8px; }
+
+.apu-estado-uf {
+  font-family: var(--display);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.apu-estado-apurado {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Rodapé do cartão: barra e percentual de seções, presentes sempre — antes da
+   primeira urna eles dizem 0,00%, que é a informação correta. */
+.apu-estado-pe {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.apu-estado-pe .apu-mini { flex: 1; width: auto; }
+
+/* A cor do partido entra como fio vertical à esquerda da linha, não como
+   quadrado solto: fica preso ao nome a que se refere. */
+.apu-estado-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 300;
+  padding: 3px 0 3px 9px;
+  color: var(--ink-2);
+  border-left: 3px solid var(--cor-linha, var(--line-strong));
+}
+
+.apu-estado-linha.is-lead { color: var(--ink); font-weight: 400; }
+
+.apu-estado-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apu-estado-pct { font-variant-numeric: tabular-nums; font-weight: 500; }
+
+
+
+.apu-estado-vazio {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 300;
+  margin-bottom: 10px;
+}
+
 
 

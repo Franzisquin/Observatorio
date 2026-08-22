@@ -158,6 +158,8 @@
 
   (async function iniciar() {
     document.title = `${nomeDoCargo()} — Apuração ao vivo — ElectoMaps`;
+    const central = $('navCentral');
+    if (central) central.href = 'apuracao.html' + (sufixoParams() ? '?' + sufixoParams().slice(1) : '');
     await atualizar();
     agendar();
   })();

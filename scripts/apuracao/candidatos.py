@@ -16,6 +16,15 @@ simplesmente sai sem foto.)
     python scripts/apuracao/candidatos.py --cargos 1 3 5
     python scripts/apuracao/candidatos.py --cargos 1 3 5 --fotos
 
+FOTOS. O `--fotos` daqui puxa uma a uma do DivulgaCandContas, e so funciona
+depois que o registro e julgado (antes disso `fotoUrl` vem nulo). O caminho que
+funciona hoje e o pacote de dados abertos: baixe os `foto_cand2026_{UE}_div.zip`
+de https://dadosabertos.tse.jus.br/dataset/candidatos-2026 e rode
+
+    python scripts/apuracao/extrair_fotos.py <pasta-dos-zips>
+
+que extrai so os candidatos dos cargos exibidos e escreve o manifesto.
+
 ACESSO. O DivulgaCandContas fica atras de Akamai e recusa cliente que nao
 pareca navegador: de varias redes (datacenter, CI, VPN) a resposta e 403
 "Access Denied" independente do cabecalho. Rode da sua maquina, na sua rede.
