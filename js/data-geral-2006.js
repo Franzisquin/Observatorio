@@ -421,6 +421,169 @@ async function loadGeneralScopeBase2006(ufs, resultKeys) {
   return { type: 'FeatureCollection', features };
 }
 
+// Suplemento da RM de Sao Paulo para 1998 e 2002, gerado por
+// scripts/gerar_suplemento_rmsp.py a partir dos dados do CEM (Centro de Estudos da
+// Metropole), casados com os resultados do TSE pela assinatura de votos.
+//
+// Por que existe: 1998 e 2002 nao tem malha propria e tomam emprestada a de 2006.
+// Como o zoneamento mudou, urna antiga sem par em 2006 fica sem ponto -- em 2002 na
+// RMSP eram 573 de 2.581 (só na capital, 386). O suplemento devolve a coordenada
+// medida no ano da eleicao.
+let RMSP_SUPLEMENTO_PROMISE = null;
+
+async function loadRmspSupplement() {
+  if (!RMSP_SUPLEMENTO_PROMISE) {
+    RMSP_SUPLEMENTO_PROMISE = fetchJsonFromZipEntry(
+      `${DATA_BASE_URL}locais_suplemento_rmsp.zip`, 'locais_suplemento_rmsp.json'
+    ).then(({ data }) => data).catch(() => ({}));
+  }
+  return RMSP_SUPLEMENTO_PROMISE;
+}
+
+// Sobrepoe o suplemento na base emprestada de 2006. Duas situacoes:
+//   - chave ja desenhada: troca SO a coordenada (o nome segue o da malha de 2006);
+//   - chave sem ponto: cria a feature, e ai nome/endereco/bairro vem do CEM, unica
+//     fonte que existe para ela.
+// As chaves que o suplemento nao cobre ficam exatamente como estavam.
+async function applyRmspSupplement(geojson, ano, resultKeys) {
+  const supl = (await loadRmspSupplement())?.[String(ano)]?.locais;
+  if (!supl || !geojson?.features) return geojson;
+
+  const chaves = resultKeys instanceof Set ? resultKeys : new Set(resultKeys || []);
+  const jaTem = new Set();
+  geojson.features.forEach((f) => {
+    const props = f.properties || {};
+    const key = String(props.id_unico || props.local_key || '');
+    const reg = supl[key];
+    if (!reg) return;
+    jaTem.add(key);
+    f.geometry = { type: 'Point', coordinates: [reg.long, reg.lat] };
+    props.long = reg.long;
+    props.lat = reg.lat;
+    if (reg.hist_id != null) props.hist_id = reg.hist_id;
+  });
+
+  let novas = 0;
+  Object.entries(supl).forEach(([key, reg]) => {
+    if (jaTem.has(key) || !chaves.has(key)) return;
+    const partes = key.split('_');
+    const zona = parseInt(partes[0], 10);
+    const local = parseInt(partes[2], 10);
+    geojson.features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [reg.long, reg.lat] },
+      properties: {
+        local_id: `${zona}_${local}`,
+        id_unico: key,
+        ID_UNICO: key,
+        local_key: key,
+        ano,
+        sg_uf: 'SP',
+        cd_localidade_tse: partes[1],
+        cod_localidade_ibge: reg.cod_localidade_ibge || null,
+        nr_zona: zona,
+        nr_locvot: local,
+        nm_localidade: reg.nm_localidade || '',
+        nm_locvot: reg.nm_locvot || '',
+        ds_endereco: reg.ds_endereco || '',
+        ds_enderec: reg.ds_endereco || '',
+        ds_bairro: reg.ds_bairro || '',
+        long: reg.long,
+        lat: reg.lat,
+        tipo_match: 'CEM (RMSP)',
+        hist_id: reg.hist_id != null ? reg.hist_id : null
+      }
+    });
+    novas++;
+  });
+
+  console.log(`[${ano}] Suplemento RMSP: ${jaTem.size} coordenadas trocadas, ${novas} locais novos.`);
+  return geojson;
+}
+
+// 1998 na RMSP tem 2.754 chaves {zona}_{municipio}_S{n} -- voto por SECAO, sem
+// local de votacao nenhum, 1.252.081 votos que o mapa nao consegue desenhar e que
+// caem inteiros no balde sintetico do municipio (1.779 dessas chaves so na capital,
+// contra 953 locais de verdade).
+//
+// Nao da para saber qual secao pertence a qual predio, e nao e preciso: o CEM ja
+// apurou o total POR PREDIO. Entao o par (zona, municipio) e tratado como um todo --
+// as estacoes do CEM entram no mapa com os votos que o CEM apurou nelas, e as
+// chaves de secao daquele par sao devolvidas como "cobertas" para sairem do balde.
+// O gerador so libera um par depois de conferir que
+//   soma(estacoes CEM) == soma(chaves S)
+// bate exatamente em presidente, governador e senador.
+async function applyRmspSecoes1998(geojson, cargo, merged, turnoKey, muniNameMap) {
+  const dados = (await loadRmspSupplement())?.['1998'];
+  if (!dados?.estacoes?.length || !merged?.RESULTS || !geojson?.features) {
+    return new Set();
+  }
+  const metadata = merged.METADATA?.cand_names || {};
+  const porChave = new Map();
+  geojson.features.forEach((f) => {
+    const k = String(f.properties?.id_unico || f.properties?.local_key || '');
+    if (k) porChave.set(k, f);
+  });
+
+  let criadas = 0;
+  dados.estacoes.forEach((e) => {
+    const votos = e.votos?.[cargo]?.[turnoKey];
+    if (!votos) return;
+
+    let feature = porChave.get(e.chave);
+    if (!feature) {
+      const cidade = muniNameMap?.get(String(e.cd_localidade_tse)) || e.nm_localidade || '';
+      feature = {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [e.long, e.lat] },
+        properties: {
+          local_id: null,
+          id_unico: e.chave,
+          ID_UNICO: e.chave,
+          local_key: e.chave,
+          ano: 1998,
+          sg_uf: 'SP',
+          cd_localidade_tse: String(e.cd_localidade_tse),
+          cod_localidade_ibge: e.cod_localidade_ibge || null,
+          nr_zona: e.nr_zona,
+          nr_locvot: null,
+          nm_localidade: cidade,
+          nm_locvot: e.nm_locvot || '',
+          ds_endereco: e.ds_endereco || '',
+          ds_enderec: e.ds_endereco || '',
+          ds_bairro: e.ds_bairro || '',
+          long: e.long,
+          lat: e.lat,
+          tipo_match: 'CEM (RMSP, secoes)',
+          hist_id: e.hist_id != null ? e.hist_id : null
+        }
+      };
+      geojson.features.push(feature);
+      porChave.set(e.chave, feature);
+      criadas++;
+    }
+
+    const props = feature.properties;
+    applyTurnMetricsFromJsonVotes(props, votos, turnoKey, false);
+    Object.entries(votos).forEach(([candidateId, rawVotes]) => {
+      if (candidateId === '95' || candidateId === '96') return;
+      const meta = metadata[candidateId];
+      if (!meta) return;
+      const nome = meta[0] || `Candidato ${candidateId}`;
+      const partido = meta[1] || '?';
+      const status = meta[2] || 'N/D';
+      props[`${nome} (${partido}) (${status}) ${turnoKey}`] = ensureNumber(rawVotes);
+    });
+  });
+
+  const cobertas = new Set(dados.secoes_cobertas || []);
+  if (criadas) {
+    console.log(`[1998] Secoes sem local: ${criadas} estacoes do CEM, `
+      + `${cobertas.size} chaves de secao saem do balde sintetico.`);
+  }
+  return cobertas;
+}
+
 async function loadGeneralMajoritariaJson2006(cargo, uf, turno) {
   const ufNorm = String(uf || '').toUpperCase();
   const isSenador = cargo === 'senador';

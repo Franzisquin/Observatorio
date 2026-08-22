@@ -109,8 +109,10 @@ async function loadMajoritariaCargo1998(cargo, uf) {
     }
   }
 
-  // Pontos do mapa: base 2006 (o que bater bateu).
+  // Pontos do mapa: base 2006 (o que bater bateu), corrigida na RM de Sao Paulo
+  // pelo suplemento do CEM, que tem a posicao medida no ano da eleicao.
   const geojson = await loadGeneralScopeBase2006(ufs, resultKeys);
+  await applyRmspSupplement(geojson, 1998, resultKeys);
 
   // Compila muniNameMap e muniIbgeMap a partir da base 2006 e Censo 2006
   const muniNameMap = new Map();
@@ -154,9 +156,17 @@ async function loadMajoritariaCargo1998(cargo, uf) {
   applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno1, '1T', muniNameMap);
   if (mergedTurno2) applyGeneralMajoritariaJsonToGeojson2002(geojson, mergedTurno2, '2T', muniNameMap);
 
+  // Urnas que so existem como SECAO no acervo (chaves ..._S{n}, sem local): na RMSP
+  // o CEM as devolve como estacoes com voto proprio. Tem de rodar ANTES do balde
+  // sintetico, porque as chaves que ele cobre saem do calculo do resto.
+  const secoesT1 = await applyRmspSecoes1998(geojson, cargo, mergedTurno1, '1T', muniNameMap);
+  const secoesT2 = mergedTurno2
+    ? await applyRmspSecoes1998(geojson, cargo, mergedTurno2, '2T', muniNameMap)
+    : new Set();
+
   // Chaves dos dots cobertas pela base 2006 (por turno).
-  const coveredT1 = new Set();
-  const coveredT2 = new Set();
+  const coveredT1 = new Set(secoesT1);
+  const coveredT2 = new Set(secoesT2);
   (geojson.features || []).forEach((f) => {
     const k = String(f.properties?.id_unico || f.properties?.local_key || '');
     if (!k) return;

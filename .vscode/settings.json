@@ -1,3 +1,15 @@
 {
-    "liveServer.settings.port": 5501
+    "liveServer.settings.port": 5501,
+    // O ensaio da apuracao reescreve os snapshots a cada poucos segundos dentro
+    // do workspace. Sem ignorar essa pasta, o Live Server recarrega a pagina
+    // inteira a cada gravacao — e a apuracao, que ja se atualiza sozinha por
+    // fetch, pisca sem parar.
+    "liveServer.settings.ignoreFiles": [
+        ".vscode/**",
+        "**/*.scss",
+        "**/*.sass",
+        "**/*.ts",
+        "scratch/**",
+        "resultados_geo/**"
+    ]
 }

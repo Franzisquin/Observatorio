@@ -1691,17 +1691,20 @@ function renderNationalChamberTable(rows, totalSeats, totalVotes, breakdownLabel
       `.party-row-header[data-party="${CSS.escape(row.id)}"]`);
     if (!headerRow) return;
 
-    const detailHtml = row.byUf.map((item) => `
-      <div class="cand-row" style="border-left:3px solid ${row.color};">
-        <div class="cand-name-row"><span class="cand-sim-name">${escapeHtml(UF_MAP.get(item.uf) || item.uf)}</span></div>
-        <div class="cand-meta-row">
-          <span class="cand-sim-detail">${fmtInt(item.votes)} votos</span>
-          <div class="cand-meta-right">
-            <span class="cand-sim-votes">${fmtInt(item.seats)} ${item.seats === 1 ? breakdownLabel.singular : breakdownLabel.plural}</span>
-          </div>
-        </div>
-      </div>
-    `).join('');
+    // O detalhamento sai na mesma tabela padrao da linha de cima, so que por
+    // UF: assim as colunas ficam alinhadas com Cadeiras/Votos/Pct. do pai. A
+    // porcentagem aqui e o peso do estado dentro da votacao daquela legenda.
+    const detailHtml = buildStandardResultsTable(
+      row.byUf.map((item) => ({
+        label: UF_MAP.get(item.uf) || item.uf,
+        color: row.color,
+        seats: item.seats,
+        votes: item.votes,
+        pct: row.votes > 0 ? (item.votes / row.votes) : 0,
+        title: `${fmtPct(row.votes > 0 ? (item.votes / row.votes) : 0)} dos votos de ${row.label}`
+      })),
+      { labelHeader: 'Estado', seatsHeader: breakdownLabel.plural }
+    );
 
     const detailRow = document.createElement('tr');
     detailRow.className = 'party-candidates-row';
@@ -1709,9 +1712,7 @@ function renderNationalChamberTable(rows, totalSeats, totalVotes, breakdownLabel
     detailRow.style.display = 'none';
     detailRow.innerHTML = `
       <td colspan="${colunas}" style="padding:0; border:none;">
-        <div class="party-candidates" style="display:block; border-top:1px solid var(--border-color); background:var(--input-bg); padding:4px 0;">
-          ${detailHtml}
-        </div>
+        <div class="party-candidates" style="padding:0 8px 6px;">${detailHtml}</div>
       </td>
     `;
     headerRow.insertAdjacentElement('afterend', detailRow);
