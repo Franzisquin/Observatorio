@@ -437,8 +437,13 @@ body {
 }
 
 
+/* Precisa vencer o `display: inline-flex !important` das abas do painel
+   direito (.side-right .chip-button). Mesma especificidade perderia por vir
+   antes no arquivo, entao o seletor abaixo e um nivel mais especifico. Sem
+   isso, esconder um chip por JS nao surtia efeito nenhum ali. */
+.chip-group .chip-button.hidden,
 .chip-button.hidden {
-  display: none;
+  display: none !important;
 }
 
 .section {

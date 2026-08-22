@@ -1609,8 +1609,11 @@ function updateCargoChipsVisibility() {
     ? ['governador', 'senador', 'deputado_federal', 'deputado_estadual']
     : (is1998 ? ['deputado_federal', 'deputado_estadual'] : []);
 
+  // Classe, nao style inline: as abas do painel direito trazem
+  // `display: inline-flex !important`, que ganhava do inline sem prioridade e
+  // deixava os cargos indisponiveis visiveis mesmo com a regra por ano correta.
   dom.cargoChipsGeneral.querySelectorAll('.chip-button').forEach((btn) => {
-    btn.style.display = hiddenCargos.includes(btn.dataset.value) ? 'none' : '';
+    btn.classList.toggle('hidden', hiddenCargos.includes(btn.dataset.value));
   });
 
   const currentHidden = hiddenCargos.some((value) => value.startsWith(currentOffice));
