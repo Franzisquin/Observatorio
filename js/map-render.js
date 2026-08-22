@@ -66,14 +66,21 @@ function normalizeProportionalPartyToken(value, prefixCache = {}) {
   token = token.replace(/^FEDERA[CÇ][AÃ]O\s+/i, '').trim();
   token = token.replace(/^COLIGA[CÇ][AÃ]O\s+/i, '').trim();
 
+  // Ultimo recurso antes de devolver o numero cru: a tabela por ano. Cobre o
+  // acervo de 1994/2002, onde varios codigos de legenda nao tem metadado algum
+  // (BA 18, PE 41, GO 43...) e apareciam na lista como "18", "41", "43".
   const genericPartyMatch = token.match(/^PARTIDO\s+(\d{1,2})$/i);
   if (genericPartyMatch) {
     const partyCode = genericPartyMatch[1];
-    return normalizePartyAlias(prefixCache?.[partyCode] || token);
+    return normalizePartyAlias(
+      prefixCache?.[partyCode] || siglaForPartyNumber(partyCode, STATE?.currentElectionYear) || token
+    );
   }
 
   if (/^\d{1,2}$/.test(token)) {
-    return normalizePartyAlias(prefixCache?.[token] || token);
+    return normalizePartyAlias(
+      prefixCache?.[token] || siglaForPartyNumber(token, STATE?.currentElectionYear) || token
+    );
   }
 
   if (isGenericProportionalGroupLabel(token)) return '';
@@ -338,7 +345,7 @@ function populateVizCandidatoDropdown(turno) {
         const votes = locData[typeKey];
         if (!votes) continue;
         for (const [cid, v] of Object.entries(votes)) {
-          if (cid === '95' || cid === '96') continue;
+          if (isNonPartyBallotCode(cid)) continue;
           totalVotesByCand[cid] = (totalVotesByCand[cid] || 0) + (parseInt(v) || 0);
         }
       }
@@ -369,7 +376,7 @@ function populateVizCandidatoDropdown(turno) {
           if (!votes) return;
 
           for (const [cid, v] of Object.entries(votes)) {
-            if (cid === '95' || cid === '96') continue;
+            if (isNonPartyBallotCode(cid)) continue;
             totalVotesByCand[cid] = (totalVotesByCand[cid] || 0) + (parseInt(v) || 0);
           }
         });
@@ -386,7 +393,7 @@ function populateVizCandidatoDropdown(turno) {
         const votes = locData[typeKey];
         if (!votes) continue;
         for (const [cid, v] of Object.entries(votes)) {
-          if (cid === '95' || cid === '96') continue;
+          if (isNonPartyBallotCode(cid)) continue;
           totalVotesByCand[cid] = (totalVotesByCand[cid] || 0) + (parseInt(v) || 0);
         }
       }
@@ -817,25 +824,20 @@ function getGroupedProportionalInfoByParty(metaStore) {
   return partyGroups;
 }
 
-const STATIC_PARTY_FALLBACK = {
-  '10': 'REPUBLICANOS', '11': 'PP', '12': 'PDT', '13': 'PT', '14': 'PTB', '15': 'MDB',
-  '16': 'PSTU', '17': 'PSL', '18': 'REDE', '19': 'PODE', '20': 'PSC', '21': 'PCB',
-  '22': 'PL', '23': 'CIDADANIA', '25': 'DEM', '27': 'DC', '28': 'PRTB', '29': 'PCO',
-  '30': 'NOVO', '31': 'PHS', '33': 'PMN', '35': 'PMB', '36': 'AGIR', '40': 'PSB',
-  '43': 'PV', '44': 'UNIÃO', '45': 'PSDB', '50': 'PSOL', '51': 'PATRIOTA', '55': 'PSD',
-  '65': 'PC DO B', '70': 'AVANTE', '77': 'SOLIDARIEDADE', '80': 'UP', '90': 'PROS'
-};
-
 /**
  * Centraliza a construção do cache de siglas de partidos por prefixo (o 'XX' de 'XXYYYY').
  */
 function ensurePartyPrefixCache(isVereador = false) {
   const cacheKey = isVereador ? '_vereadorPartyPrefixCache' : '_partyPrefixCache';
   const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
-  
+
   if (!STATE[cacheKey]) {
-    // Começa com o fallback estático para garantir cobertura mínima
-    STATE[cacheKey] = { ...STATIC_PARTY_FALLBACK };
+    // Semente com as siglas VIGENTES NAQUELA ELEICAO (js/party-numbers.js). Antes
+    // era uma tabela unica com os nomes de hoje, e o partido que so recebeu voto
+    // de legenda — logo, sem candidato para corrigir o prefixo — saia rotulado
+    // com a sigla moderna: o PTN de 2010 virava "PODEMOS", que nao existe em
+    // nenhuma composicao de 2010 e por isso era listado fora da sua coligacao.
+    STATE[cacheKey] = partyNumbersForYear(STATE.currentElectionYear);
     if (!metaStore) return;
     
     for (const [cid, cmeta] of Object.entries(metaStore)) {
@@ -884,8 +886,38 @@ function _computeProportionalGroupInfo(candidateKey, metaStore, prefixCache) {
   };
 
   if (candidateKey.length <= 2) {
-    const rawLegendName = resolvedPrefixCache?.[candidateKey] || meta?.[1] || candidateKey;
+    // O metadado da propria legenda vem preenchido em 1994/2002 (sigla E composicao,
+    // ambas da epoca) e vazio de 2006 em diante ("PARTIDO 19", composicao ""). Quando
+    // existe, ele manda: e o dado do acervo, nao um palpite pelo numero. O cache de
+    // prefixo, que antes vinha primeiro, so entra quando a sigla vem generica.
+    const metaSigla = String(meta?.[1] || '').trim();
+    const metaSiglaUtil = metaSigla && !/^PARTIDO\b/i.test(metaSigla) && !/^\d+$/.test(metaSigla)
+      ? metaSigla
+      : '';
+    const rawLegendName = metaSiglaUtil || resolvedPrefixCache?.[candidateKey] || candidateKey;
     const legendParty = normalizeProportionalPartyToken(tryResolveGenericParty(rawLegendName, candidateKey), resolvedPrefixCache) || candidateKey;
+
+    // Composicao da coligacao no proprio registro da legenda: resolve o grupo sem
+    // depender de nenhuma tabela.
+    const legendComposition = extractProportionalCompositionParts(
+      String(meta?.[4] || ''),
+      String(meta?.[3] || ''),
+      resolvedPrefixCache
+    );
+    if (legendComposition.isGroup) {
+      return {
+        key: `group:${norm(legendComposition.compositionKey)}`,
+        name: getPreferredProportionalGroupName(
+          String(meta?.[3] || ''),
+          String(meta?.[4] || ''),
+          legendComposition.compositionDisplay
+        ),
+        composition: legendComposition.compositionDisplay,
+        party: legendParty,
+        isGroup: true
+      };
+    }
+
     const groupedPartyInfo = getCachedGroupedProportionalInfo(metaStore).get(legendParty);
     if (groupedPartyInfo) {
       return {
@@ -952,7 +984,7 @@ function aggregateProportionalVotesByList(votesMap, metaStore, prefixCache, opti
   let total = 0;
 
   Object.entries(votesMap || {}).forEach(([candidateId, rawVotes]) => {
-    if (candidateId === '95' || candidateId === '96') return;
+    if (isNonPartyBallotCode(candidateId)) return;
     if (inaptosSet && inaptosSet.has(candidateId)) return;
     const votes = ensureNumber(rawVotes);
     if (votes <= 0) return;
@@ -1110,7 +1142,7 @@ function getScopedProportionalColorKeyLookup(type = 'deputado', cargoKey = curre
     if (!votesMap) return;
 
     Object.entries(votesMap).forEach(([candidateId, rawVotes]) => {
-      if (candidateId === '95' || candidateId === '96') return;
+      if (isNonPartyBallotCode(candidateId)) return;
       if (inaptosSet && inaptosSet.has(candidateId)) return;
 
       const votes = ensureNumber(rawVotes);
@@ -1590,7 +1622,7 @@ function buildDeputyMunicipalSummaryFromResults(cargoKey, turnoKey) {
     let totalValid = 0;
 
     Object.entries(rawVotes).forEach(([candId, count]) => {
-      if (candId === '95' || candId === '96') return;
+      if (isNonPartyBallotCode(candId)) return;
       if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
       const v = ensureNumber(count);
       if (v <= 0) return;
@@ -1849,7 +1881,7 @@ function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
 
       const votes = data[typeKey]; 
       Object.entries(votes).forEach(([candId, count]) => {
-        if (candId === '95' || candId === '96') return; 
+        if (isNonPartyBallotCode(candId)) return; 
         if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
 
         const v = ensureNumber(count);
@@ -2896,19 +2928,11 @@ function getDeputyFeatureData(props) {
   const votes = allRes[typeKey];
   if (!votes) return null;
 
-  // Build cached map: 2-digit prefix -> real party acronym (e.g., '45' -> 'PSDB')
-  // This resolves legend vote party names like 'PARTIDO 45' to actual acronyms
-  if (!STATE._partyPrefixCache) {
-    STATE._partyPrefixCache = {};
-    for (const [cid, cmeta] of Object.entries(STATE.deputyMetadata || {})) {
-      if (cid.length > 2 && cmeta && cmeta[1] && !cmeta[1].toUpperCase().startsWith('PARTIDO ')) {
-        const prefix = cid.substring(0, 2);
-        if (!STATE._partyPrefixCache[prefix]) {
-          STATE._partyPrefixCache[prefix] = cmeta[1];
-        }
-      }
-    }
-  }
+  // Prefixo de 2 digitos -> sigla real ('45' -> 'PSDB'), para traduzir o
+  // "PARTIDO 45" dos votos de legenda. Montava o cache aqui sem a semente por
+  // ano — quem chegasse primeiro definia a tabela, e os numeros sem candidato
+  // ficavam de fora. Agora e o mesmo construtor de todo o resto.
+  ensurePartyPrefixCache(false);
 
   let maxV = -1;
   let winner = null;
@@ -2965,17 +2989,7 @@ function getDeputyFeatureData(props) {
 }
 
 function getVereadorFeatureData(props) {
-  if (!STATE._vereadorPartyPrefixCache) {
-    STATE._vereadorPartyPrefixCache = {};
-    for (const [cid, cmeta] of Object.entries(STATE.vereadorMetadata || {})) {
-      if (cid.length > 2 && cmeta && cmeta[1] && !cmeta[1].toUpperCase().startsWith('PARTIDO ')) {
-        const prefix = cid.substring(0, 2);
-        if (!STATE._vereadorPartyPrefixCache[prefix]) {
-          STATE._vereadorPartyPrefixCache[prefix] = cmeta[1];
-        }
-      }
-    }
-  }
+  ensurePartyPrefixCache(true);
 
   // Usa valores precomputados por precomputeVereadorWinners
   const total = props['_VTOTAL_'] !== undefined ? parseInt(props['_VTOTAL_']) : undefined;
@@ -2999,7 +3013,7 @@ function getVereadorFeatureData(props) {
     let winningParty = null;
     const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(STATE.inaptos['vereador_ord']?.['1T']) : null;
     for (const [cid, v] of Object.entries(votes)) {
-      if (cid === '95' || cid === '96') continue;
+      if (isNonPartyBallotCode(cid)) continue;
       if (inaptosSet && inaptosSet.has(cid)) continue;
       const vi = parseInt(v) || 0;
       tot += vi;
@@ -3044,7 +3058,7 @@ function getVereadorFeatureData(props) {
     const inaptosSet = STATE.filterInaptos ? inaptosArrayToSet(STATE.inaptos['vereador_ord']?.['1T']) : null;
 
     for (const [cid, v] of Object.entries(votes)) {
-      if (cid === '95' || cid === '96') continue;
+      if (isNonPartyBallotCode(cid)) continue;
       if (inaptosSet && inaptosSet.has(cid)) continue;
 
       const meta = STATE.vereadorMetadata[cid];
@@ -4422,7 +4436,7 @@ function syncResultsPanelToCurrentView() {
                 const vNum = ensureNumber(v);
                 if (vNum <= 0) return;
                 rawVotesConsolidated[candId] = (rawVotesConsolidated[candId] || 0) + vNum;
-                if (candId === '95' || candId === '96') return;
+                if (isNonPartyBallotCode(candId)) return;
                 const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
                 groupVotes[groupInfo.key] = (groupVotes[groupInfo.key] || 0) + vNum;
                 totalValid += vNum;

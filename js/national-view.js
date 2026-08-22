@@ -588,7 +588,9 @@ function buildNationalCandidateKey(meta, candidateId, turnoKey) {
 }
 
 function isBlankOrNullCandidateId(candidateId) {
-  return candidateId === '95' || candidateId === '96';
+  // 97-99 tambem sao codigos reservados do TSE, nao partidos (ver
+  // isNonPartyBallotCode em js/party-numbers.js).
+  return isNonPartyBallotCode(candidateId);
 }
 
 // Soma os totais de uma UF num mapa { chaveDeExibicao: votos } + brancos/nulos.
@@ -834,27 +836,42 @@ function isElectedCandidateStatus(status) {
 // Numero do partido -> sigla. O voto de legenda vem com id de dois digitos e
 // metadado "PARTIDO 45" no lugar da sigla; como o numero do candidato comeca
 // pelo numero do partido, a propria lista de candidatos da a traducao.
-function buildPartyNumberIndex(metadata) {
+function buildPartyNumberIndex(metadata, year) {
+  // Comeca pela sigla vigente no ano (js/party-numbers.js) e deixa o acervo
+  // sobrescrever. Sem essa base, o numero sem candidato na UF nao tinha traducao
+  // nenhuma: em 2002 as legendas do PV em GO, do PGT no RS e do PSC na PB
+  // apareciam no quadro nacional como "43", "30" e "20".
   const byNumber = {};
   Object.entries(metadata || {}).forEach(([id, meta]) => {
     const sigla = String(meta?.[1] || '').trim();
-    if (id.length <= 2 || !sigla || sigla.toUpperCase().startsWith('PARTIDO')) return;
-    if (!byNumber[id.slice(0, 2)]) byNumber[id.slice(0, 2)] = sigla;
+    if (!sigla || sigla.toUpperCase().startsWith('PARTIDO') || /^\d+$/.test(sigla)) return;
+    if (isNonPartyBallotCode(id)) return;
+    // 1994/2002 trazem a sigla certa na propria entrada de legenda (id de 2
+    // digitos); de 2006 em diante so os candidatos a tem.
+    const numero = id.length > 2 ? id.slice(0, 2) : id;
+    if (!byNumber[numero]) byNumber[numero] = sigla;
+  });
+
+  const doAno = partyNumbersForYear(year);
+  Object.keys(doAno).forEach((numero) => {
+    if (!byNumber[numero]) byNumber[numero] = doAno[numero];
   });
   return byNumber;
 }
 
 // Mesma forma de official_totals (coalitions[]), so que cada "coligacao" e um
 // partido — assim tudo que consome o agregado nacional segue igual.
-function buildUfPartyCoalitions(payload) {
+function buildUfPartyCoalitions(payload, year) {
   const metadata = payload?.METADATA?.cand_names || {};
   const totals = payload?.TOTALS || {};
-  const byNumber = buildPartyNumberIndex(metadata);
+  const byNumber = buildPartyNumberIndex(metadata, year);
   const parties = new Map();
 
   const add = (sigla, votes, elected) => {
     const key = normalizePartyAlias(String(sigla || '').trim().toUpperCase());
-    if (!key || key.startsWith('PARTIDO ')) return;
+    // Numero cru nao e sigla: em 2002 alguns candidatos vem com o proprio numero
+    // no campo do partido (o "4343" de GO traz "43") e viravam uma legenda "43".
+    if (!key || key.startsWith('PARTIDO ') || /^\d+$/.test(key)) return;
     const entry = parties.get(key) || { id: key, raw_comp: key, votes: 0, elected: 0 };
     entry.votes += votes;
     entry.elected += elected;
@@ -896,7 +913,7 @@ async function loadNationalLegislativeData(year, houseKey, onProgress = null) {
       done += 1;
       if (onProgress) onProgress(Math.round((done / ALL_STATE_SIGLAS.length) * 100));
       if (!payload) return;
-      const coalitions = buildUfPartyCoalitions(payload);
+      const coalitions = buildUfPartyCoalitions(payload, year);
       if (!coalitions.length) return;
       rebuilt[uf] = {
         [houseKey]: {

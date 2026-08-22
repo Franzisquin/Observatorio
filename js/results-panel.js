@@ -1802,7 +1802,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
   let fullScopeTotalValidos = 0;
   if (fullScopeVotesById) {
     Object.entries(fullScopeVotesById).forEach(([cid, v]) => {
-      if (cid === '95' || cid === '96') return;
+      if (isNonPartyBallotCode(cid)) return;
       fullScopeTotalValidos += ensureNumber(v);
     });
   }
@@ -1908,7 +1908,7 @@ function renderProportionalExpandableList(groupsPayload, metrics = {}) {
     const metaStore = isVereador ? (STATE.vereadorMetadata || {}) : (STATE.deputyMetadata || {});
     const prefixCache = isVereador ? (STATE._vereadorPartyPrefixCache || {}) : (STATE._partyPrefixCache || {});
     Object.entries(fullScopeVotesById).forEach(([candId, rawV]) => {
-      if (candId === '95' || candId === '96') return;
+      if (isNonPartyBallotCode(candId)) return;
       const v = ensureNumber(rawV);
       const gi = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
       const rec = groupScopeVotes.get(gi.key) || { total: 0, validForQP: 0 };
@@ -2384,7 +2384,7 @@ function renderDeputyPartyResults(cargo) {
         if (STATE.filterInaptos && (STATE.inaptos[cargo]?.['1T'] || []).includes(cand)) {
           continue;
         }
-        if (cand === '95' || cand === '96') continue;
+        if (isNonPartyBallotCode(cand)) continue;
         const v = parseInt(res[typeKey][cand]) || 0;
 
         const groupInfo = resolveProportionalGroupInfo(cand, STATE.deputyMetadata, STATE._partyPrefixCache);
@@ -2448,7 +2448,7 @@ function renderDeputyPartyResults(cargo) {
           if (STATE.filterInaptos && (STATE.inaptos[cargo]?.['1T'] || []).includes(cand)) {
             continue;
           }
-          if (cand === '95' || cand === '96') continue;
+          if (isNonPartyBallotCode(cand)) continue;
           const v = parseInt(res[typeKey][cand]);
 
           const partyCode = cand.substring(0, 2);
@@ -2503,7 +2503,12 @@ function renderDeputyPartyResults(cargo) {
     officialData.coalitions.forEach(off => {
       if (off.votes <= 0) return;
 
-      const members = off.raw_comp.split('/').map(s => s.trim().toUpperCase());
+      // Mesma normalizacao do lado dos candidatos: sem ela, o "PODE" e o "PATRI"
+      // que o official_totals usa nunca casavam com as chaves 'party:PODEMOS' e
+      // 'party:PATRIOTA' vindas de aggParty, e a coligacao pegava a cor errada.
+      const members = off.raw_comp.split('/')
+        .map(s => normalizeProportionalPartyToken(s))
+        .filter(Boolean);
       let bestColor = '#888888';
       let maxVotesInGroup = -1;
       let dominantParty = null;
@@ -2792,7 +2797,7 @@ function renderVereadorResults(cargo) {
     brancos = ensureNumber(officialSummary.brancos);
     nulos = ensureNumber(officialSummary.nulos);
     Object.entries(officialSummary.votesById || {}).forEach(([cand, rawVotes]) => {
-      if (cand === '95' || cand === '96') return;
+      if (isNonPartyBallotCode(cand)) return;
       if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cand)) return;
       if (String(cand).length <= 2) return;
       const vi = ensureNumber(rawVotes);
@@ -3009,7 +3014,7 @@ function renderVereadorPartyResults(cargo) {
   const geojson = currentDataCollection[cargo];
   if (officialSummary) {
     for (const [cand, rawVotes] of Object.entries(officialSummary.votesById || {})) {
-      if (cand === '95' || cand === '96') continue;
+      if (isNonPartyBallotCode(cand)) continue;
       if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cand)) continue;
       const v = ensureNumber(rawVotes);
 
@@ -3059,7 +3064,7 @@ function renderVereadorPartyResults(cargo) {
       const res = STATE.vereadorResults[key];
       if (res && res[TYPE_KEY]) {
         for (const cand in res[TYPE_KEY]) {
-          if (cand === '95' || cand === '96') continue;
+          if (isNonPartyBallotCode(cand)) continue;
           if (STATE.filterInaptos && (STATE.inaptos['vereador_ord']?.['1T'] || []).includes(cand)) continue;
           const v = parseInt(res[TYPE_KEY][cand]) || 0;
           if (v <= 0) continue; // Pula candidatos sem voto nesta seleção local
@@ -3123,7 +3128,12 @@ function renderVereadorPartyResults(cargo) {
     (ufBlock.coalitions || []).forEach(off => {
       if (off.votes <= 0) return;
 
-      const members = off.raw_comp.split('/').map(s => s.trim().toUpperCase());
+      // Mesma normalizacao do lado dos candidatos: sem ela, o "PODE" e o "PATRI"
+      // que o official_totals usa nunca casavam com as chaves 'party:PODEMOS' e
+      // 'party:PATRIOTA' vindas de aggParty, e a coligacao pegava a cor errada.
+      const members = off.raw_comp.split('/')
+        .map(s => normalizeProportionalPartyToken(s))
+        .filter(Boolean);
 
       // Cor pelo partido dominante nos votos do mapa
       let bestColor = colorForParty(members[0]);
@@ -3363,7 +3373,7 @@ function openVereadorCoalitionModal(composition, titleName, color, cargo, electe
     const res = STATE.vereadorResults[key];
     if (res && res['v']) {
       for (const [candId, v] of Object.entries(res['v'])) {
-        if (candId === '95' || candId === '96') continue;
+        if (isNonPartyBallotCode(candId)) continue;
         const meta = STATE.vereadorMetadata[candId];
         if (!meta) continue;
 
@@ -3500,7 +3510,7 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       const metaStore = STATE.vereadorMetadata || {};
       const prefixCache = STATE._vereadorPartyPrefixCache || {};
       Object.entries(muniScope.votesById).forEach(([candId, rawV]) => {
-        if (candId === '95' || candId === '96') return;
+        if (isNonPartyBallotCode(candId)) return;
         const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
         if (targetParties.includes(normalizePartyAlias(groupInfo.party))) {
           sum += ensureNumber(rawV);
@@ -3865,7 +3875,7 @@ function openCoalitionModal(composition, titleName, color, cargo, electedCount, 
     const res = STATE.deputyResults[key];
     if (res && res[typeKey]) {
       for (const [candId, v] of Object.entries(res[typeKey])) {
-        if (candId === '95' || candId === '96') continue;
+        if (isNonPartyBallotCode(candId)) continue;
 
         const meta = STATE.deputyMetadata[candId];
         if (!meta) continue;

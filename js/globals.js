@@ -421,7 +421,10 @@ const PARTY_COLORS = new Map(Object.entries({
   'PRB': '#005CA9', 'PT DO B': '#2eacb2', 'PFL': '#8CC63E', 'PSP46': '#533e40',
   'MISSÃO': '#FCBD27', 'PATRIOTA': '#316635', 'TOSSUP': '#cbd5e1', 'PPS': '#ec008c', 'PR': '#30306C', 'PC DO B': '#b4251d', 'PSDC': '#c89721',
   'PRD': '#007c3c', 'SD': '#f37021', 'PRONA': '#34b233', 'PRP': '#006db8', 'PMB': '#8e2a4e', 'Agir': '#9370db', 'AGIR': '#9370db',
-  'PRN': '#009966'
+  'PRN': '#009966',
+  // Sigla do acervo de 1994 para o numero 17 (49 candidatos), antecessor do
+  // PRTB. Sem cor propria caia no cinza do DEFAULT_SWATCH.
+  'PTRB': '#245ba0'
 }));
 
 const PARTY_COLOR_OVERRIDES = new Map(Object.entries({
