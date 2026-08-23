@@ -8,18 +8,23 @@
 
 /* --------------------------------------------------------------- fundações */
 
+/* Os neutros são os mesmos do visualizador e do simulador (style.css): cinza
+   sem viés de azul. Onde há token equivalente lá, o valor é literalmente o
+   mesmo — --paper/--paper-2 saem de --card/--bg, --ink de --text, --line de
+   --border-color, --brand de --accent-2 —, e os degraus que só o portal tem
+   (--paper-3, --line-strong) ficam interpolados na mesma família. */
 :root {
   --paper: #ffffff;
-  --paper-2: #f7f8fa;
-  --paper-3: #eef1f5;
-  --ink: #0f1115;
-  --ink-2: #3d434d;
-  --muted: #6f7681;
-  --line: #e2e6ec;
-  --line-strong: #cdd3dc;
-  --brand: #107ac6;
-  --brand-2: #0aafe6;
-  --brand-ink: #0b5c98;
+  --paper-2: #f3f4f6;
+  --paper-3: #ececee;
+  --ink: #111827;
+  --ink-2: #374151;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --brand: #0d7bc9;
+  --brand-2: #16a2f3;
+  --brand-ink: #0a5f9c;
 
   --display: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -31,16 +36,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #0b0d11;
-    --paper-2: #101319;
-    --paper-3: #171b22;
-    --ink: #edf0f4;
-    --ink-2: #b6bdc8;
-    --muted: #848c99;
-    --line: #222831;
-    --line-strong: #333b47;
-    --brand: #3aa6ea;
-    --brand-2: #4fd0f5;
+    --paper: #0a0a0a;
+    --paper-2: #151515;
+    --paper-3: #1f1f1f;
+    --ink: #f5f5f5;
+    --ink-2: #cccccc;
+    --muted: #a3a3a3;
+    --line: #2a2a2a;
+    --line-strong: #3d3d3d;
+    --brand: #16a2f3;
+    --brand-2: #4cc2ff;
     --brand-ink: #7cc7f2;
   }
 }

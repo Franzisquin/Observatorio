@@ -191,6 +191,7 @@
 }
 
 .apu-stage-map {
+  --map-bg: var(--paper-2);
   position: relative;
   min-width: 0;
   min-height: 0;
@@ -280,6 +281,7 @@
 /* ------------------------------------------------------------------ mapa */
 
 .apu-mapwrap {
+  --map-bg: var(--paper);
   position: relative;
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -289,8 +291,11 @@
 
 .apu-map { display: block; width: 100%; height: auto; }
 
+/* O contorno é do tom do fundo, não uma linha própria: o que separa dois
+   territórios é a falha entre eles. Cada palco declara o seu `--map-bg`, porque
+   nem todos são do mesmo tom de papel. */
 .apu-map path {
-  stroke: var(--paper);
+  stroke: var(--map-bg, var(--paper));
   stroke-width: 0.7;
   stroke-linejoin: round;
   fill: var(--paper-3);
@@ -757,6 +762,7 @@
 /* O SVG sai do fluxo para não impor a própria altura: quem manda na altura da
    faixa é a coluna da esquerda, e o mapa se encaixa no que sobrar. */
 .apu-destaque-mapa {
+  --map-bg: var(--paper-2);
   position: relative;
   min-width: 0;
   min-height: 300px;

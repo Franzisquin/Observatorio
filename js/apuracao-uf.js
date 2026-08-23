@@ -2,9 +2,9 @@
    ElectoMaps — apuração de um estado
 
    Lê o snapshot municipal daquela UF ({ele}-{cargo}-{uf}.json) e monta o mapa
-   por município a partir da malha do IBGE que já vive no repositório. O
-   snapshot chaveia por código do TSE e carrega o código IBGE em `mun`, que é a
-   ponte para a geometria.
+   por município a partir da malha pré-projetada em resultados_geo/municipios_svg
+   (scripts/gerar_malhas_apuracao.py). O snapshot chaveia por código do TSE e
+   carrega o código IBGE em `mun`, que é a ponte para a geometria.
    =========================================================================== */
 'use strict';
 
@@ -34,34 +34,36 @@
 
   /* ------------------------------------------------------------------ mapa */
 
-  /* Monta o SVG uma vez. Recolorir a cada boletim é só trocar `fill`, sem
-     reconstruir 850 paths. */
-  async function montarMapa(uf, dados) {
+  /* Monta o SVG uma vez, direto da malha pré-projetada. Recolorir a cada
+     boletim é só trocar `fill`, sem reconstruir 850 paths.
+
+     Os paths são chaveados por código IBGE, que é o que a malha carrega — o
+     código do TSE só existe depois do primeiro boletim, e o mapa precisa estar
+     na tela antes disso. */
+  async function montarMapa(uf) {
     if (estado.geo) return estado.geo;
 
     const malha = await APU.malha(uf);
-    if (!malha) return null;
-
-    /* IBGE -> código do TSE, para casar geometria com resultado. */
-    const porIbge = {};
-    Object.entries(dados.mun || {}).forEach(([cd, m]) => {
-      if (m && m.ibge) porIbge[String(m.ibge)] = cd;
-    });
-
-    const proj = APU.projetar(malha, (f) => {
-      const ibge = String((f.properties && f.properties.CD_MUN) || '');
-      return porIbge[ibge] || ('ibge:' + ibge);
-    });
-    if (!proj) return null;
+    if (!malha || !malha.p || !malha.p.length) return null;
 
     const svg = $('mapaUF');
-    svg.setAttribute('viewBox', `0 0 ${proj.w} ${proj.h}`);
-    svg.innerHTML = proj.paths.map((p) =>
-      `<path data-chave="${APUUI.esc(p.chave)}" data-nome="${APUUI.esc(p.nome || '')}" d="${p.d}"></path>`
+    svg.setAttribute('viewBox', `0 0 ${malha.w} ${malha.h}`);
+    svg.innerHTML = malha.p.map(([ibge, nome, d]) =>
+      `<path data-chave="${APUUI.esc(ibge)}" data-nome="${APUUI.esc(nome || '')}" d="${d}"></path>`
     ).join('');
 
-    estado.geo = proj;
-    return proj;
+    estado.geo = malha;
+    return malha;
+  }
+
+  /* IBGE -> entrada do boletim, atravessando o código do TSE que o snapshot usa
+     para chavear `abr`. */
+  function porIbge(dados) {
+    const mapa = {};
+    Object.entries((dados && dados.mun) || {}).forEach(([cd, m]) => {
+      if (m && m.ibge && dados.abr[cd]) mapa[String(m.ibge)] = dados.abr[cd];
+    });
+    return mapa;
   }
 
   /* --------------------------------------------------------------- desenho */
@@ -103,8 +105,13 @@
 
       $('subtitulo').textContent = `${nomeDoCargo()} — candidaturas registradas`;
       $('rotuloPlacar').textContent = `Candidaturas em ${nomeUF}`;
-      $('mapaNota').textContent = 'aguardando o primeiro boletim';
       $('legenda').innerHTML = '';
+
+      const vazio = await montarMapa(uf);
+      $('mapaNota').textContent = vazio
+        ? 'aguardando o primeiro boletim'
+        : 'Malha municipal indisponível';
+      if (vazio) APUUI.pintarMapa($('mapaUF'), () => null, {}, null);
       APUUI.placar(chapa, 'placar');
       APUUI.participacao(null, 'participacao');
       return;
@@ -126,9 +133,10 @@
     APUUI.placar(APU.ranking(total, dicionario), 'placar');
     APUUI.participacao(total, 'participacao');
 
-    const proj = await montarMapa(uf, dados);
+    const proj = await montarMapa(uf);
     if (proj) {
-      APUUI.pintarMapa($('mapaUF'), (cd) => dados.abr[cd] || null, dicionario, null);
+      const porCodigo = porIbge(dados);
+      APUUI.pintarMapa($('mapaUF'), (ibge) => porCodigo[ibge] || null, dicionario, null);
       const comApuracao = entradas.filter((e) => e && e.vv > 0).length;
       $('mapaNota').textContent = `${comApuracao} de ${entradas.length} municípios com votos`;
       APUUI.legenda(APUUI.lideresDistintos(entradas, dicionario), 'legenda');

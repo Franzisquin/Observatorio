@@ -158,18 +158,23 @@ const APU = (function () {
 
   const _malhas = {};
 
+  /* Malha municipal já projetada em paths SVG por
+     scripts/gerar_malhas_apuracao.py: {w, h, p:[[ibge, nome, d], ...]}.
+
+     Vem da malha de alta definição do IBGE e é simplificada uma vez só, na
+     geração. A página fazia isso no navegador, a partir da malha simplificada,
+     e o resultado era ao mesmo tempo mais pesado e mais grosseiro. */
   async function malha(uf) {
     const sigla = String(uf).toUpperCase();
-    if (_malhas[sigla]) return _malhas[sigla];
+    if (_malhas[sigla] !== undefined) return _malhas[sigla];
     try {
-      const r = await fetch(`resultados_geo/municipios/municipios_${sigla}.geojson`);
-      if (!r.ok) return null;
-      _malhas[sigla] = await r.json();
-      return _malhas[sigla];
+      const r = await fetch(`resultados_geo/municipios_svg/municipios_${sigla}.json`);
+      _malhas[sigla] = r.ok ? await r.json() : null;
     } catch (e) {
       console.warn('[apuracao] malha indisponível', sigla, e);
-      return null;
+      _malhas[sigla] = null;
     }
+    return _malhas[sigla];
   }
 
   /* ---------------------------------------------------------------- leitura */
@@ -224,72 +229,6 @@ const APU = (function () {
     });
     total.pst = fmt.parte(total.st, total.ts);
     return total;
-  }
-
-  /* ------------------------------------------------- projeção de geometria */
-
-  /* Constrói paths SVG a partir de um GeoJSON, em projeção equiretangular
-     corrigida pelo cosseno da latitude média — a mesma que o mapa do portal
-     usa. Devolve {paths:[{chave,d}], w, h}.
-
-     Simplificação Douglas-Peucker antes de projetar: a malha de MG tem 1,4 MB
-     de coordenadas e o navegador não precisa de nada disso num mapa de 700px. */
-  function projetar(geojson, chaveDe, tolerancia) {
-    if (!geojson || !geojson.features) return null;
-    const tol = tolerancia == null ? 0.0006 : tolerancia;
-
-    let mnx = 180, mxx = -180, mny = 90, mxy = -90;
-    const varrer = (anel) => anel.forEach(([x, y]) => {
-      if (x < mnx) mnx = x; if (x > mxx) mxx = x;
-      if (y < mny) mny = y; if (y > mxy) mxy = y;
-    });
-    const aneisDe = (g) => (g.type === 'Polygon' ? [g.coordinates]
-      : g.type === 'MultiPolygon' ? g.coordinates : []);
-    geojson.features.forEach((f) => aneisDe(f.geometry).forEach((p) => p.forEach(varrer)));
-    if (mnx > mxx) return null;
-
-    const k = Math.cos(((mny + mxy) / 2) * Math.PI / 180) || 1;
-    const larguraGeo = (mxx - mnx) * k;
-    const alturaGeo = (mxy - mny);
-    const W = 1000;
-    const H = Math.max(1, Math.round(W * alturaGeo / larguraGeo));
-    const px = (x, y) => [((x - mnx) * k) / larguraGeo * W, (mxy - y) / alturaGeo * H];
-
-    const dist2 = (p, a, b) => {
-      let x = a[0], y = a[1];
-      const dx = b[0] - x, dy = b[1] - y;
-      if (dx || dy) {
-        const t = ((p[0] - x) * dx + (p[1] - y) * dy) / (dx * dx + dy * dy);
-        if (t > 1) { x = b[0]; y = b[1]; } else if (t > 0) { x += dx * t; y += dy * t; }
-      }
-      return (p[0] - x) ** 2 + (p[1] - y) ** 2;
-    };
-    const dp = (pts, t) => {
-      if (pts.length <= 3) return pts;
-      let mx = 0, idx = 0; const fim = pts.length - 1;
-      for (let i = 1; i < fim; i++) {
-        const d = dist2(pts[i], pts[0], pts[fim]);
-        if (d > mx) { idx = i; mx = d; }
-      }
-      if (mx > t) return dp(pts.slice(0, idx + 1), t).slice(0, -1).concat(dp(pts.slice(idx), t));
-      return [pts[0], pts[fim]];
-    };
-
-    const paths = [];
-    geojson.features.forEach((f) => {
-      let d = '';
-      aneisDe(f.geometry).forEach((poly) => poly.forEach((anel) => {
-        if (anel.length < 4) return;
-        const s = dp(anel, tol);
-        if (s.length < 4) return;
-        d += 'M' + s.map((c) => {
-          const [X, Y] = px(c[0], c[1]);
-          return X.toFixed(1) + ' ' + Y.toFixed(1);
-        }).join(' ') + 'Z';
-      }));
-      if (d) paths.push({ chave: chaveDe(f), nome: f.properties && (f.properties.NM_MUN || f.properties.NM_UF), d });
-    });
-    return { paths, w: W, h: H };
   }
 
   /* ------------------------------------------------- candidaturas (pré-urna) */
@@ -370,7 +309,7 @@ const APU = (function () {
 
   return {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES,
-    cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar, projetar,
+    cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo
   };
