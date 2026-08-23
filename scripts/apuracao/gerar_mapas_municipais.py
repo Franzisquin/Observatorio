@@ -5,9 +5,9 @@ Por que pre-compilar: a malha `municipios_hd` do IBGE tem 49 MB (MG sozinho tem
 pagina, e caro duas vezes — na rede e na CPU. Aqui a simplificacao roda uma vez
 e o que o site baixa e so o path SVG pronto.
 
-Saida: resultados_geo/mapas_apuracao/{UF}.json
+Saida: resultados_geo/municipios_svg/municipios_{UF}.json
 
-    {"w":2000,"h":1730,"m":[["3106200","Belo Horizonte","M..Z"], ...]}
+    {"w":2000,"h":1730,"p":[["3106200","Belo Horizonte","M..Z"], ...]}
 
 A chave e o codigo IBGE de 7 digitos, que o snapshot da apuracao carrega em
 `mun[cd].ibge` — e a ponte entre geometria e resultado.
@@ -30,7 +30,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent.parent
 HD = RAIZ / "resultados_geo" / "municipios_hd"
 COMUM = RAIZ / "resultados_geo" / "municipios"
-DESTINO = RAIZ / "resultados_geo" / "mapas_apuracao"
+DESTINO = RAIZ / "resultados_geo" / "municipios_svg"
 
 # Largura do viewBox. 2000 em vez de 1000 dobra a resolucao das coordenadas
 # inteiras, que e o que evita o serrilhado em municipio pequeno.
@@ -38,7 +38,7 @@ LARGURA = 2000
 
 # Tolerancia do Douglas-Peucker, em graus ao quadrado. Ajustada para preservar
 # reentrancia de divisa e recorte de litoral sem carregar ponto redundante.
-TOLERANCIA = 0.0000015
+TOLERANCIA = 0.000002
 
 # Ilhas menores que isto somem na escala do mapa e so custam bytes.
 AREA_MINIMA = 0.00002
@@ -168,7 +168,7 @@ def gerar(uf: str, tolerancia: float, area_minima: float) -> dict | None:
         if d:
             saida.append([cd, nomes.get(cd, ""), "".join(d)])
 
-    return {"w": LARGURA, "h": altura, "m": saida, "_pontos": pontos}
+    return {"w": LARGURA, "h": altura, "p": saida, "_pontos": pontos}
 
 
 def main() -> int:
@@ -188,14 +188,14 @@ def main() -> int:
         if not pacote:
             continue
         pontos = pacote.pop("_pontos")
-        alvo = args.destino / f"{uf}.json"
+        alvo = args.destino / f"municipios_{uf}.json"
         alvo.write_text(json.dumps(pacote, ensure_ascii=False, separators=(",", ":")),
                         encoding="utf-8")
         tam = alvo.stat().st_size
         total_bytes += tam
-        total_mun += len(pacote["m"])
+        total_mun += len(pacote["p"])
         origem = (HD / f"municipios_{uf}.geojson").stat().st_size
-        print(f"  {uf}: {len(pacote['m']):4d} municipios, {pontos:6d} pontos, "
+        print(f"  {uf}: {len(pacote['p']):4d} municipios, {pontos:6d} pontos, "
               f"{tam/1024:6.0f} KB  (de {origem/1024:7.0f} KB, "
               f"{100*tam/origem:4.1f}%)")
 

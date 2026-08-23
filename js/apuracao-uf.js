@@ -32,6 +32,30 @@
     return p.length ? '?' + p.join('&') : '';
   }
 
+  /* Alterna o cargo sem sair do estado: mesma UF, mesmos parametros, so o
+     `cargo` muda. Deputado fica de fora porque a disputa proporcional nao cabe
+     nesta pagina — ela mostra ranking de candidato, nao quociente. */
+  const CARGOS_ALTERNAVEIS = [
+    ['0001', 'Presidente'],
+    ['0003', 'Governador'],
+    ['0005', 'Senador']
+  ];
+
+  function montarSeletorDeCargo() {
+    const el = $('seletorCargo');
+    if (!el) return;
+    const base = new URLSearchParams(location.search);
+    el.innerHTML = CARGOS_ALTERNAVEIS.map(([cd, rotulo]) => {
+      const q = new URLSearchParams(base);
+      q.set('uf', estado.uf);
+      q.set('cargo', cd);
+      const ativo = cd === APU.cfg.cargo;
+      return `<a class="apu-cargo${ativo ? ' is-ativo' : ''}"` +
+        (ativo ? ' aria-current="page"' : '') +
+        ` href="apuracao-uf.html?${q.toString()}">${rotulo}</a>`;
+    }).join('');
+  }
+
   /* ------------------------------------------------------------------ mapa */
 
   /* Monta o SVG uma vez, direto da malha pré-projetada. Recolorir a cada
@@ -73,6 +97,7 @@
     const dados = estado.dados;
 
     const nomeUF = APU.UF_NOMES[uf] || uf.toUpperCase();
+    montarSeletorDeCargo();
     $('tituloUF').textContent = nomeUF;
     $('brandScope').textContent = nomeUF;
     /* Presidente tem mapa nacional proprio; os demais cargos voltam para a
