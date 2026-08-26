@@ -311,6 +311,9 @@
 
 .apu-map path.is-empty { fill: var(--paper-3); cursor: default; }
 .apu-map path.is-empty:hover { opacity: 1; }
+/* Território sem voto continua clicável quando o mapa navega. */
+.apu-map path.is-empty.is-click { cursor: pointer; }
+.apu-map path.is-empty.is-click:hover { opacity: 0.72; }
 
 .apu-maphead {
   display: flex;
@@ -320,6 +323,33 @@
   flex-wrap: wrap;
   margin-bottom: 12px;
 }
+
+/* Camada do mapa: município / região intermediária / região imediata. Mesmos
+   rótulos do controle do mapa principal, no traço da apuração. */
+.apu-levels {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.apu-level {
+  padding: 4px 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.apu-level + .apu-level { border-left: 1px solid var(--line); }
+.apu-level:hover { color: var(--ink); }
+.apu-level.is-on { background: var(--ink); color: var(--paper); }
 
 .apu-maptitle {
   font-size: 0.72rem;
@@ -653,6 +683,26 @@
 }
 
 .apu-card + .apu-card { margin-top: 16px; }
+
+.apu-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+
+.apu-back {
+  flex: none;
+  margin-bottom: 14px;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.apu-back:hover { color: var(--ink); border-color: var(--ink); }
 
 .apu-card h3 {
   font-size: 0.7rem;

@@ -251,57 +251,6 @@ function processAgeLegacy(p, buckets) {
   }
 }
 
-
-
-function updateApplyButtonText() {
-  const hasLoadedData = !!currentDataCollection[currentCargo];
-  let btnDisabled = true;
-  let btnText = 'Filtros automáticos';
-
-  const isGeral = false;
-  const isAllCities = false;
-
-  // Texto dinâmico
-  if (STATE.currentElectionType === 'municipal') {
-    const mun = dom.selectMunicipio.value;
-    btnText = 'Filtros automáticos';
-    if (currentBairroFilter !== 'all') {
-      btnText = 'Filtros automáticos';
-    }
-  } else {
-    // Modo GERAL
-    const regionalLabel = getRegionalFilterSummaryLabel();
-    if (isAllCities && regionalLabel) {
-      btnText = 'Filtros automáticos';
-    } else if (isAllCities) {
-      const uf = dom.selectUFGeneral.value;
-      btnText = 'Filtros automáticos';
-    } else {
-      // Cidade específica selecionada
-      const selectedText = dom.inputCidade ? dom.inputCidade.value : currentCidadeFilter;
-      btnText = 'Filtros automáticos';
-    }
-  }
-
-  if (STATE.hasPendingFilterChanges && hasLoadedData) {
-    btnText = `${btnText} • Aplicar`;
-  }
-
-  if (!hasLoadedData) {
-    btnText = 'Carregue os dados';
-  } else if (STATE.hasPendingFilterChanges) {
-    btnText = 'Atualizando filtros...';
-  }
-
-  if (!dom.btnApplyFilters) return;
-  dom.btnApplyFilters.textContent = btnText;
-  dom.btnApplyFilters.disabled = btnDisabled;
-  dom.btnApplyFilters.classList.toggle('cta-ready', false);
-  dom.btnApplyFilters.classList.toggle('pending-action', hasLoadedData && STATE.hasPendingFilterChanges);
-
-  // REMOVIDO O BLOCO QUE CAUSAVA O ERRO (dom.btnShowByBairro)
-}
-
 function updateVizModeUI() {
   if (currentVizMode.startsWith('desempenho')) {
     const turno = (currentTurno === 2 && STATE.dataHas2T[currentCargo]) ? '2T' : '1T';
@@ -442,10 +391,6 @@ if (typeof window !== 'undefined') {
   window.buildStandardResultsTable = buildStandardResultsTable;
 }
 
-function isLimitedCensusYear2006() {
-  return String(STATE.currentElectionYear) === '2006';
-}
-
 // ===================== PERFIL DEMOGRAFICO DO BRASIL =====================
 //
 // No escopo nacional nao ha locais de votacao carregados para somar — o mapa e
@@ -519,48 +464,75 @@ if (typeof window !== 'undefined') {
   window.clearNeighborhoodProfileCharts = clearNeighborhoodProfileCharts;
 }
 
+// Zera os filtros que o ano selecionado nao consegue responder. Sem isto, trocar
+// de 2022 para 2006 mantinha um filtro de escolaridade ativo sobre um acervo que
+// nao tem escolaridade — e o mapa aparecia vazio, sem explicacao.
 function resetUnavailableCensusFiltersForYear() {
-  if (!isLimitedCensusYear2006()) return;
+  const disponiveis = new Set(censusCoverageForYear());
+  const porAba = {
+    'tab-renda': ['rendaMin', 'rendaMax'],
+    'tab-raca': ['racaVal'],
+    'tab-idade': ['idadeVal'],
+    'tab-escolaridade': ['escolaridadeVal'],
+    'tab-saneamento': ['saneamentoVal']
+  };
 
-  STATE.censusFilters.generoVal = null;
-  STATE.censusFilters.idadeVal = null;
-  STATE.censusFilters.escolaridadeVal = null;
-  STATE.censusFilters.estadoCivilVal = null;
+  Object.entries(porAba).forEach(([aba, chaves]) => {
+    if (disponiveis.has(aba)) return;
+    chaves.forEach((chave) => { STATE.censusFilters[chave] = null; });
+  });
 }
 
+// O painel foi refatorado de abas (.tab-btn) para um <select>, mas esta funcao
+// continuou procurando os botoes antigos — que nao existem mais. Resultado: em
+// 2006 as opcoes "Idade" e "Escolaridade" seguiam no dropdown e escolher uma
+// delas mostrava uma caixa em branco. Agora quem manda sao as <option>.
 function updateCensusControlsForYear() {
   resetUnavailableCensusFiltersForYear();
 
-  const limited2006 = isLimitedCensusYear2006();
-  const allowedTabs = new Set(limited2006
-    ? ['tab-renda', 'tab-raca', 'tab-saneamento']
-    : ['tab-renda', 'tab-raca', 'tab-idade', 'tab-genero', 'tab-escolaridade', 'tab-estadocivil', 'tab-saneamento']);
+  const disponiveis = new Set(censusCoverageForYear());
+  const select = document.getElementById('selectDemoCategory');
+  const aviso = document.getElementById('censusUnavailableNote');
+  const demoBox = document.getElementById('demographicFilters');
 
-  document.querySelectorAll('#demographicFilters .filter-tabs .tab-btn').forEach((btn) => {
-    const tabId = btn.dataset.tab;
-    const visible = allowedTabs.has(tabId);
-    btn.style.display = visible ? '' : 'none';
-    btn.disabled = !visible;
-    if (!visible) btn.classList.remove('active');
-  });
+  // Dono unico da visibilidade do painel. Os filtros so fazem sentido com um
+  // municipio selecionado (no resumo estadual operariam sobre dados residuais do
+  // ultimo municipio) e so em anos com censo no acervo — 1998 e 2002 tem locais
+  // de votacao mas nenhum dado demografico, e o painel aparecia inteiro neles.
+  if (demoBox) {
+    const isMunicipal = STATE.currentElectionType === 'municipal';
+    const semMunicipio = isMunicipal && !dom.selectMunicipio?.value;
+    demoBox.classList.toggle('section-hidden', disponiveis.size === 0 || semMunicipio);
+  }
 
-  document.querySelectorAll('#demographicFilters .tab-content').forEach((content) => {
-    const visible = allowedTabs.has(content.id);
-    content.style.display = visible ? '' : 'none';
-    if (!visible) content.classList.add('hidden');
-  });
+  if (aviso) {
+    aviso.textContent = disponiveis.size === 0
+      ? `Sem dados demográficos para ${STATE.currentElectionYear} no acervo.`
+      : (disponiveis.has('tab-idade')
+        ? ''
+        : `Em ${STATE.currentElectionYear} o acervo do Censo traz apenas renda, cor/raça e saneamento.`);
+    aviso.style.display = aviso.textContent ? '' : 'none';
+  }
+  if (disponiveis.size === 0) return;
 
-  const activeBtn = document.querySelector('#demographicFilters .filter-tabs .tab-btn.active');
-  if (!activeBtn || !allowedTabs.has(activeBtn.dataset.tab)) {
-    const fallbackBtn = document.querySelector('#demographicFilters .filter-tabs .tab-btn[data-tab="tab-renda"]');
-    if (fallbackBtn) {
-      document.querySelectorAll('#demographicFilters .filter-tabs .tab-btn').forEach((btn) => btn.classList.remove('active'));
-      fallbackBtn.classList.add('active');
-      document.querySelectorAll('#demographicFilters .tab-content').forEach((content) => {
-        content.classList.toggle('hidden', content.id !== 'tab-renda' || !allowedTabs.has(content.id));
-      });
+  if (select) {
+    Array.from(select.options).forEach((opt) => {
+      const ok = disponiveis.has(opt.value);
+      opt.disabled = !ok;
+      opt.hidden = !ok;
+    });
+
+    if (!disponiveis.has(select.value)) {
+      select.value = 'tab-renda';
+      select.dispatchEvent(new Event('change'));
     }
   }
+
+  document.querySelectorAll('#demographicFilters .tab-content').forEach((content) => {
+    const ok = disponiveis.has(content.id);
+    content.style.display = ok ? '' : 'none';
+    if (!ok) content.classList.add('hidden');
+  });
 }
 
 function updateConditionalUI() {
@@ -628,10 +600,8 @@ function updateElectionTypeUI() {
       dom.btnMapModeLocais.style.display = (isMuniOnlyGeral || isNacional) ? 'none' : '';
   }
 
-  // Filtros demograficos so fazem sentido com um municipio selecionado;
-  // no resumo estadual eles operariam sobre dados residuais do ultimo municipio.
-  const demoBox = document.getElementById('demographicFilters');
-  if (demoBox) demoBox.classList.toggle('section-hidden', (isMunicipal && !hasMunicipalSelection) || isMuniOnlyGeral);
+  // Painel demografico: quem decide o que aparece e updateCensusControlsForYear.
+  updateCensusControlsForYear();
 
   // Hide neighborhood profile in statewide overview (if isMunicipal and no city selected)
   // e em 1994 (sem censo, o perfil ficaria todo zerado)

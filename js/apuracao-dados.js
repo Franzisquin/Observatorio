@@ -158,23 +158,32 @@ const APU = (function () {
 
   const _malhas = {};
 
-  /* Malha municipal já projetada em paths SVG por
-     scripts/gerar_malhas_apuracao.py: {w, h, p:[[ibge, nome, d], ...]}.
+  /* Malha já projetada em paths SVG por scripts/gerar_malhas_apuracao.py:
+     {w, h, p:[[chave, nome, d], ...]}. `nivel` escolhe a camada — 'municipios'
+     (padrão), 'rgint' ou 'rgi'; nas regionais cada item traz um quarto campo
+     com os municípios que a compõem, que é o que a página soma para pintar.
 
      Vem da malha de alta definição do IBGE e é simplificada uma vez só, na
      geração. A página fazia isso no navegador, a partir da malha simplificada,
-     e o resultado era ao mesmo tempo mais pesado e mais grosseiro. */
-  async function malha(uf) {
+     e o resultado era ao mesmo tempo mais pesado e mais grosseiro. Todas as
+     camadas de uma UF saem no mesmo viewBox, então trocar de camada não move
+     o desenho. */
+  async function malha(uf, nivel) {
     const sigla = String(uf).toUpperCase();
-    if (_malhas[sigla] !== undefined) return _malhas[sigla];
+    const n = nivel || 'municipios';
+    const chave = `${n}_${sigla}`;
+    if (_malhas[chave] !== undefined) return _malhas[chave];
+    const url = n === 'municipios'
+      ? `resultados_geo/municipios_svg/municipios_${sigla}.json`
+      : `resultados_geo/regioes_svg/${n}_${sigla}.json`;
     try {
-      const r = await fetch(`resultados_geo/municipios_svg/municipios_${sigla}.json`);
-      _malhas[sigla] = r.ok ? await r.json() : null;
+      const r = await fetch(url);
+      _malhas[chave] = r.ok ? await r.json() : null;
     } catch (e) {
-      console.warn('[apuracao] malha indisponível', sigla, e);
-      _malhas[sigla] = null;
+      console.warn('[apuracao] malha indisponível', chave, e);
+      _malhas[chave] = null;
     }
-    return _malhas[sigla];
+    return _malhas[chave];
   }
 
   /* ---------------------------------------------------------------- leitura */
@@ -278,7 +287,9 @@ const APU = (function () {
     if (!dicionario) return [];
     var alvo = (uf || '').toUpperCase();
     return Object.entries(dicionario)
-      .filter(([, c]) => !alvo || String(c.uf).toUpperCase() === alvo)
+      /* Quem renunciou saiu da disputa: não é candidatura em zero, é ausência. */
+      .filter(([, c]) => (!alvo || String(c.uf).toUpperCase() === alvo)
+        && !/^Ren[úu]ncia/i.test(String(c.situacao || '')))
       .map(([sq, c]) => ({
         chave: sq,
         nome: nomeProprio(c.nome || c.urna),

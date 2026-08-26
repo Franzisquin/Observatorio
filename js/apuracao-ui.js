@@ -260,17 +260,21 @@ const APUUI = (function () {
 
     svg.querySelectorAll('path[data-chave]').forEach((p) => {
       const chave = p.getAttribute('data-chave');
+      const nome = p.getAttribute('data-nome') || chave;
       const entrada = entradaDe(chave);
       const l = entrada ? APU.lider(entrada, dicionario) : null;
+
+      /* O clique não depende de já haver voto: antes do primeiro boletim o mapa
+         inteiro está vazio e ainda assim precisa responder. */
+      p.onclick = aoClicar ? () => { tip.esconder(); aoClicar(chave, nome); } : null;
+      p.classList.toggle('is-click', !!aoClicar);
 
       if (!l || !entrada.vv) {
         p.classList.add('is-empty');
         p.style.fill = '';
-        const semNome = p.getAttribute('data-nome') || chave;
-        const vazio = conteudoDoBalao(semNome, 'Sem apuração', entrada, dicionario);
+        const vazio = conteudoDoBalao(nome, 'Sem apuração', entrada, dicionario);
         p.onmousemove = (ev) => tip.mostrar(vazio, ev);
         p.onmouseleave = () => tip.esconder();
-        p.onclick = aoClicar ? () => { tip.esconder(); aoClicar(chave); } : null;
         return;
       }
 
@@ -282,14 +286,10 @@ const APUUI = (function () {
       const margem = segundo ? l.pct - segundo.pct : l.pct;
       p.style.fillOpacity = (0.42 + Math.min(0.58, margem / 55)).toFixed(2);
 
-      const nome = p.getAttribute('data-nome') || chave;
       const sub = APU.fmt.pct(entrada.pst || 0) + ' apurado';
       const html = conteudoDoBalao(nome, sub, entrada, dicionario);
       p.onmousemove = (ev) => tip.mostrar(html, ev);
       p.onmouseleave = () => tip.esconder();
-      if (aoClicar) {
-        p.onclick = () => { tip.esconder(); aoClicar(chave); };
-      }
     });
   }
 

@@ -1472,6 +1472,9 @@ function buildMunicipalityTooltip(feature, summary) {
       <div style="font-size: 12px; color: #777777; margin-bottom: 6px;">
         ${escapeHtml(ufLabel)}${turnoLabelText ? ` - ${escapeHtml(turnoLabelText)}` : ''}
       </div>
+      ${(summary || STATE.currentMapMuniSummary)?._censusFilterActive && !result.__censusMatch
+        ? '<div style="font-size:11px; color:#999999; margin-bottom:6px;">Nenhum local de votação aqui atende ao filtro demográfico.</div>'
+        : ''}
       <table class="district-nyt-table">
         <thead>
           <tr>
@@ -1819,7 +1822,51 @@ function buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey) {
   return summary;
 }
 
+// Marca quais entradas do resumo tem pelo menos UM local de votacao que passa
+// pelos filtros demograficos. O coropletico e pintado a partir dos totais
+// oficiais do TSE por municipio, que nao sabem nada de censo — sem esta marca o
+// mapa inteiro continuava colorido com o filtro ligado, como se nada tivesse
+// sido filtrado. Usa o mesmo getMunicipalSummaryEntryForFeature dos dois lados,
+// entao a associacao local -> poligono e exatamente a mesma da pintura.
+function markCensusMatchesOnSummary(summary, cargoKey = currentCargo) {
+  if (!summary) return summary;
+
+  const ativo = typeof hasActiveCensusFilter === 'function' && hasActiveCensusFilter();
+  Object.defineProperty(summary, '_censusFilterActive', { value: ativo, configurable: true });
+  if (!ativo) return summary;
+
+  Object.values(summary).forEach((entry) => {
+    if (entry) entry.__censusMatch = false;
+  });
+
+  // Memoiza por municipio: getMunicipalSummaryEntryForFeature cai em varreduras
+  // O(n) sobre o summary nos fallbacks, e sem isto seriam ~10 mil buscas por
+  // redesenho (uma por local) em vez de uma por municipio.
+  const porMunicipio = new Map();
+  const geojson = currentDataCollection[cargoKey];
+  geojson?.features?.forEach((feature) => {
+    if (!filterFeature(feature)) return;
+
+    const props = feature.properties || {};
+    const chave = String(getMunicipalityFeatureCode(props) || getProp(props, 'nm_localidade') || '').trim();
+    let entry;
+    if (chave && porMunicipio.has(chave)) {
+      entry = porMunicipio.get(chave);
+    } else {
+      entry = getMunicipalSummaryEntryForFeature(props, summary);
+      if (chave) porMunicipio.set(chave, entry);
+    }
+    if (entry) entry.__censusMatch = true;
+  });
+
+  return summary;
+}
+
 function buildGeneralMunicipalityOverviewSummary(cargoKey = currentCargo) {
+  return markCensusMatchesOnSummary(buildGeneralMunicipalityOverviewSummaryRaw(cargoKey), cargoKey);
+}
+
+function buildGeneralMunicipalityOverviewSummaryRaw(cargoKey = currentCargo) {
   const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
 
   // Deputado nunca passa pelos dots: o RESULTS tem todos os municipios e a
@@ -2078,6 +2125,27 @@ function applyRegionScopeToMunicipiosLayer(layer = STATE.municipiosLayer) {
 }
 
 
+// O coropletico e remontado a cada redesenho, inclusive quando so um filtro
+// demografico mudou. Reenquadrar nessas horas jogaria o usuario de volta para o
+// estado inteiro a cada tique do slider — entao so enquadra quando o recorte
+// (UF + nivel/regiao + modo) realmente mudou.
+function shouldRefitOverviewBounds(chave) {
+  if (STATE.lastOverviewFitKey === chave) return false;
+  STATE.lastOverviewFitKey = chave;
+  return true;
+}
+
+// Sair do coropletico (entrar num municipio, ir para Locais de Votacao) invalida
+// o enquadramento memorizado: ao voltar, o mapa tem que reenquadrar o estado.
+function forgetOverviewFit() {
+  STATE.lastOverviewFitKey = null;
+}
+
+function currentOverviewScopeKey(ufNorm, nivel) {
+  const { level, code } = currentRegionFilter || {};
+  return `${ufNorm}|${nivel || ''}|${level || ''}:${code || ''}`;
+}
+
 async function showGeneralMunicipalityOverview(uf) {
   if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
@@ -2112,20 +2180,23 @@ async function showGeneralMunicipalityOverview(uf) {
       selectedLocationIDs.clear();
       STATE.isFilterAggregationActive = false;
       // 1989/1994 nao tem locais: permanece no coropletico com o municipio destacado.
-      if (!isMuniOnlyGeneralYear()) STATE.currentMapMode = 'locais';
+      if (!isMuniOnlyGeneralYear()) {
+        STATE.currentMapMode = 'locais';
+        forgetOverviewFit();
+      }
       if (cidadeCombobox) cidadeCombobox.setValue(matchedCity);
       if (bairroCombobox) bairroCombobox.setValue('');
       if (dom.searchLocal) dom.searchLocal.value = '';
       setPendingMunicipalFocusBounds(feature);
       focusSelectedMunicipalityOnMap({ animate: true, duration: 0.45, preferPending: true });
       populateBairroDropdown();
-      updateApplyButtonText();
       applyFiltersAndRedraw();
     });
     STATE.municipiosLayer.addTo(map);
 
-    const bounds = STATE.municipiosLayer.getBounds();
-    MLCompat.fitMapToBounds(map, bounds, { padding: [20, 20], animate: false });
+    if (shouldRefitOverviewBounds(currentOverviewScopeKey(ufNorm, 'municipios'))) {
+      MLCompat.fitMapToBounds(map, STATE.municipiosLayer.getBounds(), { padding: [20, 20], animate: false });
+    }
 
     syncMapModeButtons();
 
@@ -2195,6 +2266,7 @@ function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCar
       });
     });
     grupo.totalValid += ensureNumber(entry.totalValid);
+    if (entry.__censusMatch) grupo.__censusMatch = true;
   });
 
   const scopedColorLookup = getScopedColorLookupForCargo(cargoKey);
@@ -2231,8 +2303,15 @@ function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCar
       turnoLabel,
       votes: grupo.votes,
       rawTotals: grupo.votes,
-      isDetailed: true
+      isDetailed: true,
+      __censusMatch: !!grupo.__censusMatch
     };
+  });
+
+  // O summary de regiao herda a marca do municipal: se o filtro esta ligado la,
+  // esta aqui tambem, e a regiao acende quando qualquer municipio dela acende.
+  Object.defineProperty(summary, '_censusFilterActive', {
+    value: !!muniSummary._censusFilterActive, configurable: true
   });
 
   return summary;
@@ -2292,7 +2371,9 @@ async function showGeneralRegionOverview(uf) {
     });
     STATE.municipiosLayer.addTo(map);
 
-    MLCompat.fitMapToBounds(map, STATE.municipiosLayer.getBounds(), { padding: [20, 20], animate: false });
+    if (shouldRefitOverviewBounds(currentOverviewScopeKey(ufNorm, level))) {
+      MLCompat.fitMapToBounds(map, STATE.municipiosLayer.getBounds(), { padding: [20, 20], animate: false });
+    }
     syncMapModeButtons();
 
     renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
@@ -2478,18 +2559,22 @@ function applyFiltersAndRedraw() {
   }
 
   if (shouldRenderGeneralMunicipalityOverview()) {
-    // Mesmo sem desenhar os pontos, os caches de features visiveis precisam
-    // refletir o filtro atual: getTurnoutStatsForSelection (comparecimento/aptos)
-    // e afins leem daqui — sem isto cairiam no fallback de UMA unica feature.
+    // Antes de tudo: o coropletico e o modo padrao ao escolher uma UF, e este
+    // ramo dava return antes do updateAvailabilityBars la embaixo. As barras de
+    // disponibilidade e a escala do slider de renda so apareciam depois de
+    // trocar de categoria e voltar — que e o unico outro caminho que as chama.
+    updateAvailabilityBars(geojson);
+
+    // Depois, e nao antes: updateAvailabilityBars pode reescalar o dominio da
+    // renda e, ao faze-lo, zerar o filtro. Os caches tem que refletir o estado
+    // final, senao getTurnoutStatsForSelection (comparecimento/aptos) e afins
+    // leriam um recorte que ja nao vale.
     const overviewVisible = geojson.features.filter((feature) => filterFeature(feature));
     CURRENT_VISIBLE_FEATURES_CACHE = overviewVisible;
     CURRENT_VISIBLE_PROPS_CACHE = overviewVisible.map((feature) => feature.properties);
     void (STATE.currentMapMode === 'regioes'
       ? showGeneralRegionOverview(dom.selectUFGeneral?.value)
       : showGeneralMunicipalityOverview(dom.selectUFGeneral?.value));
-    if (STATE.isLoadingDataset) {
-      clearPendingFilterChanges();
-    }
     return;
   }
 
@@ -2516,6 +2601,7 @@ function applyFiltersAndRedraw() {
   }
 
   STATE.currentMapMode = 'locais';
+  forgetOverviewFit();
   syncMapModeButtons();
 
   const visibleFeatures = (geojson.features || []).filter(filterFeature);
@@ -2580,10 +2666,6 @@ function applyFiltersAndRedraw() {
   }
 
   syncResultsPanelToCurrentView();
-
-  if (STATE.isLoadingDataset) {
-    clearPendingFilterChanges();
-  }
 
   // Update Voltar/Clear Selection button visibility
   if (typeof window.updateClearSelectionButtonVisibility === 'function') {
@@ -2769,27 +2851,16 @@ function filterFeature(feature) {
 
   // --- FILTROS CENSITÁRIOS ---
 
-  // 1. Renda (Direto)
+  // 1. Renda. Local sem censo nao e local de renda zero: ensureNumber devolve 0
+  // quando a chave nao existe, e com so um teto definido (ex.: ate R$ 2.000) isso
+  // varria todo local sem dado para dentro do resultado como "baixa renda".
   const renda = ensureNumber(getProp(props, 'Renda Media'));
+  const temFiltroRenda = STATE.censusFilters.rendaMin !== null || STATE.censusFilters.rendaMax !== null;
+  if (temFiltroRenda && !(renda > 0)) return false;
+  // Limites inclusivos, como nos demais filtros censitarios (que usam >=).
   if (STATE.censusFilters.rendaMin !== null && renda < STATE.censusFilters.rendaMin) return false;
   if (STATE.censusFilters.rendaMax !== null && renda > STATE.censusFilters.rendaMax) return false;
 
-
-  // Helper para somar chaves variadas
-  const getVal = (candidates) => {
-    for (const key of candidates) {
-      if (props[key] !== undefined) return ensureNumber(props[key]);
-
-      const upperKey = String(key).toUpperCase();
-      for (const propKey in props) {
-        if (String(propKey).toUpperCase() === upperKey) {
-          return ensureNumber(props[propKey]);
-        }
-      }
-    }
-
-    return 0;
-  };
 
   // Helper de checagem genérica Pct ou Absoluto Calculado
   const checkDynamic = (filterVal, filterMode, type) => {
@@ -2804,85 +2875,11 @@ function filterFeature(feature) {
       return propVal >= filterVal;
     }
 
-    // Para Gênero, Idade, Escolaridade, Civil: Calcular dinamicamente
-    let numerator = 0;
-    let denominator = 0;
-
-    // Gênero
-    if (type === 'genero') {
-      const h = getVal(['MASCULINO', 'HOMENS', 'Homens', 'Pct Homens']);
-      const m = getVal(['FEMININO', 'MULHERES', 'Mulheres', 'Pct Mulheres']);
-
-      // Fallback para legacy Pct direto se não tiver absoluto
-      // Se tiver Pct Homens e Pct Mulheres, getVal retornará eles.
-      // Se for Pct, a soma deve ser ~100 (ou perto). Se for Absoluto, soma é pop.
-
-      const total = h + m;
+    if (type === 'escolaridade') {
+      const { acc, total, denominador } = readEscolaridadeAcc(props);
       if (total === 0) return false;
 
-      // Se for Pct, total é ~100.
-      // filterVal é 0-100.
-
-      // 'Pct Mulheres' vs 'Pct Homens'
-      if (filterMode === 'Pct Mulheres') numerator = m;
-      else numerator = h;
-
-      const pct = (numerator / total) * 100;
-      return pct >= filterVal;
-    }
-
-    // Estado Civil
-    else if (type === 'estadocivil') {
-      const s = getVal(['SOLTEIRO', 'Solteiro', 'Pct Solteiro']);
-      const c = getVal(['CASADO', 'Casado', 'Pct Casado']);
-      const d = getVal(['DIVORCIADO', 'Divorciado', 'Pct Divorciado']);
-      const v = getVal(['VIÚVO', 'VIUVO', 'Viúvo', 'Pct Viúvo']);
-      const sep = getVal(['SEPARADO JUDICIALMENTE', 'SEPARADO', 'Separado', 'Pct Separado']);
-
-      // Detecção de Modo Percentual (Legacy)
-      // Se a soma for significativamente < da população total esperada (em absolutos) ou se for ~100
-      // Mas melhor: verificar se usamos keys de Pct
-      const isPct = (props['Pct Solteiro'] !== undefined || props['Pct Casado'] !== undefined);
-
-      let den;
-      let num;
-
-      if (isPct) den = 100;
-      else den = s + c + d + v + sep;
-
-      if (den === 0) return false;
-
-      if (filterMode === 'Solteiro') num = s;
-      else if (filterMode === 'Casado') num = c;
-      else if (filterMode === 'Divorciado') num = d;
-      else if (filterMode === 'Viúvo') num = v;
-      else num = sep;
-
-      return (num / den * 100) >= filterVal;
-    }
-    else if (type === 'escolaridade') {
-      const ana = getVal(['ANALFABETO', 'Analfabeto', 'Pct Analfabeto']);
-      const le = getVal(['LÊ E ESCREVE', 'LE E ESCREVE', 'Lê e Escreve', 'Pct Lê e Escreve']);
-      const fi = getVal(['ENSINO FUNDAMENTAL INCOMPLETO', 'FUNDAMENTAL INCOMPLETO', 'Pct Fundamental Incompleto']);
-      const fc = getVal(['ENSINO FUNDAMENTAL COMPLETO', 'FUNDAMENTAL COMPLETO', 'Pct Fundamental Completo']);
-      const mi = getVal(['ENSINO MÉDIO INCOMPLETO', 'MEDIO INCOMPLETO', 'Pct Médio Incompleto']);
-      const mc = getVal(['ENSINO MÉDIO COMPLETO', 'MEDIO COMPLETO', 'Pct Médio Completo']);
-      const si = getVal(['ENSINO SUPERIOR INCOMPLETO', 'SUPERIOR INCOMPLETO', 'Pct Superior Incompleto']);
-      const sc = getVal(['ENSINO SUPERIOR COMPLETO', 'SUPERIOR COMPLETO', 'Pct Superior Completo']);
-
-      const isPct = (props['Pct Analfabeto'] !== undefined || props['Pct Médio Completo'] !== undefined);
-
-      let den;
-      let num;
-
-      if (isPct) den = 100;
-      else den = ana + le + fi + fc + mi + mc + si + sc;
-
-      if (den === 0) return false;
-
-      num = getEscolaridadeGroupedValue(filterMode, { ana, le, fi, fc, mi, mc, si, sc });
-
-      return (num / den * 100) >= filterVal;
+      return (getEscolaridadeGroupedValue(filterMode, acc) / denominador * 100) >= filterVal;
     }
 
     // Idade
@@ -2890,21 +2887,18 @@ function filterFeature(feature) {
       const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
       if (ageAggregate.total === 0) return false;
 
-      numerator = ageAggregate.buckets[filterMode] || 0;
-      const valCalc = (numerator / ageAggregate.total) * 100;
-      return valCalc >= filterVal;
+      const numerator = ageAggregate.buckets[filterMode] || 0;
+      return (numerator / ageAggregate.total) * 100 >= filterVal;
     }
 
     return true;
   };
 
   if (!checkDynamic(STATE.censusFilters.racaVal, STATE.censusFilters.racaMode, 'raca')) return false;
-  if (!checkDynamic(STATE.censusFilters.generoVal, STATE.censusFilters.generoMode, 'genero')) return false;
   if (!checkDynamic(STATE.censusFilters.saneamentoVal, STATE.censusFilters.saneamentoMode, 'saneamento')) return false;
 
   if (!checkDynamic(STATE.censusFilters.idadeVal, STATE.censusFilters.idadeMode, 'idade')) return false;
   if (!checkDynamic(STATE.censusFilters.escolaridadeVal, STATE.censusFilters.escolaridadeMode, 'escolaridade')) return false;
-  if (!checkDynamic(STATE.censusFilters.estadoCivilVal, STATE.censusFilters.estadoCivilMode, 'estadocivil')) return false;
 
   return true;
 }
@@ -3392,7 +3386,6 @@ function onFeatureClick(feature, e) {
 
   if (currentLayer && currentLayer.resetStyle) currentLayer.resetStyle();
   isDragSelection = false; // Is manual click
-  updateApplyButtonText();
 
   const shouldRestoreFilteredAggregation =
     (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value)
@@ -3572,6 +3565,21 @@ function getMunicipalPolygonStyle(feature, summary) {
     }
 
     return emptyStyle;
+  }
+
+  // Filtro demografico ligado: so continua pintado o municipio (ou regiao) que
+  // tem ao menos um local de votacao dentro do recorte. O resto fica apagado, no
+  // mesmo cinza que o filtro de desempenho ja usa.
+  const summaryAtivo = summary || STATE.currentMapMuniSummary;
+  if (summaryAtivo?._censusFilterActive && !result.__censusMatch) {
+    return {
+      fillColor: '#888888',
+      fillOpacity: 0.12,
+      color: '#ffffff',
+      weight: 0.12,
+      opacity: 0.35,
+      height: 0
+    };
   }
 
   let fillColor = DEFAULT_SWATCH;
@@ -4613,49 +4621,12 @@ function selectFeaturesInPixelBox(pixelBox) {
 
 // FunÃ§Ã£o auxiliar para gerar o texto do tÃ­tulo baseado nos filtros ativos
 function getActiveCensusFilterLabel() {
-  const f = STATE.censusFilters;
-
-  // 1. Filtro de Renda
-  if (f.rendaMin !== null || f.rendaMax !== null) {
-    const min = (f.rendaMin || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-    const max = f.rendaMax ? (f.rendaMax).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'Máx (+R$ 10k)';
-    return `Renda Média: ${min} a ${max}`;
-  }
-
-  if (f.racaVal > 0) {
-    // Remove o "Pct" para ficar mais bonito (ex: "Pct Preta" vira "População Preta")
-    const label = f.racaMode.replace('Pct ', 'População ');
-    return `${label}: Acima de ${f.racaVal}%`;
-  }
-
-  // 3. Filtro de Idade
-  if (f.idadeVal > 0) {
-    return `Idade ${f.idadeMode}: Acima de ${f.idadeVal}% dos eleitores`;
-  }
-
-  // 4. Filtro de Gênero
-  if (f.generoVal > 0) {
-    const label = f.generoMode.replace('Pct ', ''); // "Mulheres" ou "Homens"
-    return `Gênero (${label}): Acima de ${f.generoVal}%`;
-  }
-
-  // 5. Filtro de Escolaridade
-  if (f.escolaridadeVal > 0) {
-    return `Escolaridade (${f.escolaridadeMode}): Acima de ${f.escolaridadeVal}%`;
-  }
-
-  // 6. Filtro de Estado Civil
-  if (f.estadoCivilVal > 0) {
-    return `Estado Civil (${f.estadoCivilMode}): Acima de ${f.estadoCivilVal}%`;
-  }
-
-  // 7. Filtro de Saneamento
-  if (f.saneamentoVal > 0) {
-    const label = f.saneamentoMode.replace('Pct ', '');
-    return `Saneamento (${label}): Acima de ${f.saneamentoVal}%`;
-  }
-
-  return null; // Nenhum filtro censitário ativo
+  // Era uma cadeia de return antecipado: com Renda e Cor/Raca ativos ao mesmo
+  // tempo, o titulo so citava Renda. Agora lista todos, na mesma descricao que
+  // alimenta os chips do painel.
+  if (typeof descreverFiltrosCenso !== 'function') return null;
+  const partes = descreverFiltrosCenso().map((chip) => chip.texto);
+  return partes.length ? partes.join(' · ') : null;
 }
 
 /**

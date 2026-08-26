@@ -61,113 +61,6 @@ async function onClickLoadData_Municipal_2000(uf, municipio, ano) {
   await loadMunicipal2000Prefeito(uf, municipio, ano);
 }
 
-async function onClickLoadData_Municipal() {
-  const uf = dom.selectUFMunicipal.value;
-  const municipio = dom.selectMunicipio.value;
-  const ano = STATE.currentElectionYear;
-  const isVereador = (currentOffice === 'vereador');
-
-  if (!uf || !municipio) return;
-
-  setButtonLoading(dom.btnLoadData, true);
-  dom.mapLoader.textContent = `Carregando ${municipio}/${uf} (${ano})...`;
-  dom.mapLoader.classList.add('visible');
-
-  clearZipCache();
-  clearSelection(true);
-  currentDataCollection = {};
-  currentDataCollection_2022 = {};
-  uniqueCidades.clear();
-  uniqueBairros.clear();
-  STATE.candidates = {}; STATE.metrics = {}; STATE.inaptos = {};
-  STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
-  clearVereadorData();
-  STATE.currentMuniCode = null; // reseta para capturar novo
-
-  try {
-    // Passo 1 — carrega GeoJSON de prefeito (geometria base para ambos os cargos)
-    const dataOrdPromise = loadGeoJSON(municipio, uf, ano, 'Ordinaria');
-    const dataSupPromise = loadGeoJSON(municipio, uf, ano, 'Suplementar');
-    const censusPromise = fetchGeoJSON(buildDataPath_Census(uf, ano, municipio));
-
-    const [dataOrd, dataSup, censusData] = await Promise.all([
-      dataOrdPromise,
-      dataSupPromise.catch(() => null),
-      censusPromise.catch(() => null)
-    ]);
-
-    if (!dataOrd) throw new Error(`GeoJSON não encontrado para ${municipio} (Ordinaria ${ano}).`);
-
-    // Captura código TSE (necessário para vereador encontrar JSON no ZIP)
-    if (dataOrd.features && dataOrd.features.length > 0) {
-      const props = dataOrd.features[0].properties;
-      STATE.currentMuniCode = String(getProp(props, 'CD_MUNICIPIO') || getProp(props, 'cd_localidade_tse') || '');
-      console.log(`[Municipal] Código TSE: ${STATE.currentMuniCode}`);
-    }
-
-    if (censusData) mergeCensusData(dataOrd, censusData);
-    if (dataSup && censusData) mergeCensusData(dataSup, censusData);
-
-    if (isVereador) {
-      // Vereador usa o mesmo GeoJSON do prefeito como mapa base (geometria)
-      currentDataCollection['vereador_ord'] = dataOrd;
-      uniqueCidades.clear(); uniqueBairros.clear();
-      dataOrd.features.forEach(f => {
-        const p = f.properties;
-        const city = getProp(p, 'nm_localidade'); if (city) uniqueCidades.add(city);
-        const bairro = getProp(p, 'ds_bairro'); if (bairro) uniqueBairros.add(bairro);
-      });
-
-      // Agora chama o loader de votos de vereador (já temos o código TSE)
-      await onClickLoadData_Vereadores(uf, municipio, ano, dataOrd);
-      return;
-    }
-
-    // === PREFEITO ===
-    currentOffice = 'prefeito'; currentSubType = 'ord'; currentCargo = 'prefeito_ord';
-
-    currentDataCollection['prefeito_ord'] = dataOrd;
-    processLoadedGeoJSON(dataOrd, 'prefeito_ord');
-
-    if (dataSup) {
-      currentDataCollection['prefeito_sup'] = dataSup;
-      processLoadedGeoJSON(dataSup, 'prefeito_sup');
-    }
-
-    updateElectionTypeUI();
-    dom.summaryBoxContainer.classList.add('section-hidden');
-    [dom.filterBox, dom.vizBox].forEach(el => el.classList.remove('section-hidden'));
-    if (cidadeCombobox) cidadeCombobox.disable(true);
-    if (bairroCombobox) bairroCombobox.disable(false);
-    [dom.searchLocal, dom.selectVizColorStyle, dom.selectVizSize].forEach(el => el && (el.disabled = false));
-    populateBairroDropdown();
-    dom.btnApplyFilters.disabled = false;
-    dom.btnApplyFilters.textContent = `Analisar/Agregar "${municipio}"`;
-    const hasAnyInaptos = Object.values(STATE.dataHasInaptos).some(v => v);
-    dom.btnToggleInaptos.disabled = !hasAnyInaptos;
-    STATE.filterInaptos = false;
-    dom.btnToggleInaptos.classList.remove('active');
-    dom.btnToggleInaptos.textContent = 'Filtrar Inaptos';
-    updateConditionalUI();
-    applyFiltersAndRedraw();
-    try {
-      const b = currentLayer?.getBounds();
-      if (b?.isValid()) {
-        if (typeof applyMapViewportAfterDataLoad === 'function') applyMapViewportAfterDataLoad(b);
-        else map.fitBounds(b);
-      }
-    } catch (e) { }
-    showToast(`Dados de ${municipio}/${uf} (${ano}) carregados!`, 'success');
-
-  } catch (e) {
-    console.error(`Falha ao carregar ${ano}:`, e);
-    showToast(`Erro ao carregar os dados de ${ano}: ${e.message}`, 'error');
-  } finally {
-    dom.mapLoader.classList.remove('visible');
-    setButtonLoading(dom.btnLoadData, false);
-  }
-}
-
 window.onClickLoadData_General = async function () {
   // Ponte TSE->IBGE: o resumo municipal depende dela para casar resultado com
   // poligono. Aqui e no loader de deputados estao os dois portoes de toda
@@ -441,8 +334,6 @@ async function onClickLoadData_Vereadores(uf, municipio, ano, baseGeoProvided = 
     if (dom.selectVizSize) dom.selectVizSize.disabled = false;
     dom.searchLocal.disabled = false;
     populateBairroDropdown();
-    dom.btnApplyFilters.disabled = false;
-    dom.btnApplyFilters.textContent = `Analisar/Agregar "${municipio}"`;
 
     const hasInaptos = (STATE.inaptos['vereador_ord']?.['1T']?.length || 0) > 0;
     dom.btnToggleInaptos.disabled = !hasInaptos;
@@ -469,50 +360,5 @@ async function onClickLoadData_Vereadores(uf, municipio, ano, baseGeoProvided = 
   }
 }
 
-// Helper central para carregar
-function createGeoJsonLegacyDisabledError() {
-  return new Error('Fluxo GeoJSON legado desativado. Use apenas JSON + GPKG.');
-}
-
-async function loadGeoJSON() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-async function loadAllStatesAndMerge_General() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-// === CONSTRUTORES DE CAMINHO ===
-
-function buildDataPath_General() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-function buildDataPath_Municipal() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-function buildDataPath_Census() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-// let allDataCache = new Map(); // REMOVIDO: Não usamos mais cache global para economizar RAM
-
-// ====== DATA PROCESSING ======
-
-async function loadZipIndex() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-// Substitua a função fetchGeoJSON antiga por esta:
-async function fetchGeoJSON() {
-  throw createGeoJsonLegacyDisabledError();
-}
-
-// (Função removida: tryFindInElectionZips)
-
-async function fetchFromZip() {
-  throw createGeoJsonLegacyDisabledError();
-}
 
 // ====== DATA PROCESSING ======

@@ -12,7 +12,17 @@
 
   const $ = (id) => document.getElementById(id);
 
-  const estado = { uf: null, dados: null, geo: null, chapa: null, timer: null };
+  /* Camadas do mapa, na ordem do controle. `un` nomeia a unidade nos rótulos. */
+  const NIVEIS = {
+    municipios: { titulo: 'Liderança por município', un: 'municípios' },
+    rgint: { titulo: 'Liderança por região intermediária', un: 'regiões' },
+    rgi: { titulo: 'Liderança por região imediata', un: 'regiões' }
+  };
+
+  const estado = {
+    uf: null, dados: null, geo: null, geoNivel: null, chapa: null, timer: null,
+    nivel: 'municipios', porChave: {}, total: null, sel: null
+  };
 
   function lerUF() {
     const u = (APU.cfg.uf || '').toLowerCase();
@@ -65,18 +75,19 @@
      código do TSE só existe depois do primeiro boletim, e o mapa precisa estar
      na tela antes disso. */
   async function montarMapa(uf) {
-    if (estado.geo) return estado.geo;
+    if (estado.geo && estado.geoNivel === estado.nivel) return estado.geo;
 
-    const malha = await APU.malha(uf);
+    const malha = await APU.malha(uf, estado.nivel);
     if (!malha || !malha.p || !malha.p.length) return null;
 
     const svg = $('mapaUF');
     svg.setAttribute('viewBox', `0 0 ${malha.w} ${malha.h}`);
-    svg.innerHTML = malha.p.map(([ibge, nome, d]) =>
-      `<path data-chave="${APUUI.esc(ibge)}" data-nome="${APUUI.esc(nome || '')}" d="${d}"></path>`
+    svg.innerHTML = malha.p.map(([chave, nome, d]) =>
+      `<path data-chave="${APUUI.esc(chave)}" data-nome="${APUUI.esc(nome || '')}" d="${d}"></path>`
     ).join('');
 
     estado.geo = malha;
+    estado.geoNivel = estado.nivel;
     return malha;
   }
 
@@ -88,6 +99,55 @@
       if (m && m.ibge && dados.abr[cd]) mapa[String(m.ibge)] = dados.abr[cd];
     });
     return mapa;
+  }
+
+  /* Chave do path -> entrada. No nível municipal é a entrada crua do boletim;
+     nos regionais é a soma dos municípios que a própria malha lista em cada
+     região — o TSE não totaliza por região, e o índice do IBGE já veio embutido
+     na malha justamente para essa soma. */
+  function agruparPorChave(dados, malha) {
+    const mun = porIbge(dados);
+    if (estado.nivel === 'municipios') return mun;
+
+    const mapa = {};
+    ((malha && malha.p) || []).forEach(([cd, , , membros]) => {
+      mapa[cd] = APU.agregar((membros || []).map((ibge) => mun[ibge]).filter(Boolean));
+    });
+    return mapa;
+  }
+
+  /* ------------------------------------------------------------- seleção */
+
+  /* O card lateral mostra o estado inteiro ou, quando há município escolhido no
+     mapa, só ele. Município que ainda não abriu urna cai na chapa zerada, a
+     mesma que o estado mostra antes do primeiro boletim. */
+  function lateral() {
+    const sel = estado.sel;
+    const nomeUF = APU.UF_NOMES[estado.uf] || estado.uf.toUpperCase();
+    const alvo = sel ? (estado.porChave[sel.chave] || null) : estado.total;
+    const lista = APU.ranking(alvo, (estado.dados && estado.dados.cand) || {});
+
+    $('voltarMun').hidden = !sel;
+    $('rotuloPlacar').textContent = sel ? sel.nome
+      : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
+    APUUI.placar(lista.length ? lista : APU.rankingZerado(estado.chapa, estado.uf), 'placar');
+    APUUI.participacao(alvo, 'participacao');
+  }
+
+  function selecionar(chave, nome) {
+    estado.sel = { chave, nome };
+    lateral();
+  }
+
+  /* -------------------------------------------------------------- camadas */
+
+  /* Trocar de camada troca a malha e a chave dos dados; a seleção morre junto,
+     porque código de município não é código de região. */
+  function trocarNivel(nivel) {
+    if (!NIVEIS[nivel] || nivel === estado.nivel) return;
+    estado.nivel = nivel;
+    estado.sel = null;
+    pintar();
   }
 
   /* --------------------------------------------------------------- desenho */
@@ -111,6 +171,10 @@
     if (rot) rot.textContent = APU.cfg.cargo === '0001' ? 'Apuração nacional' : 'Central de apuração';
     document.title = `${nomeUF} — ${nomeDoCargo()} — Apuração — ElectoMaps`;
 
+    $('rotuloMapa').textContent = NIVEIS[estado.nivel].titulo;
+    $('niveis').querySelectorAll('[data-nivel]').forEach((b) =>
+      b.classList.toggle('is-on', b.dataset.nivel === estado.nivel));
+
     if (!dados) {
       APUUI.selo(null, null);
       APUUI.progresso(null);
@@ -129,16 +193,15 @@
       }
 
       $('subtitulo').textContent = `${nomeDoCargo()} — candidaturas registradas`;
-      $('rotuloPlacar').textContent = `Candidaturas em ${nomeUF}`;
       $('legenda').innerHTML = '';
+      estado.porChave = {};
 
       const vazio = await montarMapa(uf);
       $('mapaNota').textContent = vazio
         ? 'aguardando o primeiro boletim'
-        : 'Malha municipal indisponível';
-      if (vazio) APUUI.pintarMapa($('mapaUF'), () => null, {}, null);
-      APUUI.placar(chapa, 'placar');
-      APUUI.participacao(null, 'participacao');
+        : 'Malha indisponível';
+      if (vazio) APUUI.pintarMapa($('mapaUF'), () => null, {}, selecionar);
+      lateral();
       return;
     }
 
@@ -149,26 +212,27 @@
     const dicionario = dados.cand || {};
     const entradas = Object.values(dados.abr);
     const total = APU.agregar(entradas);
+    estado.total = total;
 
     $('subtitulo').textContent = `${nomeDoCargo()} · ${APU.fmt.int(entradas.length)} municípios`;
-    $('rotuloPlacar').textContent = `Resultado em ${nomeUF}`;
 
     APUUI.selo(dados.meta, { ...total, and: entradas[0] && entradas[0].and, dt: entradas[0] && entradas[0].dt, ht: entradas[0] && entradas[0].ht });
     APUUI.progresso(total);
-    APUUI.placar(APU.ranking(total, dicionario), 'placar');
-    APUUI.participacao(total, 'participacao');
 
     const proj = await montarMapa(uf);
+    estado.porChave = agruparPorChave(dados, proj);
     if (proj) {
-      const porCodigo = porIbge(dados);
-      APUUI.pintarMapa($('mapaUF'), (ibge) => porCodigo[ibge] || null, dicionario, null);
-      const comApuracao = entradas.filter((e) => e && e.vv > 0).length;
-      $('mapaNota').textContent = `${comApuracao} de ${entradas.length} municípios com votos`;
-      APUUI.legenda(APUUI.lideresDistintos(entradas, dicionario), 'legenda');
+      APUUI.pintarMapa($('mapaUF'), (c) => estado.porChave[c] || null, dicionario, selecionar);
+      const alvos = Object.values(estado.porChave);
+      const comApuracao = alvos.filter((e) => e && e.vv > 0).length;
+      $('mapaNota').textContent =
+        `${comApuracao} de ${alvos.length} ${NIVEIS[estado.nivel].un} com votos`;
+      APUUI.legenda(APUUI.lideresDistintos(alvos, dicionario), 'legenda');
     } else {
-      $('mapaNota').textContent = 'Malha municipal indisponível';
+      $('mapaNota').textContent = 'Malha indisponível';
     }
 
+    lateral();
     tabela(dados, dicionario);
   }
 
@@ -233,6 +297,11 @@
   });
 
   (async function iniciar() {
+    $('voltarMun').onclick = () => { estado.sel = null; lateral(); };
+    $('niveis').onclick = (ev) => {
+      const b = ev.target.closest('[data-nivel]');
+      if (b) trocarNivel(b.dataset.nivel);
+    };
     estado.uf = lerUF();
     if (!estado.uf) {
       $('painel').hidden = true;

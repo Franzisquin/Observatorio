@@ -1522,8 +1522,6 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
   dom.searchLocal.value = '';
   if (bairroCombobox) bairroCombobox.setValue("Todos os bairros");
   populateBairroDropdown();
-  dom.btnApplyFilters.disabled = false;
-  dom.btnApplyFilters.textContent = `Analisar/Agregar "${municipio}"`;
 
   const inaptosKey = isVereador ? 'vereador_ord' : currentCargo;
   const hasInaptos = Object.values(STATE.dataHasInaptos).some(v => v)

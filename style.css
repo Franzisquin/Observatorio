@@ -2134,6 +2134,124 @@ input:disabled {
   margin-bottom: 12px;
 }
 
+/* ===== FILTROS DEMOGRAFICOS: textos de apoio ===== */
+
+.filtro-ajuda {
+  margin: 0 0 10px 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.filtro-aviso {
+  margin: 0 0 10px 0;
+  padding: 6px 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--chip-b);
+  border-left: 2px solid var(--accent);
+}
+
+.filtro-fonte {
+  margin: -6px 0 10px 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--muted);
+  opacity: 0.85;
+}
+
+/* Estado do filtro ("Sem filtro" x "Mostra apenas locais com X% ou mais") */
+.filtro-estado {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.filtro-estado.filtro-inativo {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Legenda da barra hachurada: a faixa que existe de fato no recorte atual. */
+.filtro-legenda {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.filtro-legenda.sem-dados {
+  font-style: italic;
+}
+
+/* ===== CHIPS DE FILTROS ATIVOS ===== */
+
+.filtro-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.filtro-chips-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filtro-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.filtro-chip > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filtro-chip:hover,
+.filtro-chip:focus-visible {
+  background: var(--accent);
+  color: var(--card);
+}
+
+.filtro-limpar {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+
+.filtro-limpar:hover,
+.filtro-limpar:focus-visible {
+  color: var(--text);
+  border-color: var(--text);
+}
+
 .dual-slider-container {
   position: relative;
   height: 20px;
@@ -2182,6 +2300,11 @@ input:disabled {
 
 .dual-thumb:hover {
   background: var(--accent-hover);
+}
+
+.dual-thumb:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 .dual-thumb:active {

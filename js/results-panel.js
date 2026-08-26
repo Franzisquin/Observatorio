@@ -1287,37 +1287,30 @@ function updateAvailabilityBars(geojson) {
   if (!geojson || !geojson.features) return;
 
   const mRaca = STATE.censusFilters.racaMode;
-  const mGenero = STATE.censusFilters.generoMode;
   const mIdade = STATE.censusFilters.idadeMode;
   const mSaneamento = STATE.censusFilters.saneamentoMode;
   const mEscolaridade = STATE.censusFilters.escolaridadeMode;
-  const mEstadoCivil = STATE.censusFilters.estadoCivilMode;
 
   let minRenda = Infinity, maxRenda = -Infinity;
   let minRaca = Infinity, maxRaca = -Infinity;
-  let minGenero = Infinity, maxGenero = -Infinity;
   let minIdade = Infinity, maxIdade = -Infinity;
   let minSaneamento = Infinity, maxSaneamento = -Infinity;
   let minEscolaridade = Infinity, maxEscolaridade = -Infinity;
-  let minEstadoCivil = Infinity, maxEstadoCivil = -Infinity;
+
+  // Dominio do slider de renda: min/max de TODO o dataset, medidos antes do
+  // recorte de cidade/bairro. Assim a barra hachurada (que e do recorte) aparece
+  // como um sub-trecho dentro da escala, em vez de ocupar sempre 100% dela.
+  let minRendaDataset = Infinity, maxRendaDataset = -Infinity;
 
   let hasData = false;
   const features = geojson.features;
   const total = features.length;
 
-  // --- HELPER DE CÃLCULO ---
+  // Devolve a porcentagem do recorte pedido, ou null quando a amostra e pequena
+  // demais para a barra significar alguma coisa (um local com 1 eleitor de 18
+  // anos geraria "100%" e estragaria a escala).
   const calcPct = (props, type, mode) => {
-    // ValidaÃ§Ã£o de chave rigorosa
-    const isValidKey = (k, v) => {
-      if (typeof v !== 'number') return false;
-      const up = k.toUpperCase();
-      // Ignora chaves de porcentagem ou totais explÃ­citos para evitar contagem dupla
-      if (up.startsWith('PCT') || up.includes('_PCT') || up.includes('PERCENT') || up.includes('(%)')) return false;
-      if (up.startsWith('TOTAL') || up.startsWith('SOMA') || up === 'ELEITORES_APTOS') return false;
-      return true;
-    };
-
-    // 1. Tentar pegar valor direto se for Pct (Legacy/RaÃ§a/Saneamento)
+    // Raca e Saneamento ja vem em Pct direto no acervo.
     if (type === 'raca' || type === 'saneamento') {
       if (props[mode] !== undefined) return ensureNumber(props[mode]);
       if (props[mode.toUpperCase()] !== undefined) return ensureNumber(props[mode.toUpperCase()]);
@@ -1326,111 +1319,22 @@ function updateAvailabilityBars(geojson) {
 
     let num = 0, den = 0;
 
-    // --- IDADE (CORRIGIDO) ---
     if (type === 'idade') {
       const ageAggregate = aggregateAgeBucketsFromProps(props, window.AGE_BUCKETS_STANDARD);
 
-      for (const key in {}) {
-        if (!isValidKey(key, props[key])) continue;
-
-        const val = ensureNumber(props[key]);
-        if (val <= 0) continue;
-
-        // Regex Aprimorado: Pega "16 anos", "21 a 24 anos", "100 anos ou mais"
-        const matchRange = key.match(/(\d+)[\s_]*(?:a|A|ate|to|-|_)+[\s_]*(\d+)/);
-        const matchSingle = key.match(/(\d+)[\s_]*anos/i);
-        const matchPlus = key.match(/(\d+)[\s_]*(?:anos)?[\s_]*(?:ou)?[\s_]*mais/i);
-
-        let startAge = -1;
-
-        if (matchRange) startAge = parseInt(matchRange[1]);
-        else if (matchSingle) startAge = parseInt(matchSingle[1]);
-        else if (matchPlus) startAge = parseInt(matchPlus[1]);
-
-        // Se detectou uma idade vÃ¡lida (filtro amplo para pegar tudo e somar no total)
-        if (startAge >= 10 && startAge < 150) {
-          totalAge += val;
-          foundAny = true;
-
-          // DistribuiÃ§Ã£o nos buckets
-          if (startAge >= 16 && startAge <= 24) buckets['16-24'] += val;
-          else if (startAge >= 25 && startAge <= 34) buckets['25-34'] += val;
-          else if (startAge >= 35 && startAge <= 44) buckets['35-44'] += val;
-          else if (startAge >= 45 && startAge <= 59) buckets['45-59'] += val;
-          else if (startAge >= 60 && startAge <= 74) buckets['60-74'] += val;
-          else if (startAge >= 75) buckets['75-100'] += val;
-        }
-      }
-
-      // --- FILTRO DE RUÃDO ESTATÃSTICO ---
-      // Se a soma das pessoas for muito baixa (ex: < 15), a porcentagem Ã© irrelevante/ruÃ­do.
-      // Isso evita que um local com 1 pessoa de 18 anos gere "100%" e estrague a barra.
       if (!ageAggregate.hasData || ageAggregate.total < 15) return null;
 
       num = ageAggregate.buckets[mode] || 0;
       den = ageAggregate.total;
 
-      // Auto-correÃ§Ã£o matemÃ¡tica (garante que bucket nunca Ã© maior que total)
       if (num > den) den = num;
     }
-    // --- GÃŠNERO ---
-    else if (type === 'genero') {
-      const h = ensureNumber(props['Homens'] || props['HOMENS'] || props['MASCULINO'] || props['Masculino'] || 0);
-      const m = ensureNumber(props['Mulheres'] || props['MULHERES'] || props['FEMININO'] || props['Feminino'] || 0);
+    if (type === 'escolaridade') {
+      const esc = readEscolaridadeAcc(props);
+      if (esc.total < 10) return null; // Filtro de ruido: amostra pequena demais
 
-      den = h + m;
-      if (den < 10) return null; // Filtro de ruÃ­do
-      num = (mode.includes('Mulher') || mode.includes('Feminino')) ? m : h;
-    }
-    // --- ESTADO CIVIL ---
-    else if (type === 'estadocivil') {
-      let acc = { sol: 0, cas: 0, div: 0, viu: 0, sep: 0 };
-      for (const k in props) {
-        if (!isValidKey(k, props[k])) continue;
-        const v = ensureNumber(props[k]);
-        const uk = k.toUpperCase();
-
-        if (uk.includes('SOLTEIRO')) acc.sol += v;
-        else if (uk.includes('CASADO')) acc.cas += v;
-        else if (uk.includes('DIVORCIADO')) acc.div += v;
-        else if (uk.includes('VIUVO') || uk.includes('VIÃšVO')) acc.viu += v;
-        else if (uk.includes('SEPARADO')) acc.sep += v;
-      }
-      den = acc.sol + acc.cas + acc.div + acc.viu + acc.sep;
-      if (den < 10) return null; // Filtro de ruÃ­do
-
-      if (mode === 'Solteiro') num = acc.sol;
-      else if (mode === 'Casado') num = acc.cas;
-      else if (mode === 'Divorciado') num = acc.div;
-      else if (mode === 'ViÃºvo') num = acc.viu;
-      else num = acc.sep;
-    }
-    // --- ESCOLARIDADE ---
-    else if (type === 'escolaridade') {
-      let acc = { ana: 0, le: 0, fi: 0, fc: 0, mi: 0, mc: 0, si: 0, sc: 0 };
-      for (const k in props) {
-        if (!isValidKey(k, props[k])) continue;
-        const v = ensureNumber(props[k]);
-        const uk = k.toUpperCase();
-
-        if (uk.includes('ANALFABETO')) acc.ana += v;
-        else if (uk.includes('LÃŠ E ESCREVE') || uk.includes('LE E ESCREVE')) acc.le += v;
-        else if (uk.includes('FUND') && uk.includes('INCOMP')) acc.fi += v;
-        else if (uk.includes('FUND') && uk.includes('COMP')) acc.fc += v;
-        else if (uk.includes('MÃ‰DIO') || uk.includes('MEDIO')) {
-          if (uk.includes('INCOMP')) acc.mi += v;
-          else if (uk.includes('COMP')) acc.mc += v;
-        }
-        else if (uk.includes('SUPERIOR')) {
-          if (uk.includes('INCOMP')) acc.si += v;
-          else if (uk.includes('COMP')) acc.sc += v;
-        }
-      }
-
-      den = Object.values(acc).reduce((a, b) => a + b, 0);
-      if (den < 10) return null; // Filtro de ruÃ­do
-
-      num = getEscolaridadeGroupedValue(mode, acc);
+      num = getEscolaridadeGroupedValue(mode, esc.acc);
+      den = esc.denominador;
     }
 
     if (den === 0) return 0;
@@ -1445,6 +1349,12 @@ function updateAvailabilityBars(geojson) {
   for (let i = 0; i < total; i++) {
     const f = features[i];
     const p = f.properties;
+
+    const rDataset = ensureNumber(getProp(p, 'Renda Media'));
+    if (rDataset > 0) {
+      if (rDataset < minRendaDataset) minRendaDataset = rDataset;
+      if (rDataset > maxRendaDataset) maxRendaDataset = rDataset;
+    }
 
     if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all') {
       const cityName = String(getProp(p, 'nm_localidade') || '').trim();
@@ -1478,15 +1388,14 @@ function updateAvailabilityBars(geojson) {
     };
 
     [minRaca, maxRaca] = updatemm(calcPct(p, 'raca', mRaca), minRaca, maxRaca);
-    [minGenero, maxGenero] = updatemm(calcPct(p, 'genero', mGenero), minGenero, maxGenero);
     [minSaneamento, maxSaneamento] = updatemm(calcPct(p, 'saneamento', mSaneamento), minSaneamento, maxSaneamento);
     [minIdade, maxIdade] = updatemm(calcPct(p, 'idade', mIdade), minIdade, maxIdade);
     [minEscolaridade, maxEscolaridade] = updatemm(calcPct(p, 'escolaridade', mEscolaridade), minEscolaridade, maxEscolaridade);
-    [minEstadoCivil, maxEstadoCivil] = updatemm(calcPct(p, 'estadocivil', mEstadoCivil), minEstadoCivil, maxEstadoCivil);
   }
 
   if (!hasData) {
-    ['availRenda', 'availRaca', 'availIdade', 'availGenero', 'availEscolaridade', 'availEstadoCivil', 'availSaneamento'].forEach(id => setBar(id, 0, 0, 100));
+    ['availRenda', 'availRaca', 'availIdade', 'availEscolaridade', 'availSaneamento']
+      .forEach((id) => setBar(id, 0, 0, 100));
     return;
   }
 
@@ -1497,19 +1406,23 @@ function updateAvailabilityBars(geojson) {
     return (min > max) ? { min: 0, max: 0 } : { min, max };
   };
 
-  const bRenda = check(minRenda, maxRenda, 10000);
-  setBar('availRenda', bRenda.min, bRenda.max, 10000);
+  const dominioRenda = typeof window.setRendaDominio === 'function'
+    ? window.setRendaDominio(minRendaDataset, maxRendaDataset)
+    : { min: 0, max: 10000 };
+
+  const bRenda = check(minRenda, maxRenda, dominioRenda.max);
+  setBar('availRenda', bRenda.min, bRenda.max, dominioRenda.max, dominioRenda.min);
+  setLegenda('legendaRenda', bRenda.min, bRenda.max, true);
 
   const setDemos = (id, min, max) => {
     const b = check(min, max, 100);
     setBar(id, b.min, b.max, 100);
+    setLegenda(id.replace('avail', 'legenda'), b.min, b.max, false);
   };
 
   setDemos('availRaca', minRaca, maxRaca);
   setDemos('availIdade', minIdade, maxIdade);
-  setDemos('availGenero', minGenero, maxGenero);
   setDemos('availEscolaridade', minEscolaridade, maxEscolaridade);
-  setDemos('availEstadoCivil', minEstadoCivil, maxEstadoCivil);
   setDemos('availSaneamento', minSaneamento, maxSaneamento);
 }
 
@@ -1518,18 +1431,39 @@ function calculateAgeSumForProps(props, mode) {
   return ageAggregate.buckets[mode] || 0;
 }
 
-function setBar(id, min, max, scale) {
+function setBar(id, min, max, scale, base = 0) {
   const el = document.getElementById(id);
   if (!el) return;
 
-  min = Math.max(0, min);
+  const faixa = Math.max(1, scale - base);
+  min = Math.max(base, min);
   max = Math.min(scale, max);
 
-  const left = (min / scale) * 100;
-  const width = ((max - min) / scale) * 100;
+  const left = ((min - base) / faixa) * 100;
+  const width = ((max - min) / faixa) * 100;
 
   el.style.left = `${left.toFixed(2)}%`;
-  el.style.width = `${width.toFixed(2)}%`;
+  el.style.width = `${Math.max(0, width).toFixed(2)}%`;
+}
+
+// A barra hachurada e o elemento mais informativo do painel — mostra que faixa
+// existe de fato no recorte — e ate agora nao tinha legenda nenhuma. Escreve os
+// numeros que a propria barra ja calculou.
+function setLegenda(id, min, max, moeda) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  if (!(max > min)) {
+    el.textContent = 'Sem dados deste indicador neste recorte';
+    el.classList.add('sem-dados');
+    return;
+  }
+
+  el.classList.remove('sem-dados');
+  const fmt = moeda
+    ? (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+    : (v) => `${v.toFixed(0)}%`;
+  el.textContent = `Neste recorte: ${fmt(min)} a ${fmt(max)}`;
 }
 
 function getCandidateStatusInfo(status) {
@@ -3484,7 +3418,8 @@ function renderProportionalModalUI(composition, titleName, color, cargo, elected
       }
     }
     totalValidosDisplay = totalVotesMap;
-  }  const totalCandVotes = candidateList.reduce((sum, c) => sum + c.votos, 0);
+  }
+  const totalCandVotes = candidateList.reduce((sum, c) => sum + c.votos, 0);
   const totalPartyVotes = totalCandVotes + totalLegendVotes;
 
   // --- CÁLCULO DO VOTO ESTADUAL/MUNICIPAL DO GRUPO (STATEWIDE/MUNICIPALITY-WIDE) ---
