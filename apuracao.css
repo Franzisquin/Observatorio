@@ -296,7 +296,11 @@
    nem todos são do mesmo tom de papel. */
 .apu-map path {
   stroke: var(--map-bg, var(--paper));
-  stroke-width: 0.7;
+  stroke-width: 0.8;
+  /* Espessura em pixels de tela. Sem isto o mapa municipal, que tem
+     viewBox de 2000 unidades, sairia com metade do traco do nacional,
+     de 1000. */
+  vector-effect: non-scaling-stroke;
   stroke-linejoin: round;
   fill: var(--paper-3);
   cursor: pointer;
@@ -387,26 +391,162 @@
   flex: none;
 }
 
-/* balão do mapa */
+/* ---------------------------------------------------- balão do mapa
+
+   Copiado do visualizador (.district-nyt-* em style.css). Lá o transporte é um
+   Popup do MapLibre; aqui o mapa é SVG puro, então as mesmas regras vestem um
+   elemento fixo. Os valores literais são os de lá — trocá-los por tokens
+   aproximaria, mas não seria a mesma tooltip.
+   -------------------------------------------------------------------- */
+
 .apu-tip {
   position: fixed;
   z-index: 60;
   pointer-events: none;
-  background: var(--ink);
-  color: var(--paper);
-  padding: 9px 12px;
-  border-radius: 3px;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  max-width: 260px;
   opacity: 0;
   transition: opacity 0.14s ease;
-  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22);
+  background: #ffffff;
+  color: #333333;
+  border: 1px solid #cccccc;
+  border-radius: 2px;
+  padding: 8px 10px;
+  font-family: var(--sans);
+  min-width: 260px;
+  max-width: 360px;
+  white-space: normal;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow: hidden;
 }
 
 .apu-tip.is-on { opacity: 1; }
-.apu-tip b { font-weight: 700; }
-.apu-tip span { display: block; font-variant-numeric: tabular-nums; }
+
+.nyt-tooltip-container {
+  font-family: var(--sans);
+  color: inherit;
+  min-width: 250px;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.district-nyt-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.district-nyt-sub {
+  font-size: 12px;
+  color: #777777;
+  margin-bottom: 6px;
+}
+
+.district-nyt-nota {
+  font-size: 11px;
+  color: #777777;
+  margin-top: 8px;
+}
+
+.district-nyt-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.district-nyt-table th {
+  font-size: 12px;
+  font-weight: normal;
+  color: #777777;
+  border-bottom: 1px solid #eeeeee;
+  padding: 4px 6px;
+  padding-top: 0;
+  text-align: right;
+}
+
+.district-nyt-table th:first-child {
+  text-align: left;
+  padding-left: 0;
+  width: auto;
+}
+
+.district-nyt-table th:nth-child(2) { width: 70px; text-align: right; padding-right: 6px; }
+.district-nyt-table th:nth-child(3) { width: 50px; text-align: right; padding-right: 0; }
+
+.district-nyt-table td {
+  font-size: 13px;
+  padding: 4px 6px;
+  border-bottom: 1px solid #eeeeee;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.district-nyt-table td:first-child {
+  text-align: left;
+  padding-left: 0;
+  width: auto;
+  white-space: normal;
+}
+
+.district-nyt-table td.votes-cell {
+  width: 70px;
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 4px;
+  padding-right: 6px;
+  color: #555555;
+}
+
+.district-nyt-table td.votes-cell.winner { color: #333333; }
+
+.district-nyt-table td.pct-cell {
+  width: 50px;
+  text-align: right;
+  white-space: nowrap;
+  padding-left: 2px;
+  padding-right: 0;
+  font-weight: bold;
+  color: #333333;
+}
+
+.district-nyt-table td.pct-cell.winner { color: #111111; }
+
+.district-nyt-loser-cell {
+  padding: 4px 6px;
+  display: flex;
+  align-items: flex-start;
+  border-left: 3px solid;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+}
+
+.district-nyt-loser-cell > span { margin-left: 6px; min-width: 0; }
+
+/* As mesmas trocas que o visualizador aplica em [data-theme="dark"]. */
+@media (prefers-color-scheme: dark) {
+  .apu-tip {
+    background: #151515;
+    color: #f5f5f5;
+    border-color: #2a2a2a;
+  }
+  .district-nyt-title { color: #ffffff; }
+  .district-nyt-table th { color: #aaaaaa; border-bottom-color: #2a2a2a; }
+  .district-nyt-table td { border-bottom-color: #2a2a2a; }
+  .district-nyt-table td.votes-cell { color: #aaaaaa; }
+  .district-nyt-table td.votes-cell.winner { color: #dddddd; }
+  .district-nyt-table td.pct-cell { color: #cccccc; }
+  .district-nyt-table td.pct-cell.winner { color: #ffffff; }
+}
 
 /* --------------------------------------------------------- resultado macro */
 
@@ -947,5 +1087,115 @@
   margin-bottom: 10px;
 }
 
+/* Divisa municipal a um quarto da espessura da estadual: sao 5.570 areas,
+   e o traco cheio fechava os municipios pequenos. */
+#mapaUF path { stroke-width: 0.2; }
 
+/* ------------------------------------------------- seletor de cargo (UF) */
 
+.apu-cargos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.apu-cargo {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  background: var(--paper);
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.apu-cargo:hover { border-color: var(--line-strong); color: var(--ink); }
+
+.apu-cargo.is-ativo {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+  font-weight: 600;
+}
+
+/* O cartao de participacao some junto com o conteudo: um titulo sobre uma
+   caixa vazia era o que abria o vao no pe da pagina. */
+.apu-card:has(> .apu-stats:empty) { display: none; }
+
+/* Rodape colado no fim da janela quando a pagina e mais curta que a tela —
+   sem isto ele flutuava no meio, com fundo do corpo embaixo. So na pagina
+   estadual: a presidencial nao tem rodape e depende de o palco fechar exato na
+   altura da janela — empurrar o main la reintroduzia a rolagem. */
+body:has(#mapaUF) {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+body:has(#mapaUF) .apu-main { flex: 1 0 auto; }
+body:has(#mapaUF) .site-foot { flex: none; }
+
+/* ------------------------------------- proporcao da dobra na pagina estadual
+
+   A pagina do estado tem uma dobra so: mapa e candidatos. Numa tela larga o
+   `--max` do portal deixava os dois pequenos no meio de muito vazio. Aqui a
+   faixa e mais larga e o mapa ganha altura fixa — como o SVG usa
+   `xMidYMid meet`, crescer em altura o faz crescer junto na largura.
+   -------------------------------------------------------------------------- */
+
+body:has(#mapaUF) .apu-main > .wrap,
+body:has(#mapaUF) .apu-head .wrap {
+  max-width: 1420px;
+}
+
+body:has(#mapaUF) .apu-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 430px);
+  align-items: stretch;
+}
+
+body:has(#mapaUF) .apu-mapwrap {
+  display: flex;
+  min-height: 0;
+}
+
+body:has(#mapaUF) .apu-mapwrap .apu-map {
+  width: 100%;
+  height: 68vh;
+  min-height: 460px;
+  max-height: none;
+}
+
+/* O cartao acompanha a altura do mapa e distribui as linhas no vao. */
+body:has(#mapaUF) .apu-aside {
+  display: flex;
+  flex-direction: column;
+}
+
+body:has(#mapaUF) .apu-aside .apu-card:first-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* As linhas NAO se esticam para preencher o cartao: cada candidato ocupa
+   sempre a mesma altura, e a sobra fica junta no fim da lista. Distribuir o
+   vao entre elas fazia a altura de cada candidato depender de quantos sao. */
+body:has(#mapaUF) .apu-aside .apu-results {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+@media (max-width: 940px) {
+  body:has(#mapaUF) .apu-grid { grid-template-columns: 1fr; }
+  body:has(#mapaUF) .apu-mapwrap .apu-map { height: auto; min-height: 0; }
+  body:has(#mapaUF) .apu-aside .apu-results { display: block; }
+}

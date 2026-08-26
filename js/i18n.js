@@ -51,10 +51,13 @@
       'nav.portals': 'Portais',
       'nav.inside': 'Ferramentas',
       'nav.about': 'Sobre',
+
+      'legal.terms': 'Termos de Uso',
+      'legal.privacy': 'Política de Privacidade',
+      'legal.manage': 'Gerenciar cookies',
       'nav.brazil': 'Brasil',
       'nav.tools': 'Ferramentas',
       'nav.coverage': 'Cobertura',
-      'nav.sources': 'Fontes',
 
       'home.motto': 'Eleições detalhadas como você nunca viu.',
       'home.title': 'Cartografia eleitoral, país por país.',
@@ -84,12 +87,6 @@
       'br.back': 'Portais',
       'br.title': 'Brasil',
       'br.lede': 'Resultados eleitorais brasileiros de 1989 a 2024, mapeados do país inteiro até o local de votação, com camadas demográficas do Censo.',
-      'br.fig1.v': '1989–2024', 'br.fig1.l': 'Eleições cobertas',
-      'br.fig2.v': '7', 'br.fig2.l': 'Cargos',
-      'br.fig3.v': '27', 'br.fig3.l': 'Unidades federativas',
-      'br.fig4.v': '5.570', 'br.fig4.l': 'Municípios',
-      'br.fig5.v': '90 mil+', 'br.fig5.l': 'Locais de votação',
-
       'br.s1.title': 'Ferramentas',
       'br.t1.title': 'Mapa Eleitoral',
       'br.t1.desc': 'Resultados de 1989 a 2024 em mapas interativos, por local de votação, município, bairro e região, com comparação entre eleições.',
@@ -110,12 +107,7 @@
       'br.cov2.years': '2000 · 2004 · 2008 · 2012 · 2016 · 2020 · 2024',
       'br.cov2.offices': 'Prefeito e Vereador',
       'br.cov3.title': 'Camadas demográficas',
-      'br.cov3.years': 'Censo 2022',
       'br.cov3.offices': 'Renda, cor/raça, idade, escolaridade e saneamento',
-
-      'br.s3.title': 'Fontes e limites',
-      'br.src.p1': 'Os resultados vêm do Tribunal Superior Eleitoral (TSE) e a base geográfica, do IBGE. Os números exibidos são os oficiais; o reprocessamento serve para georreferenciá-los, não para alterá-los.',
-      'br.src.p2': 'A soma exibida nos mapas cobre apenas os locais de votação já georreferenciados e não inclui o voto no exterior. Por isso pode ficar ligeiramente abaixo do total oficial da eleição.',
 
       'meta.sobre.title': 'Sobre — ElectoMaps',
       'meta.sobre.desc': 'O ElectoMaps é uma organização de mídia política apartidária dedicada a resultados eleitorais, opinião pública agregada e análise de dados.',
@@ -124,17 +116,12 @@
       'sobre.lede': 'O ElectoMaps é uma organização de mídia política apartidária. Nasceu da vontade de um grupo de jovens fascinados por política e eleições, com a missão de trazer e popularizar no Brasil um nível a mais de sofisticação analítica no tratamento de resultados eleitorais, opinião pública agregada e análise de dados.',
 
       'sobre.team.title': 'Equipe',
-      'sobre.team.note': 'O projeto é tocado por quem o construiu.',
       'sobre.p1.name': 'Luiz Daniel Medeiros',
       'sobre.p1.role': 'Fundador',
       'sobre.p1.bio': 'Estudante de Direito baseado em Manaus. É um dos fundadores do projeto, responsável pela elaboração inicial e pelo processamento e curadoria dos dados e resultados eleitorais, além de ser o desenvolvedor-chave do ElectoMaps.',
       'sobre.p2.name': 'Francisco Coelho',
       'sobre.p2.role': 'Fundador',
       'sobre.p2.bio': 'Estudante de Administração baseado em Florianópolis. É responsável pelos modelos de nowcast, pela agregação de pesquisas e pelos simuladores interativos, além de todo o polimento e o web design do projeto.',
-
-      'sobre.method.title': 'Como trabalhamos',
-      'sobre.method.p1': 'Todo resultado exibido vem de fontes oficiais do respectivo país e é reprocessado para permitir leitura geográfica fina — o nível em que a geografia do voto realmente aparece.',
-      'sobre.method.p2': 'Nenhum dado é estimado quando existe o número oficial. Onde há estimativa, ela é identificada como tal na própria interface.',
 
       'foot.project': 'Projeto',
       'foot.tagline': 'Cartografia eleitoral independente',
@@ -158,10 +145,13 @@
       'nav.portals': 'Portals',
       'nav.inside': 'Tools',
       'nav.about': 'About',
+
+      'legal.terms': 'Terms of Use',
+      'legal.privacy': 'Privacy Policy',
+      'legal.manage': 'Manage cookies',
       'nav.brazil': 'Brazil',
       'nav.tools': 'Tools',
       'nav.coverage': 'Coverage',
-      'nav.sources': 'Sources',
 
       'home.motto': 'Elections in detail like you have never seen.',
       'home.title': 'Electoral cartography, country by country.',
@@ -191,12 +181,6 @@
       'br.back': 'Portals',
       'br.title': 'Brazil',
       'br.lede': 'Brazilian election results from 1989 to 2024, mapped from the whole country down to the polling place, with demographic layers from the Census.',
-      'br.fig1.v': '1989–2024', 'br.fig1.l': 'Elections covered',
-      'br.fig2.v': '7', 'br.fig2.l': 'Offices',
-      'br.fig3.v': '27', 'br.fig3.l': 'Federative units',
-      'br.fig4.v': '5,570', 'br.fig4.l': 'Municipalities',
-      'br.fig5.v': '90,000+', 'br.fig5.l': 'Polling places',
-
       'br.s1.title': 'Tools',
       'br.t1.title': 'Electoral Map',
       'br.t1.desc': 'Results from 1989 to 2024 on interactive maps, by polling place, municipality, neighbourhood and region, with comparison between elections.',
@@ -217,12 +201,7 @@
       'br.cov2.years': '2000 · 2004 · 2008 · 2012 · 2016 · 2020 · 2024',
       'br.cov2.offices': 'Mayor and City Councillor',
       'br.cov3.title': 'Demographic layers',
-      'br.cov3.years': '2022 Census',
       'br.cov3.offices': 'Income, race, age, education and sanitation',
-
-      'br.s3.title': 'Sources and limits',
-      'br.src.p1': 'Results come from the Superior Electoral Court (TSE) and the geographic base from IBGE. The figures shown are the official ones; reprocessing exists to georeference them, not to alter them.',
-      'br.src.p2': 'The totals shown on the maps cover only the polling places already georeferenced and exclude overseas voting. They may therefore fall slightly below the official election total.',
 
       'meta.sobre.title': 'About — ElectoMaps',
       'meta.sobre.desc': 'ElectoMaps is a non-partisan political media organisation devoted to election results, aggregated public opinion and data analysis.',
@@ -231,17 +210,12 @@
       'sobre.lede': 'ElectoMaps is a non-partisan political media organisation. It grew out of a group of young people fascinated by politics and elections, with the mission of bringing to Brazil — and making widely available there — a further degree of analytical sophistication in how election results, aggregated public opinion and data are treated.',
 
       'sobre.team.title': 'Team',
-      'sobre.team.note': 'The project is run by the people who built it.',
       'sobre.p1.name': 'Luiz Daniel Medeiros',
       'sobre.p1.role': 'Co-founder',
       'sobre.p1.bio': 'Law student based in Manaus. Co-founder of the project, responsible for its initial design and for the processing and curation of the electoral data and results, and the key developer of ElectoMaps.',
       'sobre.p2.name': 'Francisco Coelho',
       'sobre.p2.role': 'Co-founder',
       'sobre.p2.bio': 'Business Administration student based in Florianópolis. Responsible for the nowcast models, the poll aggregation and the interactive simulators, as well as all the polish and web design of the project.',
-
-      'sobre.method.title': 'How we work',
-      'sobre.method.p1': 'Every result shown comes from official sources in the respective country and is reprocessed to allow fine geographic reading — the level at which the geography of the vote actually appears.',
-      'sobre.method.p2': 'Nothing is estimated where an official figure exists. Where an estimate is used, it is identified as such in the interface itself.',
 
       'foot.project': 'Project',
       'foot.tagline': 'Independent electoral cartography',
@@ -386,7 +360,25 @@
     });
   }
 
+  /* Páginas com muito texto (termos, privacidade) trazem o seu próprio bloco
+     de dicionário em js/i18n-legal.js, para não inchar este arquivo. Ele só
+     precisa estar carregado antes do DOMContentLoaded. */
+  function merge() {
+    var extra = window.EM_I18N_EXTRA;
+    if (!extra) return;
+    for (var i = 0; i < SUPPORTED.length; i++) {
+      var lang = SUPPORTED[i];
+      if (!extra[lang]) continue;
+      for (var k in extra[lang]) {
+        if (Object.prototype.hasOwnProperty.call(extra[lang], k)) {
+          DICT[lang][k] = extra[lang][k];
+        }
+      }
+    }
+  }
+
   function boot() {
+    merge();
     apply(detect());
     wire();
   }

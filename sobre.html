@@ -22,8 +22,10 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css" />
+  <link rel="stylesheet" href="consent.css" />
   <script src="js/i18n.js" defer></script>
   <script src="js/motion.js" defer></script>
+  <script src="js/consent.js" defer></script>
 </head>
 
 <body data-i18n-page="sobre">
@@ -35,7 +37,6 @@
       <nav class="topnav">
         <a href="index.html#portais" data-i18n="nav.portals">Portais</a>
         <a href="#equipe" data-i18n="sobre.team.title">Equipe</a>
-        <a href="#metodo" data-i18n="sobre.method.title">Como trabalhamos</a>
       </nav>
 
       <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:lang.label">
@@ -75,9 +76,6 @@
       <div class="wrap section-grid">
         <div class="section-label reveal">
           <h2 class="section-title" data-i18n="sobre.team.title">Equipe</h2>
-          <p class="section-note" data-i18n="sobre.team.note">
-            O projeto é tocado por quem o construiu.
-          </p>
         </div>
 
         <div class="people stagger">
@@ -126,26 +124,6 @@
       </div>
     </section>
 
-    <!-- ------------------------------------------------------- como trabalhamos -->
-    <section class="section" id="metodo">
-      <div class="wrap section-grid">
-        <div class="section-label reveal">
-          <h2 class="section-title" data-i18n="sobre.method.title">Como trabalhamos</h2>
-        </div>
-
-        <div class="prose stagger">
-          <p data-i18n="sobre.method.p1">
-            Todo resultado exibido vem de fontes oficiais do respectivo país e é reprocessado para permitir leitura
-            geográfica fina — o nível em que a geografia do voto realmente aparece.
-          </p>
-          <p data-i18n="sobre.method.p2">
-            Nenhum dado é estimado quando existe o número oficial. Onde há estimativa, ela é identificada como tal na
-            própria interface.
-          </p>
-        </div>
-      </div>
-    </section>
-
   </main>
 
   <footer class="site-foot">
@@ -164,6 +142,9 @@
         <div class="foot-col">
           <h4 data-i18n="foot.project">Projeto</h4>
           <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+          <a href="termos.html" data-i18n="legal.terms">Termos de Uso</a>
+          <a href="privacidade.html" data-i18n="legal.privacy">Política de Privacidade</a>
+          <button type="button" data-consent-open data-i18n="legal.manage">Gerenciar cookies</button>
         </div>
 
         <div class="foot-col">

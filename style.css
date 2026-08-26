@@ -1321,7 +1321,7 @@ body {
   border: 1px solid #cccccc !important;
   border-radius: 2px !important;
   padding: 8px 10px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+  box-shadow: none !important;
   font-family: var(--font-main) !important;
   min-width: 260px;
   max-width: 360px !important;
@@ -1469,7 +1469,6 @@ body {
   background: #151515 !important;
   color: #f5f5f5 !important;
   border-color: #2a2a2a !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
 }
 [data-theme="dark"] .district-nyt-title {
   color: #ffffff;
@@ -1507,7 +1506,7 @@ body {
   border: 1px solid var(--border-color) !important;
   border-radius: var(--radius-md) !important;
   padding: 8px 10px !important;
-  box-shadow: var(--shadow) !important;
+  box-shadow: none !important;
   font-family: var(--font-main) !important;
   min-width: 250px !important;
   max-width: none !important;
@@ -5166,7 +5165,6 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   padding: 10px 14px;
   pointer-events: none;
   z-index: 1000;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
   min-width: 180px;
   transition: opacity 0.1s ease;
   font-family: var(--font-main);

@@ -181,6 +181,54 @@ const APUUI = (function () {
 
   /* ---------------------------------------------------------------- balão */
 
+  /* Balao no formato do visualizador: mesma marcacao .district-nyt-*, mesmas
+     quatro linhas ordenadas por voto, mesmo rodape de votos validos. Ali o
+     transporte e um Popup do MapLibre; aqui o mapa e SVG puro, entao o mesmo
+     conteudo vai num elemento fixo que segue o cursor. */
+  function linhasDoBalao(entrada, dicionario) {
+    const lista = APU.ranking(entrada, dicionario)
+      .filter((c) => c.votos > 0)
+      .slice(0, 4);
+
+    if (!lista.length) {
+      return '<tr><td colspan="3" style="text-align:center;color:#777;padding:8px;">'
+        + 'Sem detalhamento disponível.</td></tr>';
+    }
+
+    return lista.map((c, i) => {
+      const venc = i === 0 ? ' winner' : '';
+      return '<tr>'
+        + '<td style="padding:0;">'
+        + '<div class="district-nyt-loser-cell" style="border-left-color:' + APU.cor(c.partido) + ';">'
+        + '<span style="margin-left:6px;">' + esc(c.urna || c.nome) + '</span></div></td>'
+        + '<td class="votes-cell' + venc + '">' + APU.fmt.int(c.votos) + '</td>'
+        + '<td class="pct-cell' + venc + '">' + c.pct.toFixed(1) + '%</td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  function conteudoDoBalao(nome, subtitulo, entrada, dicionario) {
+    const cabecalho = APU.PROPORCIONAIS.has(APU.cfg.cargo) ? 'Partido' : 'Candidato';
+
+    if (!entrada || !entrada.vv) {
+      return '<div class="nyt-tooltip-container">'
+        + '<div class="district-nyt-title">' + esc(nome) + '</div>'
+        + '<div class="district-nyt-sub">' + esc(subtitulo) + '</div>'
+        + '<div class="district-nyt-nota">Sem votos apurados.</div></div>';
+    }
+
+    return '<div class="nyt-tooltip-container">'
+      + '<div class="district-nyt-title">' + esc(nome) + '</div>'
+      + '<div class="district-nyt-sub">' + esc(subtitulo) + '</div>'
+      + '<table class="district-nyt-table"><thead><tr>'
+      + '<th style="text-align:left;">' + cabecalho + '</th><th>Votos</th><th>%</th>'
+      + '</tr></thead><tbody>' + linhasDoBalao(entrada, dicionario) + '</tbody></table>'
+      + '<div class="district-nyt-nota">Votos válidos: ' + APU.fmt.int(entrada.vv) + '</div>'
+      + '</div>';
+  }
+
+  /* Segue o cursor e vira de lado ao encostar na borda, como o popup do
+     MapLibre faz ao reancorar sozinho. */
   function balao() {
     const el = $('tip');
     return {
@@ -224,7 +272,9 @@ const APUUI = (function () {
       if (!l || !entrada.vv) {
         p.classList.add('is-empty');
         p.style.fill = '';
-        p.onmousemove = null; p.onmouseleave = null;
+        const vazio = conteudoDoBalao(nome, 'Sem apuração', entrada, dicionario);
+        p.onmousemove = (ev) => tip.mostrar(vazio, ev);
+        p.onmouseleave = () => tip.esconder();
         return;
       }
 
@@ -236,14 +286,10 @@ const APUUI = (function () {
       const margem = segundo ? l.pct - segundo.pct : l.pct;
       p.style.fillOpacity = (0.42 + Math.min(0.58, margem / 55)).toFixed(2);
 
-      p.onmousemove = (ev) => tip.mostrar(
-        `<b>${esc(nome)}</b>
-         <span>${esc(l.urna || l.nome)} ${l.partido ? '(' + esc(l.partido) + ')' : ''} · ${APU.fmt.pct(l.pct)}</span>
-         <span style="color:#cbd5e1">${APU.fmt.pct(entrada.pst || 0)} apurado</span>`, ev);
+      const sub = APU.fmt.pct(entrada.pst || 0) + ' apurado';
+      const html = conteudoDoBalao(nome, sub, entrada, dicionario);
+      p.onmousemove = (ev) => tip.mostrar(html, ev);
       p.onmouseleave = () => tip.esconder();
-      if (aoClicar) {
-        p.onclick = () => { tip.esconder(); aoClicar(chave); };
-      }
     });
   }
 

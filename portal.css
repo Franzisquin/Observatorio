@@ -275,14 +275,20 @@ a { color: inherit; text-decoration: none; }
   gap: 10px;
   height: 46px;
   padding: 0 22px;
+  appearance: none;
   border: 1px solid transparent;
   border-radius: 2px;
+  background: transparent;
+  font-family: inherit;
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.005em;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
+
+/* botão solto no meio da prosa */
+.prose-action { margin-top: 22px; }
 
 .btn-solid { background: var(--ink); color: var(--paper); }
 .btn-solid:hover { background: var(--brand); }
@@ -549,6 +555,77 @@ a.portal:hover .geo-mark { stroke: var(--brand); }
 
 .prose p + p { margin-top: 18px; }
 
+/* --------------------------------------------------------- páginas legais */
+
+/* Data de vigência, logo abaixo do lede. */
+.legal-meta {
+  margin-top: clamp(18px, 2.2vw, 24px);
+  font-size: 0.79rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Listas de obrigações e direitos: o marcador é um fio, não um bolinha —
+   acompanha os fios de 1px do resto do sistema. */
+.prose ul,
+.prose ol {
+  margin-top: 18px;
+  padding-left: 0;
+  list-style: none;
+  max-width: 64ch;
+}
+
+.prose ol { counter-reset: legal; }
+
+.prose li {
+  position: relative;
+  padding-left: 26px;
+  font-size: clamp(0.98rem, 1.35vw, 1.08rem);
+  line-height: 1.72;
+  color: var(--ink-2);
+  font-weight: 300;
+}
+
+.prose li + li { margin-top: 12px; }
+
+.prose ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.82em;
+  width: 12px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.prose ol li {
+  counter-increment: legal;
+}
+
+.prose ol li::before {
+  content: counter(legal) '.';
+  position: absolute;
+  left: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose li strong,
+.prose p strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.prose a {
+  color: var(--brand-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover { color: var(--brand); }
+
 /* ------------------------------------------------------- portal nacional */
 
 .page-head {
@@ -750,7 +827,8 @@ a.tool:hover .tool-cta .arrow { transform: translateX(4px); }
   margin-bottom: 14px;
 }
 
-.foot-col a {
+.foot-col a,
+.foot-col button {
   display: block;
   font-size: 0.875rem;
   color: var(--ink-2);
@@ -759,7 +837,17 @@ a.tool:hover .tool-cta .arrow { transform: translateX(4px); }
   font-weight: 300;
 }
 
-.foot-col a:hover { color: var(--brand); }
+.foot-col button {
+  appearance: none;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.foot-col a:hover,
+.foot-col button:hover { color: var(--brand); }
 
 .foot-bottom {
   padding-top: clamp(20px, 2.5vw, 26px);
@@ -771,6 +859,31 @@ a.tool:hover .tool-cta .arrow { transform: translateX(4px); }
   color: var(--muted);
   font-weight: 300;
 }
+
+/* Nas páginas de apuração o rodapé é só esta linha, então os links legais
+   moram aqui em vez de numa coluna. */
+.foot-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.foot-legal a,
+.foot-legal button {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.18s ease;
+}
+
+.foot-legal a:hover,
+.foot-legal button:hover { color: var(--brand); }
 
 /* ------------------------------------------------------------ preferências */
 

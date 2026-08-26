@@ -82,7 +82,7 @@ let iseTooltip = document.getElementById('ise-tooltip');
 if (!iseTooltip) {
     iseTooltip = document.createElement('div');
     iseTooltip.id = 'ise-tooltip';
-    iseTooltip.style.cssText = 'display:none;position:fixed;z-index:10000;pointer-events:none;background:rgba(18,18,22,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:0;min-width:220px;max-width:480px;width:max-content;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.45);font-family:inherit;overflow:hidden;';
+    iseTooltip.style.cssText = 'display:none;position:fixed;z-index:10000;pointer-events:none;background:rgba(18,18,22,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:0;min-width:220px;max-width:480px;width:max-content;backdrop-filter:blur(12px);font-family:inherit;overflow:hidden;';
     iseTooltip.innerHTML = `
     <div style="padding:12px 14px 8px; border-bottom:1px solid rgba(255,255,255,0.06);">
       <div id="ise-tt-name" style="font-size:13px; font-weight:600; color:#f0f0f0; line-height:1.35; word-wrap:break-word;"></div>

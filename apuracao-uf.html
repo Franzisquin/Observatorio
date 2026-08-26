@@ -15,8 +15,9 @@
     href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@200;300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
     rel="stylesheet" />
 
-  <link rel="stylesheet" href="portal.css" />
-  <link rel="stylesheet" href="apuracao.css" />
+  <link rel="stylesheet" href="portal.css?v=20260823b" />
+  <link rel="stylesheet" href="apuracao.css?v=20260823b" />
+  <link rel="stylesheet" href="consent.css" />
 </head>
 
 <body>
@@ -55,6 +56,9 @@
           <span class="apu-selo" id="selSimulado">Simulado</span>
           <span class="apu-stamp" id="selCarimbo"></span>
         </div>
+
+                <div class="apu-cargos" id="seletorCargo" role="group"
+          aria-label="Cargo em disputa"></div>
 
         <h1 class="apu-title" id="tituloUF">Estado</h1>
         <p class="apu-sub" id="subtitulo"></p>
@@ -147,14 +151,19 @@
     <div class="wrap">
       <div class="foot-bottom">
         <span>© 2026 ElectoMaps. Todos os direitos reservados.</span>
-        <span>Resultados oficiais do Tribunal Superior Eleitoral.</span>
+        <span class="foot-legal">
+          <a href="termos.html">Termos de Uso</a>
+          <a href="privacidade.html">Política de Privacidade</a>
+          <button type="button" data-consent-open>Gerenciar cookies</button>
+        </span>
       </div>
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js"></script>
-  <script src="js/apuracao-ui.js"></script>
-  <script src="js/apuracao-uf.js"></script>
+  <script src="js/apuracao-dados.js?v=20260823b"></script>
+  <script src="js/apuracao-ui.js?v=20260823b"></script>
+  <script src="js/apuracao-uf.js?v=20260823b"></script>
+  <script src="js/consent.js" defer></script>
 </body>
 
 </html>
