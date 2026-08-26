@@ -22,8 +22,10 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css" />
+  <link rel="stylesheet" href="consent.css" />
   <script src="js/i18n.js" defer></script>
   <script src="js/motion.js" defer></script>
+  <script src="js/consent.js" defer></script>
 </head>
 
 <body data-i18n-page="br">
@@ -39,7 +41,6 @@
       <nav class="topnav">
         <a href="#ferramentas" data-i18n="nav.tools">Ferramentas</a>
         <a href="#cobertura" data-i18n="nav.coverage">Cobertura</a>
-        <a href="#fontes" data-i18n="nav.sources">Fontes</a>
         <a href="sobre.html" data-i18n="nav.about">Sobre</a>
       </nav>
 
@@ -72,32 +73,6 @@
           camadas demográficas do Censo.
         </p>
         
-      </div>
-    </section>
-
-    <!-- -------------------------------------------------------- números-chave -->
-    <section class="wrap">
-      <div class="figures stagger">
-        <div class="figure">
-          <p class="figure-value" data-i18n="br.fig1.v">1989–2024</p>
-          <p class="figure-label" data-i18n="br.fig1.l">Eleições cobertas</p>
-        </div>
-        <div class="figure">
-          <p class="figure-value" data-i18n="br.fig2.v">7</p>
-          <p class="figure-label" data-i18n="br.fig2.l">Cargos</p>
-        </div>
-        <div class="figure">
-          <p class="figure-value" data-i18n="br.fig3.v">27</p>
-          <p class="figure-label" data-i18n="br.fig3.l">Unidades federativas</p>
-        </div>
-        <div class="figure">
-          <p class="figure-value" data-i18n="br.fig4.v">5.570</p>
-          <p class="figure-label" data-i18n="br.fig4.l">Municípios</p>
-        </div>
-        <div class="figure">
-          <p class="figure-value" data-i18n="br.fig5.v">90 mil+</p>
-          <p class="figure-label" data-i18n="br.fig5.l">Locais de votação</p>
-        </div>
       </div>
     </section>
 
@@ -191,32 +166,11 @@
           <div class="deflist-row">
             <div>
               <h3 class="deflist-term" data-i18n="br.cov3.title">Camadas demográficas</h3>
-              <p class="portal-meta" data-i18n="br.cov3.years">Censo 2022</p>
             </div>
             <p class="deflist-desc" data-i18n="br.cov3.offices">
               Renda, cor/raça, idade, escolaridade e saneamento
             </p>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- --------------------------------------------------- 03 · fontes e limites -->
-    <section class="section" id="fontes">
-      <div class="wrap section-grid">
-        <div class="section-label reveal">
-          <h2 class="section-title" data-i18n="br.s3.title">Fontes e limites</h2>
-        </div>
-
-        <div class="prose stagger">
-          <p data-i18n="br.src.p1">
-            Os resultados vêm do Tribunal Superior Eleitoral (TSE) e a base geográfica, do IBGE. Os números exibidos
-            são os oficiais; o reprocessamento serve para georreferenciá-los, não para alterá-los.
-          </p>
-          <p data-i18n="br.src.p2">
-            A soma exibida nos mapas cobre apenas os locais de votação já georreferenciados e não inclui o voto no
-            exterior. Por isso pode ficar ligeiramente abaixo do total oficial da eleição.
-          </p>
         </div>
       </div>
     </section>
@@ -240,6 +194,9 @@
         <div class="foot-col">
           <h4 data-i18n="foot.project">Projeto</h4>
           <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+          <a href="termos.html" data-i18n="legal.terms">Termos de Uso</a>
+          <a href="privacidade.html" data-i18n="legal.privacy">Política de Privacidade</a>
+          <button type="button" data-consent-open data-i18n="legal.manage">Gerenciar cookies</button>
         </div>
 
         <div class="foot-col">

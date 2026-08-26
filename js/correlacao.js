@@ -258,7 +258,7 @@ function _getCorrTooltip() {
     _corrTooltip.style.cssText = 'display:none;position:fixed;z-index:10001;pointer-events:none;'+
         'background:rgba(18,18,22,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:10px;'+
         'padding:10px 14px;min-width:200px;max-width:320px;width:max-content;'+
-        'backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,0.45);font-family:inherit;font-size:13px;color:#f0f0f0;';
+        'backdrop-filter:blur(12px);font-family:inherit;font-size:13px;color:#f0f0f0;';
     document.body.appendChild(_corrTooltip);
     return _corrTooltip;
 }

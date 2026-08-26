@@ -17,6 +17,7 @@
 
   <link rel="stylesheet" href="portal.css?v=20260823b" />
   <link rel="stylesheet" href="apuracao.css?v=20260823b" />
+  <link rel="stylesheet" href="consent.css" />
 </head>
 
 <body>
@@ -112,7 +113,11 @@
     <div class="wrap">
       <div class="foot-bottom">
         <span>© 2026 ElectoMaps. Todos os direitos reservados.</span>
-        <span>Resultados oficiais do Tribunal Superior Eleitoral.</span>
+        <span class="foot-legal">
+          <a href="termos.html">Termos de Uso</a>
+          <a href="privacidade.html">Política de Privacidade</a>
+          <button type="button" data-consent-open>Gerenciar cookies</button>
+        </span>
       </div>
     </div>
   </footer>
@@ -120,6 +125,7 @@
   <script src="js/apuracao-dados.js?v=20260823b"></script>
   <script src="js/apuracao-ui.js?v=20260823b"></script>
   <script src="js/apuracao-central.js?v=20260823b"></script>
+  <script src="js/consent.js" defer></script>
 </body>
 
 </html>
