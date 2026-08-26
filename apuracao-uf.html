@@ -81,7 +81,14 @@
       <div class="apu-grid" id="painel">
         <div>
           <div class="apu-maphead">
-            <span class="apu-maptitle">Liderança por município</span>
+            <span class="apu-maptitle" id="rotuloMapa">Liderança por município</span>
+
+            <div class="apu-levels" id="niveis" role="group" aria-label="Camada do mapa">
+              <button class="apu-level is-on" type="button" data-nivel="municipios">Municípios</button>
+              <button class="apu-level" type="button" data-nivel="rgint">Intermediárias</button>
+              <button class="apu-level" type="button" data-nivel="rgi">Imediatas</button>
+            </div>
+
             <span class="apu-progress-lab" id="mapaNota"></span>
           </div>
 
@@ -94,7 +101,10 @@
 
         <aside class="apu-aside">
           <div class="apu-card">
-            <h3 id="rotuloPlacar">Resultado no estado</h3>
+            <div class="apu-card-head">
+              <h3 id="rotuloPlacar">Resultado no estado</h3>
+              <button class="apu-back" id="voltarMun" type="button" hidden>Voltar ao estado</button>
+            </div>
             <div class="apu-results" id="placar"></div>
           </div>
 

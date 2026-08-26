@@ -212,13 +212,19 @@ const APUUI = (function () {
 
     svg.querySelectorAll('path[data-chave]').forEach((p) => {
       const chave = p.getAttribute('data-chave');
+      const nome = p.getAttribute('data-nome') || chave;
       const entrada = entradaDe(chave);
       const l = entrada ? APU.lider(entrada, dicionario) : null;
+
+      /* O clique não depende de já haver voto: antes do primeiro boletim o mapa
+         inteiro está vazio e ainda assim precisa responder. */
+      p.onclick = aoClicar ? () => { tip.esconder(); aoClicar(chave, nome); } : null;
+      p.classList.toggle('is-click', !!aoClicar);
 
       if (!l || !entrada.vv) {
         p.classList.add('is-empty');
         p.style.fill = '';
-        p.onmousemove = null; p.onmouseleave = null; p.onclick = null;
+        p.onmousemove = null; p.onmouseleave = null;
         return;
       }
 
@@ -230,7 +236,6 @@ const APUUI = (function () {
       const margem = segundo ? l.pct - segundo.pct : l.pct;
       p.style.fillOpacity = (0.42 + Math.min(0.58, margem / 55)).toFixed(2);
 
-      const nome = p.getAttribute('data-nome') || chave;
       p.onmousemove = (ev) => tip.mostrar(
         `<b>${esc(nome)}</b>
          <span>${esc(l.urna || l.nome)} ${l.partido ? '(' + esc(l.partido) + ')' : ''} · ${APU.fmt.pct(l.pct)}</span>
