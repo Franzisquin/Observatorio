@@ -725,8 +725,6 @@ async function onClickLoadData_Deputies_2014(uf, year) {
     }
     if (dom.selectVizColorStyle) dom.selectVizColorStyle.disabled = false;
     if (dom.selectVizSize) dom.selectVizSize.disabled = false;
-    dom.btnApplyFilters.disabled = false;
-    updateApplyButtonText();
     dom.searchLocal.disabled = false;
     dom.searchLocal.value = '';
 

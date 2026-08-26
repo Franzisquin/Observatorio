@@ -186,6 +186,8 @@ if (typeof window !== 'undefined') {
   window.parseAgeRangeFromKey = parseAgeRangeFromKey;
   window.getAgeEntriesFromProps = getAgeEntriesFromProps;
   window.aggregateAgeBucketsFromProps = aggregateAgeBucketsFromProps;
+  window.censusCoverageForYear = censusCoverageForYear;
+  window.isLimitedCensusYear2006 = isLimitedCensusYear2006;
 }
 
 const GENERAL_METRIC_NAMES = new Set([
@@ -270,6 +272,37 @@ const MUNI_ONLY_GENERAL_YEARS = new Set(['1989', '1994']);
 function isMuniOnlyGeneralYear(year) {
   const y = (year === undefined) ? STATE?.currentElectionYear : year;
   return MUNI_ONLY_GENERAL_YEARS.has(String(y));
+}
+
+// Que filtros demograficos fazem sentido em cada ano, medido nos proprios ZIPs
+// de resultados_geo/Censo <ANO>/:
+//
+//   - 1989, 1994, 1998, 2002 (gerais) e 2000, 2004 (municipais) nao tem censo
+//     nenhum no acervo. Antes o painel aparecia inteiro nesses anos e qualquer
+//     filtro apagava o mapa sem dizer por que.
+//   - 2006 so tem renda, cor/raca e saneamento (o perfil do eleitorado do TSE
+//     por local so entra a partir de 2008/2010).
+//   - de 2008/2010 em diante, tudo.
+//
+// Renda, Cor/Raca e Saneamento vem do Censo IBGE (setores do entorno do local);
+// Idade e Escolaridade vem do perfil do eleitorado do TSE daquele local.
+const CENSO_COMPLETO = ['tab-renda', 'tab-raca', 'tab-idade', 'tab-escolaridade', 'tab-saneamento'];
+const CENSO_SEM_PERFIL_TSE = ['tab-renda', 'tab-raca', 'tab-saneamento'];
+const ANOS_SEM_CENSO = new Set(['1989', '1994', '1998', '2002', '2000', '2004']);
+
+function censusCoverageForYear(year, tipo) {
+  const y = String((year === undefined) ? STATE?.currentElectionYear : year);
+  const t = tipo || STATE?.currentElectionType || 'geral';
+
+  if (ANOS_SEM_CENSO.has(y)) return [];
+  if (t === 'geral' && y === '2006') return CENSO_SEM_PERFIL_TSE.slice();
+  return CENSO_COMPLETO.slice();
+}
+
+// Ano com censo, mas sem o perfil do eleitorado (idade/escolaridade).
+function isLimitedCensusYear2006(year, tipo) {
+  const cobertura = censusCoverageForYear(year, tipo);
+  return cobertura.length > 0 && !cobertura.includes('tab-idade');
 }
 
 function hasGeneralSecondTurnArchive(year, cargo, uf, subtype = 'ord') {

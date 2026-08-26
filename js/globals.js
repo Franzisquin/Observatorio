@@ -188,20 +188,6 @@ function hideMapLoading() {
   dom.mapLoader.style.removeProperty('--loader-progress');
 }
 
-function markFiltersDirty() {
-  STATE.hasPendingFilterChanges = true;
-  if (typeof updateApplyButtonText === 'function') {
-    updateApplyButtonText();
-  }
-}
-
-function clearPendingFilterChanges() {
-  STATE.hasPendingFilterChanges = false;
-  if (typeof updateApplyButtonText === 'function') {
-    updateApplyButtonText();
-  }
-}
-
 function clearZipCache() {
   resetTurnoutReferenceIndexes();
   FEATURE_TURNOUT_CACHE = new WeakMap();
@@ -704,7 +690,6 @@ function applyMapViewportAfterDataLoad(bounds, fitBoundsOptions = { animate: fal
 const STATE = {
   mapTileLayer: null,
   autoLoadEnabled: false,
-  hasPendingFilterChanges: false,
   isLoadingDataset: false,
   filterInaptos: false,
   isFilterAggregationActive: false,
@@ -746,17 +731,9 @@ const STATE = {
     idadeVal: null,
     idadeMode: '16-29',
 
-    // Gênero
-    generoVal: null,
-    generoMode: 'Pct Mulheres',
-
     // Escolaridade (Novo)
     escolaridadeVal: null,
     escolaridadeMode: 'Superior',
-
-    // Estado Civil (Novo)
-    estadoCivilVal: null,
-    estadoCivilMode: 'Solteiro',
 
     // Saneamento
     saneamentoVal: null,
@@ -972,6 +949,44 @@ function matchesLocationFilters(props, options = {}) {
     }
   }
   return true;
+}
+
+// Le os oito niveis de instrucao de um local, seja qual for o formato da fonte:
+// absolutos do perfil do eleitorado ("ENSINO MEDIO COMPLETO") ou os "Pct ..."
+// do acervo legado. Uma unica leitura para o filtro (filterFeature) e para a
+// barra de disponibilidade — antes cada lado tinha a sua lista de chaves, e a
+// barra ignorava justamente as chaves "Pct", entao sumia em recortes onde o
+// filtro funcionava.
+const ESCOLARIDADE_KEYS = {
+  ana: ['ANALFABETO', 'PCT ANALFABETO'],
+  le: ['LÊ E ESCREVE', 'LE E ESCREVE', 'PCT LÊ E ESCREVE', 'PCT LE E ESCREVE'],
+  fi: ['ENSINO FUNDAMENTAL INCOMPLETO', 'FUNDAMENTAL INCOMPLETO', 'PCT FUNDAMENTAL INCOMPLETO'],
+  fc: ['ENSINO FUNDAMENTAL COMPLETO', 'FUNDAMENTAL COMPLETO', 'PCT FUNDAMENTAL COMPLETO'],
+  mi: ['ENSINO MÉDIO INCOMPLETO', 'MÉDIO INCOMPLETO', 'MEDIO INCOMPLETO', 'PCT MÉDIO INCOMPLETO'],
+  mc: ['ENSINO MÉDIO COMPLETO', 'MÉDIO COMPLETO', 'MEDIO COMPLETO', 'PCT MÉDIO COMPLETO'],
+  si: ['ENSINO SUPERIOR INCOMPLETO', 'SUPERIOR INCOMPLETO', 'PCT SUPERIOR INCOMPLETO'],
+  sc: ['ENSINO SUPERIOR COMPLETO', 'SUPERIOR COMPLETO', 'PCT SUPERIOR COMPLETO']
+};
+
+function readEscolaridadeAcc(props) {
+  const porChaveMaiuscula = new Map();
+  for (const k in (props || {})) porChaveMaiuscula.set(String(k).toUpperCase(), props[k]);
+
+  const acc = {};
+  let isPct = false;
+  for (const [slot, chaves] of Object.entries(ESCOLARIDADE_KEYS)) {
+    acc[slot] = 0;
+    for (const chave of chaves) {
+      if (!porChaveMaiuscula.has(chave)) continue;
+      acc[slot] = ensureNumber(porChaveMaiuscula.get(chave));
+      if (chave.startsWith('PCT ')) isPct = true;
+      break;
+    }
+  }
+
+  const soma = Object.values(acc).reduce((a, b) => a + b, 0);
+  // Em Pct o denominador e 100 por definicao; em absolutos e a propria soma.
+  return { acc, isPct, total: soma, denominador: isPct ? 100 : soma };
 }
 
 function getEscolaridadeGroupedTotals(acc = {}) {

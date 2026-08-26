@@ -121,6 +121,8 @@ function setupControls() {
       if (!type) return;
 
       STATE.currentElectionType = type;
+      window.resetAllCensusFilters?.();
+      updateCensusControlsForYear();
 
       // Reset state for new selection
       allDataCache.clear();
@@ -377,6 +379,8 @@ function setupControls() {
 
   // LISTENER DE MUDANÇA DE UF - Carrega automaticamente nas eleições gerais
   dom.selectUFGeneral.addEventListener('change', () => {
+    window.resetAllCensusFilters?.();
+    updateCensusControlsForYear();
     currentRegionFilter = { level: '', code: '' };
     currentCidadeFilter = 'all';
     currentBairroFilter = 'all';
@@ -397,8 +401,9 @@ function setupControls() {
 
   dom.selectYearGeneral?.addEventListener('change', () => {
     STATE.currentElectionYear = dom.selectYearGeneral.value;
+    window.resetAllCensusFilters?.();
+    updateCensusControlsForYear();
     updateLoadButtonState();
-    clearPendingFilterChanges();
     updateCargoChipsVisibility();
     if (canInstantLoadCurrentContext()) {
       scheduleInstantLoad();
@@ -407,6 +412,8 @@ function setupControls() {
 
   // SELEÇÃO MUNICIPAL
   dom.selectUFMunicipal.addEventListener('change', () => {
+    window.resetAllCensusFilters?.();
+    updateCensusControlsForYear();
     currentTurno = 1;
     currentBairroFilter = 'all';
     currentLocalFilter = '';
@@ -446,6 +453,8 @@ function setupControls() {
     }
   });
   dom.selectMunicipio.addEventListener('change', () => {
+    window.resetAllCensusFilters?.();
+    updateCensusControlsForYear();
     currentTurno = 1;
     currentBairroFilter = 'all';
     currentLocalFilter = '';
@@ -478,9 +487,10 @@ function setupControls() {
   dom.selectYearMunicipal?.addEventListener('change', () => {
     currentTurno = 1;
     STATE.currentElectionYear = dom.selectYearMunicipal.value;
+    window.resetAllCensusFilters?.();
+    updateCensusControlsForYear();
     clearSelection(false);
     updateLoadButtonState();
-    clearPendingFilterChanges();
     const uf = dom.selectUFMunicipal?.value;
     if (!uf) return;
     if (!dom.selectMunicipio?.value) {
@@ -533,7 +543,6 @@ function setupControls() {
       populateRegionalDropdowns();
       populateCidadeDropdown();
       populateBairroDropdown();
-      updateApplyButtonText();
       applyFiltersAndRedraw();
     });
   }
@@ -554,11 +563,9 @@ function setupControls() {
     // coropletico (que nem sempre acontece — ha caminhos que so re-estilizam).
     applyRegionScopeToMunicipiosLayer();
     clearSelection(false);
-    markFiltersDirty();
     populateRegionalDropdowns();
     populateCidadeDropdown();
     populateBairroDropdown();
-    updateApplyButtonText();
     debouncedAutoApplyFilters();
   };
 
@@ -578,7 +585,6 @@ function setupControls() {
 
         STATE.currentMapMode = 'municipios';
         clearSelection(true);
-        updateApplyButtonText();
         applyFiltersAndRedraw();
         if (typeof window.syncExtrusionButtonVisibility === 'function') {
           window.syncExtrusionButtonVisibility();
@@ -604,11 +610,11 @@ function setupControls() {
   if (dom.btnMapModeLocais) {
     dom.btnMapModeLocais.addEventListener('click', () => {
       STATE.currentMapMode = 'locais';
+      forgetOverviewFit();
       if (STATE.municipiosLayer) {
         STATE.municipiosLayer.setExtrusionEnabled(false).refresh();
       }
       clearSelection(true);
-      updateApplyButtonText();
       applyFiltersAndRedraw();
       if (typeof window.syncExtrusionButtonVisibility === 'function') {
         window.syncExtrusionButtonVisibility();
@@ -726,15 +732,11 @@ function setupControls() {
     if (!currentDataCollection[currentCargo] || STATE.isLoadingDataset) return;
     applyFiltersAndRedraw();
     syncFilteredSelectionAndFrame();
-    clearPendingFilterChanges();
   }, 180);
 
-  const debouncedFilterDirty = debounce(() => markFiltersDirty(), 180);
   dom.searchLocal.addEventListener('input', (e) => {
     currentLocalFilter = norm(e.target.value);
     clearSelection(false);
-    debouncedFilterDirty();
-    updateApplyButtonText();
     debouncedAutoApplyFilters();
   });
 
@@ -758,45 +760,12 @@ function setupControls() {
     dom.inputBairro.addEventListener('change', (e) => {
       currentBairroFilter = e.target.value;
       clearSelection(false);
-      markFiltersDirty();
-      updateApplyButtonText();
       if (typeof applyFiltersAndRedraw === 'function') applyFiltersAndRedraw();
     });
   }
   // Removed old calls for Cidade/Bairro
   addSearchFilter(dom.searchMunicipio, dom.selectMunicipio);
 
-  if (dom.btnApplyFilters) {
-    dom.btnApplyFilters.addEventListener('click', () => {
-      if (!currentDataCollection[currentCargo]) return;
-
-    setButtonLoading(dom.btnApplyFilters, true);
-    setSectionLoading(dom.resultsBox, true);
-    if (dom.resultsContent) showSkeletonCards(dom.resultsContent, 4);
-    showMapLoading('Aplicando filtros e atualizando mapa...');
-
-    clearSelection(false);
-
-    if (STATE.currentElectionType === 'municipal') {
-      currentCidadeFilter = 'all';
-      // CORREÇÃO: Usar combobox em vez de selectCidade direto
-      
-    }
-
-    requestAnimationFrame(() => {
-      try {
-        applyFiltersAndRedraw();
-        syncFilteredSelectionAndFrame();
-
-        clearPendingFilterChanges();
-      } finally {
-        setSectionLoading(dom.resultsBox, false);
-        setButtonLoading(dom.btnApplyFilters, false);
-        setTimeout(() => hideMapLoading(), 180);
-      }
-    });
-    });
-  }
 
   if (dom.btnToggleInaptos) {
     dom.btnToggleInaptos.addEventListener('click', () => {
@@ -907,7 +876,6 @@ function setupControls() {
         populateRegionalDropdowns();
         populateCidadeDropdown();
         populateBairroDropdown();
-        updateApplyButtonText();
         applyFiltersAndRedraw();
         if (typeof window.syncExtrusionButtonVisibility === 'function') {
           window.syncExtrusionButtonVisibility();
@@ -928,7 +896,6 @@ function setupControls() {
           dom.inputBairro.value = 'all'; 
         }
         clearSelection(true);
-        updateApplyButtonText();
         applyFiltersAndRedraw();
         if (typeof window.syncExtrusionButtonVisibility === 'function') {
           window.syncExtrusionButtonVisibility();
@@ -954,7 +921,6 @@ function setupControls() {
         clearSelection(true);
         updateElectionTypeUI();
         updateConditionalUI();
-        updateApplyButtonText();
         const uf = dom.selectUFMunicipal?.value;
         if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
           window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
@@ -970,7 +936,6 @@ function setupControls() {
           dom.inputBairro.value = 'all'; 
         }
         clearSelection(true);
-      updateApplyButtonText();
       applyFiltersAndRedraw();
       if (typeof window.syncExtrusionButtonVisibility === 'function') {
         window.syncExtrusionButtonVisibility();
@@ -1011,7 +976,6 @@ function setupControls() {
         populateRegionalDropdowns();
         populateCidadeDropdown();
         populateBairroDropdown();
-        updateApplyButtonText();
         applyFiltersAndRedraw();
         if (typeof window.syncExtrusionButtonVisibility === 'function') {
           window.syncExtrusionButtonVisibility();
@@ -1035,7 +999,6 @@ function setupControls() {
         clearSelection(true);
         updateElectionTypeUI();
         updateConditionalUI();
-        updateApplyButtonText();
         const uf = dom.selectUFMunicipal?.value;
         if (uf && typeof window.showMunicipalStatewideOverview === 'function') {
           window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
@@ -1161,7 +1124,6 @@ function setupControls() {
         applyFiltersAndRedraw();
         updateSelectionUI(STATE.isFilterAggregationActive);
         updateLoadButtonState();
-        clearPendingFilterChanges();
         return;
       }
 
@@ -1190,7 +1152,6 @@ function setupControls() {
       STATE.dataHas2T = {}; STATE.dataHasInaptos = {};
       clearVereadorData();
       updateLoadButtonState();
-      clearPendingFilterChanges();
     });
   }
 
@@ -1266,7 +1227,7 @@ function setupTabs() {
   console.log(`Setting up ${tabs.length} tabs.`);
 
   // Lista explícita dos IDs de conteúdo do Censo
-  const censusIds = ['tab-renda', 'tab-raca', 'tab-idade', 'tab-genero', 'tab-saneamento', 'tab-escolaridade', 'tab-estadocivil'];
+  const censusIds = ['tab-renda', 'tab-raca', 'tab-idade', 'tab-escolaridade', 'tab-saneamento'];
   const refreshCensusAvailabilityBars = () => {
     const geojson = currentDataCollection[currentCargo];
     if (!geojson || typeof updateAvailabilityBars !== 'function') return;
@@ -1395,94 +1356,214 @@ function setupTabs() {
   });
 }
 
+// ====== CHIPS DE FILTROS DEMOGRAFICOS ATIVOS ======
+//
+// O painel mostra uma categoria por vez no <select>, entao configurar Renda,
+// trocar para Cor/Raca e configurar tambem deixava OS DOIS filtrando o mapa sem
+// nenhuma pista na tela. Estes chips listam tudo que esta ativo e permitem
+// desligar um por um.
+function descreverFiltrosCenso() {
+  const f = STATE.censusFilters;
+  const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  const chips = [];
+
+  if (f.rendaMin !== null || f.rendaMax !== null) {
+    const de = f.rendaMin !== null ? brl(f.rendaMin) : 'mínimo';
+    const ate = f.rendaMax !== null ? brl(f.rendaMax) : 'máximo';
+    chips.push({ chaves: ['rendaMin', 'rendaMax'], texto: `Renda: ${de} a ${ate}` });
+  }
+  if (f.racaVal > 0) {
+    chips.push({ chaves: ['racaVal'], texto: `${f.racaMode.replace('Pct ', 'População ')}: ${f.racaVal}%+` });
+  }
+  if (f.idadeVal > 0) {
+    chips.push({ chaves: ['idadeVal'], texto: `Idade ${f.idadeMode}: ${f.idadeVal}%+` });
+  }
+  if (f.escolaridadeVal > 0) {
+    chips.push({ chaves: ['escolaridadeVal'], texto: `Escolaridade ${f.escolaridadeMode}: ${f.escolaridadeVal}%+` });
+  }
+  if (f.saneamentoVal > 0) {
+    chips.push({ chaves: ['saneamentoVal'], texto: `${f.saneamentoMode.replace('Pct ', '')}: ${f.saneamentoVal}%+` });
+  }
+  return chips;
+}
+
+function atualizarChipsCenso() {
+  const caixa = document.getElementById('censusActiveFilters');
+  const lista = document.getElementById('censusActiveChips');
+  if (!caixa || !lista) return;
+
+  const chips = descreverFiltrosCenso();
+  caixa.style.display = chips.length ? '' : 'none';
+  lista.innerHTML = '';
+
+  chips.forEach((chip) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'filtro-chip';
+    el.title = `Remover: ${chip.texto}`;
+    el.setAttribute('aria-label', `Remover filtro ${chip.texto}`);
+    el.innerHTML = `<span>${escapeHtml(chip.texto)}</span><span aria-hidden="true">×</span>`;
+    el.addEventListener('click', () => {
+      chip.chaves.forEach((chave) => { STATE.censusFilters[chave] = null; });
+      // Devolve o controle da categoria removida ao estado neutro.
+      window.resetCensusControlVisual?.(chip.chaves);
+      atualizarChipsCenso();
+      if (currentDataCollection[currentCargo] && !STATE.isLoadingDataset) {
+        clearSelection(false);
+        applyFiltersAndRedraw();
+      }
+    });
+    lista.appendChild(el);
+  });
+}
+
 // ====== SLIDERS LOGIC ======
 function setupSliders() {
-  // Resets visuais registrados por cada filtro (usados por resetAllCensusFilters).
+  // Cada filtro registra { chaves, reset } — as chaves de STATE.censusFilters que
+  // ele controla e como devolver o proprio controle ao estado neutro. Serve tanto
+  // ao "Limpar filtros" quanto ao X de um chip individual.
   const CENSUS_FILTER_RESETTERS = [];
 
-  // Definimos a função de redesenho PRIMEIRO para evitar erros de referência
-  const debouncedMarkDirty = debounce(() => {
+  const debouncedLimparSelecao = debounce(() => {
     clearSelection(false);
-    markFiltersDirty();
   }, 100);
   const debouncedAutoApplyFilters = debounce(() => {
     if (!currentDataCollection[currentCargo] || STATE.isLoadingDataset) return;
     applyFiltersAndRedraw();
-    clearPendingFilterChanges();
   }, 180);
 
   // 1. DUAL SLIDER (RENDA)
-  const track = document.querySelector('.dual-track');
+  //
+  // O dominio nao e fixo: a renda media por local vai de ~R$ 700 (AC) a
+  // ~R$ 22.400 (DF), enquanto a mediana fica perto de R$ 2.800. Uma escala fixa
+  // de 0 a 10.000 desperdicava o primeiro decimo da barra (nenhum local ganha
+  // menos de R$ 700) e jogava tudo acima de 10k num balde unico — 14% dos locais
+  // do DF. setRendaDominio() reescala a barra para o recorte carregado.
   const range = document.getElementById('rendaRange');
   const thumbMin = document.getElementById('rendaThumbMin');
   const thumbMax = document.getElementById('rendaThumbMax');
   const container = document.getElementById('sliderRendaContainer');
   const dispMin = document.getElementById('dispRendaMin');
   const dispMax = document.getElementById('dispRendaMax');
+  const dispFaixa = document.getElementById('dispRendaFaixa');
 
-  const MAX_VAL = 10000; // R$ 10k
-  const STEP = 50; // Snap to R$50
-  let valMin = 0;
-  let valMax = MAX_VAL;
+  const RENDA_DOMINIO_PADRAO = { min: 0, max: 10000 };
+  let dominio = { ...RENDA_DOMINIO_PADRAO };
+  let passo = 50;
+  let valMin = dominio.min;
+  let valMax = dominio.max;
+
+  const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  const faixaDominio = () => Math.max(1, dominio.max - dominio.min);
+
+  // Passo de R$ 50 na escala padrao; em dominios largos cresce para manter ~200
+  // paradas ao longo da barra (senao arrastar vira um ajuste fino inutil).
+  const calcPasso = () => Math.max(50, Math.round(faixaDominio() / 200 / 50) * 50);
+
+  const snap = (v) => {
+    const bruto = dominio.min + Math.round((v - dominio.min) / passo) * passo;
+    return Math.max(dominio.min, Math.min(dominio.max, bruto));
+  };
 
   function updateDualVisuals() {
-    const pctMin = (valMin / MAX_VAL) * 100;
-    const pctMax = (valMax / MAX_VAL) * 100;
+    const pct = (v) => ((v - dominio.min) / faixaDominio()) * 100;
+    const pctMin = pct(valMin);
+    const pctMax = pct(valMax);
 
     if (thumbMin) thumbMin.style.left = `${pctMin}%`;
     if (thumbMax) thumbMax.style.left = `${pctMax}%`;
     if (range) {
       range.style.left = `${pctMin}%`;
-      range.style.width = `${pctMax - pctMin}%`;
+      range.style.width = `${Math.max(0, pctMax - pctMin)}%`;
     }
 
-    if (dispMin) dispMin.textContent = valMin.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-    if (dispMax) dispMax.textContent = valMax >= MAX_VAL ?
-      MAX_VAL.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + "+" :
-      valMax.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    const noMinimo = valMin <= dominio.min;
+    const noMaximo = valMax >= dominio.max;
+    if (dispMin) dispMin.textContent = brl(valMin);
+    // "+" so quando o topo do dominio e o teto padrao (ai ele agrega tudo acima).
+    if (dispMax) dispMax.textContent = noMaximo && dominio.max === RENDA_DOMINIO_PADRAO.max
+      ? brl(dominio.max) + '+'
+      : brl(valMax);
+
+    // Em repouso os dois numeros sao identicos aos extremos da escala; sem este
+    // rotulo nao da para saber se ha filtro aplicado ou nao.
+    if (dispFaixa) {
+      dispFaixa.textContent = (noMinimo && noMaximo) ? 'Sem filtro de renda' : 'Faixa selecionada';
+      dispFaixa.classList.toggle('filtro-inativo', noMinimo && noMaximo);
+    }
+
+    [[thumbMin, valMin], [thumbMax, valMax]].forEach(([thumb, valor]) => {
+      if (!thumb) return;
+      thumb.setAttribute('aria-valuemin', String(dominio.min));
+      thumb.setAttribute('aria-valuemax', String(dominio.max));
+      thumb.setAttribute('aria-valuenow', String(valor));
+      thumb.setAttribute('aria-valuetext', brl(valor));
+    });
   }
 
   function updateRendaState() {
-    STATE.censusFilters.rendaMin = valMin > 0 ? valMin : null;
-    STATE.censusFilters.rendaMax = valMax < MAX_VAL ? valMax : null;
-    debouncedMarkDirty();
-    updateApplyButtonText();
+    STATE.censusFilters.rendaMin = valMin > dominio.min ? valMin : null;
+    STATE.censusFilters.rendaMax = valMax < dominio.max ? valMax : null;
+    atualizarChipsCenso();
+    debouncedLimparSelecao();
     debouncedAutoApplyFilters();
   }
 
   const debouncedRenda = debounce(updateRendaState, 200);
 
-  // Drag Logic
+  // Fonte unica de escrita dos dois thumbs: mouse, toque e teclado passam por aqui.
+  function setValor(isMin, bruto) {
+    const v = snap(bruto);
+    if (isMin) valMin = Math.min(v, valMax - passo);
+    else valMax = Math.max(v, valMin + passo);
+    updateDualVisuals();
+    debouncedRenda();
+  }
+
+  // Pointer Events cobrem mouse, toque e caneta num caminho so — com mousedown/
+  // mousemove o filtro de renda era inarrastavel no celular, apesar de o app ter
+  // uma aba "Filtros" propria no mobile.
   function initDrag(thumb, isMin) {
-    if (!thumb) return;
-    thumb.addEventListener('mousedown', (e) => {
+    if (!thumb || !container) return;
+
+    thumb.addEventListener('pointerdown', (e) => {
       e.preventDefault();
-      const containerRect = container.getBoundingClientRect();
+      thumb.focus();
+      try { thumb.setPointerCapture(e.pointerId); } catch (_) { }
+      const rect = container.getBoundingClientRect();
 
-      function onMove(moveE) {
-        let x = moveE.clientX - containerRect.left;
-        let pct = Math.max(0, Math.min(100, (x / containerRect.width) * 100));
-        let val = Math.round((pct / 100) * MAX_VAL / STEP) * STEP;
+      const onMove = (ev) => {
+        const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+        setValor(isMin, dominio.min + pct * faixaDominio());
+      };
+      const onUp = (ev) => {
+        try { thumb.releasePointerCapture(ev.pointerId); } catch (_) { }
+        thumb.removeEventListener('pointermove', onMove);
+        thumb.removeEventListener('pointerup', onUp);
+        thumb.removeEventListener('pointercancel', onUp);
+      };
 
-        if (isMin) {
-          val = Math.min(val, valMax - STEP);
-          valMin = val;
-        } else {
-          val = Math.max(val, valMin + STEP);
-          valMax = val;
-        }
+      thumb.addEventListener('pointermove', onMove);
+      thumb.addEventListener('pointerup', onUp);
+      thumb.addEventListener('pointercancel', onUp);
+    });
 
-        updateDualVisuals();
-        debouncedRenda();
-      }
+    // Os thumbs ja tinham tabindex="0" e recebiam foco, mas nada respondia.
+    thumb.addEventListener('keydown', (e) => {
+      const atual = isMin ? valMin : valMax;
+      const salto = passo * 10;
+      let alvo = null;
 
-      function onUp() {
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('mouseup', onUp);
-      }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') alvo = atual - passo;
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') alvo = atual + passo;
+      else if (e.key === 'PageDown') alvo = atual - salto;
+      else if (e.key === 'PageUp') alvo = atual + salto;
+      else if (e.key === 'Home') alvo = dominio.min;
+      else if (e.key === 'End') alvo = dominio.max;
+      else return;
 
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('mouseup', onUp);
+      e.preventDefault();
+      setValor(isMin, alvo);
     });
   }
 
@@ -1490,10 +1571,35 @@ function setupSliders() {
   initDrag(thumbMax, false);
   updateDualVisuals();
 
-  CENSUS_FILTER_RESETTERS.push(() => {
-    valMin = 0;
-    valMax = MAX_VAL;
+  // Reescala a barra para o recorte carregado. Os thumbs voltam aos extremos:
+  // um valor absoluto do recorte anterior nao significa a mesma coisa aqui.
+  window.setRendaDominio = function (min, max) {
+    const lo = Number.isFinite(min) ? Math.max(0, Math.floor(min / 500) * 500) : RENDA_DOMINIO_PADRAO.min;
+    const hi = Number.isFinite(max) ? Math.ceil(max / 500) * 500 : RENDA_DOMINIO_PADRAO.max;
+    const novo = (hi - lo >= 500) ? { min: lo, max: hi } : { ...RENDA_DOMINIO_PADRAO };
+
+    // updateAvailabilityBars roda tambem ao so trocar de categoria no dropdown:
+    // sem esta saida antecipada, olhar outro filtro apagaria o de renda.
+    if (novo.min === dominio.min && novo.max === dominio.max) return dominio;
+
+    dominio = novo;
+    passo = calcPasso();
+    valMin = dominio.min;
+    valMax = dominio.max;
+    STATE.censusFilters.rendaMin = null;
+    STATE.censusFilters.rendaMax = null;
     updateDualVisuals();
+    atualizarChipsCenso();
+    return dominio;
+  };
+
+  CENSUS_FILTER_RESETTERS.push({
+    chaves: ['rendaMin', 'rendaMax'],
+    reset: () => {
+      valMin = dominio.min;
+      valMax = dominio.max;
+      updateDualVisuals();
+    }
   });
 
   // 2. SIMPLE SLIDERS (DYNAMIC)
@@ -1516,19 +1622,26 @@ function setupSliders() {
     const initialVal = parseInt(slider.value, 10) || 0;
     if (input) input.value = initialVal;
     if (disp) disp.textContent = `${initialVal}%`;
-    if (valDisp) valDisp.textContent = `${initialVal}%`;
+
+    // Uma frase so para os quatro filtros de porcentagem, e fiel ao codigo: a
+    // comparacao em filterFeature e >=, nao >. Em 0 o filtro esta desligado
+    // (o estado vira null) — dizer "Maior que 0%" fazia parecer que filtrava.
+    const rotuloEstado = (val) => val > 0
+      ? `Mostra apenas locais com ${val}% ou mais`
+      : 'Sem filtro';
 
     const applyDynamicValue = (rawVal) => {
       const val = Math.max(0, Math.min(100, parseInt(rawVal, 10) || 0));
       slider.value = val;
       if (input) input.value = val;
       if (disp) disp.textContent = `${val}%`;
-      if (valDisp) valDisp.textContent = `${val}%`;
+      if (valDisp) valDisp.textContent = rotuloEstado(val);
+      if (valDisp) valDisp.classList.toggle('filtro-inativo', val === 0);
 
       STATE.censusFilters[stateKeyVal] = val > 0 ? val : null;
-      debouncedMarkDirty();
-      updateApplyButtonText();
+      debouncedLimparSelecao();
       debouncedAutoApplyFilters();
+      atualizarChipsCenso();
     };
 
     // Atualiza Estado e UI quando o slider move
@@ -1545,11 +1658,17 @@ function setupSliders() {
       });
     }
 
-    CENSUS_FILTER_RESETTERS.push(() => {
-      slider.value = 0;
-      if (input) input.value = 0;
-      if (disp) disp.textContent = '0%';
-      if (valDisp) valDisp.textContent = '0%';
+    CENSUS_FILTER_RESETTERS.push({
+      chaves: [stateKeyVal],
+      reset: () => {
+        slider.value = 0;
+        if (input) input.value = 0;
+        if (disp) disp.textContent = '0%';
+        if (valDisp) {
+          valDisp.textContent = rotuloEstado(0);
+          valDisp.classList.add('filtro-inativo');
+        }
+      }
     });
 
     // Atualiza Estado e UI quando o select muda
@@ -1565,34 +1684,51 @@ function setupSliders() {
       }
 
       // Se houver valor de filtro aplicado, redesenha o mapa
+      atualizarChipsCenso();
+
       if (STATE.censusFilters[stateKeyVal] !== null) {
-        debouncedMarkDirty();
+        debouncedLimparSelecao();
         debouncedAutoApplyFilters();
       } else if (currentDataCollection[currentCargo] && !STATE.isLoadingDataset) {
         clearSelection(false);
         applyFiltersAndRedraw();
-        clearPendingFilterChanges();
       }
     });
   }
 
   setupDynamicFilter('sliderRaca', 'inputRaca', 'selectRaca', 'dispRaca', 'valDispRaca', 'racaVal', 'racaMode');
   setupDynamicFilter('sliderIdosos', 'inputIdade', 'selectIdade', 'dispIdosos', 'valDispIdosos', 'idadeVal', 'idadeMode');
-  setupDynamicFilter('sliderGenero', 'inputGenero', 'selectGenero', 'dispGenero', 'valDispGenero', 'generoVal', 'generoMode');
   setupDynamicFilter('sliderEscolaridade', 'inputEscolaridade', 'selectEscolaridade', 'dispEscolaridade', 'valDispEscolaridade', 'escolaridadeVal', 'escolaridadeMode');
-  setupDynamicFilter('sliderEstadoCivil', 'inputEstadoCivil', 'selectEstadoCivil', 'dispEstadoCivil', 'valDispEstadoCivil', 'estadoCivilVal', 'estadoCivilMode');
   setupDynamicFilter('sliderSaneamento', 'inputSaneamento', 'selectSaneamento', 'dispSaneamento', 'valDispSaneamento', 'saneamentoVal', 'saneamentoMode');
+
+  const btnLimparCenso = document.getElementById('btnClearCensusFilters');
+  if (btnLimparCenso) {
+    btnLimparCenso.addEventListener('click', () => {
+      window.resetAllCensusFilters?.();
+      if (currentDataCollection[currentCargo] && !STATE.isLoadingDataset) {
+        clearSelection(false);
+        applyFiltersAndRedraw();
+      }
+    });
+  }
 
   // Zera os valores dos filtros demograficos (mantendo os modos) e restaura o
   // visual dos sliders. Usado ao voltar para o resumo estadual municipal.
   window.resetAllCensusFilters = function () {
     const f = STATE.censusFilters;
     f.rendaMin = null; f.rendaMax = null;
-    f.racaVal = null; f.idadeVal = null; f.generoVal = null;
-    f.escolaridadeVal = null; f.estadoCivilVal = null; f.saneamentoVal = null;
-    CENSUS_FILTER_RESETTERS.forEach((reset) => { try { reset(); } catch (e) { } });
-    if (typeof clearPendingFilterChanges === 'function') clearPendingFilterChanges();
-    updateApplyButtonText();
+    f.racaVal = null; f.idadeVal = null;
+    f.escolaridadeVal = null; f.saneamentoVal = null;
+    CENSUS_FILTER_RESETTERS.forEach((r) => { try { r.reset(); } catch (e) { } });
+    atualizarChipsCenso();
+  };
+
+  // Devolve ao estado neutro so os controles das chaves pedidas (X de um chip).
+  window.resetCensusControlVisual = function (chaves) {
+    const alvo = new Set(chaves || []);
+    CENSUS_FILTER_RESETTERS
+      .filter((r) => r.chaves.some((c) => alvo.has(c)))
+      .forEach((r) => { try { r.reset(); } catch (e) { } });
   };
 
   updateCargoChipsVisibility();

@@ -420,8 +420,7 @@ async function buildDeputyBaseGeojson2022(uf) {
 function hasActiveCensusFilter() {
   const f = STATE.censusFilters;
   return f.rendaMin !== null || f.rendaMax !== null || f.racaVal !== null
-    || f.idadeVal !== null || f.generoVal !== null || f.escolaridadeVal !== null
-    || f.estadoCivilVal !== null || f.saneamentoVal !== null;
+    || f.idadeVal !== null || f.escolaridadeVal !== null || f.saneamentoVal !== null;
 }
 
 function shouldUseGeneralJsonTotals(cargo = currentCargo) {
@@ -577,8 +576,6 @@ function finalizeGeneralLoadUI(ufToLoad) {
   }
   if (dom.selectVizColorStyle) dom.selectVizColorStyle.disabled = false;
   if (dom.selectVizSize) dom.selectVizSize.disabled = false;
-  dom.btnApplyFilters.disabled = false;
-  updateApplyButtonText();
   dom.searchLocal.disabled = false;
   currentLocalFilter = preservedLocal;
   dom.searchLocal.value = preservedLocal ? preservedLocal : '';
@@ -847,8 +844,6 @@ async function onClickLoadData_Deputies_2022(uf, year) {
     }
     if (dom.selectVizColorStyle) dom.selectVizColorStyle.disabled = false;
     if (dom.selectVizSize) dom.selectVizSize.disabled = false;
-    dom.btnApplyFilters.disabled = false;
-    updateApplyButtonText();
     dom.searchLocal.disabled = false;
     dom.searchLocal.value = '';
 

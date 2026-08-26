@@ -158,20 +158,31 @@
             <div class="ctrl">
               <label for="searchLocal">Buscar por Local</label>
               <div class="searchwrap">
-                <input id="searchLocal" class="select" placeholder="Digite o nome do local..." disabled />
+                <input id="searchLocal" class="select" placeholder="Digite ao menos 3 letras..." disabled />
               </div>
             </div>
           </div>
           <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 12px 0;" />
           <!-- FILTROS CENSITÁRIOS -->
           <div class="filter-group" id="demographicFilters">
-            <h4 style="margin: 0 0 12px 0; font-size:0.9rem;">Filtros Demográficos (Censo)</h4>
+            <h4 style="margin: 0 0 4px 0; font-size:0.9rem;">Filtros Demográficos</h4>
+            <p class="filtro-ajuda">Mostram no mapa apenas os locais de votação que atendem ao
+              recorte escolhido. Filtros de categorias diferentes se somam.</p>
+
+            <p id="censusUnavailableNote" class="filtro-aviso" style="display:none;"></p>
+
+            <!-- Filtros ativos: o seletor abaixo mostra uma categoria por vez, entao sem esta
+                 linha nao ha como perceber que outro filtro continua valendo. -->
+            <div id="censusActiveFilters" class="filtro-chips" style="display:none;">
+              <div id="censusActiveChips" class="filtro-chips-lista"></div>
+              <button type="button" id="btnClearCensusFilters" class="filtro-limpar">Limpar filtros</button>
+            </div>
 
             <div class="ctrl" style="margin-bottom: 12px;">
               <select id="selectDemoCategory" class="select">
                 <option value="tab-renda" selected>Renda</option>
                 <option value="tab-raca">Cor/Raça</option>
-                <option value="tab-idade">Idade</option>
+                <option value="tab-idade">Faixa etária</option>
                 <option value="tab-escolaridade">Escolaridade</option>
                 <option value="tab-saneamento">Saneamento</option>
               </select>
@@ -179,25 +190,33 @@
 
             <!-- RENDA TAB -->
             <div class="tab-content" id="tab-renda">
-              <label class="slider-label">Renda Média (R$)</label>
+              <label class="slider-label">Renda média mensal do entorno</label>
+              <p class="filtro-fonte">Fonte: Censo IBGE — setores em volta do local de votação.</p>
 
               <div class="dual-slider-container" id="sliderRendaContainer">
                 <div class="dual-track"></div>
                 <div class="availability-bar" id="availRenda"></div>
                 <div class="dual-range" id="rendaRange"></div>
-                <div class="dual-thumb left" id="rendaThumbMin" tabindex="0"></div>
-                <div class="dual-thumb right" id="rendaThumbMax" tabindex="0"></div>
+                <div class="dual-thumb left" id="rendaThumbMin" tabindex="0" role="slider"
+                  aria-label="Renda mínima"></div>
+                <div class="dual-thumb right" id="rendaThumbMax" tabindex="0" role="slider"
+                  aria-label="Renda máxima"></div>
               </div>
 
               <div class="dual-values">
                 <span id="dispRendaMin">R$ 0</span>
                 <span id="dispRendaMax">R$ 10.000+</span>
               </div>
+              <small id="dispRendaFaixa" class="filtro-estado filtro-inativo">Sem filtro de renda</small>
+              <small id="legendaRenda" class="filtro-legenda"></small>
             </div>
 
             <!-- IDADE TAB -->
             <div class="tab-content hidden" id="tab-idade">
               <div class="slider-box">
+                <label class="slider-label">Faixa etária do eleitorado</label>
+                <p class="filtro-fonte">Fonte: perfil do eleitorado (TSE) — eleitores inscritos
+                  neste local, não moradores do entorno.</p>
                 <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
                   <select id="selectIdade" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
                     <option value="16-29">16 a 29 anos</option>
@@ -215,16 +234,16 @@
                   <div class="availability-bar" id="availIdade"></div>
                   <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderIdosos">
                 </div>
-                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
-                  Filtra locais onde mais de <span id="valDispIdosos">0%</span> do grupo selecionado
-                  reside.
-                </small>
+                <small class="filtro-estado" id="valDispIdosos">Sem filtro</small>
+                <small class="filtro-legenda" id="legendaIdade"></small>
               </div>
             </div>
 
             <!-- RAÇA TAB -->
             <div class="tab-content hidden" id="tab-raca">
               <div class="slider-box">
+                <label class="slider-label">Cor ou raça no entorno</label>
+                <p class="filtro-fonte">Fonte: Censo IBGE — setores em volta do local de votação.</p>
                 <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
                   <select id="selectRaca" class="select" style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
                     <option value="Pct Preta" selected>População Preta</option>
@@ -243,9 +262,11 @@
                   <div class="availability-bar" id="availRaca"></div>
                   <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderRaca">
                 </div>
-                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
-                  Maior que <span id="valDispRaca">0%</span>
-                </small>
+                <small class="filtro-estado" id="valDispRaca">Sem filtro</small>
+
+                <small class="filtro-legenda" id="legendaRaca"></small>
+
+
               </div>
             </div>
 
@@ -253,13 +274,16 @@
             <!-- ESCOLARIDADE TAB -->
             <div class="tab-content hidden" id="tab-escolaridade">
               <div class="slider-box">
+                <label class="slider-label">Escolaridade do eleitorado</label>
+                <p class="filtro-fonte">Fonte: perfil do eleitorado (TSE). São faixas de instrução,
+                  não apenas quem concluiu a etapa.</p>
                 <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
                   <select id="selectEscolaridade" class="select"
                     style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
-                    <option value="Superior" selected>Superior Completo</option>
-                    <option value="Médio">Médio Completo</option>
-                    <option value="Fundamental">Fundamental Completo</option>
-                    <option value="Sem escolaridade">Sem Escolaridade</option>
+                    <option value="Superior" selected>Superior completo</option>
+                    <option value="Médio">Médio completo ou superior incompleto</option>
+                    <option value="Fundamental">Fundamental (completo ou incompleto)</option>
+                    <option value="Sem escolaridade">Sem instrução formal</option>
                   </select>
                   <div class="slider-input-group">
                     <input id="inputEscolaridade" type="number" class="exact-input exact-input-sm" min="0" max="100"
@@ -271,15 +295,19 @@
                   <div class="availability-bar" id="availEscolaridade"></div>
                   <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderEscolaridade">
                 </div>
-                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
-                  Maior que <span id="valDispEscolaridade">0%</span>
-                </small>
+                <small class="filtro-estado" id="valDispEscolaridade">Sem filtro</small>
+
+                <small class="filtro-legenda" id="legendaEscolaridade"></small>
+
+
               </div>
             </div>
 
             <!-- SANEAMENTO TAB -->
             <div class="tab-content hidden" id="tab-saneamento">
               <div class="slider-box">
+                <label class="slider-label">Saneamento no entorno</label>
+                <p class="filtro-fonte">Fonte: Censo IBGE — setores em volta do local de votação.</p>
                 <div class="slider-header" style="align-items: center; margin-bottom: 6px;">
                   <select id="selectSaneamento" class="select"
                     style="width: auto; padding: 2px 6px; font-size: 0.85rem;">
@@ -297,9 +325,11 @@
                   <div class="availability-bar" id="availSaneamento"></div>
                   <input type="range" class="simple-slider" min="0" max="100" value="0" id="sliderSaneamento">
                 </div>
-                <small style="color:var(--muted); font-size:0.75rem; margin-top:4px; display:block;">
-                  Mais de <span id="valDispSaneamento">0%</span> com este tipo de saneamento.
-                </small>
+                <small class="filtro-estado" id="valDispSaneamento">Sem filtro</small>
+
+                <small class="filtro-legenda" id="legendaSaneamento"></small>
+
+
               </div>
             </div>
 
@@ -879,9 +909,11 @@
             <strong>Shift + Clique</strong> para selecionar locais individuais consecutivamente. O sistema calculará o
             total automaticamente.
           </li>
-          <li><strong>Filtros Demográficos:</strong> É possível refinar a visualização com base em indicadores
-            socioeconômicos do entorno dos locais de votação, incluindo: Renda, Cor/Raça, Faixa Etária, Gênero e Nível
-            de Saneamento.</li>
+          <li><strong>Filtros Demográficos:</strong> É possível refinar a visualização com base em cinco
+            indicadores: <strong>Renda</strong>, <strong>Cor/Raça</strong> e <strong>Saneamento</strong> vêm do
+            Censo do IBGE (setores em volta do local de votação); <strong>Faixa etária</strong> e
+            <strong>Escolaridade</strong> vêm do perfil do eleitorado do TSE (quem está inscrito naquele local).
+            Filtros de categorias diferentes se somam — os ativos aparecem como etiquetas no topo do painel.</li>
           <li><em>Exemplo de uso:</em> Analisar como áreas de alta renda em São Paulo votaram para presidente, ou o
             comportamento eleitoral em bairros com predominância feminina.</li>
           <li><strong>Metodologia:</strong> Para detalhes sobre como o perfil de vizinhança foi construído, clique no

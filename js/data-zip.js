@@ -774,9 +774,7 @@ function shouldUseMunicipalOfficialTotals() {
     censusFilters.rendaMax,
     censusFilters.racaVal,
     censusFilters.idadeVal,
-    censusFilters.generoVal,
     censusFilters.escolaridadeVal,
-    censusFilters.estadoCivilVal,
     censusFilters.saneamentoVal
   ].some((value) => value !== null && value !== undefined && Number(value) > 0);
   const year = String(STATE.currentElectionYear);
