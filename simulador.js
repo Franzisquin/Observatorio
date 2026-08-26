@@ -452,10 +452,10 @@ function pesoOrigem(origem) {
 
 // ------------------------------------------------------- candidatos
 
-function simAddCandidato(nome = '', partido = '') {
+function simAddCandidato(nome = '', partido = '', cor = null) {
   const c = {
     id: SIM.proxId++, nome, partido,
-    cor: getPartyColor(partido) || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
+    cor: cor || getPartyColor(partido) || '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'),
     pos: getPartyPos(partido)
   };
   SIM.candidatos.push(c);
@@ -626,13 +626,7 @@ function simCarregarWorker() {
 
 function simProgresso(v, rotulo) {
   const box = document.getElementById('simProgress');
-  const fill = document.getElementById('simProgressFill');
-  const lab = document.getElementById('simProgressLabel');
-  if (!box) return;
-  if (v <= 0 || v >= 1) { box.hidden = true; return; }
-  box.hidden = false;
-  fill.style.width = Math.round(v * 100) + '%';
-  lab.textContent = rotulo || '';
+  if (box) box.hidden = true;
 }
 
 function simAvisar(txt) {
@@ -1147,14 +1141,7 @@ function renderNavFoot() {
   if (!el) return;
   const res = SIM.agregado && SIM.agregado.brasil;
   if (!res) {
-    const e = prontoParaBase();
-    el.innerHTML = `<div class="sim-nav-preview">
-        <span class="sim-nav-preview-tit">Para gerar a projeção</span>
-        <div class="sim-check-item ${e.migOk ? 'ok' : ''}">
-          <i>${e.migOk ? '✓' : '1'}</i> Migração de 2022</div>
-        <div class="sim-check-item ${e.regOk ? 'ok' : ''}">
-          <i>${e.regOk ? '✓' : '2'}</i> Pesos por ${NOME_NIVEL_SING[nivelBase()]}</div>
-      </div>`;
+    el.innerHTML = '';
     return;
   }
   const ent = entradasDe(res).filter(x => x.key.startsWith('cand_') || x.key === 'outros')
@@ -1202,12 +1189,8 @@ function renderPaneCandidatos() {
   el.innerHTML = `
     <header class="sim-pane-head">
       <h4>Candidatos${ehGov() ? ` ao governo de ${escapeHtml(UF_MAP.get(SIM.ufGov) || SIM.ufGov || '')}` : ''}</h4>
-      <p>A ordem aqui é a ordem em que aparecem no resultado. O
-         <strong>partido</strong> posiciona o candidato no eixo
-         esquerda–direita, e é isso que gera os valores sugeridos da migração de
-         2022 e da transferência de segundo turno — ambos editáveis depois.</p>
     </header>
-    <div class="sim-cand-list" id="simCandList">
+    <div class="sim-cand-list ${redutos.length ? 'has-redutos' : ''}" id="simCandList">
       ${SIM.candidatos.map(c => {
         const nomeLimpo = c.nome ? c.nome.trim() : '';
         const podeTerReduto = (nomeLimpo === 'Ronaldo Caiado' || nomeLimpo === 'Romeu Zema');
@@ -1334,15 +1317,7 @@ function renderPaneCenario() {
   const cols = simColunas();
   el.innerHTML = `
     <header class="sim-pane-head">
-      <h4>Migração do 1º turno de 2022 <span class="sim-req">obrigatório</span></h4>
-      <p>Este é o pilar do simulador. Cada linha é um comportamento no
-         <strong>primeiro turno de 2022</strong>, medido local de votação a local
-         de votação; os controles definem para onde esse eleitorado vai em 2026.
-         Usamos o 1º turno justamente por causa da linha
-         <em>“votou em outro candidato”</em> (Ciro, Tebet e demais): esse
-         eleitorado de centro some no 2º turno, diluído em Lula e Bolsonaro, e é
-         o mais disputado em 2026. O eleitorado é o de 2026, então quem entrou no
-         cadastro desde então aparece diluído em todas as linhas.</p>
+      <h4>Migração do 1º turno de 2022</h4>
     </header>
     ${origensLista().map(origem => {
     const cfg = origensInfo()[origem] || { rotulo: origem };
@@ -1469,14 +1444,6 @@ function renderPaneDemografia() {
   el.innerHTML = `
     <header class="sim-pane-head">
       <h4>Voto por grupo demográfico</h4>
-      <p>Os valores partem de uma <strong>regressão ecológica</strong> sobre os
-         ${fmtInt(SIM.indice ? Object.values(SIM.indice.ufs).reduce((a, b) => a + b, 0) : 0)}
-         locais de votação: o quanto cada grupo explica a variação do voto entre
-         locais. Os candidatos dividem 100% dos válidos do grupo; abstenção e
-         nulos são definidos à parte, sobre o eleitorado apto. Ao aplicar uma
-         dimensão, as demais são reestimadas sobre o novo resultado — só o que
-         você aplicar fica fixo.
-         Escopo atual: <strong>${escapeHtml(rotuloEscopo(SIM.escopo))}</strong>.</p>
     </header>
     <div class="sim-previa" id="simPreviaDemo"></div>
     ${dims.map(d => {
@@ -1996,23 +1963,11 @@ function renderRegioes(idPane, nivel, papel) {
 
   const cabecalho = papel === 'base' ? `
     <header class="sim-pane-head">
-      <h4>Pesos por ${escapeHtml(rotuloNivel.toLowerCase())}
-        <span class="sim-req">obrigatório</span></h4>
-      <p>Os valores já vêm carregados com o resultado <strong>real do 1º turno
-         de 2022</strong>${ehGov() ? ' para o governo do estado' : ''} em cada
-         região, passado pela migração que você definiu na etapa anterior.
-         Ajuste o que quiser: é sobre esta base que a inferência ecológica
-         distribui o resto.</p>
+      <h4>Pesos por ${escapeHtml(rotuloNivel.toLowerCase())}</h4>
       ${nota}
     </header>` : `
     <header class="sim-pane-head">
       <h4>${escapeHtml(rotuloNivel)}</h4>
-      <p>Refinamento opcional sobre a projeção já criada. Os valores mostrados são
-         os da <strong>simulação atual</strong> em cada região — migração,
-         ${escapeHtml((NOME_NIVEL[nivelBase()] || '').toLowerCase())} e demografias
-         já aplicadas — e acompanham sozinhos qualquer mudança nessas etapas, até
-         você editá-los. Uma meta aqui tem prioridade sobre a região maior que
-         contém esta.</p>
       ${nota}
     </header>
     <div class="sim-final-pick">
@@ -2220,10 +2175,6 @@ function renderPaneTurno2() {
   el.innerHTML = `
     <header class="sim-pane-head">
       <h4>Segundo turno</h4>
-      <p>${precisa
-      ? `Com <strong>${fmtPct(res1[0].pctValidos)}</strong> dos válidos, ${escapeHtml(res1[0].label)} não vence no primeiro turno.`
-      : `No cenário atual ${escapeHtml(res1[0].label)} já vence no primeiro turno com ${fmtPct(res1[0].pctValidos)}. A simulação abaixo é hipotética.`}
-         Cada eliminado distribui sua votação entre os dois finalistas, nulos e abstenção.</p>
     </header>
 
     <div class="sim-final-pick">
@@ -3470,8 +3421,9 @@ function candidatosPadrao() {
   simAddCandidato('Lula', 'PT');
   simAddCandidato('Flávio Bolsonaro', 'PL');
   simAddCandidato('Renan Santos', 'MISSÃO');
-  simAddCandidato('Ronaldo Caiado', 'PSD');
+  simAddCandidato('Ronaldo Caiado', 'PSD', '#2f935a');
   simAddCandidato('Romeu Zema', 'NOVO');
+  simAddCandidato('Augusto Cury', 'AVANTE');
 }
 
 /* O estado abre com a reedicao de 2022: cada candidatura que virou origem entra

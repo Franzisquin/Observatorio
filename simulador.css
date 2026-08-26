@@ -831,7 +831,8 @@
 }
 
 .sim-cand-item {
-  display: flex;
+  display: grid;
+  grid-template-columns: 28px 1fr 105px 26px;
   align-items: center;
   gap: 8px;
   padding: 7px 9px;
@@ -840,11 +841,16 @@
   border-radius: var(--radius-lg);
 }
 
+.sim-cand-list.has-redutos .sim-cand-item {
+  grid-template-columns: 28px 1fr 105px 118px 26px;
+}
+
 .sim-cand-item:hover {
   border-color: var(--accent);
 }
 
 .sim-cand-color {
+  grid-column: 1;
   width: 28px;
   height: 28px;
   padding: 0;
@@ -868,12 +874,13 @@
 }
 
 .sim-cand-nome {
-  flex: 2;
+  grid-column: 2;
+  width: 100%;
 }
 
 .sim-cand-partido {
-  flex: 1;
-  min-width: 64px;
+  grid-column: 3;
+  width: 100%;
 }
 
 .sim-cand-pos {
@@ -898,6 +905,7 @@
 }
 
 .sim-cand-remove {
+  grid-column: -1;
   width: 26px;
   height: 26px;
   flex-shrink: 0;
@@ -1651,8 +1659,8 @@
 
 .sim-cand-reduto,
 .sim-cand-origem {
-  flex-shrink: 0;
-  max-width: 118px;
+  grid-column: 4;
+  width: 100%;
   padding: 5px 7px;
   background: var(--card);
   border: 1px solid var(--border-color);
@@ -1660,6 +1668,7 @@
   color: var(--text-sec);
   font-family: inherit;
   font-size: 0.72rem;
+  box-sizing: border-box;
 }
 
 .sim-cand-sub {
