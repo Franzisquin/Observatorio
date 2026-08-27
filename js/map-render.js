@@ -734,6 +734,35 @@ function focusSelectedMunicipalityOnMap(options = {}) {
 // dinamicamente pela GeoLayer (tooltipFn retorna null para o selecionado e o
 // onClick ignora cliques no selecionado quando em modo 'locais').
 
+// O municipio selecionado e desenhado VAZADO (fillOpacity 0) para deixar aparecer
+// os pontos de local de votacao por baixo dele. Quando nao ha ponto nenhum ali,
+// vazar apaga o municipio do mapa: nao sobra nem poligono nem ponto. E o caso de
+// 1989/1994, em que o TSE so publicou resultado por municipio, e tambem o de
+// municipios que, nas gerais pre-2006, nao tem nenhuma secao geolocalizada.
+//
+// Tem de ser recalculado em TODO redesenho (inclusive no ramo do coropletico, que
+// retorna antes de montar a camada de locais): enquanto isto vivia so no ramo de
+// 'locais', a flag guardava o valor da eleicao anterior e o municipio sumia.
+function computeSelectedCityHasNoDots(visibleFeatures) {
+  if (!getCurrentMunicipalMapSelection()) return false;
+
+  // 2002/2006 tem o indice de municipios com ponto montado por nome (o filtro de
+  // cidade nao basta: a grafia do poligono e a do acervo divergem em parte da
+  // malha, e os aliases resolvem isso).
+  if (STATE.munisWithDots) {
+    const selectedMuniName = getCurrentMunicipalMapSelection()?.name || currentCidadeFilter;
+    if (!selectedMuniName || selectedMuniName === 'all') return false;
+    const aliases = typeof getMunicipioAliasSlugs === 'function'
+      ? getMunicipioAliasSlugs(selectedMuniName)
+      : [normalizeMunicipioSlug(selectedMuniName)];
+    return !aliases.some((alias) => STATE.munisWithDots.has(alias));
+  }
+
+  // Demais anos: o recorte visivel ja esta filtrado pelo municipio selecionado, e
+  // feature sintetica (a que carrega os votos sem local) vem com geometry null.
+  return !(visibleFeatures || []).some((f) => f.geometry !== null && f.geometry !== undefined);
+}
+
 function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
   if (!STATE.municipiosLayer?.refresh) return false;
 
@@ -2572,6 +2601,9 @@ function applyFiltersAndRedraw() {
     const overviewVisible = geojson.features.filter((feature) => filterFeature(feature));
     CURRENT_VISIBLE_FEATURES_CACHE = overviewVisible;
     CURRENT_VISIBLE_PROPS_CACHE = overviewVisible.map((feature) => feature.properties);
+    // Este ramo tambem desenha o municipio selecionado (em 1989/1994 e o unico
+    // que roda), entao a flag do vazado precisa valer aqui tambem.
+    STATE.currentCityHasNoDots = computeSelectedCityHasNoDots(overviewVisible);
     void (STATE.currentMapMode === 'regioes'
       ? showGeneralRegionOverview(dom.selectUFGeneral?.value)
       : showGeneralMunicipalityOverview(dom.selectUFGeneral?.value));
@@ -2620,19 +2652,7 @@ function applyFiltersAndRedraw() {
     STATE.munisWithDots = null;
   }
 
-  let hasRealDots = false;
-  if (isSpecialYearGeral && STATE.munisWithDots) {
-    const selectedMuniName = getCurrentMunicipalMapSelection()?.name || currentCidadeFilter;
-    if (selectedMuniName && selectedMuniName !== 'all') {
-      const aliases = typeof getMunicipioAliasSlugs === 'function'
-        ? getMunicipioAliasSlugs(selectedMuniName)
-        : [normalizeMunicipioSlug(selectedMuniName)];
-      hasRealDots = aliases.some(alias => STATE.munisWithDots.has(alias));
-    }
-  } else {
-    hasRealDots = visibleFeatures.some(f => f.geometry !== null && f.geometry !== undefined);
-  }
-  STATE.currentCityHasNoDots = keepMunicipalOverviewVisible && !hasRealDots;
+  STATE.currentCityHasNoDots = computeSelectedCityHasNoDots(visibleFeatures);
 
   if (keepMunicipalOverviewVisible) {
     if (STATE.currentElectionType === 'geral' && STATE.currentMapMuniUF) {
@@ -3517,6 +3537,14 @@ function getMaxTotalValidForSummary(summary) {
     (e) => e.totalValid || e.totalValidos || e.qt_votos_validos || 0);
 }
 
+// O selecionado so pode ser vazado quando ha uma camada de locais desenhada por
+// baixo E aquele municipio tem ponto nela. O teste do modo e a rede de seguranca:
+// fora de 'locais' (coropletico de 1989/1994, mapa de regioes) nao existe ponto
+// nenhum para revelar, entao vazar so faria o municipio desaparecer.
+function selectedMunicipalityMustKeepFill() {
+  return STATE.currentMapMode !== 'locais' || !!STATE.currentCityHasNoDots;
+}
+
 function getMunicipalPolygonStyle(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const selectedMunicipality = getCurrentMunicipalMapSelection();
@@ -3554,7 +3582,7 @@ function getMunicipalPolygonStyle(feature, summary) {
     if (!selectedMunicipality) return emptyStyle;
 
     if (isSelected) {
-      if (STATE.currentCityHasNoDots) return emptyStyle;
+      if (selectedMunicipalityMustKeepFill()) return emptyStyle;
       return {
         ...emptyStyle,
         fillOpacity: 0.06,
@@ -3682,7 +3710,7 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   if (isSelected) {
-    if (STATE.currentCityHasNoDots) {
+    if (selectedMunicipalityMustKeepFill()) {
       return {
         ...baseStyle,
         color: 'rgba(255, 255, 255, 0.96)',

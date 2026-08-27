@@ -36,7 +36,20 @@ from collections import defaultdict
 import pandas as pd
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SECOES_DIR = os.path.join(os.path.dirname(BASE_DIR), 'Resultados 1998')
+
+
+def _resolve_secoes_dir():
+    """Pasta dos brutos de 1998 do TSE. Hoje ela vive em 'Resultados 1998/' dentro
+    do projeto (como 'Resultados 2002/'); a primeira geracao a mantinha ao lado do
+    repositorio, entao o caminho antigo continua sendo aceito."""
+    for base in (BASE_DIR, os.path.dirname(BASE_DIR)):
+        caminho = os.path.join(base, 'Resultados 1998')
+        if os.path.isdir(caminho):
+            return caminho
+    return os.path.join(BASE_DIR, 'Resultados 1998')
+
+
+SECOES_DIR = _resolve_secoes_dir()
 GEO_DIR = os.path.join(BASE_DIR, 'resultados_geo')
 OUT_DIR = os.path.join(GEO_DIR, 'Majoritarias 1998')
 DADOS_DIR = r'E:\Mapas\Dados'

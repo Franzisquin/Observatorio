@@ -202,18 +202,30 @@ async function loadMajoritariaCargo1998(cargo, uf) {
   };
 }
 
+// Deputados de 1998 (federal e estadual/distrital) vem de
+// resultados_geo/Legislativas 1998/, gerado por scripts/gerar_legislativas_1998.py
+// a partir dos arquivos por secao do TSE. O formato e o mesmo de 2002 -- pontos
+// emprestados da base de 2006, chaves sinteticas "..._S{secao}" para a secao que
+// nao geolocaliza --, entao o fluxo de carga e literalmente o de 2002 com o ano
+// trocado; nao ha nada em onClickLoadData_Deputies_2002 que seja especifico de 2002.
+async function onClickLoadData_Deputies_1998(uf, year) {
+  return onClickLoadData_Deputies_2002(uf, String(year || 1998));
+}
+
 async function onClickLoadData_Geral_1998() {
   const year = STATE.currentElectionYear;
-
-  if (currentOffice === 'deputado') {
-    showToast('Deputados de 1998 ainda nao disponiveis no ElectoMaps.', 'info');
-    return;
-  }
 
   if (!dom.selectUFGeneral.value && currentOffice !== 'presidente') return;
   if (currentOffice === 'presidente' && !dom.selectUFGeneral.value) dom.selectUFGeneral.value = 'BR';
 
   const ufToLoad = dom.selectUFGeneral.value || 'BR';
+
+  if (currentOffice === 'deputado') {
+    setButtonLoading(dom.btnLoadData, true);
+    await window.onClickLoadData_Deputies(ufToLoad, year);
+    setButtonLoading(dom.btnLoadData, false);
+    return;
+  }
 
   setButtonLoading(dom.btnLoadData, true);
   dom.mapLoader.textContent = `Processando dados de ${ufToLoad} (${year})...`;

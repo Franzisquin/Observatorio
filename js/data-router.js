@@ -122,6 +122,9 @@ window.onClickLoadData_Deputies = async function (uf, year) {
   if (targetYear === '2002') {
     return onClickLoadData_Deputies_2002(uf, targetYear);
   }
+  if (targetYear === '1998') {
+    return onClickLoadData_Deputies_1998(uf, targetYear);
+  }
   if (targetYear === '1994') {
     return onClickLoadData_Deputies_1994(uf, targetYear);
   }

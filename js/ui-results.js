@@ -545,10 +545,10 @@ function updateConditionalUI() {
 
 function updateElectionTypeUI() {
   // Disponibilidade de cargo e estado derivado do ano, nao evento: recalcular
-  // aqui garante que 1989 (so presidencial) e 1998 (sem legislativas no acervo)
-  // fiquem certos em qualquer caminho que redesenhe o painel, e nao so no change
-  // do seletor de ano. A recursao para no primeiro salto: o cargo de fallback e
-  // presidente, que nunca esta na lista de escondidos.
+  // aqui garante que 1989 (so presidencial) fique certo em qualquer caminho que
+  // redesenhe o painel, e nao so no change do seletor de ano. A recursao para no
+  // primeiro salto: o cargo de fallback e presidente, que nunca esta na lista de
+  // escondidos.
   if (typeof updateCargoChipsVisibility === 'function') updateCargoChipsVisibility();
 
   const isMunicipal = STATE.currentElectionType === 'municipal';

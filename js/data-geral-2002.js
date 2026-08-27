@@ -317,13 +317,15 @@ async function adjustEmancCityTotals(year, cargo, ufs, muniNameMap, cityTotals, 
   });
 }
 
-async function buildDeputyBaseGeojson2002(uf) {
+// `year` existe porque 1998 usa exatamente este fluxo (mesma base de 2006 e mesmo
+// formato de RESULTS); o suplemento do CEM tem uma tabela por ano de eleicao.
+async function buildDeputyBaseGeojson2002(uf, year = 2002) {
   // Pontos: GPKG 2006 (o que bater bateu) + suplemento do CEM na RMSP, para a aba
   // de deputado nao mostrar um mapa mais furado que a de presidente.
   const resultKeys = collectLoadedDeputyResultKeys();
   const baseGeo = await loadGeneralStateBaseFromGpkg2006(uf);
   const geojson = filterGeneralFeatures2006(baseGeo, resultKeys);
-  await applyRmspSupplement(geojson, 2002, resultKeys);
+  await applyRmspSupplement(geojson, Number(year) || 2002, resultKeys);
   return geojson;
 }
 
@@ -404,6 +406,10 @@ async function onClickLoadData_Geral_2002() {
   }
 }
 
+// Fluxo de deputados compartilhado por 1998 e 2002: os dois emprestam os pontos
+// da base de 2006, guardam RESULTS por local em "Legislativas {ano}/" e usam o
+// mesmo official_totals. Tudo que muda entre os dois anos vem pelo argumento
+// `year`.
 async function onClickLoadData_Deputies_2002(uf, year) {
   const isEstadual = currentCargo === 'deputado_estadual';
   const typeKey = isEstadual ? 'e' : 'f';
@@ -472,10 +478,10 @@ async function onClickLoadData_Deputies_2002(uf, year) {
       const results = fullJson.RESULTS || {};
       const meta = fullJson.METADATA?.cand_names || {};
 
-      // Reatribui locais de cidades que ainda nao existiam em 2002 (distritos do pai).
+      // Reatribui locais de cidades que ainda nao existiam no ano (distritos do pai).
       if (window.EMANC) {
         await window.EMANC.ensureLoaded();
-        window.EMANC.apply(2002, { resultsObjects: [results] });
+        window.EMANC.apply(Number(year), { resultsObjects: [results] });
       }
 
       Object.entries(results).forEach(([locId, votes]) => {
@@ -521,14 +527,14 @@ async function onClickLoadData_Deputies_2002(uf, year) {
   }
 
   try {
-    const baseGeo = await buildDeputyBaseGeojson2002(uf);
+    const baseGeo = await buildDeputyBaseGeojson2002(uf, year);
     if (!baseGeo?.features?.length) {
-      throw new Error('Nenhum local de deputado 2002 encontrado no GPKG 2006.');
+      throw new Error(`Nenhum local de deputado ${year} encontrado no GPKG 2006.`);
     }
 
     if (window.EMANC) {
       await window.EMANC.ensureLoaded();
-      window.EMANC.apply(2002, { features: baseGeo.features });
+      window.EMANC.apply(Number(year), { features: baseGeo.features });
     }
 
     if (shouldReloadBaseState || !currentDataCollection['deputado_federal']) {
@@ -608,7 +614,7 @@ async function onClickLoadData_Deputies_2002(uf, year) {
 
     showToast(`Dados de deputados ${typeLabel} ${uf} (${year}) carregados!`, 'success');
   } catch (error) {
-    console.error('[2002] ERRO Deputados:', error);
+    console.error(`[${year}] ERRO Deputados:`, error);
     alert('Erro ao carregar dados de Deputado: ' + error.message);
   } finally {
     dom.mapLoader.classList.remove('visible');

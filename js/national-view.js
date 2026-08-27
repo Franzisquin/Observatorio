@@ -396,13 +396,10 @@ function isNationalGeneralScope() {
 }
 
 // Cargos que a visao nacional sabe montar no ano selecionado. 1989 so teve
-// presidencial; 1998 nao tem legislativas no acervo.
+// eleicao presidencial; de 1994 em diante o acervo tem todos os cargos.
 function isOfficeAvailableNationally(office, year = STATE.currentElectionYear) {
-  const y = String(year);
   if (office === 'presidente') return true;
-  if (y === '1989') return false;
-  if (office === 'deputado') return y !== '1998';
-  return true;
+  return String(year) !== '1989';
 }
 
 async function fetchNationalStatesGeoJSON() {
@@ -792,8 +789,8 @@ function buildDeputyArchiveSpec(year, houseKey, uf) {
 }
 
 // { METADATA, TOTALS } de uma UF. De 2006 em diante existe o *_resumo.json, que
-// o leitor por Range traz em ~3 KB; 1994 e 2002 nao tem resumo no acervo, entao
-// cai no JSON inteiro e soma os locais de votacao para chegar no mesmo lugar.
+// o leitor por Range traz em ~3 KB; 1994, 1998 e 2002 nao tem resumo no acervo,
+// entao cai no JSON inteiro e soma os locais de votacao para chegar no mesmo lugar.
 async function loadDeputyUfPayload(year, houseKey, uf) {
   const spec = buildDeputyArchiveSpec(year, houseKey, uf);
 
@@ -1902,10 +1899,9 @@ async function showNationalOverview(options = {}) {
   const office = currentOffice;
   const subtype = currentSubType === 'sup' ? 'sup' : 'ord';
 
-  // Cargo indisponivel no ano (1989 so teve presidencial, 1998 nao tem
-  // legislativas no acervo): cai para presidente em vez de estourar um erro de
-  // rede. updateCargoChipsVisibility ja escondeu o chip; aqui so alinhamos o
-  // estado antes de montar a visao.
+  // Cargo indisponivel no ano (1989 so teve presidencial): cai para presidente
+  // em vez de estourar um erro de rede. updateCargoChipsVisibility ja escondeu o
+  // chip; aqui so alinhamos o estado antes de montar a visao.
   if (!isOfficeAvailableNationally(office, year)) {
     currentOffice = 'presidente';
     currentSubType = 'ord';

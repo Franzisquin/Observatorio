@@ -1737,13 +1737,14 @@ function setupSliders() {
 function updateCargoChipsVisibility() {
   if (!dom.cargoChipsGeneral) return;
   const year = String(dom.selectYearGeneral?.value || STATE.currentElectionYear);
-  // 1998 nao tem deputados no acervo; 1989 so teve eleicao presidencial.
-  const is1998 = (year === '1998');
+  // 1989 so teve eleicao presidencial. 1994 em diante tem todos os cargos --
+  // 1998 passou a ter deputados quando os arquivos por secao do TSE entraram no
+  // acervo (resultados_geo/Legislativas 1998/).
   const is1989 = (year === '1989');
 
   const hiddenCargos = is1989
     ? ['governador', 'senador', 'deputado_federal', 'deputado_estadual']
-    : (is1998 ? ['deputado_federal', 'deputado_estadual'] : []);
+    : [];
 
   // Classe, nao style inline: as abas do painel direito trazem
   // `display: inline-flex !important`, que ganhava do inline sem prioridade e

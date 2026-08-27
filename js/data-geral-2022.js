@@ -423,9 +423,18 @@ function hasActiveCensusFilter() {
     || f.idadeVal !== null || f.escolaridadeVal !== null || f.saneamentoVal !== null;
 }
 
+const GENERAL_JSON_TOTALS_YEARS = ['2022', '2018', '2014', '2010', '2006', '2002', '1994', '1989'];
+
 function shouldUseGeneralJsonTotals(cargo = currentCargo) {
   const year = String(STATE.currentElectionYear);
-  return (year === '2022' || year === '2018' || year === '2014' || year === '2010' || year === '2006' || year === '2002' || year === '1994' || year === '1989')
+  // 1998 entra apenas pelos deputados. Nas majoritarias do ano o total ja fecha
+  // pelo mapa (as features sinteticas por municipio carregam o que os pontos nao
+  // cobrem), mas a aba de deputado nao tem essas features: as secoes de 1998 que
+  // nao casaram na base de 2006 vivem em chaves "..._S{secao}", sem ponto nenhum.
+  // Sem isto o "Estado Completo" somaria so os pontos e perderia esses votos.
+  const anoTemTotais = GENERAL_JSON_TOTALS_YEARS.includes(year)
+    || (year === '1998' && String(cargo || '').startsWith('deputado'));
+  return anoTemTotais
     && STATE.currentElectionType === 'geral'
     && STATE.isFilterAggregationActive
     && !hasRegionalScopeFilters()

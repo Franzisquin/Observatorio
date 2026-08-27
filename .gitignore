@@ -38,3 +38,10 @@ scratch/
 # Baixar de novo em https://github.com/fdhidalgo/geocode_br_polling_stations
 version_15_geocode/
 
+
+# Brutos de 1998 do TSE (494 MB), baixados do CDN por scripts/baixar_secoes_1998.py.
+# Sao insumo, nao saida: votacao_secao_1998_SP.zip sozinho tem 113 MB (acima do
+# limite do GitHub) e o que o site usa ja esta em resultados_geo/Legislativas 1998/
+# e resultados_geo/Majoritarias 1998/, gerados por gerar_legislativas_1998.py e
+# gerar_majoritarias_1998.py.
+Resultados 1998/
