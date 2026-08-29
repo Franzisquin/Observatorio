@@ -294,10 +294,17 @@ function parseSwingResultKey(key) {
 // escolhido, o modo Virada tira o vencedor por argmax. Trocar de candidato ou de
 // modo vira redesenho, nao recarga. O custo e baixo porque eleicao majoritaria
 // tem poucos candidatos (~10): sao ~10 numeros por unidade.
-function buildSwingSideAggregates(payloadsByUf) {
+function buildSwingSideAggregates(payloadsByUf, year) {
   const byStation = new Map();
   const byMuni = new Map();
   const byUf = new Map();
+
+  // 1989 e o unico ano do acervo cujo RESULTS ja vem chaveado por IBGE-7 em vez
+  // do codigo TSE (ver data-geral-1989-1994.js). Como a linha municipal do swing
+  // e sempre TSE — e e por TSE que saem tanto o casamento com o poligono quanto
+  // o rollup regional —, o lado de 1989 e traduzido aqui na entrada. Sem isso
+  // qualquer comparacao com 1989 fecha com ZERO linhas fora do nivel de estados.
+  const ibgeToTse = String(year) === '1989' ? swingIbgeToTse() : null;
 
   const bump = (store, key, voteMap) => {
     if (!key) return;
@@ -320,7 +327,7 @@ function buildSwingSideAggregates(payloadsByUf) {
       const parsed = parseSwingResultKey(resultKey);
       if (!parsed) return;
       bump(byStation, resultKey, voteMap);
-      bump(byMuni, parsed.muni, voteMap);
+      bump(byMuni, ibgeToTse ? ibgeToTse.get(parsed.muni) : parsed.muni, voteMap);
       bump(byUf, ufKey, voteMap);
     });
   });
@@ -342,6 +349,17 @@ function buildSwingSideAggregatesFromTotals(totalsByUf) {
     byUf.set(String(uf).toUpperCase(), entry);
   });
   return { byStation: new Map(), byMuni: new Map(), byUf };
+}
+
+// Indice reverso da ponte, montado sob demanda e reaproveitado: o poligono do
+// mapa so traz o IBGE-7 e 1989 chaveia o RESULTS por IBGE, mas a linha
+// municipal do swing e SEMPRE o codigo TSE.
+function swingIbgeToTse() {
+  if (!SWING._ibgeToTse || SWING._ibgeToTse.size !== TSE_TO_IBGE.size) {
+    SWING._ibgeToTse = new Map();
+    TSE_TO_IBGE.forEach((ibge, tse) => SWING._ibgeToTse.set(String(ibge), String(tse)));
+  }
+  return SWING._ibgeToTse;
 }
 
 // Rollup de municipio -> regiao, usando a ponte TSE->IBGE e o indice do IBGE.
@@ -649,7 +667,7 @@ async function loadSwingSide(side, onProgress) {
   if (!Object.keys(payloadsByUf).length) {
     throw new Error(`Sem dados de ${SWING_OFFICE_LABEL[office]} em ${cfg.year} (${cfg.turno}º turno).`);
   }
-  return buildSwingSideAggregates(payloadsByUf);
+  return buildSwingSideAggregates(payloadsByUf, cfg.year);
 }
 
 async function buildSwingDataset() {
@@ -682,20 +700,38 @@ async function buildSwingDataset() {
  * 4. GEOMETRIA
  * ========================================================================== */
 
-// Malha municipal ATUAL, sempre. O modo normal troca para a malha historica em
-// 1989/1994, mas aqui as duas pontas do swing podem ser de epocas diferentes:
-// a unica malha em que as duas cabem e a vigente, que e tambem a que o indice
-// de regioes do IBGE descreve.
-async function fetchSwingMunicipalPolygons(uf) {
+// Ano da malha municipal a desenhar, '' para a vigente.
+//
+// A regra geral e a malha ATUAL: as duas pontas do swing costumam ser de epocas
+// diferentes e ela e a unica em que as duas cabem — e a que o indice de regioes
+// do IBGE descreve. Mas quando as duas pontas sao da MESMA eleicao antiga
+// (1994 1o x 2o turno), as duas tem exatamente a mesma cobertura e existe uma
+// malha que serve certo: a do ano. Desenhar os 853 municipios de hoje para os
+// 756 que existiam em 1994 abria 97 buracos que nao sao ausencia de dado
+// nenhuma — sao municipios que ainda nao tinham sido criados.
+//
+// SWING_MUNI_ONLY_YEARS serve de lista porque e a mesma: os anos cujo resultado
+// so existe por municipio sao exatamente os que tem malha historica no acervo
+// (resultados_geo/municipios_{ano}/), do mesmo jeito que o modo normal usa em
+// fetchMunicipalPolygonGeoJSON.
+function swingMeshYear() {
+  const ano = String(SWING.A.year);
+  if (ano !== String(SWING.B.year)) return '';
+  return SWING_MUNI_ONLY_YEARS.has(ano) ? ano : '';
+}
+
+async function fetchSwingMunicipalPolygons(uf, meshYear = swingMeshYear()) {
   const ufNorm = String(uf || '').toUpperCase();
-  const cacheKey = `muni|${ufNorm}`;
+  const cacheKey = `muni|${meshYear || 'atual'}|${ufNorm}`;
   if (SWING_POLYGON_CACHE.has(cacheKey)) return SWING_POLYGON_CACHE.get(cacheKey);
 
   const promise = (async () => {
+    // A vigente fica de reserva: melhor o mapa com buraco do que erro na tela.
     const urls = [
+      meshYear ? `${DATA_BASE_URL}municipios_${meshYear}/municipios_${meshYear}_${ufNorm}.geojson` : null,
       `${DATA_BASE_URL}municipios_hd/municipios_${ufNorm}.geojson`,
       `${DATA_BASE_URL}municipios/municipios_${ufNorm}.geojson`
-    ];
+    ].filter(Boolean);
     for (const url of urls) {
       try {
         const response = await fetch(url);
@@ -995,6 +1031,16 @@ function swingCandidateLabel(side) {
   return `${toTitleCase(cand.nome)} (${cand.partido})`;
 }
 
+// Com A e B no mesmo ano (1o x 2o turno da mesma eleicao), o ano sozinho nao
+// identifica o lado: o painel dizia "... em 1994 vs. ... em 1994". So nesse caso
+// o turno entra no rotulo. A forma compacta e para os cantos apertados (badge da
+// tabela, linha de metricas); a longa, para o texto corrido.
+function swingYearLabel(side, compact = false) {
+  const ano = String(SWING[side].year);
+  if (String(SWING.A.year) !== String(SWING.B.year)) return ano;
+  return compact ? `${ano} · ${SWING[side].turno}º` : `${ano} (${SWING[side].turno}º turno)`;
+}
+
 function swingCandidateColor(side) {
   const cfg = SWING[side];
   const cand = (cfg.cands || []).find((c) => c.id === cfg.candId);
@@ -1049,9 +1095,10 @@ function swingKeyForFeature(feature) {
   if (SWING.level === 'uf') return String(props.CD_REG || props.SIGLA_UF || '').toUpperCase();
   if (SWING.level === 'municipios') {
     // As linhas municipais sao chaveadas por codigo TSE; o poligono so tem o
-    // IBGE. A ponte e resolvida uma vez por render (ver SWING._ibgeToTse).
+    // IBGE. A ponte reversa e montada na primeira chamada (swingIbgeToTse).
     const ibge = String(props.CD_MUN || props.cd_mun || props.CD_GEOCMU || '').trim();
-    return SWING._ibgeToTse?.get(ibge) || SWING._ibgeToTse?.get(ibge.slice(0, 7)) || '';
+    const idx = swingIbgeToTse();
+    return idx.get(ibge) || idx.get(ibge.slice(0, 7)) || '';
   }
   return String(props.CD_REG || '').trim();
 }
@@ -1134,6 +1181,46 @@ function swingPointRadius() {
   return 6;
 }
 
+// Por que a unidade ficou vazia. "Sem resultado nas duas eleicoes" era a unica
+// resposta possivel e ela e falsa no caso mais comum: o mapa usa SEMPRE a malha
+// municipal vigente, entao todo municipio emancipado depois da eleicao mais
+// antiga do par aparece — sem dado daquele lado. Em MG sao 853 poligonos contra
+// os 756 municipios que existiam em 1994. Dizer de qual ano falta o resultado e
+// o que separa "municipio ainda nao existia" de "falhou o carregamento".
+function swingEmptyReason(key) {
+  const temA = swingSideHasUnit('A', key);
+  const temB = swingSideHasUnit('B', key);
+  if (temB && !temA) return `Sem resultado em ${swingYearLabel('A')}.`;
+  if (temA && !temB) return `Sem resultado em ${swingYearLabel('B')}.`;
+  return String(SWING.A.year) === String(SWING.B.year)
+    ? `Sem resultado em ${SWING.A.year}.`
+    : 'Sem resultado nas duas eleições.';
+}
+
+// Se um lado tem a unidade, no nivel em que o mapa esta. So responde onde o
+// agregado ja existe pronto: nos niveis regionais o rollup e efemero (sai e
+// morre dentro de swingRowsForLevel) e nao vale guarda-lo so por isto.
+function swingSideHasUnit(side, key) {
+  const store = { municipios: 'byMuni', uf: 'byUf', locais: 'byStation' }[SWING.level];
+  return !!(key && store && SWING.dataset?.[side]?.[store]?.has(key));
+}
+
+// Poligonos da malha que ficaram sem linha, separados por qual dos dois anos
+// nao tem o resultado.
+function countSwingBlanks(features) {
+  const vazios = { faltaA: 0, faltaB: 0, faltaNosDois: 0 };
+  features.forEach((feature) => {
+    const key = swingKeyForFeature(feature);
+    if (SWING.rows?.has(key)) return;
+    const temA = swingSideHasUnit('A', key);
+    const temB = swingSideHasUnit('B', key);
+    if (temA && !temB) vazios.faltaB += 1;
+    else if (temB && !temA) vazios.faltaA += 1;
+    else vazios.faltaNosDois += 1;
+  });
+  return vazios;
+}
+
 function buildSwingTooltip(feature) {
   const props = feature?.properties || {};
   const key = swingKeyForFeature(feature);
@@ -1146,7 +1233,7 @@ function buildSwingTooltip(feature) {
       <div class="nyt-tooltip-container swing-tooltip" style="min-width: 230px;">
         <div class="district-nyt-title">${titulo}</div>
         <div class="swing-tooltip-sub">${subtitulo}</div>
-        <div class="swing-tooltip-empty">Sem resultado nas duas eleições.</div>
+        <div class="swing-tooltip-empty">${escapeHtml(swingEmptyReason(key))}</div>
       </div>
     `;
   }
@@ -1157,7 +1244,7 @@ function buildSwingTooltip(feature) {
       <div class="swing-tooltip-sub">${subtitulo}</div>
       ${buildSwingComparisonTable(row)}
       <div class="swing-tooltip-foot">
-        Válidos: ${fmtInt(row.a.total)} (${escapeHtml(String(SWING.A.year))}) • ${fmtInt(row.b.total)} (${escapeHtml(String(SWING.B.year))})
+        Válidos: ${fmtInt(row.a.total)} (${escapeHtml(swingYearLabel('A', true))}) • ${fmtInt(row.b.total)} (${escapeHtml(swingYearLabel('B', true))})
       </div>
     </div>
   `;
@@ -1181,7 +1268,7 @@ function buildSwingComparisonTable(row) {
     const winnerId = data.winner?.id;
     return {
       side,
-      year: SWING[side].year,
+      year: swingYearLabel(side, true),
       data,
       label: isFlip
         ? (winnerId ? swingWinnerLabel(side, winnerId) : 'Sem vencedor')
@@ -1305,10 +1392,6 @@ async function renderSwingMap() {
     if (generation !== SWING.generation) return;
     features = geojson.features || [];
   } else if (level === 'municipios') {
-    // Indice IBGE->TSE montado uma vez por render: o poligono so tem o IBGE e
-    // as linhas do swing sao chaveadas pelo codigo TSE do acervo.
-    SWING._ibgeToTse = new Map();
-    TSE_TO_IBGE.forEach((ibge, tse) => SWING._ibgeToTse.set(String(ibge), String(tse)));
     const geojson = await fetchSwingMunicipalPolygons(SWING.scope);
     if (generation !== SWING.generation) return;
     features = geojson.features || [];
@@ -1325,6 +1408,7 @@ async function renderSwingMap() {
     const key = swingKeyForFeature(feature);
     if (key && !SWING._propsByKey.has(key)) SWING._propsByKey.set(key, feature.properties || {});
   });
+  SWING._semDados = countSwingBlanks(features);
 
   clearSwingLayer();
 
@@ -1473,7 +1557,7 @@ function renderSwingPanel(feature = null) {
   const titulo = row ? swingRowLabel(key, props) : swingScopeLabel();
   const subtitulo = row
     ? swingRowSubtitle(key, props)
-    : `${SWING_OFFICE_LABEL[SWING.office]} • ${SWING.A.year} → ${SWING.B.year}`;
+    : `${SWING_OFFICE_LABEL[SWING.office]} • ${swingYearLabel('A')} → ${swingYearLabel('B')}`;
 
   dom.resultsTitle.textContent = titulo;
   dom.resultsSubtitle.textContent = subtitulo;
@@ -1491,7 +1575,7 @@ function renderSwingPanel(feature = null) {
 
   const comparativo = (row && scopeRow)
     ? (isFlip
-      ? `<div class="swing-context">No recorte inteiro: <strong>${escapeHtml(swingFlipVerdict(scopeRow).texto.toLowerCase())}</strong>${scopeRow.b.winner ? ` — venceu ${escapeHtml(swingWinnerLabel('B', scopeRow.b.winner.id))} em ${escapeHtml(String(SWING.B.year))}` : ''}</div>`
+      ? `<div class="swing-context">No recorte inteiro: <strong>${escapeHtml(swingFlipVerdict(scopeRow).texto.toLowerCase())}</strong>${scopeRow.b.winner ? ` — venceu ${escapeHtml(swingWinnerLabel('B', scopeRow.b.winner.id))} em ${escapeHtml(swingYearLabel('B'))}` : ''}</div>`
       : `<div class="swing-context">Swing no recorte inteiro: <strong class="${scopeRow.swing >= 0 ? 'swing-pos' : 'swing-neg'}">${fmtSwing(scopeRow.swing)}</strong></div>`)
     : '';
 
@@ -1515,8 +1599,8 @@ function buildSwingSwingHeadline(active) {
     <div class="swing-headline ${cls}" style="border-color:${swingColor(active.swing)}">
       <div class="swing-headline-value" style="color:${swingColor(active.swing)}">${fmtSwing(active.swing)}</div>
       <div class="swing-headline-label">
-        ${escapeHtml(swingCandidateLabel('B'))} em ${escapeHtml(String(SWING.B.year))}
-        vs. ${escapeHtml(swingCandidateLabel('A'))} em ${escapeHtml(String(SWING.A.year))}
+        ${escapeHtml(swingCandidateLabel('B'))} em ${escapeHtml(swingYearLabel('B'))}
+        vs. ${escapeHtml(swingCandidateLabel('A'))} em ${escapeHtml(swingYearLabel('A'))}
       </div>
     </div>
   `;
@@ -1534,7 +1618,7 @@ function buildSwingFlipHeadline(active) {
       <div class="swing-headline-label">
         ${active.flipped === false
           ? `${escapeHtml(para)} venceu nos dois anos`
-          : `${escapeHtml(de)} (${escapeHtml(String(SWING.A.year))}) → ${escapeHtml(para)} (${escapeHtml(String(SWING.B.year))})`}
+          : `${escapeHtml(de)} (${escapeHtml(swingYearLabel('A', true))}) → ${escapeHtml(para)} (${escapeHtml(swingYearLabel('B', true))})`}
       </div>
     </div>
   `;
@@ -1544,8 +1628,8 @@ function buildSwingSwingMetrics(active) {
   const deltaVotos = active.b.votes - active.a.votes;
   return `
     <div class="swing-metrics">
-      <span>Votos ${escapeHtml(String(SWING.A.year))}: <strong>${fmtInt(active.a.votes)}</strong></span>
-      <span>Votos ${escapeHtml(String(SWING.B.year))}: <strong>${fmtInt(active.b.votes)}</strong></span>
+      <span>Votos ${escapeHtml(swingYearLabel('A', true))}: <strong>${fmtInt(active.a.votes)}</strong></span>
+      <span>Votos ${escapeHtml(swingYearLabel('B', true))}: <strong>${fmtInt(active.b.votes)}</strong></span>
       <span>Diferença: <strong class="${deltaVotos >= 0 ? 'swing-pos' : 'swing-neg'}">${deltaVotos >= 0 ? '+' : '−'}${fmtInt(Math.abs(deltaVotos))}</strong></span>
       <span>Unidades comparadas: <strong>${fmtInt(SWING.rows?.size || 0)}</strong></span>
     </div>
@@ -1556,8 +1640,8 @@ function buildSwingFlipMetrics(active) {
   const stats = swingFlipStats();
   return `
     <div class="swing-metrics">
-      <span>Margem ${escapeHtml(String(SWING.A.year))}: <strong>${fmtSwingPct(active.a.winner?.margin || 0)}</strong></span>
-      <span>Margem ${escapeHtml(String(SWING.B.year))}: <strong>${fmtSwingPct(active.b.winner?.margin || 0)}</strong></span>
+      <span>Margem ${escapeHtml(swingYearLabel('A', true))}: <strong>${fmtSwingPct(active.a.winner?.margin || 0)}</strong></span>
+      <span>Margem ${escapeHtml(swingYearLabel('B', true))}: <strong>${fmtSwingPct(active.b.winner?.margin || 0)}</strong></span>
       <span>Viraram: <strong class="swing-flip">${fmtInt(stats.flipped)}</strong> de ${fmtInt(stats.total)}</span>
       <span>Critério: <strong>${SWING.flipBy === 'candidato' ? 'candidato' : 'partido'}</strong></span>
     </div>
@@ -1984,14 +2068,34 @@ async function swingRedraw(mensagem = 'Redesenhando…') {
   }
 }
 
+// Diz quantas unidades DESENHADAS ficaram sem linha. Tem de ser contado contra
+// a malha, e nao pela diferenca entre os dois lados: em 1994 1o x 2o turno os
+// dois lados trazem os MESMOS 756 municipios e ainda assim sobram 97 poligonos
+// vazios, porque o mapa usa sempre a malha vigente (853 em MG) e o municipio
+// emancipado depois de 1994 nao tem resultado em nenhum dos dois turnos.
+function swingMissingSummary() {
+  const vazios = SWING._semDados;
+  if (!vazios) return '';
+  const mesmoAno = String(SWING.A.year) === String(SWING.B.year);
+  const partes = [];
+  if (vazios.faltaA) partes.push(`${fmtInt(vazios.faltaA)} sem resultado em ${swingYearLabel('A')}`);
+  if (vazios.faltaB) partes.push(`${fmtInt(vazios.faltaB)} sem resultado em ${swingYearLabel('B')}`);
+  if (vazios.faltaNosDois) {
+    partes.push(mesmoAno
+      ? `${fmtInt(vazios.faltaNosDois)} sem resultado em ${SWING.A.year}`
+      : `${fmtInt(vazios.faltaNosDois)} sem resultado nos dois anos`);
+  }
+  return partes.length ? ` · ${partes.join(' · ')}` : '';
+}
+
 function swingStatusSummary() {
   const comparadas = SWING.rows?.size || 0;
   const unidade = SWING_LEVEL_SHORT[SWING.level].toLowerCase();
   if (SWING.metric === 'virada') {
     const stats = swingFlipStats();
-    return `${fmtInt(stats.flipped)} de ${fmtInt(stats.total)} ${unidade} viraram.`;
+    return `${fmtInt(stats.flipped)} de ${fmtInt(stats.total)} ${unidade} viraram${swingMissingSummary()}.`;
   }
-  return `${fmtInt(comparadas)} ${unidade} em ambas as eleições.`;
+  return `${fmtInt(comparadas)} ${unidade} em ambas as eleições${swingMissingSummary()}.`;
 }
 
 
