@@ -81,6 +81,10 @@ const APUUI = (function () {
 
   /* ---------------------------------------------------------------- placar */
 
+  /* Quem já pediu a lista inteira, por elemento de destino. O placar é
+     redesenhado a cada boletim, e a escolha do leitor tem de sobreviver a isso. */
+  const abertos = {};
+
   /* `eleitos` marca quem o TSE já declarou eleito; nada é inferido aqui. */
   function placar(lista, alvo, opcoes) {
     const o = opcoes || {};
@@ -92,10 +96,12 @@ const APUUI = (function () {
       return;
     }
 
-    /* Antes da primeira urna mostra a chapa inteira; durante a apuração, o
-       recorte de sempre. */
-    const limite = o.limite || (lista[0] && lista[0].zerado ? 40 : 6);
-    const mostrar = lista.slice(0, limite);
+    /* Só os quatro primeiros — inclusive antes da primeira urna, quando a chapa
+       inteira estouraria a altura do mapa. O resto entra pelo botão. */
+    const limite = o.limite || 4;
+    const chave = (typeof alvo === 'string' ? alvo : el.id) || 'placar';
+    const aberto = !!abertos[chave];
+    const mostrar = aberto ? lista : lista.slice(0, limite);
 
     el.innerHTML = mostrar.map((c, i) => {
       const cor = APU.cor(c.partido);
@@ -123,12 +129,19 @@ const APUUI = (function () {
     }).join('');
 
     if (lista.length > limite) {
-      const resto = lista.slice(limite).reduce((s, c) => s + c.votos, 0);
-      el.insertAdjacentHTML('beforeend',
-        `<div class="apu-cand is-photoless" style="opacity:.62">
-           <div><div class="apu-cand-name" style="font-size:.9rem">Outros (${lista.length - limite})</div></div>
-           <div class="apu-cand-nums"><div class="apu-cand-votes">${APU.fmt.int(resto)}</div></div>
-         </div>`);
+      const botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'apu-more';
+      botao.textContent = aberto
+        ? 'Mostrar menos'
+        : `Mostrar mais (${lista.length - limite})`;
+      botao.onclick = () => {
+        abertos[chave] = !aberto;
+        placar(lista, alvo, opcoes);
+        /* Fechar com a lista rolada deixaria o cartão preso no meio dela. */
+        if (aberto) el.scrollTop = 0;
+      };
+      el.appendChild(botao);
     }
   }
 

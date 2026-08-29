@@ -21,7 +21,7 @@
 
   const estado = {
     uf: null, dados: null, geo: null, geoNivel: null, chapa: null, timer: null,
-    nivel: 'municipios', porChave: {}, total: null, sel: null
+    nivel: 'municipios', porChave: {}, total: null, sel: null, topAberto: false
   };
 
   function lerUF() {
@@ -31,6 +31,13 @@
 
   function nomeDoCargo() {
     return APU.CARGOS[APU.cfg.cargo] || 'Apuração';
+  }
+
+  /* Chapa registrada daquela disputa, com todo mundo em zero. Presidente é
+     disputa nacional e vem com uf 'BR' no registro: filtrar pelo estado
+     esvaziaria a lista e a página do estado cairia no "sem dados". */
+  function chapaZerada() {
+    return APU.rankingZerado(estado.chapa, APU.cfg.cargo === '0001' ? '' : estado.uf);
   }
 
   function sufixoParams() {
@@ -130,7 +137,7 @@
     $('voltarMun').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
-    APUUI.placar(lista.length ? lista : APU.rankingZerado(estado.chapa, estado.uf), 'placar');
+    APUUI.placar(lista.length ? lista : chapaZerada(), 'placar');
     APUUI.participacao(alvo, 'participacao');
   }
 
@@ -180,10 +187,11 @@
       APUUI.progresso(null);
 
       /* Mesma regra da nacional: sem boletim, a chapa daquela UF com zero voto. */
-      const chapa = APU.rankingZerado(estado.chapa, uf);
+      const chapa = chapaZerada();
       $('semDados').hidden = chapa.length > 0;
       $('painel').hidden = chapa.length === 0;
       $('municipios').hidden = true;
+      $('maisVotos').hidden = chapa.length === 0;
 
       if (!chapa.length) {
         $('semDadosTexto').textContent = APU.cfg.eleicao
@@ -202,12 +210,14 @@
         : 'Malha indisponível';
       if (vazio) APUUI.pintarMapa($('mapaUF'), () => null, {}, selecionar);
       lateral();
+      await maisVotosZerado(uf);
       return;
     }
 
     $('semDados').hidden = true;
     $('painel').hidden = false;
     $('municipios').hidden = false;
+    $('maisVotos').hidden = false;
 
     const dicionario = dados.cand || {};
     const entradas = Object.values(dados.abr);
@@ -233,7 +243,88 @@
     }
 
     lateral();
+    maisVotados(dados, dicionario);
     tabela(dados, dicionario);
+  }
+
+  /* ------------------------------------------- municípios com mais votos */
+
+  /* Quantas linhas a lista mostra antes do "mostrar todos". */
+  const TOPO = 6;
+
+  /* Margem do vencedor sobre o segundo colocado, em pontos. Abaixo de um ponto
+     o inteiro viraria "+0", então essa faixa sai com uma casa. */
+  function margem(m) {
+    return '+' + (m >= 1 ? String(Math.round(m)) : m.toFixed(1).replace('.', ','));
+  }
+
+  /* Percentual curto, no formato da lista do NYT. Nunca arredonda para cima:
+     99,7% de urnas apuradas não é uma apuração fechada. */
+  function pctCurto(v) {
+    const p = Number(v) || 0;
+    if (p >= 100) return '100%';
+    if (p >= 1) return Math.floor(p) + '%';
+    return p > 0 ? '<1%' : '0%';
+  }
+
+  /* Os municípios que mais votos já contabilizaram, com a margem do vencedor.
+     Ordena por voto apurado (`tv`), não por eleitorado: no meio da apuração o
+     que interessa é onde a contagem já pesa. */
+  function maisVotados(dados, dicionario) {
+    $('notaMaisVotos').textContent = 'Ordenado por votos apurados';
+    const linhas = Object.entries(dados.abr)
+      .map(([cd, entrada]) => {
+        const r = APU.ranking(entrada, dicionario);
+        return {
+          nome: (dados.mun && dados.mun[cd] && dados.mun[cd].nm) || cd,
+          votos: Number(entrada.tv) || 0,
+          pst: entrada.pst || 0,
+          lider: r[0] || null,
+          /* Sem segundo colocado a margem é a própria votação do líder. */
+          dif: r[0] ? (r[1] ? r[0].pct - r[1].pct : r[0].pct) : 0
+        };
+      })
+      .sort((a, b) => b.votos - a.votos);
+
+    desenharMaisVotos(linhas);
+  }
+
+  /* Antes do primeiro boletim não há o que ordenar: a lista sai do desenho do
+     mapa, em ordem alfabética e com tudo em zero — a mesma regra da chapa
+     zerada do placar, onde qualquer outra ordem sugeriria uma disputa que
+     ainda não houve. */
+  async function maisVotosZerado(uf) {
+    const malha = await APU.malha(uf, 'municipios');
+    const linhas = ((malha && malha.p) || [])
+      .map(([, nome]) => ({ nome: nome || '', votos: 0, pst: 0, lider: null, dif: 0 }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+    $('maisVotos').hidden = !linhas.length;
+    $('notaMaisVotos').textContent = 'aguardando o primeiro boletim';
+    desenharMaisVotos(linhas);
+  }
+
+  function desenharMaisVotos(linhas) {
+    $('tabelaMaisVotos').innerHTML = linhas.map((l, i) => {
+      const temLider = l.lider && l.votos > 0;
+      const cor = temLider ? APU.cor(l.lider.partido) : '';
+      return `<tr${i >= TOPO ? ' class="is-extra"' : ''}>
+        <td class="apu-top-name">${APUUI.esc(l.nome)}</td>
+        <td class="apu-top-margin${temLider ? '' : ' is-vazio'}"${temLider ? ` style="--cor-partido:${cor}"` : ''}>
+          ${temLider ? APUUI.esc(l.lider.urna || l.lider.nome) + ' ' + margem(l.dif) : '—'}
+        </td>
+        <td class="num">${APU.fmt.int(l.votos)}</td>
+        <td class="num apu-top-in">${pctCurto(l.pst)}</td>
+      </tr>`;
+    }).join('');
+
+    $('verTodosMun').hidden = linhas.length <= TOPO;
+    aplicarTopo();
+  }
+
+  function aplicarTopo() {
+    $('topMun').classList.toggle('is-aberto', estado.topAberto);
+    $('verTodosMun').textContent = estado.topAberto ? '− Mostrar menos' : '+ Mostrar todos';
   }
 
   function tabela(dados, dicionario) {
@@ -298,6 +389,10 @@
 
   (async function iniciar() {
     $('voltarMun').onclick = () => { estado.sel = null; lateral(); };
+    $('verTodosMun').onclick = () => {
+      estado.topAberto = !estado.topAberto;
+      aplicarTopo();
+    };
     $('niveis').onclick = (ev) => {
       const b = ev.target.closest('[data-nivel]');
       if (b) trocarNivel(b.dataset.nivel);
@@ -306,6 +401,7 @@
     if (!estado.uf) {
       $('painel').hidden = true;
       $('municipios').hidden = true;
+      $('maisVotos').hidden = true;
       $('semDados').hidden = false;
       $('semDadosTexto').textContent =
         'Estado não informado ou inválido. Volte à apuração nacional e escolha um estado no mapa.';

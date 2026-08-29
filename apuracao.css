@@ -142,7 +142,10 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 380px);
   gap: clamp(24px, 3.6vw, 56px);
-  align-items: start;
+  /* A lateral acompanha a altura da coluna do mapa em vez de crescer com a
+     lista: o placar fica sempre do tamanho do mapa e a chapa inteira, quando
+     aberta, rola por dentro do cartão. */
+  align-items: stretch;
   padding-top: clamp(24px, 3.4vw, 40px);
 }
 
@@ -550,8 +553,6 @@
 
 /* --------------------------------------------------------- resultado macro */
 
-.apu-results { border-top: 2px solid var(--ink); }
-
 .apu-cand {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
@@ -668,12 +669,82 @@
   vertical-align: middle;
 }
 
+/* Abre o resto da lista sem levar o cartao junto: a chapa completa passa a
+   rolar dentro do placar, que continua do tamanho do mapa. */
+.apu-more {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: none;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.apu-more:hover { color: var(--ink); border-color: var(--line-strong); }
+
 /* -------------------------------------------------------------- lateral */
 
-.apu-aside { position: sticky; top: 88px; }
+/* `height: 0` tira a lateral do calculo da altura da linha — quem manda nela e
+   a coluna do mapa — e o `min-height: 100%` devolve exatamente essa altura. Sem
+   isso, abrir a chapa inteira esticava a linha e o painel passava do mapa. */
+.apu-aside {
+  display: flex;
+  flex-direction: column;
+  height: 0;
+  min-height: 100%;
+}
 
+/* O cartao do placar fica com a sobra da coluna; a lista rola dentro dele. */
+.apu-aside > .apu-card:first-child {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 140px;
+}
+
+.apu-aside > .apu-card:first-child .apu-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* A barra do painel e do fio da casa, fina e sobre trilho transparente: a lista
+   ja tem contraste demais para dividir espaco com a barra cinza do sistema.
+   `scrollbar-*` atende o Firefox; o pseudo, os navegadores WebKit. */
+.apu-results,
+.apu-top {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.apu-results::-webkit-scrollbar,
+.apu-top::-webkit-scrollbar { width: 6px; height: 6px; }
+
+.apu-results::-webkit-scrollbar-track,
+.apu-top::-webkit-scrollbar-track { background: transparent; }
+
+.apu-results::-webkit-scrollbar-thumb,
+.apu-top::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+}
+
+.apu-results::-webkit-scrollbar-thumb:hover,
+.apu-top::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Em coluna unica a lateral fica sozinha na linha: sem nada para lhe dar
+   altura, `min-height: 100%` a fecharia em zero. */
 @media (max-width: 940px) {
-  .apu-aside { position: static; }
+  .apu-aside { height: auto; min-height: 0; }
+  .apu-aside > .apu-card:first-child .apu-results { overflow-y: visible; }
 }
 
 .apu-card {
@@ -732,7 +803,10 @@
 
 /* ------------------------------------------------------------------ tabela */
 
-.apu-table-sec { padding-top: clamp(36px, 5vw, 62px); }
+/* Respiro antes do rodape. A tabela municipal fica escondida ate o primeiro
+   boletim, entao a ultima secao visivel pode ser qualquer uma das duas: as duas
+   levam o respiro, e a de cima o dispensa quando a de baixo esta na tela. */
+.apu-table-sec { padding: clamp(36px, 5vw, 62px) 0 clamp(40px, 5vw, 72px); }
 
 .apu-table-head {
   display: flex;
@@ -800,6 +874,123 @@
 }
 
 .apu-mini > span { display: block; height: 100%; border-radius: 99px; }
+
+/* ------------------------------------------------ municipios com mais votos */
+
+/* Cartao no formato das tabelas de condado do NYT: fio fino em volta, quatro
+   colunas (municipio, margem do vencedor, votos apurados e urnas apuradas) e o
+   resto da lista atras de um "mostrar todos". Tudo em Franklin leve — e uma
+   leitura de relance, nao a tabela de consulta que vem logo abaixo. */
+
+.apu-top-sec { padding: clamp(36px, 5vw, 62px) 0 clamp(40px, 5vw, 72px); }
+.apu-top-sec:has(+ .apu-table-sec:not([hidden])) { padding-bottom: 0; }
+
+.apu-top-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.apu-top-title {
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.apu-top {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.apu-top-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--sans);
+  font-size: 0.94rem;
+  font-weight: 300;
+}
+
+.apu-top-table thead th {
+  text-align: left;
+  font-weight: 300;
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 13px 18px 11px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.apu-top-table th.num,
+.apu-top-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.apu-top-mark { margin-right: 5px; font-size: 0.6rem; vertical-align: 1px; }
+
+.apu-top-table tbody td {
+  padding: 13px 18px;
+  color: var(--ink);
+  vertical-align: middle;
+}
+
+/* O fio fica no topo da linha seguinte: assim a ultima linha visivel nunca
+   duplica o fio do botao nem o da borda do cartao. */
+.apu-top-table tbody tr + tr td { border-top: 1px solid var(--line); }
+
+.apu-top-table tbody tr { transition: background 0.16s ease; }
+.apu-top-table tbody tr:hover { background: var(--paper-2); }
+
+.apu-top-name { overflow: hidden; text-overflow: ellipsis; }
+
+/* Margem na cor do vencedor. No escuro a mesma cor sobe de luminosidade, senao
+   as siglas de tom fechado (PSTU, PCO) sumiriam no fundo. */
+.apu-top-table tbody td.apu-top-margin { color: var(--cor-partido, var(--ink)); font-weight: 400; }
+.apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+
+@media (prefers-color-scheme: dark) {
+  .apu-top-table tbody td.apu-top-margin {
+    color: color-mix(in srgb, var(--cor-partido, #ffffff) 74%, #ffffff);
+  }
+  .apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+}
+
+.apu-top-table tbody td.apu-top-in { color: var(--muted); }
+
+/* Fora dos seis primeiros, a linha ja esta no DOM e so espera o botao — o
+   snapshot nao precisa ser lido de novo para a lista abrir. */
+.apu-top tbody tr.is-extra { display: none; }
+.apu-top.is-aberto tbody tr.is-extra { display: table-row; }
+
+.apu-top-more {
+  display: block;
+  width: 100%;
+  padding: 13px 18px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: var(--paper-2);
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  font-weight: 300;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.apu-top-more:hover { background: var(--paper-3); color: var(--ink); }
+
+/* Na tela estreita o rotulo quebra em vez de esticar a tabela; o scroll lateral
+   fica so como rede de seguranca para nome de municipio muito longo. */
+@media (max-width: 640px) {
+  .apu-top { overflow-x: auto; }
+  .apu-top-table { font-size: 0.88rem; }
+  .apu-top-table thead th { padding: 11px 12px 9px; white-space: normal; }
+  .apu-top-table tbody td { padding: 11px 12px; }
+  .apu-top-more { padding: 11px 12px; }
+}
 
 /* ------------------------------------------------------------------ estados */
 
@@ -993,8 +1184,6 @@
   line-height: 1.04;
   letter-spacing: -0.026em;
 }
-
-.apu-destaque-placar .apu-results { border-top-width: 2px; }
 
 /* ------------------------------------------------------------ blocos */
 

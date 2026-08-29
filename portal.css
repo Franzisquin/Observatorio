@@ -716,9 +716,14 @@ a.portal:hover .geo-mark { stroke: var(--brand); }
 
 /* ----------------------------------------------------- cartões de ferramenta */
 
+/* Retícula de quatro colunas com leitura assimétrica: cada cartão ocupa duas
+   colunas (a mesma largura da grade anterior, de duas colunas) e o último,
+   sozinho na fila de baixo, fica centrado sobre as colunas 2-3. As duas sobras
+   dessa fila são preenchidas pelos pseudoelementos, para o bloco continuar um
+   retângulo fechado em vez de mostrar o fio de fundo. */
 .tools {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   background: var(--line);
   border: 1px solid var(--line);
@@ -726,7 +731,26 @@ a.portal:hover .geo-mark { stroke: var(--brand); }
   overflow: hidden;
 }
 
-@media (max-width: 720px) { .tools { grid-template-columns: 1fr; } }
+.tools > .tool { grid-column: span 2; }
+.tools > .tool:last-child:nth-child(odd) { grid-column: 2 / span 2; }
+
+.tools::before,
+.tools::after {
+  content: "";
+  background: var(--paper);
+  grid-row: 2;
+}
+
+.tools::before { grid-column: 1; }
+.tools::after { grid-column: 4; }
+
+@media (max-width: 720px) {
+  .tools { grid-template-columns: 1fr; }
+  .tools > .tool,
+  .tools > .tool:last-child:nth-child(odd) { grid-column: 1; }
+  .tools::before,
+  .tools::after { display: none; }
+}
 
 .tool {
   background: var(--paper);
