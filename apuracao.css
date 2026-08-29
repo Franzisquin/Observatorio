@@ -173,10 +173,10 @@
    que tem largura maxima e respiro lateral.
    ------------------------------------------------------------------------ */
 
-/* 68px da barra + 1px do fio inferior dela. Sem esse 1px o palco passava da
+/* 76px da barra + 1px do fio inferior dela. Sem esse 1px o palco passava da
    janela e nascia com barra de rolagem. dvh porque no celular a barra de
    endereco encolhe a viewport e 100vh estoura. */
-:root { --apu-topbar: 69px; }
+:root { --apu-topbar: 77px; }
 
 .apu-stage {
   display: grid;

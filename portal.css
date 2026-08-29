@@ -22,9 +22,11 @@
   --muted: #6b7280;
   --line: #e5e7eb;
   --line-strong: #d1d5db;
-  --brand: #0d7bc9;
-  --brand-2: #16a2f3;
-  --brand-ink: #0a5f9c;
+  /* Vinho e violeta lidos do degradê do favicon (matizes 353° e 267°), com a
+     claridade ajustada para passar em contraste sobre o papel de cada tema. */
+  --brand: #b32f45;
+  --brand-2: #6d4a9c;
+  --brand-ink: #9a2438;
 
   --display: 'Playfair Display', Georgia, 'Times New Roman', serif;
   --sans: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -44,9 +46,9 @@
     --muted: #a3a3a3;
     --line: #2a2a2a;
     --line-strong: #3d3d3d;
-    --brand: #16a2f3;
-    --brand-2: #4cc2ff;
-    --brand-ink: #7cc7f2;
+    --brand: #dc5a6a;
+    --brand-2: #a479d8;
+    --brand-ink: #e58092;
   }
 }
 
@@ -54,7 +56,7 @@
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 88px;
+  scroll-padding-top: 96px;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -117,7 +119,7 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  height: 68px;
+  height: 76px;
 }
 
 .brand {
@@ -129,6 +131,14 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   letter-spacing: -0.01em;
   white-space: nowrap;
+}
+
+.brand-mark {
+  flex: none;
+  align-self: center;
+  display: block;
+  width: 38px;
+  height: 38px;
 }
 
 .brand-sep {
@@ -829,10 +839,18 @@ a.tool:hover .tool-cta .arrow { transform: translateX(4px); }
 }
 
 .foot-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-family: var(--display);
   font-size: 1.2rem;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.foot-logo .brand-mark {
+  width: 34px;
+  height: 34px;
 }
 
 .foot-tagline {

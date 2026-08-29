@@ -13,7 +13,7 @@
   --cc-fg: var(--ink, var(--text, #111827));
   --cc-fg2: var(--ink-2, var(--text-sec, #374151));
   --cc-line: var(--line, var(--border-color, #e5e7eb));
-  --cc-brand: var(--brand, var(--accent-2, #0d7bc9));
+  --cc-brand: var(--brand, var(--accent-2, #b32f45));
   --cc-font: var(--sans, var(--font-main, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif));
 
   position: fixed;

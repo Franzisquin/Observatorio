@@ -7,7 +7,9 @@
   --accent: #7a7a7a;
   --accent-hover: #919191;
   --accent-rgb: 122, 122, 122;
-  --accent-2: #16a2f3;
+  --accent-2: #dc5a6a;
+  --brand-grad: linear-gradient(135deg, #a2323f 0%, #47355f 100%);
+  --brand-grad-hi: linear-gradient(135deg, #bc4152 0%, #5a4478 100%);
   --ok: #22c55e;
   --warn: #eab308;
   --err: #ef4444;
@@ -35,7 +37,9 @@
   --accent: #707070;
   --accent-hover: #5a5a5a;
   --accent-rgb: 112, 112, 112;
-  --accent-2: #0d7bc9;
+  --accent-2: #b32f45;
+  --brand-grad: linear-gradient(135deg, #6c2c31 0%, #2a2036 100%);
+  --brand-grad-hi: linear-gradient(135deg, #8a3a41 0%, #3b2c4c 100%);
   --ok: #16a34a;
   --warn: #ca8a04;
   --err: #dc2626;
@@ -77,7 +81,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 68px;
+  height: 76px;
   padding: 0 12px;
   background: #0a0a0a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -110,12 +114,25 @@ body {
 }
 
 .toolbar-logo {
+  display: inline-block;
+  position: relative;
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 1.35rem;
   color: #ffffff;
   text-decoration: none;
   letter-spacing: -0.3px;
+}
+
+.toolbar-logo .brand-mark {
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-right: 9px;
+  display: block;
+  width: 34px;
+  height: 34px;
 }
 
 [data-theme="light"] .toolbar-logo {
@@ -186,7 +203,7 @@ body {
   display: grid;
   grid-template-columns: 375px 1fr 375px;
   gap: 0;
-  height: calc(100vh - 68px);
+  height: calc(100vh - 76px);
   padding: 0;
   min-width: 0;
   min-height: 0;
@@ -1110,15 +1127,16 @@ body {
 }
 
 .button.primary {
-  background: linear-gradient(90deg, #107ac6, #0aafe6);
+  background: var(--brand-grad);
   color: #fff;
   border-color: transparent;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(16, 122, 198, 0.3);
+  box-shadow: 0 2px 8px rgba(108, 44, 49, 0.3);
 }
 
 .button.primary:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(16, 122, 198, 0.4);
+  background: var(--brand-grad-hi);
+  box-shadow: 0 4px 16px rgba(108, 44, 49, 0.4);
   transform: translateY(-1px);
 }
 
@@ -4152,12 +4170,18 @@ input:disabled {
 
   /* 1. Header Toolbar Optimization */
   .app-toolbar {
-    height: 50px !important;
+    height: 56px !important;
     padding: 0 10px !important;
   }
   
   .toolbar-logo {
     font-size: 1.1rem !important;
+  }
+
+  .toolbar-logo .brand-mark {
+    margin-right: 7px !important;
+    width: 28px !important;
+    height: 28px !important;
   }
   
   .toolbar-page {
@@ -4177,7 +4201,7 @@ input:disabled {
   .app {
     grid-template-columns: 1fr !important;
     grid-template-rows: 1fr !important;
-    height: calc(100vh - 50px - 56px) !important; /* Subtract header and mobile nav height */
+    height: calc(100vh - 56px - 56px) !important; /* Subtract header and mobile nav height */
     position: relative !important;
     overflow: hidden !important;
   }
