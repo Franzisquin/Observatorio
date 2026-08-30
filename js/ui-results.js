@@ -437,6 +437,8 @@ async function showNationalDemographicProfile(year = STATE.currentElectionYear) 
     // Troca de ano/escopo enquanto o fetch corria: o painel ja e de outra coisa.
     if (String(STATE.currentElectionYear) !== String(year)) return;
     if (typeof isNationalGeneralScope === 'function' && !isNationalGeneralScope()) return;
+    // isNationalGeneralScope tambem vale para o exterior, que nao tem Censo.
+    if (typeof isDiasporaScope === 'function' && isDiasporaScope()) return;
 
     dom.neighborhoodProfile.style.display = '';
     renderDemographicProfile(totals, String(year) === '2006');
@@ -586,8 +588,11 @@ function updateElectionTypeUI() {
   // do pais inteiro nao cabem no mapa nem no navegador, e os quatro niveis do
   // IBGE sao particoes de UMA UF. Fora dele, "Estados" e que nao se aplica.
   const isNacional = typeof isNationalGeneralScope === 'function' && isNationalGeneralScope();
+  // A diaspora e um escopo agregado como o Brasil (esconde municipios, locais e
+  // regioes do IBGE), mas nao tem nivel abaixo dela: "Estados" tambem sai.
+  const isDiaspora = typeof isDiasporaScope === 'function' && isDiasporaScope();
   if (dom.btnMapModeEstados) {
-      dom.btnMapModeEstados.style.display = (!isMunicipal && isNacional) ? '' : 'none';
+      dom.btnMapModeEstados.style.display = (!isMunicipal && isNacional && !isDiaspora) ? '' : 'none';
   }
   if (dom.btnMapModeMunicipios) {
       dom.btnMapModeMunicipios.style.display = isNacional ? 'none' : '';
@@ -609,11 +614,15 @@ function updateElectionTypeUI() {
       // No escopo nacional o perfil e do pais inteiro, e vem pre-calculado —
       // quem decide exibir e showNationalDemographicProfile, que so mostra o
       // painel se houver censo para o ano da eleicao.
-      const shouldShowProfile = isNacional
-        ? hasNationalDemographicProfile()
-        : (!isMunicipal || hasMunicipalSelection) && !isMuniOnlyGeral;
+      // O perfil do Censo e do territorio brasileiro; no exterior nao ha o que
+      // mostrar, e o card do Brasil ficaria pendurado sob um mapa do mundo.
+      const shouldShowProfile = isDiaspora
+        ? false
+        : isNacional
+          ? hasNationalDemographicProfile()
+          : (!isMunicipal || hasMunicipalSelection) && !isMuniOnlyGeral;
       dom.neighborhoodProfile.style.display = shouldShowProfile ? '' : 'none';
-      if (!isNacional) resetDemographicProfileTitle();
+      if (!isNacional || isDiaspora) resetDemographicProfileTitle();
   }
 
   if (!isMunicipal) {

@@ -868,7 +868,9 @@ function getScopeBackTarget() {
   }
 
   const uf = String(dom?.selectUFGeneral?.value || '').toUpperCase();
-  if (!uf || uf === 'BR') return null;
+  // Escopo agregado e topo da escada: nem o Brasil nem o exterior tem acima de
+  // si um nivel de abrangencia para onde voltar.
+  if (!uf || isAggregateScope(uf)) return null;
 
   const dentroDoEstado = (typeof hasRegionalScopeFilters === 'function' && hasRegionalScopeFilters())
     || (typeof currentCidadeFilter !== 'undefined' && currentCidadeFilter !== 'all')

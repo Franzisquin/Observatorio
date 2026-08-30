@@ -1,0 +1,30 @@
+# Valores conferidos A OLHO no boletim digitalizado, onde o OCR nao fechou.
+#
+# Aplicadas por scripts/extrair_exterior_1989_pdf.py antes das conferencias, para
+# que o resultado continue tendo de fechar com a soma e com os percentuais
+# impressos -- uma correcao errada aqui quebraria a checagem, e nao a silenciaria.
+#
+# Todas sao candidato que o OCR perdeu (a linha existe no papel e nao saiu do
+# reconhecimento) ou numero que ele leu no lugar de outro. A pagina esta na
+# coluna para reconferir.
+#
+# turno;pais;chave;valor;pagina;observacao
+1;ALEMANHA ORIENTAL;ULYSSES;1;132;papel: 1 / 3,85% (OCR leu o percentual como 8,85%)
+1;ARGENTINA;LIVIA MARIA;1;133;papel: 1 / 0,17%
+1;AUSTRIA;ENEAS;1;133;papel: 1 / 0,50% (linha perdida pelo OCR)
+1;COLOMBIA;MALUF;1;135;papel: 1 / 0,99% (linha perdida pelo OCR)
+1;HUNGRIA;CELSO BRANT;0;139;papel: todos os candidatos zerados
+1;PARAGUAI;PG;1;143;papel: 1 / 0,14% (linha perdida pelo OCR)
+1;HOLANDA;#VOTOS VALIDOS;31;138;papel: 31 / 79,49%
+1;INDONESIA;#VOTOS VALIDOS;1;139;papel: 1 / 3,57%, com todos os candidatos zerados
+#
+# Cabecalho que o OCR nao conseguiu ler. A chave e "@CABECALHO" e o valor, o
+# texto que saiu do reconhecimento no lugar do nome do pais. Sem isto o bloco
+# inteiro cai no pais anterior e dobra os votos dele.
+2;COSTA RICA;@CABECALHO;A RI;373;papel: COSTA RICA (o OCR leu so "A RI")
+2;HUNGRIA;#VOTOS VALIDOS;1;374;papel: 1 / 3,45%, Lula e Collor zerados
+2;REPUBLICA DOS CAMAROES;#VOTOS VALIDOS;1;376;papel: 1 / 9,09%, Lula e Collor zerados
+2;SIRIA;#VOTOS VALIDOS;1;377;papel: 1 / 7,69%, Lula e Collor zerados
+2;SUICA;#VOTOS VALIDOS;26;377;papel: 26 / 5,65% (Lula 21, Collor 5)
+2;REPUBLICA DOS CAMAROES;@CABECALHO;REPUBLICA DOS CAMAR;376;o OCR comeu o fim do nome
+2;BARBADOS;@CABECALHO;BARBAD;372;o OCR comeu o fim do nome

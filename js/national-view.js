@@ -390,9 +390,19 @@ let nationalView = {
   generation: 0
 };
 
+// "O seletor de UF esta num escopo agregado" -- Brasil ou Exterior. Vale para os
+// dois porque tudo que os chamadores fazem com a resposta (nao passar pelos
+// loaders por UF, nao redesenhar o coropletico municipal, mandar em
+// showNationalOverview) e igual nos dois casos; quem diverge e so a montagem da
+// visao, e essa e despachada dentro de showNationalOverview.
 function isNationalGeneralScope() {
   return STATE.currentElectionType === 'geral'
-    && String(dom.selectUFGeneral?.value || '').toUpperCase() === 'BR';
+    && isAggregateScope(dom.selectUFGeneral?.value);
+}
+
+function isDiasporaScope() {
+  return STATE.currentElectionType === 'geral'
+    && String(dom.selectUFGeneral?.value || '').toUpperCase() === 'ZZ';
 }
 
 // Cargos que a visao nacional sabe montar no ano selecionado. 1989 so teve
@@ -651,23 +661,49 @@ function buildNationalMajoritarianStateSummary(byTurn, turnoKey) {
   return summary;
 }
 
-// Totais do PAIS num turno: soma os 27 resumos.
-function buildNationalAggregateTotals(byTurn, turnoKey) {
+// Soma do exterior num turno, no mesmo formato do resumo de uma UF.
+//
+// O payload da diaspora e por PAIS e nao por UF, mas o cand_names dele e o
+// mesmo do acervo por estado (ver scripts/gerar_majoritarias_exterior.py), entao
+// as chaves de exibicao batem e os dois lados somam direto.
+function summarizeDiasporaForNational(payload, turnoKey) {
+  if (!payload?.RESULTS) return null;
+  const totais = {};
+  Object.values(payload.RESULTS).forEach((voteMap) => {
+    Object.entries(voteMap || {}).forEach(([candidateId, votos]) => {
+      totais[candidateId] = (totais[candidateId] || 0) + ensureNumber(votos);
+    });
+  });
+  return summarizeNationalUfPayload({ TOTALS: totais, METADATA: payload.METADATA }, turnoKey);
+}
+
+// Totais do PAIS num turno: os 27 resumos mais o exterior.
+//
+// O voto da diaspora e parte da eleicao presidencial e entra no total nacional.
+// Ele NAO entra no summary por UF: o exterior nao e um estado, nao tem poligono
+// no mapa e nao conta na linha "estados vencidos".
+function buildNationalAggregateTotals(byTurn, turnoKey, exterior = null) {
   const payloads = byTurn?.[turnoKey] || {};
   const votesByDisplayKey = {};
   let totalValidos = 0;
   let brancos = 0;
   let nulos = 0;
 
-  Object.values(payloads).forEach((payload) => {
-    const parcial = summarizeNationalUfPayload(payload, turnoKey);
+  const somar = (parcial) => {
     Object.entries(parcial.votes).forEach(([key, value]) => {
       votesByDisplayKey[key] = (votesByDisplayKey[key] || 0) + ensureNumber(value);
     });
     totalValidos += parcial.totalValid;
     brancos += parcial.brancos;
     nulos += parcial.nulos;
+  };
+
+  Object.values(payloads).forEach((payload) => {
+    somar(summarizeNationalUfPayload(payload, turnoKey));
   });
+
+  const daDiaspora = summarizeDiasporaForNational(exterior?.[turnoKey], turnoKey);
+  if (daDiaspora) somar(daDiaspora);
 
   return {
     votesByDisplayKey,
@@ -675,7 +711,8 @@ function buildNationalAggregateTotals(byTurn, turnoKey) {
     brancos,
     nulos,
     comparecimento: totalValidos + brancos + nulos,
-    ufCount: Object.keys(payloads).length
+    ufCount: Object.keys(payloads).length,
+    temExterior: !!daDiaspora
   };
 }
 
@@ -1295,7 +1332,7 @@ function enterStateFromNationalView(uf) {
   if (dom.btnToggleInaptos) dom.btnToggleInaptos.style.display = '';
   if (!dom.selectUFGeneral) return;
   const ufNorm = String(uf || '').toUpperCase();
-  if (!ufNorm || ufNorm === 'BR') return;
+  if (!ufNorm || isAggregateScope(ufNorm)) return;
   dom.selectUFGeneral.value = ufNorm;
   dom.selectUFGeneral.dispatchEvent(new Event('change'));
 }
@@ -1328,10 +1365,10 @@ function renderNationalTurnTabs(hasTurns) {
   });
 }
 
-function renderNationalPresidentialResults(byTurn, turnoKey) {
+function renderNationalPresidentialResults(byTurn, turnoKey, exterior = null) {
   if (typeof initializeCandidateColorUI === 'function') initializeCandidateColorUI();
 
-  const aggregate = buildNationalAggregateTotals(byTurn, turnoKey);
+  const aggregate = buildNationalAggregateTotals(byTurn, turnoKey, exterior);
   const totalBase = aggregate.totalValidos;
 
   const results = Object.entries(aggregate.votesByDisplayKey)
@@ -1346,8 +1383,11 @@ function renderNationalPresidentialResults(byTurn, turnoKey) {
   dom.resultsBox.classList.remove('section-hidden');
   dom.summaryBoxContainer.classList.add('section-hidden');
   dom.resultsTitle.textContent = 'Brasil — Presidente';
+  const escopo = aggregate.temExterior
+    ? `${fmtInt(aggregate.ufCount)} estados e o exterior`
+    : `${fmtInt(aggregate.ufCount)} estados apurados`;
   dom.resultsSubtitle.textContent =
-    `${STATE.currentElectionYear} • ${turnoKey === '2T' ? '2º turno' : '1º turno'} • ${fmtInt(aggregate.ufCount)} estados apurados`;
+    `${STATE.currentElectionYear} • ${turnoKey === '2T' ? '2º turno' : '1º turno'} • ${escopo}`;
 
   // Esta e a sidebar que define o padrao visual do app; usa o mesmo construtor
   // que as demais justamente para nao poderem divergir com o tempo.
@@ -1875,6 +1915,7 @@ function clearNationalResultsPanel() {
 }
 
 async function refreshNationalViewForTurn() {
+  if (isDiasporaScope()) return refreshDiasporaViewForTurn();
   if (!isNationalGeneralScope() || !nationalView.summaryByTurn) return;
   const turnoKey = (currentTurno === 2 && Object.keys(nationalView.summaryByTurn['2T'] || {}).length) ? '2T' : '1T';
 
@@ -1885,7 +1926,8 @@ async function refreshNationalViewForTurn() {
     '1T': Object.keys(nationalView.data?.['1T'] || {}).length > 0,
     '2T': Object.keys(nationalView.data?.['2T'] || {}).length > 0
   });
-  renderNationalPresidentialResults(nationalView.data, turnoKey);
+  renderNationalPresidentialResults(nationalView.data, turnoKey,
+                                    nationalView.exterior);
 }
 
 // Entrada unica da visao nacional: carrega o agregado do cargo corrente,
@@ -1893,6 +1935,8 @@ async function refreshNationalViewForTurn() {
 async function showNationalOverview(options = {}) {
   if (STATE.swingEnabled) return;
   if (!map || !isNationalGeneralScope()) return;
+  // O exterior e outro escopo agregado, com malha e agregacao proprias.
+  if (isDiasporaScope()) return showDiasporaOverview(options);
 
   const generation = ++nationalView.generation;
   const year = String(STATE.currentElectionYear);
@@ -1927,6 +1971,8 @@ async function showNationalOverview(options = {}) {
 
   showMapLoading(`Carregando resultados nacionais de ${year}...`, 0);
 
+  if (typeof leaveDiasporaMapState === 'function') leaveDiasporaMapState();
+
   try {
     const geojsonPromise = fetchNationalStatesGeoJSON();
     let summary;
@@ -1940,9 +1986,16 @@ async function showNationalOverview(options = {}) {
       summary = buildNationalLegislativeStateSummary(totals, houseKey);
       nationalView = { ...nationalView, office, year, subtype, data: totals, summaryByTurn: null, generation };
     } else {
+      // O voto da diaspora entra no total do pais (mas nao no mapa por UF). E o
+      // mesmo arquivo que a visao do exterior le, ja em cache por ano.
+      const exteriorPromise = (office === 'presidente' && typeof loadDiasporaData === 'function')
+        ? loadDiasporaData(year).catch(() => null)
+        : Promise.resolve(null);
       const byTurn = await loadNationalMajoritariaData(office, year, subtype, (pct) => {
         if (generation === nationalView.generation) updateMapLoading(null, pct);
       });
+      if (generation !== nationalView.generation) return;
+      nationalView.exterior = await exteriorPromise;
       if (generation !== nationalView.generation) return;
       const turnoKey = (currentTurno === 2 && Object.keys(byTurn['2T'] || {}).length) ? '2T' : '1T';
       summary = (office === 'presidente')
@@ -1952,7 +2005,9 @@ async function showNationalOverview(options = {}) {
           Object.defineProperty(winners, '_regionLevel', { value: NATIONAL_UF_LEVEL });
           return winners;
         })();
-      nationalView = { ...nationalView, office, year, subtype, data: byTurn, summaryByTurn: byTurn, generation };
+      const exterior = nationalView.exterior;
+      nationalView = { ...nationalView, office, year, subtype, data: byTurn,
+                       summaryByTurn: byTurn, exterior, generation };
     }
 
     const geojson = await geojsonPromise;
@@ -2008,7 +2063,8 @@ async function showNationalOverview(options = {}) {
         '1T': Object.keys(nationalView.data['1T'] || {}).length > 0,
         '2T': Object.keys(nationalView.data['2T'] || {}).length > 0
       });
-      renderNationalPresidentialResults(nationalView.data, turnoKey);
+      renderNationalPresidentialResults(nationalView.data, turnoKey,
+                                        nationalView.exterior);
     } else if (office === 'governador') {
       clearNationalDotplotMarkers();
       renderNationalGovernorResults(nationalView.data);
@@ -2030,6 +2086,7 @@ async function showNationalOverview(options = {}) {
 
 if (typeof window !== 'undefined') {
   window.isNationalGeneralScope = isNationalGeneralScope;
+  window.isDiasporaScope = isDiasporaScope;
   window.isOfficeAvailableNationally = isOfficeAvailableNationally;
   window.showNationalOverview = showNationalOverview;
   window.refreshNationalViewForTurn = refreshNationalViewForTurn;

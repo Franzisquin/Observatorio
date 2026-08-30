@@ -1,0 +1,105 @@
+# Nome do pais como o boletim de 1989 o imprime -> codigo ISO3 da malha do mundo.
+#
+# 1989 nao traz o codigo TSE do pais (1994 em diante traz), so o nome, entao a
+# ponte tem de ser pelo nome. A maioria sai da propria tabela de consulados; as
+# anotadas foram decididas a mao.
+#
+# Pais que nao existe mais entra pelo sucessor que herdou a secao consular -- e a
+# unica leitura possivel sobre uma malha de hoje, e esta anotada linha a linha.
+# Alemanha Ocidental e Oriental caem as duas em DEU e somam no mapa.
+#
+# Nao ha coordenada aqui: 1989 e 1994 nao tem detalhe por consulado, entao o
+# mapa desses anos pinta o poligono do pais e nao desenha ponto nenhum.
+#
+# nome_no_boletim;iso3;observacao
+AFRICA DO SUL;ZAF;
+ALEMANHA OCIDENTAL;DEU;RFA, soma com a Alemanha Oriental na malha de hoje
+ALEMANHA ORIENTAL;DEU;RDA, soma com a Alemanha Ocidental na malha de hoje
+ANGOLA;AGO;
+ARABIA SAUDITA;SAU;
+ARGELIA;DZA;
+ARGENTINA;ARG;
+AUSTRALIA;AUS;
+AUSTRIA;AUT;
+BANGLADESH;BGD;
+BARBADOS;BRB;
+BELGICA;BEL;
+BOLIVIA;BOL;
+BULGARIA;BGR;
+CABO VERDE;CPV;
+CANADA;CAN;
+CHECOSLOVAQUIA;CZE;
+CHILE;CHL;
+CHINA;CHN;
+CINGAPURA;SGP;
+COLOMBIA;COL;
+COREIA;KOR;
+COSTA DO MARFIM;CIV;
+COSTA RICA;CRI;
+CUBA;CUB;
+DINAMARCA;DNK;
+EGITO;EGY;
+EMIRADOS ARABES;ARE;
+EQUADOR;ECU;
+ESPANHA;ESP;
+ESTADOS UNIDOS;USA;
+FILIPINAS;PHL;
+FINLANDIA;FIN;
+FRANCA;FRA;
+GABAO;GAB;
+GRECIA;GRC;
+GUATEMALA;GTM;
+GUIANA;GUY;
+GUIANA FRANCESA;FRA;
+GUINE BISSAU;GNB;
+HAITI;HTI;
+HOLANDA;NLD;
+HONDURAS;HND;
+HUNGRIA;HUN;
+INDIA;IND;
+INDONESIA;IDN;
+INGLATERRA;GBR;
+IRA;IRN;
+IRAQUE;IRQ;
+ISRAEL;ISR;
+ITALIA;ITA;
+IUGUSLAVIA;SRB;Iugoslavia, a secao era Belgrado -- hoje Servia
+JAPAO;JPN;
+JORDANIA;JOR;
+KENIA;KEN;
+KUWAIT;KWT;
+LIBANO;LBN;
+LIBIA;LBY;
+MALASIA;MYS;
+MARROCOS;MAR;
+MEXICO;MEX;
+MOCAMBIQUE;MOZ;
+NICARAGUA;NIC;
+NIGERIA;NGA;
+NORUEGA;NOR;
+PANAMA;PAN;
+PAQUISTAO;PAK;
+PARAGUAI;PRY;
+PERU;PER;
+POLONIA;POL;
+PORTUGAL;PRT;
+REPUBLICA DOMINICANA;DOM;
+REPUBLICA DOS CAMAROES;CMR;
+ROMENIA;ROU;
+ROMENTA;ROU;Romenia, com o E lido como T
+SENEGAL;SEN;
+SIRIA;SYR;
+SUECIA;SWE;
+SUICA;CHE;
+SURINAME;SUR;
+TAILANDIA;THA;
+TANZANIA;TZA;
+TOGO;TGO;
+TRINIDAD TOBAGO;TTO;
+TUNISIA;TUN;
+TURQUIA;TUR;
+UNIAO SOVIETICA;RUS;URSS, a secao era Moscou -- hoje Russia
+URUGUAI;URY;
+VENEZUELA;VEN;
+ZAIRE;COD;Zaire, hoje Republica Democratica do Congo
+ZIMBABWE;ZWE;

@@ -45,3 +45,9 @@ version_15_geocode/
 # e resultados_geo/Majoritarias 1998/, gerados por gerar_legislativas_1998.py e
 # gerar_majoritarias_1998.py.
 Resultados 1998/
+
+# Boletins digitalizados do exterior de 1989 e 1994 (29 MB de PDF do TSE).
+# Sao insumo, nao saida: o que o site usa ja esta em resultados_geo/Majoritarias
+# 1989/ e 1994/, e a leitura deles esta versionada em
+# scripts/dados_exterior_1989/ (CSV) e nos dois extrair_exterior_*_pdf.py.
+ex_94_89/

@@ -779,7 +779,7 @@ function refreshMunicipalSelectionOverlay({ focus = false } = {}) {
 
 function refreshGeneralMunicipalityOverviewLayer({ syncResults = false } = {}) {
   const uf = String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
-  if (!uf || uf === 'BR' || STATE.currentElectionType !== 'geral') return false;
+  if (!uf || isAggregateScope(uf) || STATE.currentElectionType !== 'geral') return false;
   if (!STATE.municipiosLayer || !map?.hasLayer?.(STATE.municipiosLayer)) return false;
   // Camada de regiao usa summary proprio; reconstruir o municipal aqui a apagaria.
   if (STATE.municipiosLayer.__regionLevel) return false;
@@ -1387,7 +1387,10 @@ function buildMunicipalityTooltip(feature, summary) {
   const uf = STATE.currentElectionType === 'municipal'
     ? String(STATE.currentMapMuniUF || dom.selectUFMunicipal?.value || '').toUpperCase()
     : String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
-  const ufLabel = UF_MAP.get(uf) || uf;
+  // A segunda linha e o escopo em que o poligono esta -- a UF, quase sempre. Uma
+  // entrada pode nomear o proprio: e o caso do consulado na diaspora, que fica
+  // num pais e nao numa UF (ver js/diaspora-view.js).
+  const ufLabel = result?.scopeLabel || UF_MAP.get(uf) || uf;
 
   const isProportional = currentCargo.startsWith('deputado') || currentCargo.startsWith('vereador');
   const scopedColorLookup = isProportional
@@ -2097,7 +2100,7 @@ function shouldRenderGeneralMunicipalityOverview() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
   const muniOnly = isMuniOnlyGeneralYear();
   if (STATE.currentElectionType !== 'geral') return false;
-  if (!uf || uf === 'BR') return false;
+  if (!uf || isAggregateScope(uf)) return false;
   // if (String(currentCargo || '').startsWith('deputado')) return false; // REMOVED: Allow deputies
   if (STATE.currentMapMode === 'locais' && !muniOnly) return false;
   // 1989/1994 nao tem locais: o coropletico permanece mesmo com municipio
@@ -2178,7 +2181,7 @@ function currentOverviewScopeKey(ufNorm, nivel) {
 async function showGeneralMunicipalityOverview(uf) {
   if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
-  if (!map || !ufNorm || ufNorm === 'BR' || STATE.currentElectionType !== 'geral') return;
+  if (!map || !ufNorm || isAggregateScope(ufNorm) || STATE.currentElectionType !== 'geral') return;
 
   showMapLoading(`Carregando visão municipal de ${ufNorm}...`);
 
@@ -2371,7 +2374,7 @@ async function showGeneralRegionOverview(uf) {
   if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
   const level = STATE.currentRegionLevel;
-  if (!map || !ufNorm || ufNorm === 'BR' || !level || STATE.currentElectionType !== 'geral') return;
+  if (!map || !ufNorm || isAggregateScope(ufNorm) || !level || STATE.currentElectionType !== 'geral') return;
 
   showMapLoading(`Carregando ${(REGION_LEVEL_LABEL[level] || 'regiões').toLowerCase()} de ${ufNorm}...`);
 

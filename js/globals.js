@@ -585,6 +585,9 @@ const UF_MAP = new Map([
   // js/national-view.js). ALL_STATE_SIGLAS o remove, e setupControls ja
   // rotulava esta chave de forma especial — faltava so ela existir.
   ['BR', 'Brasil (Nacional)'],
+  // 'ZZ' e o escopo da diaspora: o voto no exterior, mapeado por pais em vez de
+  // por UF (ver js/diaspora-view.js). Como 'BR', nao e uma UF.
+  ['ZZ', 'Exterior (Diáspora)'],
   ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'],
   ['AM', 'Amazonas'], ['BA', 'Bahia'], ['CE', 'Ceará'], ['DF', 'Distrito Federal'],
   ['ES', 'Espírito Santo'], ['GO', 'Goiás'], ['MA', 'Maranhão'], ['MT', 'Mato Grosso'],
@@ -594,7 +597,15 @@ const UF_MAP = new Map([
   ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'], ['SE', 'Sergipe'],
   ['TO', 'Tocantins']
 ]);
-const ALL_STATE_SIGLAS = Array.from(UF_MAP.keys()).filter(k => k !== 'BR');
+const ALL_STATE_SIGLAS = Array.from(UF_MAP.keys()).filter(k => !isAggregateScope(k));
+
+// 'BR' e 'ZZ' sao ESCOPOS, nao UFs: nenhum dos dois tem malha municipal, locais de
+// votacao ou regioes do IBGE. Onde o codigo dizia `uf === 'BR'` querendo dizer
+// "nao e um estado", passa a dizer isto.
+function isAggregateScope(uf) {
+  const sigla = String(uf || '').toUpperCase();
+  return sigla === 'BR' || sigla === 'ZZ';
+}
 
 const MAP_TILES = {
   dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
@@ -844,7 +855,7 @@ const REGION_LEVEL_LABEL = {
 
 function getCurrentGeneralRegionalUF() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
-  return (STATE.currentElectionType === 'geral' && uf && uf !== 'BR') ? uf : '';
+  return (STATE.currentElectionType === 'geral' && uf && !isAggregateScope(uf)) ? uf : '';
 }
 
 function getFeatureMunicipioIdentity(props) {
@@ -909,7 +920,7 @@ function isPolygonMapMode() {
 function resolveMapModeAfterLoad(uf, cidadeFilter, fallback) {
   const ufNorm = String(uf || '').toUpperCase();
   const cabeRegiao = STATE.currentElectionType === 'geral'
-    && ufNorm && ufNorm !== 'BR'
+    && ufNorm && !isAggregateScope(ufNorm)
     && cidadeFilter === 'all';
   return (STATE.currentMapMode === 'regioes' && cabeRegiao) ? 'regioes' : fallback;
 }

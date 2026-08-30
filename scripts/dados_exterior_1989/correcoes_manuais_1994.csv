@@ -1,0 +1,20 @@
+# Valores conferidos A OLHO no relatorio digitalizado de 1994 (EL1463RE), onde a
+# camada de texto do PDF perdeu linhas.
+#
+# Aplicadas por scripts/extrair_exterior_1994_pdf.py antes das conferencias: uma
+# correcao errada aqui quebraria a soma contra os "Votos Nominais" impressos, e
+# nao a silenciaria.
+#
+# codigo;chave;valor;pagina;observacao
+98949;13;111;7;papel: 111 / 48,68% (linha perdida na digitalizacao)
+98949;45;108;7;papel: 108 / 47,37% (linha perdida na digitalizacao)
+11169;12;6;8;papel: 6 / 1,17%
+11428;12;6;19;papel: 6 / 1,87%
+11525;15;31;25;papel: 31 / 1,82%
+#
+# O PROPRIO RELATORIO esta incompleto no Panama: imprime 130 votos nominais mas
+# lista so tres candidatos, somando 8. As linhas de Fernando Henrique e Lula nao
+# existem na pagina (conferido na imagem em alta resolucao, nao e falha de
+# leitura). Sem elas nao ha como saber quem venceu ali, e pintar o pais pelo que
+# sobrou daria Brizola -- por isso o Panama fica fora do mapa de 1994.
+98329;@EXCLUIR;0;22;fonte incompleta: 130 nominais impressos, so 8 atribuidos

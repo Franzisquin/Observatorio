@@ -4,7 +4,7 @@ function setupControls() {
   UF_MAP.forEach((nome, sigla) => {
     const opt = document.createElement('option');
     opt.value = sigla;
-    opt.textContent = (sigla === 'BR') ? nome : `${nome} (${sigla})`;
+    opt.textContent = isAggregateScope(sigla) ? nome : `${nome} (${sigla})`;
     if (sigla === 'BR') opt.selected = true;
     dom.selectUFGeneral.appendChild(opt);
   });
@@ -386,14 +386,22 @@ function setupControls() {
     currentBairroFilter = 'all';
     currentLocalFilter = '';
     if (dom.searchLocal) dom.searchLocal.value = '';
-    // Sair do escopo nacional: o recorte 'uf' nao existe dentro de um estado,
-    // entao o mapa volta ao coropletico municipal.
-    if (STATE.currentRegionLevel === NATIONAL_UF_LEVEL) {
+    // Sair de um escopo agregado: nem 'uf' nem 'pais' existem dentro de um
+    // estado, entao o mapa volta ao coropletico municipal.
+    if (STATE.currentRegionLevel === NATIONAL_UF_LEVEL || STATE.currentRegionLevel === 'pais') {
       STATE.currentRegionLevel = '';
       STATE.currentMapMode = 'municipios';
     }
+    // Os circulos dos consulados sao uma camada propria da diaspora e nao saem
+    // com a troca de malha; so o proprio escopo sabe recolhe-los.
+    if (!isDiasporaScope() && typeof leaveDiasporaMapState === 'function') {
+      leaveDiasporaMapState();
+    }
     populateRegionalDropdowns();
     updateLoadButtonState();
+    // O exterior so tem presidente, entao os chips dependem tambem da UF -- nao
+    // so do ano, que era o unico gatilho ate aqui.
+    updateCargoChipsVisibility();
     if (canInstantLoadCurrentContext()) {
       scheduleInstantLoad();
     }
@@ -526,8 +534,12 @@ function setupControls() {
       if (STATE.currentElectionType !== 'geral' || !uf) return;
       // No escopo nacional so existe o nivel 'uf'; dentro de uma UF ele nao faz
       // sentido (voltar ao pais e escolher "Brasil" no seletor de UF).
-      if (uf === 'BR') {
-        if (level === NATIONAL_UF_LEVEL) void window.showNationalOverview({ keepViewport: true });
+      // Nos escopos agregados so existe o nivel proprio do escopo: 'uf' no
+      // Brasil, 'pais' no exterior (este sem botao na barra).
+      if (isAggregateScope(uf)) {
+        if (uf === 'BR' && level === NATIONAL_UF_LEVEL) {
+          void window.showNationalOverview({ keepViewport: true });
+        }
         return;
       }
       if (level === NATIONAL_UF_LEVEL) return;
@@ -1721,8 +1733,12 @@ function updateCargoChipsVisibility() {
   // 1998 passou a ter deputados quando os arquivos por secao do TSE entraram no
   // acervo (resultados_geo/Legislativas 1998/).
   const is1989 = (year === '1989');
+  // No exterior so ha uma urna: presidente. Nao existe governador, senador nem
+  // bancada eleita pela diaspora.
+  const soPresidente = is1989
+    || (typeof isDiasporaScope === 'function' && isDiasporaScope());
 
-  const hiddenCargos = is1989
+  const hiddenCargos = soPresidente
     ? ['governador', 'senador', 'deputado_federal', 'deputado_estadual']
     : [];
 
