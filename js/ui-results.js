@@ -604,6 +604,13 @@ function updateElectionTypeUI() {
   if (dom.btnMapModeLocais) {
       dom.btnMapModeLocais.style.display = (isMuniOnlyGeral || isNacional) ? 'none' : '';
   }
+  // O nivel vale para todo cargo dos anos que tem indice local->area (AP_ANOS).
+  // Depois do laco acima de proposito — restringe ainda mais, nao pode ser
+  // sobrescrito por ele.
+  if (dom.btnMapModeAp) {
+      const cabeAp = !isMunicipal && !isNacional && apLevelApplies();
+      dom.btnMapModeAp.style.display = cabeAp ? '' : 'none';
+  }
 
   // Painel demografico: quem decide o que aparece e updateCensusControlsForYear.
   updateCensusControlsForYear();

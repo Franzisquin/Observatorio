@@ -480,6 +480,10 @@ function shouldUseGeneralRegionOfficialTotals(cargo = currentCargo) {
     && STATE.currentElectionType === 'geral'
     && STATE.isFilterAggregationActive
     && hasRegionalScopeFilters()
+    // Area de ponderacao e sub-municipal: nao existe total oficial abaixo do
+    // municipio para somar. Ali o painel volta a somar os locais visiveis, que
+    // e justamente a definicao do recorte.
+    && currentRegionFilter.level !== 'ap'
     && currentCidadeFilter === 'all'
     && currentBairroFilter === 'all'
     && !currentLocalFilter

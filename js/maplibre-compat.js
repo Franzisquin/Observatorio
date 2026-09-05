@@ -299,6 +299,10 @@
       this.radiusFn = opts.radiusFn || null;
       this.tooltipFn = opts.tooltipFn || null;
       this.onClickFn = opts.onClick || null;
+      // Predicado opcional: feicao para a qual devolve false nao recebe clique
+      // nem cursor de mao. O tooltip continua — ela esta desenhada e o usuario
+      // precisa saber por que nao responde.
+      this.clickableFn = opts.clickable || null;
       this.hover = !!opts.hover;
       this.tooltipClass = opts.tooltipClass || 'district-nyt-tooltip';
       this.sticky = opts.sticky !== false;
@@ -393,13 +397,20 @@
         existingSrc.setData(this.fc);
         return;
       }
-      m.addSource(this.sourceId, {
-        type: 'geojson',
-        data: this.fc,
-        promoteId: '__id',
-        tolerance: 0.1,
-        buffer: 256
-      });
+      // buffer fica no PADRAO do MapLibre (128). Estava em 256, sem motivo
+      // registrado, e duplicava o dobro de geometria na margem de CADA tile.
+      //
+      // tolerance so vale para poligono (ponto nao e simplificado) e vai a 0.5,
+      // que e o valor usado pelo projeto irmao de precincts numa malha bem mais
+      // pesada que a nossa. Estava em 0.1 — cinco vezes mais vertices guardados
+      // por tile. E simplificacao em unidade de TILE, entao ela nao tira detalhe
+      // ao aproximar: acompanha o zoom.
+      //
+      // Os dois pesam exatamente onde doi, que e ao arrastar e dar zoom, quando
+      // os tiles sao remontados.
+      const srcOpts = { type: 'geojson', data: this.fc, promoteId: '__id' };
+      if (this.type !== 'point') srcOpts.tolerance = 0.5;
+      m.addSource(this.sourceId, srcOpts);
 
       if (this.type === 'point') {
         const lid = this.id + '-circle';
@@ -451,22 +462,36 @@
             'line-opacity': ['coalesce', ['get', '__lineOpacity'], 1]
           }
         });
-        m.addLayer({
-          id: extid, type: 'fill-extrusion', source: this.sourceId,
-          layout: {
-            'visibility': this.extrusionEnabled ? 'visible' : 'none'
-          },
-          paint: {
-            'fill-extrusion-color': ['coalesce', ['get', '__fill'], '#888888'],
-            'fill-extrusion-height': ['coalesce', ['get', '__height'], 0],
-            'fill-extrusion-base': 0,
-            // fill-extrusion-opacity NAO aceita expressao data-driven no MapLibre;
-            // precisa ser constante (caso contrario o addLayer lanca erro de validacao).
-            'fill-extrusion-opacity': 0.85
-          }
-        });
-        this.layerIds = [fid, linid, extid];
+        this.layerIds = [fid, linid];
+        // A camada 3D so nasce quando a extrusao e ligada. Antes ela era sempre
+        // criada com visibility 'none', e mesmo escondida faz cada tile montar
+        // um terceiro bucket de geometria — um terco a mais de trabalho por
+        // tile em TODO mapa de poligonos do site, para um recurso que fica
+        // desligado a maior parte do tempo.
+        if (this.extrusionEnabled) this._ensureExtrusionLayer();
       }
+    }
+
+    // Cria a camada 3D sob demanda. Chamada na primeira vez que a extrusao e
+    // ligada e ao reanexar apos troca de estilo.
+    _ensureExtrusionLayer() {
+      const m = this.map;
+      const extid = this.id + '-extrusion';
+      if (!m || this.type === 'point' || m.getLayer(extid)) return;
+      if (!m.getSource(this.sourceId)) return;
+      m.addLayer({
+        id: extid, type: 'fill-extrusion', source: this.sourceId,
+        layout: { 'visibility': this.extrusionEnabled ? 'visible' : 'none' },
+        paint: {
+          'fill-extrusion-color': ['coalesce', ['get', '__fill'], '#888888'],
+          'fill-extrusion-height': ['coalesce', ['get', '__height'], 0],
+          'fill-extrusion-base': 0,
+          // fill-extrusion-opacity NAO aceita expressao data-driven no MapLibre;
+          // precisa ser constante (caso contrario o addLayer lanca erro de validacao).
+          'fill-extrusion-opacity': 0.85
+        }
+      });
+      if (this.layerIds.indexOf(extid) === -1) this.layerIds.push(extid);
     }
 
     setExtrusionEnabled(enabled) {
@@ -476,6 +501,7 @@
       const fid = this.id + '-fill';
       const linid = this.id + '-line';
       const extid = this.id + '-extrusion';
+      if (enabled) this._ensureExtrusionLayer();
       if (m.getLayer(fid) && m.getLayer(linid) && m.getLayer(extid)) {
         if (enabled) {
           m.setLayoutProperty(fid, 'visibility', 'none');
@@ -526,10 +552,11 @@
         : [this.id + '-fill', this.id + '-extrusion'];
 
       const onMove = (e) => {
-        m.getCanvas().style.cursor = 'pointer';
         const raw = e.features && e.features[0];
-        if (!raw) return;
+        if (!raw) { m.getCanvas().style.cursor = 'pointer'; return; }
         const feat = this._resolveOriginal(raw);
+        m.getCanvas().style.cursor =
+          (this.clickableFn && !this.clickableFn(feat)) ? '' : 'pointer';
 
         if (this.hover) {
           const fid = raw.id != null ? raw.id : (raw.properties && raw.properties.__id);
@@ -576,7 +603,10 @@
         if (this.onClickFn) {
           const onClick = (e) => {
             const raw = e.features && e.features[0];
-            if (raw) this.onClickFn(this._resolveOriginal(raw), e);
+            if (!raw) return;
+            const feat = this._resolveOriginal(raw);
+            if (this.clickableFn && !this.clickableFn(feat)) return;
+            this.onClickFn(feat, e);
           };
           m.on('click', lid, onClick);
           this._handlers.push(['click', lid, onClick]);

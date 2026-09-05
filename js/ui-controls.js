@@ -559,6 +559,21 @@ function setupControls() {
     });
   }
 
+  // "Areas de Ponderacao": o par de "Locais de Votacao". Nenhum dos dois troca de
+  // escopo — sao o detalhe desenhado por cima da malha municipal, que continua
+  // la mostrando o resto do estado. Trocar de escopo e com Municipios /
+  // Intermediarias / Imediatas.
+  if (dom.btnMapModeAp) {
+    dom.btnMapModeAp.addEventListener('click', () => {
+      if (!apLevelApplies()) return;
+      STATE.detalhe = 'areas';
+      STATE.currentMapMode = 'locais';
+      forgetOverviewFit();
+      clearSelection(true);
+      applyFiltersAndRedraw();
+    });
+  }
+
   // Entrar/sair de uma regiao: usado pelo select, pelo clique no mapa de regioes
   // e pelo botao de voltar. Deixa o mapa no coropletico municipal recortado.
   window.applyRegionSelection = function (regiao) {
@@ -570,7 +585,21 @@ function setupControls() {
     // Vindo do modo Locais (municipio clicado), sem isto o coropletico some em
     // vez de redesenhar: shouldRenderGeneralMunicipalityOverview() barraria o
     // rebuild e a camada de municipios seria removida.
-    STATE.currentMapMode = 'municipios';
+    // Entrar numa AREA DE PONDERACAO e a excecao: ela e sub-municipal, entao o
+    // que ha dentro dela sao locais de votacao, nao municipios — o coropletico
+    // municipal recortado por area sairia vazio.
+    if (currentRegionFilter.level === 'ap') {
+      // Dentro de uma area o que ha sao locais de votacao.
+      STATE.detalhe = 'locais';
+      STATE.currentMapMode = 'locais';
+    } else {
+      // Em 2022/presidente o passo abaixo de uma regiao e a AREA DE PONDERACAO.
+      // O modo continua 'municipios' para a malha municipal da regiao ser
+      // construida — e ela o fundo por cima do qual as areas sao desenhadas;
+      // showGeneralMunicipalityOverview passa o detalhe assim que ela existe.
+      if (currentRegionFilter.code && apLevelApplies()) STATE.detalhe = 'areas';
+      STATE.currentMapMode = 'municipios';
+    }
     // Recorta o mapa na regiao ja, sem esperar o rebuild assincrono do
     // coropletico (que nem sempre acontece — ha caminhos que so re-estilizam).
     applyRegionScopeToMunicipiosLayer();
@@ -621,6 +650,7 @@ function setupControls() {
 
   if (dom.btnMapModeLocais) {
     dom.btnMapModeLocais.addEventListener('click', () => {
+      STATE.detalhe = 'locais';
       STATE.currentMapMode = 'locais';
       forgetOverviewFit();
       if (STATE.municipiosLayer) {

@@ -1379,6 +1379,25 @@ function buildLocationTooltip(feature) {
   `;
 }
 
+// Area de ponderacao que nao tem local de votacao dentro. Ela continua
+// desenhada — e territorio de verdade, e some-la abriria buraco no mapa —, mas
+// nao tem resultado, nao recebe clique, e o tooltip precisa dizer por que.
+// Acontece em area rural, parque, unidade de conservacao e afins: quem mora ali
+// vota num local da area vizinha.
+function buildAreaSemLocalTooltip(feature) {
+  const nome = formatTooltipDisplayName(
+    getMunicipalityFeatureName(feature?.properties), feature?.properties);
+  const uf = String(STATE.currentMapMuniUF || dom.selectUFGeneral?.value || '').toUpperCase();
+  const ufLabel = UF_MAP.get(uf) || uf;
+  return `
+    <div class="nyt-tooltip-container" style="font-family: var(--font-main); color: inherit; min-width: 250px;">
+      <div class="district-nyt-title">${escapeHtml(nome)}</div>
+      <div style="font-size: 12px; color: #777777; margin-bottom: 2px;">${escapeHtml(ufLabel)}</div>
+      <div style="font-size: 11px; color: #777777; margin-bottom: 8px;">Sem local de votação nesta área.</div>
+    </div>
+  `;
+}
+
 function buildMunicipalityTooltip(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const rawFeatureName = getMunicipalityFeatureName(feature?.properties);
@@ -2087,11 +2106,15 @@ function renderGeneralStatewideMunicipalityResults(summary, uf) {
 function syncMapModeButtons() {
   dom.layerToggleGroup?.querySelectorAll('.toggle-btn[id^="btnMapMode"]').forEach((btn) => {
     const level = btn.dataset.regionLevel;
-    const ativo = level
-      ? (STATE.currentMapMode === 'regioes' && STATE.currentRegionLevel === level)
-      : (btn.id === 'btnMapModeMunicipios'
-        ? STATE.currentMapMode === 'municipios'
-        : STATE.currentMapMode === 'locais');
+    // "Areas" e "Locais de Votacao" sao os dois DETALHES possiveis por cima da
+    // malha; os demais botoes sao ESCOPOS. Por isso os dois primeiros nao olham
+    // currentRegionLevel, e sim qual detalhe esta desenhado.
+    const areas = !!STATE.apDetailActive;
+    let ativo;
+    if (btn.id === 'btnMapModeAp') ativo = areas;
+    else if (btn.id === 'btnMapModeLocais') ativo = STATE.currentMapMode === 'locais' && !areas;
+    else if (btn.id === 'btnMapModeMunicipios') ativo = STATE.currentMapMode === 'municipios';
+    else ativo = STATE.currentMapMode === 'regioes' && STATE.currentRegionLevel === level;
     btn.classList.toggle('active', ativo);
   });
 }
@@ -2179,6 +2202,10 @@ function currentOverviewScopeKey(ufNorm, nivel) {
 }
 
 async function showGeneralMunicipalityOverview(uf) {
+  // Chamavel direto (troca de turno), sem passar por applyFiltersAndRedraw: aqui
+  // tambem nao ha areas por cima.
+  STATE.apDetailActive = false;
+  STATE.apScopeMunis = null;
   if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
   if (!map || !ufNorm || isAggregateScope(ufNorm) || STATE.currentElectionType !== 'geral') return;
@@ -2211,7 +2238,10 @@ async function showGeneralMunicipalityOverview(uf) {
       currentLocalFilter = '';
       selectedLocationIDs.clear();
       STATE.isFilterAggregationActive = false;
-      // 1989/1994 nao tem locais: permanece no coropletico com o municipio destacado.
+      // Em 2022/presidente o passo abaixo do municipio e a AREA DE PONDERACAO, nao
+      // o ponto do local. A malha municipal — esta mesma, que ele acabou de
+      // clicar — continua por baixo, entao o resto do estado segue no mapa.
+      STATE.detalhe = apLevelApplies() ? 'areas' : 'locais';
       if (!isMuniOnlyGeneralYear()) {
         STATE.currentMapMode = 'locais';
         forgetOverviewFit();
@@ -2233,6 +2263,17 @@ async function showGeneralMunicipalityOverview(uf) {
     syncMapModeButtons();
 
     renderGeneralStatewideMunicipalityResults(STATE.currentMapMuniSummary, ufNorm);
+
+    // Passe para o detalhe: as areas so podem ser desenhadas depois que a malha
+    // municipal existe, porque e ela o fundo por cima do qual elas vao (e o que
+    // faz o resto do estado seguir aparecendo). Entrar numa regiao chega aqui
+    // com detalhe 'areas' pedido; agora que o fundo esta pronto, redesenha uma
+    // vez em modo 'locais'. Nao ha laco: em 'locais' este ramo nao roda.
+    if (STATE.detalhe === 'areas' && apLevelApplies()
+      && (currentCidadeFilter !== 'all' || hasRegionalScopeFilters())) {
+      STATE.currentMapMode = 'locais';
+      applyFiltersAndRedraw();
+    }
   } catch (error) {
     console.error('[Geral] Falha ao montar visão municipal:', error);
     showToast(`Erro ao carregar a visão municipal: ${error.message}`, 'error');
@@ -2301,6 +2342,18 @@ function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCar
     if (entry.__censusMatch) grupo.__censusMatch = true;
   });
 
+  // O summary de regiao herda a marca do municipal: se o filtro esta ligado la,
+  // esta aqui tambem, e a regiao acende quando qualquer municipio dela acende.
+  return emitRegionSummaryFromGroups(grupos, nivelUf, level, cargoKey, turnoKey,
+    turnoLabel, !!muniSummary._censusFilterActive);
+}
+
+// Transforma {codigo -> {votes, groupParties, totalValid}} na entry que a camada
+// de poligonos espera. Vale para qualquer nivel: buildGeneralRegionSummary chega
+// aqui somando MUNICIPIOS, buildGeneralApSummary somando LOCAIS — o que muda e o
+// eixo da agregacao, nunca a forma do resultado.
+function emitRegionSummaryFromGroups(grupos, nivelUf, level, cargoKey, turnoKey,
+                                     turnoLabel, censusFilterActive) {
   const scopedColorLookup = getScopedColorLookupForCargo(cargoKey);
   const summary = {};
   // Marca de qual nivel e este summary, para o resolver nao confundir com o
@@ -2334,19 +2387,156 @@ function buildGeneralRegionSummary(level, uf, muniSummary, cargoKey = currentCar
       turno: turnoKey,
       turnoLabel,
       votes: grupo.votes,
-      rawTotals: grupo.votes,
+      // No proporcional votes vem agrupado por federacao/coligacao; rawVotes
+      // guarda o voto por candidato, que e o que o painel detalha.
+      rawTotals: grupo.rawVotes && Object.keys(grupo.rawVotes).length
+        ? grupo.rawVotes : grupo.votes,
       isDetailed: true,
       __censusMatch: !!grupo.__censusMatch
     };
   });
 
-  // O summary de regiao herda a marca do municipal: se o filtro esta ligado la,
-  // esta aqui tambem, e a regiao acende quando qualquer municipio dela acende.
   Object.defineProperty(summary, '_censusFilterActive', {
-    value: !!muniSummary._censusFilterActive, configurable: true
+    value: !!censusFilterActive, configurable: true
   });
 
   return summary;
+}
+
+// Agrega os LOCAIS de votacao por area de ponderacao. E o unico nivel abaixo do
+// municipio, entao nao ha summary municipal para reaproveitar: a soma vem direto
+// dos locais, exatamente como buildGeneralMunicipalityOverviewSummaryRaw faz
+// para a cidade — inclusive na divisao entre majoritaria e proporcional, que
+// leem o voto de lugares diferentes.
+function buildGeneralApSummary(uf, cargoKey = currentCargo) {
+  const ufNorm = String(uf || '').toUpperCase();
+  const nivelUf = REGION_INDEX.niveis?.ap?.[ufNorm] || {};
+  const geojson = currentDataCollection[cargoKey];
+  if (!geojson?.features?.length || !Object.keys(nivelUf).length) return {};
+
+  const turnoKey = getActiveTurnoKeyForCurrentCargo(cargoKey);
+  const turnoLabel = (turnoKey === '2T') ? '2º Turno' : '1º Turno';
+  const inaptosTurno = STATE.inaptos[cargoKey]?.[turnoKey] || [];
+  const grupos = new Map();
+
+  // Proporcional (deputado e vereador): o voto NAO esta nas props da feature —
+  // fica em STATE.deputyResults / vereadorResults, chaveado pelo id do local, e
+  // ainda precisa ser agrupado por federacao/coligacao. Majoritaria: o voto ja
+  // veio para as props em applyGeneralMajoritariaJsonToGeojson2022.
+  const isProporcional = cargoKey.startsWith('deputado') || cargoKey.startsWith('vereador');
+  const isVereador = cargoKey.startsWith('vereador');
+  const typeKey = isVereador ? 'v' : (cargoKey === 'deputado_estadual' ? 'e' : 'f');
+  const resultStore = isVereador ? STATE.vereadorResults : STATE.deputyResults;
+  const metaStore = isVereador ? STATE.vereadorMetadata : STATE.deputyMetadata;
+  const prefixCache = isVereador ? STATE._vereadorPartyPrefixCache : STATE._partyPrefixCache;
+  const lookup = isVereador ? STATE.vereadorLookup : STATE.deputyLookup;
+
+  if (isProporcional && typeof syncDeputyDataForCargo === 'function' && !isVereador) {
+    syncDeputyDataForCargo(cargoKey);
+  }
+
+  geojson.features.forEach((feature) => {
+    if (!filterFeature(feature)) return;
+    const props = feature.properties || {};
+    const apCode = getApCodeForFeature(props);
+    if (!apCode || !nivelUf[apCode]) return;
+
+    let grupo = grupos.get(apCode);
+    if (!grupo) {
+      grupo = { votes: {}, groupParties: {}, rawVotes: {}, totalValid: 0 };
+      grupos.set(apCode, grupo);
+    }
+
+    if (isProporcional) {
+      const locId = resolveFeatureSelectionId(props);
+      const chave = lookup ? (lookup.get(locId) || locId) : locId;
+      const votos = resultStore?.[chave]?.[typeKey];
+      if (!votos) return;
+
+      Object.entries(votos).forEach(([candId, count]) => {
+        if (isNonPartyBallotCode(candId)) return;
+        if (STATE.filterInaptos && inaptosTurno.includes(candId)) return;
+        const v = ensureNumber(count);
+        if (v <= 0) return;
+
+        grupo.rawVotes[candId] = (grupo.rawVotes[candId] || 0) + v;
+        const groupInfo = resolveProportionalGroupInfo(candId, metaStore, prefixCache);
+        const groupKey = groupInfo.key;
+        grupo.votes[groupKey] = (grupo.votes[groupKey] || 0) + v;
+        const partidos = grupo.groupParties[groupKey] || (grupo.groupParties[groupKey] = {});
+        partidos[groupInfo.party] = (partidos[groupInfo.party] || 0) + v;
+        grupo.totalValid += v;
+      });
+      return;
+    }
+
+    Object.keys(props).forEach((key) => {
+      if (!key.endsWith(` ${turnoKey}`) || !isCandidateVoteKey(key)) return;
+      if (STATE.filterInaptos && inaptosTurno.includes(key)) return;
+      const votos = ensureNumber(props[key]);
+      if (votos <= 0) return;
+      grupo.votes[key] = (grupo.votes[key] || 0) + votos;
+      grupo.totalValid += votos;
+    });
+  });
+
+  return emitRegionSummaryFromGroups(grupos, nivelUf, 'ap', cargoKey, turnoKey,
+    turnoLabel, false);
+}
+
+// As areas a desenhar, ou null para desenhar os pontos.
+//
+// Vale em qualquer escopo: no estado inteiro desenha a UF toda em areas, como
+// "Imediatas" faz com as imediatas; dentro de uma regiao ou de um municipio,
+// so as areas dali. A malha ja resolvida fica em AP_MESH porque
+// applyFiltersAndRedraw e sincrono; enquanto ela nao chega, desenha os pontos e
+// refaz o desenho ao terminar a carga.
+function resolveApDetailFeatures(visibleFeatures) {
+  STATE.apDetailActive = false;
+  if (STATE.detalhe !== 'areas' || !apLevelApplies()) return null;
+
+  const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+  if (!uf || isAggregateScope(uf)) return null;
+
+  // Gate no INDICE do ano, nao na malha: a malha e compartilhada entre os anos,
+  // entao te-la carregada nao quer dizer ter o indice daquela eleicao.
+  const mesh = apIndexPronto(uf) ? getApMeshFeatures(uf) : null;
+  if (mesh === null) {
+    void ensureApIndexLoaded(uf).then(() => applyFiltersAndRedraw()).catch(() => {});
+    return null;
+  }
+
+  const munis = municipiosEmEscopo(visibleFeatures);
+  const areas = recortarAreasAoEscopo(mesh, munis);
+  // Uma area so quer dizer municipio sem nada a subdividir: o ponto informa mais.
+  if (areas.length <= 1) return null;
+  STATE.apDetailActive = true;
+  // Quem fica coberto por area — e portanto tem de se apagar na malha de fundo.
+  STATE.apScopeMunis = munis;
+  return areas;
+}
+
+// Recorta as areas aos municipios EM ESCOPO — e o mesmo que
+// applyRegionScopeToMunicipiosLayer faz com a malha municipal: entrar numa
+// regiao ou num municipio recorta o que o mapa desenha, e o enquadramento
+// acompanha (getBounds passa a ser o do recorte, nao o da UF).
+//
+// Os municipios em escopo saem dos proprios locais visiveis, que ja passaram por
+// filterFeature — o mesmo filtro que aplica cidade, imediata, intermediaria,
+// meso e micro. Uma regra so, sem um ramo por nivel.
+function municipiosEmEscopo(visibleFeatures) {
+  const munis = new Set();
+  visibleFeatures.forEach((feature) => {
+    const code = getFeatureMunicipioIdentity(feature.properties || {}).code;
+    if (code) munis.add(code);
+  });
+  return munis;
+}
+
+function recortarAreasAoEscopo(mesh, munis) {
+  if (!munis.size) return [];
+  // O codigo da area e IBGE-7 + 3 digitos: o prefixo diz o municipio.
+  return mesh.filter((f) => munis.has(String(f.properties?.CD_REG || '').slice(0, 7)));
 }
 
 function createRegioesGeoLayer(geojson, level, onSelectFeature) {
@@ -2371,6 +2561,10 @@ function createRegioesGeoLayer(geojson, level, onSelectFeature) {
 }
 
 async function showGeneralRegionOverview(uf) {
+  // Chamavel direto (troca de turno), sem passar por applyFiltersAndRedraw: aqui
+  // tambem nao ha areas por cima.
+  STATE.apDetailActive = false;
+  STATE.apScopeMunis = null;
   if (STATE.swingEnabled) return;
   const ufNorm = String(uf || '').toUpperCase();
   const level = STATE.currentRegionLevel;
@@ -2556,6 +2750,14 @@ function applyFiltersAndRedraw() {
   // showNationalOverview, e nao ha currentDataCollection para redesenhar.
   if (typeof isNationalGeneralScope === 'function' && isNationalGeneralScope()) return;
 
+  // Zerado ANTES de qualquer ramo. A flag so era desligada dentro de
+  // resolveApDetailFeatures, que nao roda quando o desenho sai pelo coropletico
+  // (modo Municipios ou Regioes) — e ai ela ficava presa em true do desenho
+  // anterior, a malha inteira caia na regra de "estou coberto por areas" e o mapa
+  // aparecia apagado, com dois botoes acesos ao mesmo tempo.
+  STATE.apDetailActive = false;
+  STATE.apScopeMunis = null;
+
   // Limpeza PROFUNDA das camadas
   if (currentLayer) {
     try {
@@ -2626,10 +2828,26 @@ function applyFiltersAndRedraw() {
   const isCitySelected = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
     || (STATE.currentElectionType === 'municipal' && !!dom.selectMunicipio?.value);
 
+  const visibleFeatures = (geojson.features || []).filter(filterFeature);
+
+  // Resolvido antes de tudo: quem decide o FUNDO precisa saber o que vai por
+  // cima. Areas cobrem o municipio inteiro; pontos, nao.
+  const areasDetalhe = resolveApDetailFeatures(visibleFeatures);
+
+  // O fundo municipal so sobrevive em tres casos: no proprio modo Municipios,
+  // com uma CIDADE aberta (comportamento de sempre — o municipio selecionado
+  // fica visivel sob os pontos) e, novo, sob as AREAS, que precisam de contexto
+  // em volta. Com uma REGIAO aberta no modo Locais ele sai: ali o pedido e ver
+  // os locais de votacao, e um coropletico municipal cheio por baixo compete
+  // com os pontos em vez de ajudar.
+  const regiaoAberta = STATE.currentElectionType === 'geral'
+    && typeof hasRegionalScopeFilters === 'function' && hasRegionalScopeFilters();
+
   const keepMunicipalOverviewVisible =
     !!STATE.municipiosLayer
     && map.hasLayer(STATE.municipiosLayer)
-    && (STATE.currentMapMode === 'municipios' || isCitySelected);
+    && (STATE.currentMapMode === 'municipios' || isCitySelected
+      || (regiaoAberta && !!areasDetalhe));
 
   if (!keepMunicipalOverviewVisible && STATE.municipiosLayer && map.hasLayer(STATE.municipiosLayer)) {
     map.removeLayer(STATE.municipiosLayer);
@@ -2638,8 +2856,6 @@ function applyFiltersAndRedraw() {
   STATE.currentMapMode = 'locais';
   forgetOverviewFit();
   syncMapModeButtons();
-
-  const visibleFeatures = (geojson.features || []).filter(filterFeature);
 
   if (isSpecialYearGeral) {
     if (currentCidadeFilter === 'all' || !STATE.munisWithDots) {
@@ -2668,17 +2884,51 @@ function applyFiltersAndRedraw() {
     try { currentLayer.remove(); } catch (_) { /* noop */ }
   }
 
-  currentLayer = new MLCompat.GeoLayer(map, {
-    id: 'locais',
-    type: 'point',
-    styleFn: getFeatureStyle,
-    radiusFn: getPointRadiusForFeature,
-    tooltipFn: buildLocationTooltip,
-    onClick: onFeatureClick,
-    sticky: false
-  });
-  currentLayer.setFeatures(visibleFeatures);
+  // O DETALHE que vai por cima da malha municipal: area de ponderacao ou ponto de
+  // local. Sao alternativas, nunca as duas — e cada uma tem seu proprio id de
+  // camada, porque o GeoLayer reaproveita a source pelo id e trocar o tipo
+  // (poligono <-> ponto) sob o mesmo id deixaria a camada antiga desenhada.
+  if (areasDetalhe) {
+    // Em variavel local, NUNCA em STATE.currentMapMuniSummary: aquele colore a
+    // malha municipal que fica por baixo, e sobrescreve-lo apagaria a cor dos
+    // municipios em volta.
+    const apSummary = buildGeneralApSummary(
+      String(dom.selectUFGeneral?.value || '').toUpperCase(), currentCargo);
+    // Area sem local de votacao dentro nao tem resultado: entrar nela daria um
+    // recorte vazio. Fica desenhada e explicada no tooltip, mas nao clicavel.
+    const temResultado = (feature) => !!apSummary[String(feature?.properties?.CD_REG || '')];
+    currentLayer = new MLCompat.GeoLayer(map, {
+      id: 'areas',
+      type: 'polygon',
+      hover: true,
+      clickable: temResultado,
+      styleFn: (feature) => getMunicipalPolygonStyle(feature, apSummary),
+      tooltipFn: (feature) => (temResultado(feature)
+        ? buildMunicipalityTooltip(feature, apSummary)
+        : buildAreaSemLocalTooltip(feature)),
+      onClick: (feature) => {
+        const code = String(feature?.properties?.CD_REG || '');
+        if (code && typeof window.applyRegionSelection === 'function') {
+          window.applyRegionSelection({ level: 'ap', code });
+        }
+      }
+    });
+    currentLayer.setFeatures(areasDetalhe);
+  } else {
+    currentLayer = new MLCompat.GeoLayer(map, {
+      id: 'locais',
+      type: 'point',
+      styleFn: getFeatureStyle,
+      radiusFn: getPointRadiusForFeature,
+      tooltipFn: buildLocationTooltip,
+      onClick: onFeatureClick,
+      sticky: false
+    });
+    currentLayer.setFeatures(visibleFeatures);
+  }
   currentLayer.addTo(map);
+  // De novo: o sync la de cima rodou antes de saber qual detalhe seria desenhado.
+  syncMapModeButtons();
 
   CURRENT_VISIBLE_FEATURES_CACHE = visibleFeatures;
   CURRENT_VISIBLE_PROPS_CACHE = visibleFeatures.map((feature) => feature.properties);
@@ -2725,6 +2975,12 @@ function getPointRadiusForFeature(feature) {
 }
 
 function shouldFullRedrawOnTurnChange() {
+  // A camada de areas de ponderacao tem de ser refeita, nao so recolorida: o
+  // styleFn e o tooltipFn dela fecham sobre o apSummary do turno em que foram
+  // criados, entao um refresh() repintaria com os numeros do turno anterior —
+  // sem erro nenhum, so um mapa errado. Os pontos nao tem esse problema porque
+  // leem as props da propria feature, que ja trazem os dois turnos.
+  if (STATE.apDetailActive) return true;
   return currentVizMode.startsWith('desempenho') && performanceFilterMinPct > 0;
 }
 
@@ -3552,6 +3808,29 @@ function getMunicipalPolygonStyle(feature, summary) {
   const result = getMunicipalSummaryEntryForFeature(feature?.properties, summary);
   const selectedMunicipality = getCurrentMunicipalMapSelection();
   const isSelected = isSelectedMunicipalFeature(feature?.properties, selectedMunicipality);
+
+  // Onde ha AREA desenhada por cima, o municipio embaixo tem de se apagar: os
+  // dois preenchimentos sao semitransparentes (0,78) e se somam, entao a cor do
+  // municipio contaminaria a da area — vermelho sobre azul vira arroxeado.
+  //
+  // Mas SO onde ha area por cima. Os municipios em volta, que nao estao no
+  // recorte e portanto nao tem area nenhuma cobrindo, seguem coloridos: sao eles
+  // que dao o contexto de quem clicou num municipio. Apagar todo mundo era
+  // grosseiro demais.
+  //
+  // O summary distingue quem esta chamando: a camada de area passa o dela, com
+  // _regionLevel 'ap'; a malha de fundo passa o municipal, sem.
+  if (STATE.apDetailActive && summary?._regionLevel !== 'ap'
+    && STATE.apScopeMunis?.has(getMunicipalityFeatureCode(feature?.properties))) {
+    return {
+      fillColor: DEFAULT_SWATCH,
+      fillOpacity: 0.02,
+      color: '#ffffff',
+      weight: 0.12,
+      opacity: 0.3,
+      height: 0
+    };
+  }
 
   // 2002/2006 locais mode:
   if (STATE.currentMapMode === 'locais' && STATE.munisWithDots) {

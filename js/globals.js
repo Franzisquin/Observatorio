@@ -720,6 +720,11 @@ const STATE = {
   currentMapMuniUF: null,
   // Nivel desenhado quando currentMapMode === 'regioes'.
   currentRegionLevel: 'rgint',
+  // O que vai POR CIMA da malha municipal quando ha um escopo aberto (cidade ou
+  // regiao): 'areas' (areas de ponderacao) ou 'locais' (pontos). Sao os dois
+  // detalhes possiveis, e nunca aparecem juntos. Escopo e outra coisa: quem
+  // manda nele sao os botoes Municipios / Intermediarias / Imediatas.
+  detalhe: 'locais',
   currentMapMuniSummary: null,
   currentMapMuniSummaryByTurn: null,
   pendingMunicipalFocusBounds: null,
@@ -850,8 +855,98 @@ const REGION_LEVEL_LABEL = {
   meso: 'Mesorregião',
   micro: 'Microrregião',
   rgint: 'Região Intermediária',
-  rgi: 'Região Imediata'
+  rgi: 'Região Imediata',
+  // 'ap' tambem fica fora de REGION_LEVELS, por outro motivo: os quatro niveis
+  // do IBGE agregam MUNICIPIOS e cabem num dropdown (Sao Paulo tem 63 imediatas);
+  // a area de ponderacao e sub-municipal e SP tem 2.535 delas. Ela entra so pelo
+  // botao da barra do mapa.
+  ap: 'Área de Ponderação'
 };
+
+// Anos que tem indice local -> area. A MALHA e sempre a do Censo 2022; o que
+// muda por ano e a rede de locais de votacao, e por isso ha um indice por ano.
+// Em 2018 a malha e um recorte retrospectivo — as areas nao existiam la —, do
+// mesmo jeito que o site ja usa as regioes do IBGE de hoje sobre os municipios
+// de 1989/1994.
+const AP_ANOS = new Set(['2022', '2018', '2014', '2010']);
+
+// Indice local de votacao -> area, POR ANO: ano -> Map(chave -> codigo da area).
+// A chave e a mesma do RESULTS e do props.id_unico que a feature do local
+// carrega: zona_municipioTSE_local. O codigo TSE do municipio e unico no pais,
+// entao as UFs nao colidem dentro do mesmo ano — mas os anos nao podem se
+// misturar: o mesmo zona_municipio_local pode ser outro predio em outra eleicao.
+const AP_BY_LOCAL = new Map();
+const AP_INDEX_PROMISES = new Map();
+// Pares ano|UF ja carregados. A malha (AP_MESH) e compartilhada entre os anos,
+// entao ter a malha nao quer dizer ter o indice daquele ano.
+const AP_PRONTO = new Set();
+// A malha ja resolvida, por UF. applyFiltersAndRedraw e sincrono e nao pode
+// esperar promise: ou a malha esta aqui, ou ele desenha os pontos e refaz o
+// desenho quando a carga terminar.
+const AP_MESH = new Map();
+
+async function ensureApIndexLoaded(uf, ano = STATE.currentElectionYear) {
+  const ufNorm = String(uf || '').toUpperCase();
+  const anoNorm = String(ano || '');
+  if (!ufNorm || !AP_ANOS.has(anoNorm)) return null;
+  const cacheKey = `${anoNorm}|${ufNorm}`;
+  if (AP_INDEX_PROMISES.has(cacheKey)) return AP_INDEX_PROMISES.get(cacheKey);
+
+  const promise = (async () => {
+    // A malha vem junto de proposito: os nomes das areas saem das proprias
+    // feicoes e vao para REGION_INDEX.niveis.ap, que e onde getRegionalEntryLabel
+    // e o titulo do painel ja procuram — sem isso os dois precisariam de um ramo
+    // novo so para este nivel. O fetch e cacheado, entao a malha nao vem duas
+    // vezes nem se repete de um ano para o outro.
+    const [res, geo] = await Promise.all([
+      fetch(`${DATA_BASE_URL}regioes_ap/locais_ap_${anoNorm}_${ufNorm}.json`),
+      fetchRegionPolygonGeoJSON('ap', ufNorm)
+    ]);
+    if (!res.ok) throw new Error(`Índice de áreas de ponderação não encontrado: ${anoNorm}/${ufNorm}`);
+    const indice = await res.json();
+    let doAno = AP_BY_LOCAL.get(anoNorm);
+    if (!doAno) { doAno = new Map(); AP_BY_LOCAL.set(anoNorm, doAno); }
+    Object.entries(indice || {}).forEach(([local, area]) => doAno.set(local, area));
+
+    const nomes = {};
+    (geo?.features || []).forEach((feature) => {
+      const props = feature?.properties || {};
+      if (props.CD_REG) nomes[String(props.CD_REG)] = props.NM_REG || '';
+    });
+    if (!REGION_INDEX.niveis) REGION_INDEX.niveis = {};
+    if (!REGION_INDEX.niveis.ap) REGION_INDEX.niveis.ap = {};
+    REGION_INDEX.niveis.ap[ufNorm] = nomes;
+    AP_MESH.set(ufNorm, geo.features || []);
+    AP_PRONTO.add(cacheKey);
+    return indice;
+  })();
+
+  AP_INDEX_PROMISES.set(cacheKey, promise);
+  promise.catch(() => {
+    if (AP_INDEX_PROMISES.get(cacheKey) === promise) AP_INDEX_PROMISES.delete(cacheKey);
+  });
+  return promise;
+}
+
+// O indice do ano corrente ja esta em memoria para esta UF?
+function apIndexPronto(uf, ano = STATE.currentElectionYear) {
+  return AP_PRONTO.has(`${String(ano || '')}|${String(uf || '').toUpperCase()}`);
+}
+
+// As feicoes de area da UF ja carregadas, ou null enquanto a malha nao chegou.
+function getApMeshFeatures(uf) {
+  const f = AP_MESH.get(String(uf || '').toUpperCase());
+  return f || null;
+}
+
+// A chave do local no indice de areas. props.id_unico e posto por
+// mergeGeneralCensoJson2022; local_key e o mesmo valor sob outro nome.
+function getApCodeForFeature(props) {
+  const chave = String(props?.id_unico || props?.local_key || '');
+  if (!chave) return '';
+  const doAno = AP_BY_LOCAL.get(String(STATE.currentElectionYear));
+  return doAno ? (doAno.get(chave) || '') : '';
+}
 
 function getCurrentGeneralRegionalUF() {
   const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
@@ -884,7 +979,13 @@ async function ensureRegionalFiltersLoaded() {
       return res.json();
     })
     .then((data) => {
+      // niveis.ap NAO vem deste arquivo: e preenchido por UF em
+      // ensureApIndexLoaded, a partir das proprias feicoes da malha. Substituir
+      // REGION_INDEX inteiro apagaria os nomes das areas ja carregadas, e o mapa
+      // de areas sairia todo cinza — depende so de qual dos dois carrega antes.
+      const ap = REGION_INDEX.niveis?.ap;
       REGION_INDEX = { muni: data?.muni || {}, niveis: data?.niveis || {} };
+      if (ap) REGION_INDEX.niveis.ap = ap;
       return REGION_INDEX;
     });
 
@@ -925,6 +1026,19 @@ function resolveMapModeAfterLoad(uf, cidadeFilter, fallback) {
   return (STATE.currentMapMode === 'regioes' && cabeRegiao) ? 'regioes' : fallback;
 }
 
+// A malha de areas de ponderacao e do Censo 2022 e a atribuicao local->area foi
+// feita sobre os locais de 2022. Em outro ano as chaves nao casam e o mapa sairia
+// todo cinza; em outro cargo o dado nem foi conferido. Um predicado so, porque os
+// dois lados tem de concordar: se o botao some, o mapa nao pode continuar no nivel.
+function apLevelApplies() {
+  // Vale para TODO cargo do ano — presidente, governador, senador e os dois
+  // deputados. O que amarra o nivel nao e o cargo, e a geografia: cada ano
+  // precisa do seu indice local -> area, gerado sobre a rede de locais daquele
+  // ano (ver AP_ANOS e scripts/gerar_areas_ponderacao.py).
+  return STATE.currentElectionType === 'geral'
+    && AP_ANOS.has(String(STATE.currentElectionYear));
+}
+
 // Casa SEMPRE por codigo IBGE. O casamento por nome saiu de proposito: a fonte
 // antiga (municipios_por_mesorregiao.json) tinha 595 de 5571 nomes trocados por
 // homonimos de outra UF, e era exatamente isso que fazia municipios como
@@ -933,6 +1047,10 @@ function matchesRegionalScope(props) {
   if (STATE.currentElectionType !== 'geral') return true;
   const { level, code } = currentRegionFilter;
   if (!code) return true;
+  // Area de ponderacao e o unico nivel SUB-municipal: quem decide e o local de
+  // votacao, nao o municipio. Poligono municipal nao tem id_unico e cai fora,
+  // que e o certo — dentro de uma area so ha locais.
+  if (level === 'ap') return getApCodeForFeature(props) === code;
   const muni = getFeatureMunicipioIdentity(props).code;
   return !!muni && REGION_INDEX.muni?.[muni]?.[level] === code;
 }
