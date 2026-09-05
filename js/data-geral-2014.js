@@ -134,6 +134,13 @@ function mergeGeneralCensoJson2014(baseGeo, censusJson, preserveKeys = false) {
   // ja traz a chave correta do GPKG (caso suplementar).
   const PRESERVED_KEYS = new Set(['id_unico', 'ID_UNICO', 'local_key', 'local_id', 'cd_localidade_tse', 'long', 'lat', 'hist_id']);
 
+  // Indice por CODIGO do municipio, o preferido. O casamento por nome quebra
+  // quando o municipio foi renomeado entre a eleicao e a base geocodificada: o
+  // GPKG traz o nome de hoje e o Censo o da epoca. Embu das Artes (renomeado em
+  // 2011) aparecia como "Embu das Artes" no GPKG e "EMBU" no Censo 2010, e 40
+  // dos seus 59 locais sumiam do mapa — sem erro nenhum, so faltando.
+  // tse_para_ibge.json existe exatamente para isso (ver gerar_ponte_tse_ibge.py).
+  const censusByCodeZoneLocal = new Map();
   const censusByCityZoneLocal = new Map();
   const censusByNameBairro = new Map();
 
@@ -157,6 +164,8 @@ function mergeGeneralCensoJson2014(baseGeo, censusJson, preserveKeys = false) {
       local_key: localKey
     };
 
+    const ibgeCenso = TSE_TO_IBGE.get(String(parseInt(row.cd_localidade_tse, 10)));
+    if (ibgeCenso) censusByCodeZoneLocal.set(`${ibgeCenso}|${zoneLocalKey}`, enriched);
     if (cidade) censusByCityZoneLocal.set(`${cidade}|${zoneLocalKey}`, enriched);
     if (localNome) censusByNameBairro.set(`${localNome}|${bairro}`, enriched);
   });
@@ -167,7 +176,13 @@ function mergeGeneralCensoJson2014(baseGeo, censusJson, preserveKeys = false) {
     const zoneLocalKey = String(props.local_id || '');
     const cityZoneLocalKey = `${norm(props.nm_localidade)}|${zoneLocalKey}`;
     const nameBairroKey = `${norm(props.nm_locvot)}|${norm(props.ds_bairro)}`;
-    const censusProps = censusByCityZoneLocal.get(cityZoneLocalKey) || censusByNameBairro.get(nameBairroKey);
+    // Codigo primeiro: e mais preciso que o nome, que ainda colide entre UFs. Os
+    // dois casamentos por nome seguem como fallback, entao nada que casava antes
+    // deixa de casar — o codigo so acrescenta.
+    const codeZoneLocalKey = `${String(props.cod_localidade_ibge || '').trim()}|${zoneLocalKey}`;
+    const censusProps = censusByCodeZoneLocal.get(codeZoneLocalKey)
+      || censusByCityZoneLocal.get(cityZoneLocalKey)
+      || censusByNameBairro.get(nameBairroKey);
     if (!censusProps) return;
 
     Object.entries(censusProps).forEach(([key, value]) => {
@@ -225,6 +240,7 @@ async function loadGeneralStateBaseFromGpkg2014(uf) {
 
     try {
       const censusJson = await loadCensoJson2014(ufNorm);
+      await ensureTseIbgeLoaded();
       mergeGeneralCensoJson2014(baseGeo, censusJson);
     } catch (error) {
       console.warn(`[2014] Censo nao carregado para ${ufNorm}:`, error);
@@ -278,6 +294,7 @@ async function loadGeneralStateBaseFromSupGpkg2014(uf) {
       // Os locais da suplementar de 2017 vem da base de 2016; o censo 2016
       // cobre 100% deles (o censo 2014 cobre so ~68%).
       const censusJson = await loadCensoJson2016(ufNorm);
+      await ensureTseIbgeLoaded();
       mergeGeneralCensoJson2014(baseGeo, censusJson, true);
     } catch (error) {
       console.warn(`[2014] Censo nao carregado para suplementar ${ufNorm}:`, error);
