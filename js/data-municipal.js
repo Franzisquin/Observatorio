@@ -1487,6 +1487,13 @@ function finalizeMunicipalLoadUI(municipio, isVereador) {
   currentBairroFilter = 'all';
   currentLocalFilter = '';
   STATE.currentMapMode = 'locais';
+  // Abrir um municipio ja mostra as AREAS DE PONDERACAO dele, quando o ano tem
+  // indice. E o mesmo padrao da eleicao geral, onde clicar num municipio cai em
+  // areas: escolher a cidade e justamente o gesto de querer ver por dentro
+  // dela. "Locais de Votacao" continua a um clique.
+  if (typeof apLevelApplies === 'function') {
+    STATE.detalhe = apLevelApplies() ? 'areas' : 'locais';
+  }
 
   const preserveMunicipalOverview =
     STATE.currentElectionType === 'municipal'

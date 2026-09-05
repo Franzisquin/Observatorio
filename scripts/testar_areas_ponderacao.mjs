@@ -800,9 +800,9 @@ console.log('Outros cargos de 2022');
 console.log('');
 console.log('Anos anteriores a 2022');
 
-const PISO_COBERTURA = { 2018: 98, 2014: 97, 2010: 96 };
+const PISO_COBERTURA = { 2018: 98, 2014: 97, 2010: 96, 2006: 94 };
 
-for (const ano of [2018, 2014, 2010]) {
+for (const ano of [2018, 2014, 2010, 2006]) {
   const idxAno = lerJson(`resultados_geo/regioes_ap/locais_ap_${ano}_AC.json`);
   const pres = lerZipJson(
     `resultados_geo/Majoritarias ${ano}/presidente_${ano}_t1_AC.zip`,
@@ -855,6 +855,34 @@ for (const ano of [2018, 2014, 2010]) {
   ok(cobertura > PISO_COBERTURA[ano],
     `${ano}: cobertura de votos do AC acima de ${PISO_COBERTURA[ano]}%`,
     `${cobertura.toFixed(2)}% (${cobertos.length} de ${Object.keys(pres.RESULTS).length} locais)`);
+
+  // O MAPA PINTADO, nao so a soma certa.
+  //
+  // Somar direito e desenhar preto sao coisas diferentes: em 2006 as areas
+  // saiam com contorno e sem preenchimento nenhum, porque o ramo de estilo de
+  // 2002/2006 — que apaga a malha municipal quando nenhuma cidade esta
+  // selecionada — tambem pegava a camada de area por cima. Painel cheio de
+  // resultado, mapa preto, console limpo. Este caso roda o estilo DE VERDADE.
+  const pintura = vm.runInContext(`(() => {
+    // O estado em que o defeito aparecia: modo locais, regiao aberta, nenhum
+    // municipio escolhido — e em 2002/2006 munisWithDots preenchido.
+    STATE.currentMapMode = 'locais';
+    STATE.munisWithDots = new Set(['rio-branco']);
+    const s = buildGeneralApSummary('AC', 'presidente_ord');
+    const cods = Object.keys(s);
+    const estilos = cods.map((cd) => getMunicipalPolygonStyle(
+      { properties: { CD_REG: cd, NM_REG: 'Area' } }, s));
+    STATE.munisWithDots = null;
+    return {
+      total: estilos.length,
+      pintadas: estilos.filter((e) => e && e.fillOpacity > 0.5
+        && e.fillColor && e.fillColor !== '#cccccc').length
+    };
+  })()`, ctx, { filename: `${ano}pintura.js` });
+
+  ok(pintura.total > 0 && pintura.pintadas === pintura.total,
+    `${ano}: toda area com resultado sai PINTADA no mapa, nao so no painel`,
+    `${pintura.pintadas} de ${pintura.total}`);
 }
 
 // Os quatro anos convivem, cada um no seu Map — e uma chave so resolve no ano
@@ -886,6 +914,318 @@ ok(anos.distintos === anos.carregados.length,
 
 vm.runInContext("STATE.currentElectionYear = '2022';", ctx);
 
+// --------------------------------------------- ELEICAO MUNICIPAL (2024)
+//
+// Municipal e outra maquina: o escopo e UM municipio, escolhido num dropdown, e
+// nao ha UF inteira para percorrer. O que NAO muda e a chave do local
+// (zona_municipioTSE_local), entao o mesmo indice serve.
+//
+// Duas armadilhas que este teste tranca:
+//  - a UF vem de outro seletor (dom.selectUFMunicipal); usar o geral daria
+//    vazio e o indice nunca carregaria;
+//  - vereador guarda o voto por zona_local, sem o municipio, porque o acervo
+//    dele ja e de um municipio so — enquanto deputado usa a chave completa.
+//    Procurar so pela completa deixaria toda area de vereador cinza.
+console.log('');
+console.log('Eleicao municipal de 2024');
+
+{
+  const idx24 = lerJson('resultados_geo/regioes_ap/locais_ap_2024_AC.json');
+  const pref = lerZipJson('resultados_geo/Municipais 2024/prefeito_2024_ord_t1_AC.zip',
+    '1392_RIO_BRANCO.json');
+  const MUNI_IBGE = '1200401';
+
+  const chaves = Object.keys(pref.RESULTS);
+  ctx.__geo = {
+    type: 'FeatureCollection',
+    features: chaves.map((chave) => {
+      const [zona, , local] = chave.split('_');
+      return {
+        type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] },
+        properties: { id_unico: chave, local_key: chave, local_id: `${zona}_${local}`,
+          nm_locvot: 'Escola', cod_localidade_ibge: MUNI_IBGE,
+          nm_localidade: 'RIO BRANCO', nr_zona: Number(zona), nr_locvot: Number(local) },
+      };
+    }),
+  };
+  ctx.__pref = pref;
+
+  vm.runInContext(`
+    STATE.currentElectionType = 'municipal';
+    STATE.currentElectionYear = '2024';
+    STATE.currentMapMuniUF = null;
+    dom.selectUFMunicipal = { value: 'AC' };
+    dom.selectUFGeneral = { value: '' };
+    dom.selectMunicipio = { value: 'RIO BRANCO' };
+    STATE.dataHas2T = { prefeito_ord: false }; currentTurno = 1;
+    currentOffice = 'prefeito'; currentSubType = 'ord'; currentCargo = 'prefeito_ord';
+    currentRegionFilter = { level: '', code: '' };
+    currentCidadeFilter = 'all'; currentBairroFilter = 'all'; currentLocalFilter = '';
+    STATE.inaptos = STATE.inaptos || {};
+    STATE.inaptos['prefeito_ord'] = { '1T': [], '2T': [] };
+    applyPrefeitoJsonToGeojson2024(__geo, __pref, '1T');
+    currentDataCollection['prefeito_ord'] = __geo;
+  `, ctx, { filename: 'mun24.js' });
+
+  ok(vm.runInContext('apLevelApplies()', ctx),
+    'o nivel de area vale na municipal de 2024, com municipio escolhido');
+  ok(vm.runInContext("dom.selectMunicipio = { value: '' }; const r = apLevelApplies(); dom.selectMunicipio = { value: 'RIO BRANCO' }; r", ctx) === false,
+    'e nao vale antes de escolher o municipio — ali o mapa e o resumo do estado');
+  ok(vm.runInContext("apCurrentUF() === 'AC'", ctx),
+    'a UF vem do seletor municipal, nao do geral');
+
+  await vm.runInContext('ensureApIndexLoaded(apCurrentUF())', ctx,
+    { filename: 'cargaMun.js' });
+
+  // --- prefeito: majoritaria, voto nas props
+  const rp = vm.runInContext(`(() => {
+    const s = buildGeneralApSummary(apCurrentUF(), 'prefeito_ord');
+    const cods = Object.keys(s);
+    return { n: cods.length, total: cods.reduce((a, c) => a + s[c].totalValid, 0),
+             soDoMuni: cods.every((c) => c.startsWith('${MUNI_IBGE}')) };
+  })()`, ctx, { filename: 'pref.js' });
+
+  const validos = (v) => Object.entries(v)
+    .filter(([id]) => id !== '95' && id !== '96')
+    .reduce((a, n) => a + n[1], 0);
+  const esperadoPref = chaves.filter((k) => idx24[k])
+    .reduce((a, k) => a + validos(pref.RESULTS[k]), 0);
+
+  ok(rp.n > 0, `prefeito: ${rp.n} areas em Rio Branco`);
+  ok(rp.total === esperadoPref, 'e a soma bate com o oficial',
+    `${rp.total} vs ${esperadoPref}`);
+  ok(rp.soDoMuni, 'e todas as areas sao do proprio municipio');
+
+  // --- vereador: proporcional, voto em STATE.vereadorResults por zona_local
+  const ver = lerZipJson('resultados_geo/Municipais_Legislativas 2024/vereadores_2024_AC.zip',
+    'vereadores_2024_AC_RIO_BRANCO_1392.json');
+  ctx.__ver = ver;
+  vm.runInContext(`
+    currentOffice = 'vereador'; currentSubType = 'ord'; currentCargo = 'vereador_ord';
+    STATE.dataHas2T = { vereador_ord: false };
+    STATE.inaptos['vereador_ord'] = { '1T': [], '2T': [] };
+    STATE.vereadorResults = {};
+    Object.entries(__ver.RESULTS).forEach(([locId, votos]) => {
+      STATE.vereadorResults[locId] = { v: votos };
+    });
+    STATE.vereadorMetadata = { ...(__ver.METADATA?.cand_names || {}) };
+    STATE.vereadorAdjustments = {};
+    STATE.vereadorLookup = null;
+    STATE._vereadorPartyPrefixCache = null;
+    applyVereadorMetricsToGeojson2024(__geo, __ver);
+    currentDataCollection['vereador_ord'] = __geo;
+  `, ctx, { filename: 'ver24.js' });
+
+  const rv = vm.runInContext(`(() => {
+    const s = buildGeneralApSummary(apCurrentUF(), 'vereador_ord');
+    const cods = Object.keys(s);
+    // O esperado tem de cobrir SO os locais que entram no mapa: os que tem area
+    // e passam por filterFeature. Somar todos incluiria local sem area, e a
+    // diferenca pareceria erro de agregacao quando e cobertura do indice.
+    let esperado = 0;
+    let semArea = 0;
+    __geo.features.forEach((f) => {
+      const temArea = !!getApCodeForFeature(f.properties);
+      if (!temArea || !filterFeature(f)) { semArea++; return; }
+      const votos = STATE.vereadorResults[String(f.properties.local_id)]?.v || {};
+      Object.entries(votos).forEach(([cand, v]) => {
+        if (!isNonPartyBallotCode(cand)) esperado += v;
+      });
+    });
+    return {
+      n: cods.length,
+      total: cods.reduce((a, c) => a + s[c].totalValid, 0),
+      esperado, semArea,
+      comPartido: cods.filter((c) => !!s[c].winnerParty).length
+    };
+  })()`, ctx, { filename: 'versum.js' });
+
+  ok(rv.n > 0, `vereador: ${rv.n} areas com resultado`);
+  ok(rv.total === rv.esperado,
+    'e a soma bate — a chave por zona_local foi encontrada',
+    `${rv.total} vs ${rv.esperado} (${rv.semArea} locais fora do indice)`);
+  ok(rv.comPartido === rv.n, 'com o partido do vencedor resolvido em todas');
+
+  // --- RECORTE QUE SOBROU DE OUTRA ELEICAO
+  //
+  // currentRegionFilter sobrevive a troca de eleicao. Entrar numa area em 2022 e
+  // depois abrir a municipal de 2024 deixava o codigo antigo filtrando os locais
+  // novos: nenhum casava, o mapa vinha VAZIO e o console ficava limpo — a tela
+  // simplesmente nao respondia. Por isso o recorte por area so vale onde o nivel
+  // de area vale.
+  ctx.__areaDe2022 = '3304557001';
+  const sobra = vm.runInContext(`(() => {
+    const local = __geo.features[0].properties;
+    const r = {};
+
+    // 1. municipal com um recorte de area de OUTRA eleicao pendurado, carimbado
+    //    com o contexto em que foi feito (e o que applyRegionSelection grava)
+    currentRegionFilter = { level: 'ap', code: __areaDe2022, contexto: 'geral|2022|RJ' };
+    r.municipalComSobra = matchesRegionalScope(local);
+    r.hasFiltro = hasRegionalScopeFilters();
+    r.rotulo = getRegionalFilterSummaryLabel();
+
+    // 2. ano geral que nao tem indice de area: idem
+    STATE.currentElectionType = 'geral'; STATE.currentElectionYear = '2002';
+    r.geralSemIndice = matchesRegionalScope(local);
+
+    // 2b. e o que de fato resolve: largar o recorte na fronteira
+    currentRegionFilter = { level: 'ap', code: __areaDe2022 };
+    STATE.currentElectionType = 'municipal'; STATE.currentElectionYear = '2024';
+    resetRegionScope();
+    r.depoisDeLargar = matchesRegionalScope(local);
+
+    // 3. e onde o nivel VALE, o recorte continua valendo de verdade
+    STATE.currentElectionType = 'municipal'; STATE.currentElectionYear = '2024';
+    const alvo = getApCodeForFeature(local);
+    currentRegionFilter = { level: 'ap', code: alvo };
+    const dentro = __geo.features.find(
+      (f) => getApCodeForFeature(f.properties) === alvo);
+    r.valeQuandoAplica = [matchesRegionalScope(dentro.properties),
+                          matchesRegionalScope({ id_unico: '0_0_0' })];
+
+    currentRegionFilter = { level: '', code: '' };
+    return r;
+  })()`, ctx, { filename: 'sobra.js' });
+
+  ok(sobra.municipalComSobra === true,
+    'recorte carimbado com OUTRA eleicao nao filtra a eleicao atual');
+  ok(sobra.hasFiltro === false,
+    'e o site nem o considera um filtro ativo');
+  ok(sobra.rotulo === '',
+    'nem mostra o nome dele no painel', JSON.stringify(sobra.rotulo));
+  ok(sobra.depoisDeLargar === true,
+    'resetRegionScope() na troca de eleicao tambem devolve o mapa inteiro');
+  ok(sobra.geralSemIndice === true,
+    'nem uma eleicao geral de ano sem indice de area');
+  ok(sobra.valeQuandoAplica[0] === true && sobra.valeQuandoAplica[1] === false,
+    'mas onde o nivel vale, o recorte filtra normalmente');
+
+  // --- recorte por area vale na municipal tambem
+  const alvoAp = vm.runInContext(`(() => {
+    const s = buildGeneralApSummary(apCurrentUF(), 'vereador_ord');
+    return Object.keys(s)[0];
+  })()`, ctx, { filename: 'alvoap.js' });
+  ctx.__alvoMun = alvoAp;
+  const escopo = vm.runInContext(`(() => {
+    const dentro = __geo.features.find((f) => getApCodeForFeature(f.properties) === __alvoMun);
+    currentRegionFilter = { level: 'ap', code: __alvoMun };
+    const r = [matchesRegionalScope(dentro.properties),
+               matchesRegionalScope({ id_unico: '0_0_0' })];
+    currentRegionFilter = { level: '', code: '' };
+    return r;
+  })()`, ctx, { filename: 'escopoMun.js' });
+  ok(escopo[0] === true && escopo[1] === false,
+    'o recorte por area funciona na municipal (nao para no corte por tipo de eleicao)');
+
+  vm.runInContext(`
+    STATE.currentElectionType = 'geral'; STATE.currentElectionYear = '2022';
+    dom.selectMunicipio = { value: '' };
+  `, ctx);
+}
+
+// --------------------------------------------- AS MUNICIPAIS ANTERIORES
+//
+// Mesma maquina de 2024 — municipio unico, chave zona_municipioTSE_local, um
+// unico applyPrefeitoJsonToGeojson2024 para todos os anos. O que muda e o
+// INDICE: a rede de locais e outra a cada eleicao, e recuando ela envelhece
+// (zona renumerada, local sem codigo de municipio no GPKG). O piso e de
+// REGRESSAO na recuperacao, nao de perfeicao.
+console.log('');
+console.log('Municipais anteriores a 2024');
+
+const PISO_MUNICIPAL = { 2020: 98, 2016: 97, 2012: 96, 2008: 94 };
+
+for (const ano of [2020, 2016, 2012, 2008]) {
+  const idx = lerJson(`resultados_geo/regioes_ap/locais_ap_${ano}_AC.json`);
+  const pref = lerZipJson(
+    `resultados_geo/Municipais ${ano}/prefeito_${ano}_ord_t1_AC.zip`,
+    '1392_RIO_BRANCO.json');
+  const MUNI_IBGE = '1200401';
+
+  const chaves = Object.keys(pref.RESULTS);
+  ctx.__geo = {
+    type: 'FeatureCollection',
+    features: chaves.map((chave) => {
+      const [zona, , local] = chave.split('_');
+      return {
+        type: 'Feature', geometry: { type: 'Point', coordinates: [0, 0] },
+        properties: { id_unico: chave, local_key: chave, local_id: `${zona}_${local}`,
+          nm_locvot: 'Escola', cod_localidade_ibge: MUNI_IBGE,
+          nm_localidade: 'RIO BRANCO', nr_zona: Number(zona), nr_locvot: Number(local) },
+      };
+    }),
+  };
+  ctx.__pref = pref;
+  ctx.__ano = String(ano);
+
+  vm.runInContext(`
+    STATE.currentElectionType = 'municipal';
+    STATE.currentElectionYear = __ano;
+    STATE.currentMapMuniUF = null;
+    dom.selectUFMunicipal = { value: 'AC' };
+    dom.selectUFGeneral = { value: '' };
+    dom.selectMunicipio = { value: 'RIO BRANCO' };
+    STATE.dataHas2T = { prefeito_ord: false }; currentTurno = 1;
+    currentOffice = 'prefeito'; currentSubType = 'ord'; currentCargo = 'prefeito_ord';
+    currentRegionFilter = { level: '', code: '' };
+    currentCidadeFilter = 'all'; currentBairroFilter = 'all'; currentLocalFilter = '';
+    STATE.inaptos['prefeito_ord'] = { '1T': [], '2T': [] };
+    applyPrefeitoJsonToGeojson2024(__geo, __pref, '1T');
+    currentDataCollection['prefeito_ord'] = __geo;
+  `, ctx, { filename: `mun${ano}.js` });
+
+  ok(vm.runInContext('apLevelApplies()', ctx),
+    `o nivel de area vale na municipal de ${ano}`);
+  await vm.runInContext('ensureApIndexLoaded(apCurrentUF())', ctx,
+    { filename: `carga${ano}.js` });
+
+  const r = vm.runInContext(`(() => {
+    const s = buildGeneralApSummary(apCurrentUF(), 'prefeito_ord');
+    const cods = Object.keys(s);
+    return { n: cods.length, total: cods.reduce((a, c) => a + s[c].totalValid, 0),
+             soDoMuni: cods.every((c) => c.startsWith('${MUNI_IBGE}')) };
+  })()`, ctx, { filename: `sum${ano}.js` });
+
+  const validos = (v) => Object.entries(v)
+    .filter(([id]) => id !== '95' && id !== '96')
+    .reduce((a, n) => a + n[1], 0);
+  const cobertas = chaves.filter((k) => idx[k]);
+  const esperado = cobertas.reduce((a, k) => a + validos(pref.RESULTS[k]), 0);
+  const oficial = chaves.reduce((a, k) => a + validos(pref.RESULTS[k]), 0);
+  const cobertura = 100 * esperado / oficial;
+
+  ok(r.n > 0 && r.total === esperado,
+    `${ano}: ${r.n} areas em Rio Branco, soma bate com os locais cobertos`,
+    `${r.total} vs ${esperado}`);
+  ok(r.soDoMuni, `${ano}: e todas as areas sao do proprio municipio`);
+  ok(cobertura > PISO_MUNICIPAL[ano],
+    `${ano}: cobertura de votos acima de ${PISO_MUNICIPAL[ano]}%`,
+    `${cobertura.toFixed(2)}% (${cobertas.length} de ${chaves.length} locais)`);
+}
+
+// Cada ano no seu Map: uma chave de 2008 nao pode resolver com 2020 ativo, nem
+// o contrario — o mesmo zona_municipio_local pode ser outro predio.
+{
+  const i08 = lerJson('resultados_geo/regioes_ap/locais_ap_2008_AC.json');
+  const i20 = lerJson('resultados_geo/regioes_ap/locais_ap_2020_AC.json');
+  const so08 = Object.keys(i08).find((k) => !(k in i20));
+  if (so08) {
+    ctx.__so08 = so08;
+    const r = vm.runInContext(`(() => {
+      const p = { id_unico: __so08, local_key: __so08 };
+      STATE.currentElectionYear = '2020';
+      const com20 = getApCodeForFeature(p);
+      STATE.currentElectionYear = '2008';
+      return { com20, com08: getApCodeForFeature(p) };
+    })()`, ctx, { filename: 'anosMun.js' });
+    ok(!r.com20 && !!r.com08,
+      'chave que so existe em 2008 nao resolve com 2020 ativo', so08);
+  } else {
+    ok(true, 'as redes de 2008 e 2020 do AC coincidem — nada a separar');
+  }
+}
+
 // ------------------------------------------------- guarda de ano e cargo
 //
 // So 2022 chama resolveMapModeAfterLoad: trocar para 2018 ou para governador
@@ -901,7 +1241,7 @@ const cabe = vm.runInContext(`(() => {
   STATE.currentElectionYear = '2022'; r.push(apLevelApplies());
   STATE.currentElectionYear = '2018'; r.push(apLevelApplies());
   STATE.currentElectionYear = '2010'; r.push(apLevelApplies());
-  STATE.currentElectionYear = '2006'; r.push(apLevelApplies());
+  STATE.currentElectionYear = '2002'; r.push(apLevelApplies());
   STATE.currentElectionYear = '2022';
   STATE.currentElectionYear = '2022'; currentOffice = 'governador';
   r.push(apLevelApplies());
@@ -914,15 +1254,16 @@ const cabe = vm.runInContext(`(() => {
 ok(cabe[0] === true, 'nivel ap vale em 2022');
 ok(cabe[1] === true, 'e em 2018 — os dois anos tem indice local->area');
 ok(cabe[2] === true, 'e em 2010');
-ok(cabe[3] === false, 'mas nao em 2006, que nao tem indice');
+ok(cabe[3] === false, 'mas nao em 2002, que nao tem indice');
 ok(cabe[4] === true, 'vale para governador — o nivel e do ANO, nao do cargo');
 ok(cabe[5] === true, 'e para deputado tambem');
-ok(cabe[6] === false, 'nivel ap nao vale em eleicao municipal');
+ok(cabe[6] === false,
+  'municipal em ano SEM indice municipal nao tem nivel ap (2024 tem, e testado acima)');
 
 // Num ano SEM indice o botao nao responde, alem de estar escondido: um clique
 // perdido nao pode deixar STATE.detalhe pedindo areas que nao existem ali.
 const foraDeEscopo = vm.runInContext(`(() => {
-  STATE.currentElectionYear = '2006'; STATE.detalhe = 'locais';
+  STATE.currentElectionYear = '2002'; STATE.detalhe = 'locais';
   if (apLevelApplies()) STATE.detalhe = 'areas';   // o que o handler faz
   const semIndice = STATE.detalhe;
   STATE.currentElectionYear = '2018'; STATE.detalhe = 'locais';
@@ -931,7 +1272,7 @@ const foraDeEscopo = vm.runInContext(`(() => {
   STATE.currentElectionYear = '2022'; STATE.detalhe = 'locais';
   return { semIndice, comIndice };
 })()`, ctx, { filename: 'fora.js' });
-ok(foraDeEscopo.semIndice === 'locais', 'em 2006 o botao de areas nao muda o detalhe');
+ok(foraDeEscopo.semIndice === 'locais', 'em 2002 o botao de areas nao muda o detalhe');
 ok(foraDeEscopo.comIndice === 'areas', 'e em 2018 muda');
 
 console.log(falhas ? `\n${falhas} FALHA(S)` : '\nTudo ok.');

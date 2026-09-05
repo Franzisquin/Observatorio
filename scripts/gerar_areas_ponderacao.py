@@ -26,7 +26,8 @@ abre fenda entre vizinhas. Tolerancia 0,001 grau (~110 m), dez vezes menor que
 a das regioes: area de ponderacao urbana tem poucos quarteiroes de lado e e
 vista no enquadramento da cidade, nao no da UF.
 
-Escopo: eleicoes gerais de 2022, 2018, 2014 e 2010, todos os cargos. O indice local -> area
+Escopo: gerais de 2022, 2018, 2014, 2010 e 2006 e as municipais de 2024, 2020, 2016,
+2012 e 2008, todos os cargos. O indice local -> area
 nao depende de cargo — e geografia de local de votacao —, entao serve a
 presidente, governador, senador e aos dois deputados de uma vez. Depende do ANO,
 porque a rede de locais muda entre eleicoes: sai um indice por ano.
@@ -74,7 +75,20 @@ ANOS = [
             ('locais_votacao_2014_am_suplementar_gkpg.zip',
              'locais_votacao_2014_am_suplementar')]),
     (2010, [('locais_votacao_2010_gkpg.zip', 'locais_votacao_2010_ENRIQUECIDO')]),
+    # 2006 e 2008 sao os dois '_padronizado': o acervo daqueles anos nao passou
+    # pelo enriquecimento que os demais receberam.
+    (2006, [('locais_votacao_2006_gkpg.zip', 'locais_votacao_2006_padronizado')]),
+    (2024, [('locais_votacao_2024_gkpg.zip', 'locais_votacao_2024_atualizado_2')]),
+    (2020, [('locais_votacao_2020_gkpg.zip', 'locais_votacao_2020_ENRIQUECIDO')]),
+    (2016, [('locais_votacao_2016_gkpg.zip', 'locais_votacao_2016_ENRIQUECIDO')]),
+    (2012, [('locais_votacao_2012_gkpg.zip', 'locais_votacao_2012_ENRIQUECIDO')]),
+    (2008, [('locais_votacao_2008_gkpg.zip', 'locais_votacao_2008_padronizado')]),
 ]
+
+# Anos de eleicao MUNICIPAL. O indice e o mesmo — a chave do local nao muda —,
+# mas o acervo esta em outro lugar: nao ha presidencial em 2024, e o arquivo de
+# prefeito vem por UF com um JSON por municipio dentro.
+ANOS_MUNICIPAIS = {2024, 2020, 2016, 2012, 2008}
 
 CRS = 'EPSG:4326'          # a malha de AP ja vem em WGS84, e o gpkg guarda long/lat
 CRS_METRICO = 'EPSG:5880'  # SIRGAS 2000 policonica do Brasil, para medir distancia
@@ -178,6 +192,13 @@ def atribuir_areas(areas, locais):
     ruins = orfao | fora
 
     cd = j['cd'].copy()
+    # Zera ANTES de tentar recolocar. Quem nao for recolocado tem de ficar SEM
+    # area, nao com a area errada: municipio criado depois do Censo 2022 nao tem
+    # area nenhuma na malha — Boa Esperanca do Norte/MT, desmembrada de Nova
+    # Ubirata, e o caso em 2024. Herdar a area da mae (o que o projeto faz com
+    # REGIAO, em gerar_malhas_apuracao.py) nao serve aqui: area e subdivisao de
+    # UM municipio, e emprestar quebraria a soma da area mae.
+    cd[ruins.values] = None
     if ruins.any():
         # Reatribuicao: area mais proxima DENTRO do municipio do local. Um
         # sjoin_nearest global pegaria de novo a area vizinha, que e o defeito.
@@ -225,7 +246,26 @@ def escrever_json(caminho, obj):
 
 def votos_por_local(ano, uf, turno):
     """{chave_do_local: total_de_votos} do arquivo oficial, brancos e nulos
-    incluidos — e a mesma soma que a conferencia por area vai reproduzir."""
+    incluidos — e a mesma soma que a conferencia por area vai reproduzir.
+
+    Nas gerais e a presidencial, que cobre todos os locais da UF. Nas municipais
+    e o prefeito, e ai o zip da UF traz um JSON por municipio: sao todos que
+    juntos cobrem a UF."""
+    if ano in ANOS_MUNICIPAIS:
+        caminho = os.path.join(OUT_DIR, 'Municipais %d' % ano,
+                               'prefeito_%d_ord_t%d_%s.zip' % (ano, turno, uf))
+        if not os.path.exists(caminho):
+            return None
+        total = {}
+        with zipfile.ZipFile(caminho) as z:
+            for nome in z.namelist():
+                if not nome.endswith('.json') or nome.endswith('_resumo.json'):
+                    continue
+                dados = json.loads(z.read(nome).decode('utf-8'))
+                for chave, votos in dados.get('RESULTS', {}).items():
+                    total[chave] = sum(votos.values())
+        return total or None
+
     base = 'presidente_%d_t%d_%s' % (ano, turno, uf)
     caminho = os.path.join(OUT_DIR, 'Majoritarias %d' % ano, base + '.zip')
     if not os.path.exists(caminho):

@@ -861,6 +861,22 @@ function updateClearSelectionButtonVisibility() {
 function getScopeBackTarget() {
   if (typeof STATE === 'undefined') return null;
 
+  // Dentro de uma AREA DE PONDERACAO o degrau de cima e o MUNICIPIO, nao o
+  // estado — a area e sub-municipal. Vale nas duas eleicoes, e vem antes de
+  // tudo porque nos dois ramos abaixo ela cairia direto na UF.
+  if (typeof activeRegionFilter === 'function' && activeRegionFilter().level === 'ap') {
+    const anterior = STATE.apEscopoAnterior;
+    const guardado = anterior && typeof regionScopeContext === 'function'
+      && anterior.contexto === regionScopeContext() && anterior.label;
+    // Sem o degrau guardado ainda da para nomear o escopo atual: na municipal o
+    // municipio continua no seletor, e na geral sobra a UF — honesto, porque
+    // dali nao ha como saber de onde o usuario entrou.
+    const label = guardado
+      || (typeof rotuloDoEscopoAtual === 'function' ? rotuloDoEscopoAtual() : '')
+      || 'Município';
+    return { kind: 'ap-escopo', label };
+  }
+
   if (STATE.currentElectionType === 'municipal') {
     if (!dom?.selectMunicipio?.value) return null;
     const uf = String(dom.selectUFMunicipal?.value || '').toUpperCase();

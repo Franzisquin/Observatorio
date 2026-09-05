@@ -868,7 +868,13 @@ const REGION_LEVEL_LABEL = {
 // Em 2018 a malha e um recorte retrospectivo — as areas nao existiam la —, do
 // mesmo jeito que o site ja usa as regioes do IBGE de hoje sobre os municipios
 // de 1989/1994.
-const AP_ANOS = new Set(['2022', '2018', '2014', '2010']);
+const AP_ANOS_GERAL = new Set(['2022', '2018', '2014', '2010', '2006']);
+// Municipal e outra maquina: o escopo e UM municipio, escolhido em
+// dom.selectMunicipio, e nao ha UF inteira para percorrer. O indice, porem, e o
+// mesmo — a chave do local (zona_municipioTSE_local) nao muda de uma eleicao
+// para a outra.
+const AP_ANOS_MUNICIPAL = new Set(['2024', '2020', '2016', '2012', '2008']);
+const AP_ANOS = new Set([...AP_ANOS_GERAL, ...AP_ANOS_MUNICIPAL]);
 
 // Indice local de votacao -> area, POR ANO: ano -> Map(chave -> codigo da area).
 // A chave e a mesma do RESULTS e do props.id_unico que a feature do local
@@ -1004,8 +1010,99 @@ function getRegionalEntryLabel(level, code, uf = getCurrentGeneralRegionalUF()) 
   return REGION_INDEX.niveis?.[level]?.[String(uf || '').toUpperCase()]?.[String(code)] || '';
 }
 
+// A eleicao a que um recorte pertence: tipo + ano + UF. Um codigo de regiao ou
+// de area so quer dizer alguma coisa dentro dela.
+function regionScopeContext() {
+  const uf = STATE.currentElectionType === 'municipal'
+    ? (dom.selectUFMunicipal?.value || '') : (dom.selectUFGeneral?.value || '');
+  return `${STATE.currentElectionType}|${STATE.currentElectionYear}|${String(uf).toUpperCase()}`;
+}
+
+// O recorte em vigor, ou vazio se ele pertence a OUTRA eleicao.
+//
+// currentRegionFilter sobrevive a troca de eleicao, e um codigo pendurado passa
+// a filtrar dados a que nao pertence. Com area de ponderacao isso derrubava
+// TODOS os locais da eleicao nova: mapa vazio, painel vazio, console limpo —
+// nada indicava o motivo. Amarrar o recorte ao contexto em que foi feito resolve
+// de uma vez, em vez de depender de zerar a variavel em cada porta de entrada
+// (que e o que falhava: sempre sobra uma porta).
+function activeRegionFilter() {
+  const f = currentRegionFilter;
+  if (!f || !f.code) return { level: '', code: '' };
+  if (f.contexto && f.contexto !== regionScopeContext()) return { level: '', code: '' };
+  return f;
+}
+
+// Larga o recorte regional explicitamente (troca de tipo de eleicao ou de ano).
+function resetRegionScope() {
+  currentRegionFilter = { level: '', code: '' };
+  if (STATE) {
+    // O degrau guardado para o botao de voltar e daquela eleicao; mantido, ele
+    // devolveria o usuario a um municipio que nem esta mais no seletor.
+    STATE.apEscopoAnterior = null;
+    STATE.currentRegionLevel = 'rgint';
+    // O detalhe escolhido tambem pertence a eleicao anterior: entrar numa nova
+    // pedindo "areas" de um ano que talvez nem tenha indice so confunde.
+    STATE.detalhe = 'locais';
+  }
+}
+
+// Como se chama o escopo em vigor agora — o degrau acima da area.
+function rotuloDoEscopoAtual() {
+  if (STATE.currentElectionType === 'municipal') {
+    const nome = dom.selectMunicipio?.value || '';
+    if (nome) return toTitleCase(nome);
+  } else if (currentCidadeFilter && currentCidadeFilter !== 'all') {
+    return toTitleCase(currentCidadeFilter);
+  } else if (activeRegionFilter().code && typeof getRegionalFilterSummaryLabel === 'function') {
+    return getRegionalFilterSummaryLabel() || '';
+  }
+  const uf = String((STATE.currentElectionType === 'municipal'
+    ? dom.selectUFMunicipal?.value : dom.selectUFGeneral?.value) || '').toUpperCase();
+  return UF_MAP.get(uf) || uf || 'Estado';
+}
+
+// Sair da area selecionada e voltar ao degrau de onde se entrou. Devolve true
+// se havia mesmo uma area em vigor.
+//
+// Chamado de dois lugares: o botao de voltar, e o proprio applyFiltersAndRedraw
+// quando o mapa pedido e o de AREAS. Estar DENTRO de uma area e o nivel de
+// BAIXO — pedir o mapa de areas com esse recorte de pe deixava so a area
+// clicada pintada (buildGeneralApSummary so soma local que passa no filtro) e
+// todas as outras do municipio sem resultado, desenhadas apagadas.
+function sairDaAreaSelecionada() {
+  if (activeRegionFilter().level !== 'ap') return false;
+  const anterior = STATE.apEscopoAnterior;
+  const volta = (anterior && anterior.contexto === regionScopeContext()) ? anterior : null;
+  STATE.apEscopoAnterior = null;
+
+  currentRegionFilter = volta?.regiao?.code
+    ? { ...volta.regiao, contexto: regionScopeContext() }
+    : { level: '', code: '' };
+  currentCidadeFilter = volta?.cidade || 'all';
+  currentBairroFilter = 'all';
+  currentLocalFilter = '';
+  selectedLocationIDs.clear();
+  if (dom.searchLocal) dom.searchLocal.value = '';
+  if (dom.inputBairro) dom.inputBairro.value = 'all';
+  if (typeof cidadeCombobox !== 'undefined' && cidadeCombobox) {
+    cidadeCombobox.setValue(currentCidadeFilter === 'all'
+      ? 'Todos os municipios' : currentCidadeFilter);
+  }
+  if (typeof bairroCombobox !== 'undefined' && bairroCombobox) bairroCombobox.setValue('');
+  // Um municipio aberto (ou a cidade escolhida na municipal) mostra o que ha
+  // DENTRO dele; uma regiao continua no coropletico municipal, que e o fundo
+  // por cima do qual as areas sao desenhadas.
+  const dentroDeUmMunicipio = STATE.currentElectionType === 'municipal'
+    || currentCidadeFilter !== 'all';
+  STATE.currentMapMode = dentroDeUmMunicipio ? 'locais' : 'municipios';
+  STATE.detalhe = apLevelApplies() ? 'areas' : 'locais';
+  return true;
+}
+if (typeof window !== 'undefined') window.sairDaAreaSelecionada = sairDaAreaSelecionada;
+
 function hasRegionalScopeFilters() {
-  return !!currentRegionFilter.code;
+  return !!activeRegionFilter().code;
 }
 
 // Modos em que o mapa desenha POLIGONOS (municipios ou regioes). Os dois aceitam
@@ -1031,12 +1128,24 @@ function resolveMapModeAfterLoad(uf, cidadeFilter, fallback) {
 // todo cinza; em outro cargo o dado nem foi conferido. Um predicado so, porque os
 // dois lados tem de concordar: se o botao some, o mapa nao pode continuar no nivel.
 function apLevelApplies() {
-  // Vale para TODO cargo do ano — presidente, governador, senador e os dois
-  // deputados. O que amarra o nivel nao e o cargo, e a geografia: cada ano
-  // precisa do seu indice local -> area, gerado sobre a rede de locais daquele
-  // ano (ver AP_ANOS e scripts/gerar_areas_ponderacao.py).
-  return STATE.currentElectionType === 'geral'
-    && AP_ANOS.has(String(STATE.currentElectionYear));
+  // Vale para TODO cargo do ano — o que amarra o nivel nao e o cargo, e a
+  // geografia: cada ano precisa do seu indice local -> area, gerado sobre a rede
+  // de locais daquele ano (ver scripts/gerar_areas_ponderacao.py).
+  const ano = String(STATE.currentElectionYear);
+  if (STATE.currentElectionType === 'municipal') {
+    // Na municipal o mapa so existe depois de escolher o municipio; antes disso
+    // quem manda e showMunicipalStatewideOverview, que e o resumo do estado.
+    return AP_ANOS_MUNICIPAL.has(ano) && !!dom.selectMunicipio?.value;
+  }
+  return AP_ANOS_GERAL.has(ano);
+}
+
+// A UF do escopo atual. Na municipal o seletor e outro — usar o geral daria
+// vazio e o indice nunca carregaria.
+function apCurrentUF() {
+  const seletor = STATE.currentElectionType === 'municipal'
+    ? dom.selectUFMunicipal : dom.selectUFGeneral;
+  return String(STATE.currentMapMuniUF || seletor?.value || '').toUpperCase();
 }
 
 // Casa SEMPRE por codigo IBGE. O casamento por nome saiu de proposito: a fonte
@@ -1044,13 +1153,23 @@ function apLevelApplies() {
 // homonimos de outra UF, e era exatamente isso que fazia municipios como
 // Castro/PR e Palmeira/PR caírem fora da propria regiao.
 function matchesRegionalScope(props) {
-  if (STATE.currentElectionType !== 'geral') return true;
-  const { level, code } = currentRegionFilter;
-  if (!code) return true;
+  const { level, code } = activeRegionFilter();
   // Area de ponderacao e o unico nivel SUB-municipal: quem decide e o local de
   // votacao, nao o municipio. Poligono municipal nao tem id_unico e cai fora,
-  // que e o certo — dentro de uma area so ha locais.
-  if (level === 'ap') return getApCodeForFeature(props) === code;
+  // que e o certo — dentro de uma area so ha locais. Vem ANTES do corte por
+  // tipo de eleicao porque, ao contrario dos niveis do IBGE, este tambem vale
+  // na municipal: la o recorte por area e dentro do proprio municipio.
+  //
+  // apLevelApplies() e obrigatorio aqui. currentRegionFilter SOBREVIVE a troca
+  // de eleicao: entrar numa area em 2022 e depois abrir a municipal deixava o
+  // codigo antigo filtrando os locais de 2024 — nenhum casava, o mapa vinha
+  // vazio e nao havia erro nenhum no console.
+  if (level === 'ap') {
+    if (!code || !apLevelApplies()) return true;
+    return getApCodeForFeature(props) === code;
+  }
+  if (STATE.currentElectionType !== 'geral') return true;
+  if (!code) return true;
   const muni = getFeatureMunicipioIdentity(props).code;
   return !!muni && REGION_INDEX.muni?.[muni]?.[level] === code;
 }
@@ -1173,9 +1292,15 @@ function getEscolaridadeGroupedValue(mode, acc = {}) {
 }
 
 function getRegionalFilterSummaryLabel() {
-  const { level, code } = currentRegionFilter;
+  const { level, code } = activeRegionFilter();
   if (!code) return '';
-  const nome = getRegionalEntryLabel(level, code);
+  // A UF padrao de getRegionalEntryLabel e a da eleicao GERAL: numa municipal
+  // ela vem vazia e o nome da area se perde — o painel mostrava so "Área de
+  // Ponderação" sem dizer qual. Area e o unico nivel que existe nos dois tipos
+  // de eleicao, entao e o unico que precisa perguntar a UF do escopo atual.
+  const nome = (level === 'ap')
+    ? getRegionalEntryLabel(level, code, apCurrentUF())
+    : getRegionalEntryLabel(level, code);
   return nome ? `${REGION_LEVEL_LABEL[level] || 'Região'} ${nome}` : '';
 }
 

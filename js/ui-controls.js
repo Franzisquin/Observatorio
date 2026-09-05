@@ -173,10 +173,38 @@ function setupControls() {
 
       if (type === 'municipal') {
         const uf = dom.selectUFMunicipal?.value;
+        // ANTES de desenhar: o mapa que vai aparecer e clicavel, e o clique
+        // procura a <option> do municipio neste seletor.
+        popularMunicipiosDaUF(uf);
+        LAST_MUNICIPAL_GPKG_KEY = null;
         if (uf && !dom.selectMunicipio?.value && typeof window.showMunicipalStatewideOverview === 'function') {
           window.showMunicipalStatewideOverview(uf, STATE.currentElectionYear, currentSubType || 'ord');
         }
+        return;
       }
+
+      // VOLTAR PARA A GERAL.
+      //
+      // O botao "Carregar" e display:none — quem carrega e o disparo automatico,
+      // e TODO seletor que muda o contexto (UF, ano, municipio) o agenda. Este
+      // handler era o unico que nao agendava: o ramo municipal disfarcava
+      // chamando showMunicipalStatewideOverview direto, e o geral nao chamava
+      // nada. O mapa municipal anterior ficava na tela, nenhum dado novo era
+      // lido, e so o F5 resolvia — porque no boot o site carrega sozinho.
+      //
+      // A camada municipal sai ANTES da carga: se ela falhar, o usuario fica com
+      // o mapa vazio do estado que escolheu, nao com o mapa de outro estado
+      // pintado por baixo de um cabecalho que diz outra coisa.
+      if (STATE.municipiosLayer && map?.hasLayer?.(STATE.municipiosLayer)) {
+        map.removeLayer(STATE.municipiosLayer);
+      }
+      STATE.municipiosLayer = null;
+      STATE.currentMapMuniUF = null;
+      STATE.currentMapMuniSummary = null;
+      STATE.currentMapMuniSummaryByTurn = null;
+      STATE.apDetailActive = false;
+      STATE.apScopeMunis = null;
+      if (canInstantLoadCurrentContext()) scheduleInstantLoad();
     });
   }
 
@@ -418,6 +446,41 @@ function setupControls() {
     }
   });
 
+  // Enche o seletor de municipios com os da UF. Vive fora do handler de troca
+  // de UF porque ha um segundo caminho que precisa dele: ao trocar de eleicao
+  // GERAL para MUNICIPAL, o seletor de UF ja vem com um estado escolhido (o
+  // primeiro da lista, o Acre) e o resumo estadual e desenhado, mas o handler de
+  // 'change' da UF NAO dispara — o seletor de municipios ficava vazio.
+  //
+  // Com ele vazio, clicar num municipio do mapa nao acha a <option>
+  // correspondente; atribuir um value inexistente a um <select> deixa o value em
+  // '', o 'change' dispara vazio e o site entende "voltar ao resumo estadual".
+  // Era o mapa "piscar e nao fazer nada" — sempre no primeiro estado depois da
+  // troca, que por ordem alfabetica e o Acre.
+  function popularMunicipiosDaUF(uf) {
+    if (!dom.selectMunicipio) return;
+    const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
+
+    dom.selectMunicipio.innerHTML = '<option value="" selected>Resumo estadual</option>';
+    municipios.slice().sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
+      const opt = document.createElement('option');
+      opt.value = nome;
+      opt.textContent = toTitleCase(nome);
+      dom.selectMunicipio.appendChild(opt);
+    });
+
+    const hasMunis = municipios.length > 0;
+    dom.selectMunicipio.disabled = !hasMunis;
+    if (dom.searchMunicipio) {
+      dom.searchMunicipio.disabled = !hasMunis;
+      dom.searchMunicipio.value = '';
+    }
+    if (!hasMunis && uf) {
+      dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
+    }
+  }
+  window.popularMunicipiosDaUF = popularMunicipiosDaUF;
+
   // SELEÇÃO MUNICIPAL
   dom.selectUFMunicipal.addEventListener('change', () => {
     window.resetAllCensusFilters?.();
@@ -434,24 +497,7 @@ function setupControls() {
     if (dom.searchLocal) dom.searchLocal.value = '';
     clearSelection(false);
     const uf = dom.selectUFMunicipal.value;
-    const municipios = MUNICIPAL_DATA_INDEX[uf] || [];
-
-    dom.selectMunicipio.innerHTML = '<option value="" selected>Resumo estadual</option>';
-    municipios.sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(nome => {
-      const opt = document.createElement('option');
-      opt.value = nome;
-      opt.textContent = toTitleCase(nome);
-      dom.selectMunicipio.appendChild(opt);
-    });
-
-    const hasMunis = municipios.length > 0;
-    dom.selectMunicipio.disabled = !hasMunis;
-    dom.searchMunicipio.disabled = !hasMunis;
-    dom.searchMunicipio.value = '';
-
-    if (!hasMunis && uf) {
-      dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
-    }
+    popularMunicipiosDaUF(uf);
     // Troca de UF: o proximo load municipal deve fazer full clear.
     LAST_MUNICIPAL_GPKG_KEY = null;
     updateLoadButtonState();
@@ -577,7 +623,31 @@ function setupControls() {
   // Entrar/sair de uma regiao: usado pelo select, pelo clique no mapa de regioes
   // e pelo botao de voltar. Deixa o mapa no coropletico municipal recortado.
   window.applyRegionSelection = function (regiao) {
-    currentRegionFilter = { level: regiao.level || '', code: regiao.code || '' };
+    // Entrar numa AREA e descer um degrau: o de cima — o municipio (ou a regiao)
+    // de onde se veio — tem de continuar existindo para o botao de voltar. Como
+    // esta funcao zera currentCidadeFilter logo abaixo, o escopo anterior so
+    // sobrevive se for guardado AQUI, antes.
+    if (regiao.level === 'ap' && regiao.code) {
+      if (activeRegionFilter().level !== 'ap') {
+        STATE.apEscopoAnterior = {
+          cidade: currentCidadeFilter,
+          regiao: { ...currentRegionFilter },
+          contexto: regionScopeContext(),
+          // O rotulo se calcula agora, com o escopo ainda de pe: depois de
+          // trocado nao ha de onde tira-lo sem refazer a busca por nome.
+          label: rotuloDoEscopoAtual()
+        };
+      }
+    } else {
+      STATE.apEscopoAnterior = null;
+    }
+    // O contexto vai junto: assim o recorte morre sozinho se a eleicao mudar,
+    // sem depender de alguem lembrar de zera-lo (ver activeRegionFilter).
+    currentRegionFilter = {
+      level: regiao.level || '',
+      code: regiao.code || '',
+      contexto: regionScopeContext()
+    };
     currentCidadeFilter = 'all';
     currentBairroFilter = 'all';
     currentLocalFilter = '';
@@ -991,6 +1061,19 @@ function setupControls() {
       const target = window.getScopeBackTarget?.();
       if (!target) return;
 
+      if (target.kind === 'ap-escopo') {
+        sairDaAreaSelecionada();
+        populateRegionalDropdowns();
+        populateCidadeDropdown();
+        populateBairroDropdown();
+        clearSelection(false);
+        applyFiltersAndRedraw();
+        if (typeof window.syncExtrusionButtonVisibility === 'function') {
+          window.syncExtrusionButtonVisibility();
+        }
+        return;
+      }
+
       if (target.kind === 'geral-br') {
         // Trocar o seletor basta: o listener de UF ja limpa filtros e o
         // carregamento instantaneo cai em showNationalOverview.
@@ -1034,6 +1117,13 @@ function setupControls() {
           b.classList.toggle('active', b.dataset.value === 'prefeito');
         });
         dom.selectMunicipio.value = '';
+        // Sem isto o codigo da area sobrevivia a saida do municipio e voltava a
+        // filtrar quando a cidade fosse reaberta — mapa com uma area so.
+        currentRegionFilter = { level: '', code: '' };
+        currentCidadeFilter = 'all';
+        currentBairroFilter = 'all';
+        currentLocalFilter = '';
+        STATE.apEscopoAnterior = null;
         if (dom.inputBairro) {
           dom.inputBairro.disabled = true;
           dom.inputBairro.value = 'all';

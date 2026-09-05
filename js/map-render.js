@@ -2448,9 +2448,14 @@ function buildGeneralApSummary(uf, cargoKey = currentCargo) {
     }
 
     if (isProporcional) {
+      // Duas chaveagens convivem: deputado guarda o voto por
+      // zona_municipioTSE_local (o acervo e por UF, precisa do municipio), e
+      // vereador por zona_local (o acervo ja e de um municipio so). Os formatos
+      // tem numero de partes diferente, entao nao ha risco de um achar o outro.
       const locId = resolveFeatureSelectionId(props);
       const chave = lookup ? (lookup.get(locId) || locId) : locId;
-      const votos = resultStore?.[chave]?.[typeKey];
+      const votos = resultStore?.[chave]?.[typeKey]
+        || resultStore?.[String(props.local_id || '')]?.[typeKey];
       if (!votos) return;
 
       Object.entries(votos).forEach(([candId, count]) => {
@@ -2484,6 +2489,53 @@ function buildGeneralApSummary(uf, cargoKey = currentCargo) {
     turnoLabel, false);
 }
 
+// Qual guarda esvaziou o mapa. Reaplica os filtros um a um e devolve o primeiro
+// que sozinho ja derruba tudo — que e a resposta pratica a "por que sumiu?".
+function diagnosticarFiltroVazio(geojson) {
+  const feats = geojson.features || [];
+  const { level, code } = (typeof activeRegionFilter === 'function')
+    ? activeRegionFilter() : currentRegionFilter;
+
+  if (code && !feats.some((f) => matchesRegionalScope(f.properties))) {
+    return `recorte ${level}=${code} nao casa com nenhum local desta eleicao`;
+  }
+  // O filtro de cidade so vale na eleicao GERAL: na municipal o escopo ja e um
+  // municipio, escolhido no dropdown, e matchesLocationFilters ignora este
+  // campo. Acusa-lo ali seria mandar procurar no lugar errado.
+  if (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all'
+    && !feats.some((f) => matchesLocationFilters(f.properties, { ignoreBairro: true, ignoreLocal: true }))) {
+    return `cidade "${currentCidadeFilter}" nao casa com nenhum local`;
+  }
+  if (currentBairroFilter !== 'all') return `bairro "${currentBairroFilter}"`;
+  if (String(currentLocalFilter || '').trim().length > 2) return `busca "${currentLocalFilter}"`;
+  if (typeof hasActiveCensusFilter === 'function' && hasActiveCensusFilter()) {
+    return 'filtro demografico';
+  }
+  return `${feats.length} locais no acervo, nenhum aprovado por filterFeature`;
+}
+
+// Por que o mapa de areas saiu sem cor. Mesma ideia de diagnosticarFiltroVazio:
+// nomear a guarda que esvaziou, em vez de deixar a tela preta se explicar
+// sozinha.
+function diagnosticarAreasSemCor(apSummary) {
+  const uf = apCurrentUF();
+  if (!Object.keys(REGION_INDEX.niveis?.ap?.[uf] || {}).length) {
+    return `os nomes das areas de ${uf} nao estao em REGION_INDEX.niveis.ap`;
+  }
+  if (!Object.keys(apSummary).length) {
+    const acervo = currentDataCollection[currentCargo]?.features || [];
+    if (!acervo.length) return `currentDataCollection[${currentCargo}] esta vazio`;
+    if (!acervo.some((f) => filterFeature(f))) {
+      return `nenhum local passou por filterFeature: ${diagnosticarFiltroVazio({ features: acervo })}`;
+    }
+    if (!acervo.some((f) => getApCodeForFeature(f.properties))) {
+      return `nenhum local casa com o indice de ${STATE.currentElectionYear}/${uf}`;
+    }
+    return 'buildGeneralApSummary devolveu vazio';
+  }
+  return 'o summary tem entradas, mas nenhuma casa com o CD_REG das feicoes desenhadas';
+}
+
 // As areas a desenhar, ou null para desenhar os pontos.
 //
 // Vale em qualquer escopo: no estado inteiro desenha a UF toda em areas, como
@@ -2495,14 +2547,22 @@ function resolveApDetailFeatures(visibleFeatures) {
   STATE.apDetailActive = false;
   if (STATE.detalhe !== 'areas' || !apLevelApplies()) return null;
 
-  const uf = String(dom.selectUFGeneral?.value || '').toUpperCase();
+  const uf = apCurrentUF();
   if (!uf || isAggregateScope(uf)) return null;
 
   // Gate no INDICE do ano, nao na malha: a malha e compartilhada entre os anos,
   // entao te-la carregada nao quer dizer ter o indice daquela eleicao.
   const mesh = apIndexPronto(uf) ? getApMeshFeatures(uf) : null;
   if (mesh === null) {
-    void ensureApIndexLoaded(uf).then(() => applyFiltersAndRedraw()).catch(() => {});
+    void ensureApIndexLoaded(uf)
+      .then(() => applyFiltersAndRedraw())
+      .catch((erro) => {
+        // Sem este aviso a falha e invisivel: o botao "Areas" simplesmente nao
+        // faz nada, porque o redesenho que desenharia as areas esta justamente
+        // dentro do .then() que nunca roda.
+        console.warn(`[Areas] indice de ${uf}/${STATE.currentElectionYear} nao carregou:`,
+          erro?.message || erro);
+      });
     return null;
   }
 
@@ -2758,6 +2818,17 @@ function applyFiltersAndRedraw() {
   STATE.apDetailActive = false;
   STATE.apScopeMunis = null;
 
+  // Pedir o mapa de AREAS estando DENTRO de uma delas nao existe: a area e o
+  // degrau de baixo. Com o recorte de pe, buildGeneralApSummary so soma os
+  // locais que passam por filterFeature — ou seja, so os da area clicada —, e o
+  // municipio aparecia com UMA area pintada e todas as outras apagadas.
+  // A guarda mora aqui porque este e o funil por onde todo desenho passa: o
+  // botao "Areas", o clique no municipio e o recarregamento da cidade chegam
+  // todos por este caminho.
+  if (STATE.detalhe === 'areas' && typeof sairDaAreaSelecionada === 'function') {
+    sairDaAreaSelecionada();
+  }
+
   // Limpeza PROFUNDA das camadas
   if (currentLayer) {
     try {
@@ -2830,6 +2901,14 @@ function applyFiltersAndRedraw() {
 
   const visibleFeatures = (geojson.features || []).filter(filterFeature);
 
+  // Mapa que fica VAZIO tendo dados e o defeito mais caro deste projeto: nada
+  // aparece, nada e registrado, e o sintoma ("clico e nada acontece") nao diz
+  // nada sobre a causa. Sao sempre as mesmas guardas — vale nomear qual delas
+  // zerou, uma vez, aqui.
+  if ((geojson.features || []).length && !visibleFeatures.length) {
+    console.warn('[Mapa] nenhum local passou pelos filtros:', diagnosticarFiltroVazio(geojson));
+  }
+
   // Resolvido antes de tudo: quem decide o FUNDO precisa saber o que vai por
   // cima. Areas cobrem o municipio inteiro; pontos, nao.
   const areasDetalhe = resolveApDetailFeatures(visibleFeatures);
@@ -2892,8 +2971,7 @@ function applyFiltersAndRedraw() {
     // Em variavel local, NUNCA em STATE.currentMapMuniSummary: aquele colore a
     // malha municipal que fica por baixo, e sobrescreve-lo apagaria a cor dos
     // municipios em volta.
-    const apSummary = buildGeneralApSummary(
-      String(dom.selectUFGeneral?.value || '').toUpperCase(), currentCargo);
+    const apSummary = buildGeneralApSummary(apCurrentUF(), currentCargo);
     // Area sem local de votacao dentro nao tem resultado: entrar nela daria um
     // recorte vazio. Fica desenhada e explicada no tooltip, mas nao clicavel.
     const temResultado = (feature) => !!apSummary[String(feature?.properties?.CD_REG || '')];
@@ -2914,6 +2992,15 @@ function applyFiltersAndRedraw() {
       }
     });
     currentLayer.setFeatures(areasDetalhe);
+
+    // Mapa desenhado e sem cor nenhuma e o defeito mais dificil de perceber do
+    // site: o painel enche de resultado, os contornos aparecem, e nada acusa que
+    // o preenchimento sumiu. Se NENHUMA area pegou cor, isto vira ruido no
+    // console em vez de um mapa preto silencioso.
+    if (areasDetalhe.length && !areasDetalhe.some(temResultado)) {
+      console.warn('[Areas] nenhuma das %d areas pegou resultado:',
+        areasDetalhe.length, diagnosticarAreasSemCor(apSummary));
+    }
   } else {
     currentLayer = new MLCompat.GeoLayer(map, {
       id: 'locais',
@@ -3833,7 +3920,13 @@ function getMunicipalPolygonStyle(feature, summary) {
   }
 
   // 2002/2006 locais mode:
-  if (STATE.currentMapMode === 'locais' && STATE.munisWithDots) {
+  //
+  // So para a MALHA MUNICIPAL. Em 2002/2006 o modo 'locais' apaga o estado
+  // inteiro quando nenhum municipio esta selecionado — e a camada de AREA (ou de
+  // regiao) desenhada por cima tambem entrava aqui e saia sem cor nenhuma, com o
+  // painel cheio de resultado e o mapa so com os contornos. O summary diz quem
+  // esta pedindo o estilo: o da area vem carimbado com _regionLevel.
+  if (STATE.currentMapMode === 'locais' && STATE.munisWithDots && !summary?._regionLevel) {
     // Se a visualização for do estado inteiro no modo locais (nenhum município selecionado),
     // toda a malha municipal do estado deve ficar transparente (fillOpacity: 0.02).
     if (!selectedMunicipality) {
@@ -4286,6 +4379,13 @@ async function refreshMunicipalStatewideOverviewForTurn(options = {}) {
 async function showMunicipalStatewideOverview(uf, year, subtype = 'ord') {
   if (STATE.swingEnabled) return;
   if (!map || !uf || STATE.currentElectionType !== 'municipal') return;
+
+  // Voltar ao estado sai das areas. Sem zerar a flag aqui, o municipio que
+  // estava aberto continuava marcado como "coberto por areas" e era desenhado
+  // apagado no mapa do estado — sumia, sozinho, no meio dos vizinhos coloridos.
+  // Os outros dois overviews (geral municipal e de regiao) ja faziam isto.
+  STATE.apDetailActive = false;
+  STATE.apScopeMunis = null;
 
   const viewGen = ++MUNICIPAL_VIEW_GENERATION;
 

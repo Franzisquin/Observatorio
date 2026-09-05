@@ -576,8 +576,14 @@ function updateElectionTypeUI() {
   // A barra de modos so some nas municipais. Em 1989/1994 some apenas o botao
   // "Locais de Votacao" (nao ha locais nesses anos), mas municipios e regioes
   // funcionam: todo municipio historico cai em exatamente uma regiao moderna.
+  // Na municipal a barra some — os recortes dela (Municipios, Intermediarias,
+  // Imediatas) sao todos ACIMA do municipio, e na municipal o escopo ja e um
+  // municipio so. A excecao e a area de ponderacao, que fica ABAIXO: quando ela
+  // vale, a barra volta com os dois detalhes que fazem sentido ali, Areas e
+  // Locais de Votacao (os demais botoes saem logo abaixo).
+  const apNaMunicipal = isMunicipal && apLevelApplies();
   if (dom.layerToggleGroup) {
-      dom.layerToggleGroup.style.display = isMunicipal ? 'none' : '';
+      dom.layerToggleGroup.style.display = (isMunicipal && !apNaMunicipal) ? 'none' : '';
   }
   // A segunda linha (Perspectiva/Altura) acompanha a primeira: nas municipais a
   // barra inteira some, como antes de ela ser dividida em duas.
@@ -592,23 +598,25 @@ function updateElectionTypeUI() {
   // regioes do IBGE), mas nao tem nivel abaixo dela: "Estados" tambem sai.
   const isDiaspora = typeof isDiasporaScope === 'function' && isDiasporaScope();
   if (dom.btnMapModeEstados) {
-      dom.btnMapModeEstados.style.display = (!isMunicipal && isNacional && !isDiaspora) ? '' : 'none';
+      dom.btnMapModeEstados.style.display =
+        (!isMunicipal && isNacional && !isDiaspora) ? '' : 'none';
   }
   if (dom.btnMapModeMunicipios) {
-      dom.btnMapModeMunicipios.style.display = isNacional ? 'none' : '';
+      dom.btnMapModeMunicipios.style.display = (isNacional || apNaMunicipal) ? 'none' : '';
   }
   dom.layerToggleGroup?.querySelectorAll('[data-region-level]').forEach((btn) => {
       if (btn.dataset.regionLevel === 'uf') return;
-      btn.style.display = isNacional ? 'none' : '';
+      btn.style.display = (isNacional || apNaMunicipal) ? 'none' : '';
   });
   if (dom.btnMapModeLocais) {
-      dom.btnMapModeLocais.style.display = (isMuniOnlyGeral || isNacional) ? 'none' : '';
+      dom.btnMapModeLocais.style.display =
+        (isMuniOnlyGeral || isNacional) && !apNaMunicipal ? 'none' : '';
   }
   // O nivel vale para todo cargo dos anos que tem indice local->area (AP_ANOS).
   // Depois do laco acima de proposito — restringe ainda mais, nao pode ser
   // sobrescrito por ele.
   if (dom.btnMapModeAp) {
-      const cabeAp = !isMunicipal && !isNacional && apLevelApplies();
+      const cabeAp = apNaMunicipal || (!isMunicipal && !isNacional && apLevelApplies());
       dom.btnMapModeAp.style.display = cabeAp ? '' : 'none';
   }
 
