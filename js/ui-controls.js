@@ -1074,6 +1074,11 @@ function setupControls() {
         return;
       }
 
+      if (target.kind === 'diaspora') {
+        window.clearDiasporaSelection?.();
+        return;
+      }
+
       if (target.kind === 'geral-br') {
         // Trocar o seletor basta: o listener de UF ja limpa filtros e o
         // carregamento instantaneo cai em showNationalOverview.
