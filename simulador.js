@@ -656,6 +656,12 @@ async function simCalcular() {
     SIM._seloCalculo = (SIM._seloCalculo || 0) + 1;   // invalida o cache de detalhe
     if (r.demoSupport) simAplicarSupport(r.demoSupport);
     await simCalcular2T();
+    /* Toda alteracao que exige recalculo e uma alteracao do cenario: metas do
+       "Ajustar escopo", edicoes demograficas, pesos regionais zerados. Gravar
+       aqui — e nao so no "Aplicar simulacao" do modal — e o que faz esses
+       ajustes sobreviverem ao recarregamento da pagina, como o resto do
+       cenario. */
+    salvarLocal();
     simRenderTudo();
   } catch (e) {
     console.error(e);
