@@ -27,8 +27,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from tse import (BASE, CARGOS, CARGOS_COM_BR, CARGOS_COM_ELEITOS,  # noqa: E402
                  CARGOS_COM_UF, CARGOS_PROPORCIONAIS, SIM_2026, TIPOS_ELEICAO,
-                 TIPOS_ORDINARIAS, Cliente, descobrir_ambiente, e6, eleicao_de,
-                 ciclo_de, inteiro, num, texto, tipo_eleicao)
+                 TIPOS_ORDINARIAS, Cliente, ciclo_de, descobrir_ambiente, e6,
+                 eleicao_de, inteiro, num, texto, tipo_eleicao, ufs_do_cargo)
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 DESTINO = RAIZ / "scratch" / "apuracao"
@@ -468,6 +468,7 @@ def camada_alta(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[
     # 50 mil candidatos a deputado passariam de 3 MB a cada 45 segundos. A
     # disputa proporcional se acompanha por partido e bancada.
     com_candidatos = cargo not in CARGOS_PROPORCIONAIS
+    ufs = ufs_do_cargo(cargo, ufs)
 
     br = (cli.json_de(url_resultado(cli, config, eleicao, cargo, "br"))
           if cargo in CARGOS_COM_BR else None)
@@ -532,7 +533,7 @@ def camada_municipal(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: 
     """Um arquivo por UF com todos os seus municipios. E a camada cara: 5.569
     arquivos lidos do TSE por cargo, entao roda em cadencia mais lenta."""
     escritos = 0
-    for uf in ufs:
+    for uf in ufs_do_cargo(cargo, ufs):
         pacote = coletar_municipios(cli, config, eleicao, cargo, uf, mapa.get(uf, []),
                                     paralelo=paralelo)
         if not pacote["abr"]:
@@ -644,7 +645,7 @@ def eleitos(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[str]
         return {}
     # Prefeito e cargo municipal: o EA10 dele e um arquivo por UF. Governador,
     # senador e deputado federal saem num unico arquivo de abrangencia BR.
-    alvos = ufs if cargo == "0011" else ["br"]
+    alvos = ufs_do_cargo(cargo, ufs) if cargo == "0011" else ["br"]
 
     def um(abrangencia: str):
         diretorio = cli.diretorio(config, "e", cd_eleicao=eleicao, uf=abrangencia)
@@ -805,8 +806,8 @@ def main() -> int:
     ap.add_argument("--check", action="store_true",
                     help="confere soma dos filhos contra o arquivo do pai e sai")
     ap.add_argument("--destino", type=Path, default=DESTINO)
-    ap.add_argument("--taxa", type=float, default=80.0,
-                    help="requisicoes por segundo (limite do TSE e 100 por IP)")
+    ap.add_argument("--taxa", type=float, default=60.0,
+                    help="requisicoes por segundo; o teto do TSE e 100 por IP")
     ap.add_argument("--paralelo", type=int, default=24,
                     help="requisicoes simultaneas; o teto real e --taxa")
     args = ap.parse_args()

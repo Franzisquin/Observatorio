@@ -39,8 +39,12 @@ const APU = (function () {
     eleicao: P.get('eleicao') || '',
     cargo: P.get('cargo') || '0001',
     uf: (P.get('uf') || '').toLowerCase(),
-    /* Cadência da recarga. O plantão publica a camada alta a cada ~45s. */
-    intervalo: Math.max(15, Number(P.get('intervalo') || 45)) * 1000
+    /* Cadência da recarga. Medido na janela de simulado de 15/09: a camada alta
+       do plantão custa 138 requisições e 3 segundos por volta, então ela roda a
+       cada 20s; a página acompanha no mesmo passo. O piso de 10s existe para que
+       um `?intervalo=` na URL não vire uma enxurrada contra o próprio servidor
+       que publica os snapshots. */
+    intervalo: Math.max(10, Number(P.get('intervalo') || 20)) * 1000
   };
 
   const CARGOS = {

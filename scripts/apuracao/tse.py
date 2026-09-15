@@ -28,6 +28,19 @@ import urllib.request
 
 BASE = "https://resultados.tse.jus.br"
 
+# O bloqueio do TSE dura 10 minutos e e RENOVADO a cada nova tentativa durante a
+# punicao. A pausa aqui e maior que isso de proposito, e vale para todas as
+# threads: recuar so naquela que levou o 403, enquanto as outras 47 seguem
+# pedindo, e exatamente a receita para renovar o bloqueio indefinidamente.
+PAUSA_BLOQUEIO = 660.0
+
+# Quanto tempo lembrar de uma URL que devolveu 404. Nao e "nunca mais": um
+# arquivo pode passar a existir — o de eleitos so aparece depois da totalizacao
+# final, e municipio sem boletim ainda pode nao ter arquivo. Mas re-pedir a cada
+# volta transforma um 404 estrutural em centenas, e 404 repetido bloqueia igual a
+# excesso de requisicoes.
+MEMORIA_404 = 600.0
+
 # O CDN do TSE rejeita o user-agent padrao do urllib em alguns pontos de presenca.
 CABECALHOS = {"User-Agent": "Mozilla/5.0 (compativel; observatorio-eleitoral/1.0)"}
 
@@ -59,6 +72,23 @@ CARGOS_PROPORCIONAIS = {"0006", "0007", "0008", "0013"}
 # Cargos com arquivo de eleitos (EA10, secao 2). Presidente nao tem: o eleito
 # presidencial sai do proprio EA20, pelo campo `e` do candidato.
 CARGOS_COM_ELEITOS = {"0003", "0005", "0006", "0011"}
+
+def ufs_do_cargo(cargo: str, ufs: list[str]) -> list[str]:
+    """Filtra as abrangencias em que aquele cargo realmente existe.
+
+    O Distrito Federal tem Camara Legislativa, nao Assembleia: elege deputado
+    distrital (0008) e nao elege deputado estadual (0007). Nas outras 26 unidades
+    e o contrario. O EA11 declara os cargos da eleicao inteira, nao por UF, entao
+    a regra nao sai do arquivo — mas o efeito de ignora-la sai: pedir
+    `df-c0007-...` devolve 404 a cada volta, e 404 repetido bloqueia o acesso por
+    dez minutos. Pedir 0008 nas 26 UFs dariam 26 por volta.
+    """
+    if cargo == "0008":
+        return [u for u in ufs if u == "df"]
+    if cargo == "0007":
+        return [u for u in ufs if u != "df"]
+    return ufs
+
 
 UFS = [
     "ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms", "mt",
@@ -179,7 +209,7 @@ class Cliente:
     derruba o trafego de gigabytes para dezenas de megabytes por passada.
     """
 
-    def __init__(self, ambiente: str = "oficial", por_segundo: float = 80.0,
+    def __init__(self, ambiente: str = "oficial", por_segundo: float = 60.0,
                  tentativas: int = 4, base: str = BASE):
         self.ambiente = ambiente
         self.base = base
@@ -187,7 +217,59 @@ class Cliente:
         self._limitador = Limitador(por_segundo)
         self._etags: dict[str, str] = {}
         self._corpos: dict[str, bytes] = {}
-        self.contador = {"get": 0, "304": 0, "404": 0, "bytes": 0}
+        # URLs que ja responderam 200 alguma vez. E o que separa um 403 de "esse
+        # arquivo nao existe neste host" de um 403 de "voce foi bloqueado":
+        # bloqueio atinge o que funcionava ate agora.
+        self._conhecidas: set[str] = set()
+        # URL -> instante do 404, para nao repetir o pedido dentro de MEMORIA_404
+        self._ausentes: dict[str, float] = {}
+        self._bloqueio_ate = 0.0
+        self._trava_estado = threading.Lock()
+        self.contador = {"get": 0, "304": 0, "404": 0, "bytes": 0,
+                         "bloqueios": 0, "evitados": 0}
+
+    # ---- defesas --------------------------------------------------------
+
+    def bloqueio_restante(self) -> float:
+        """Segundos que ainda faltam da pausa por bloqueio. 0 se esta liberado."""
+        with self._trava_estado:
+            return max(0.0, self._bloqueio_ate - time.monotonic())
+
+    def _esperar_bloqueio(self) -> None:
+        """Segura a thread enquanto durar a pausa. Todas param juntas."""
+        while True:
+            falta = self.bloqueio_restante()
+            if falta <= 0:
+                return
+            time.sleep(min(5.0, falta))
+
+    def _abrir_disjuntor(self, codigo: int, url: str) -> None:
+        """Pausa o cliente inteiro. Quem chegar depois ve a pausa ja aberta e
+        espera, em vez de abrir outra e empurrar o fim para mais longe."""
+        with self._trava_estado:
+            if self._bloqueio_ate - time.monotonic() > 0:
+                return
+            self._bloqueio_ate = time.monotonic() + PAUSA_BLOQUEIO
+            self.contador["bloqueios"] += 1
+            n = self.contador["bloqueios"]
+        quanto = (f"{PAUSA_BLOQUEIO / 60:.0f} min" if PAUSA_BLOQUEIO >= 60
+                  else f"{PAUSA_BLOQUEIO:.0f}s")
+        print(f"  !! HTTP {codigo} — provavel bloqueio do TSE (o {n}o). Parando TODAS "
+              f"as requisicoes por {quanto}; insistir renova a punicao."
+              f"\n     em {url}", flush=True)
+
+    @staticmethod
+    def _e_ausencia(corpo: bytes | None) -> bool:
+        """403 com a pagina de erro do Akamai e objeto inexistente, nao punicao.
+
+        O host do simulado responde assim para qualquer caminho que nao exista —
+        foi o que apareceu ao sondar `simulado/teste`. Tratar isso como bloqueio
+        pararia o plantao por 11 minutos por causa de um caminho errado.
+        """
+        if not corpo:
+            return False
+        marca = corpo[:2000].lower()
+        return b"edgesuite" in marca or b"access denied" in marca
 
     # ---- transporte ----------------------------------------------------
 
@@ -196,16 +278,27 @@ class Cliente:
 
         Em 304 devolve o corpo memorizado da ultima leitura da mesma URL.
         """
+        # Ja deu 404 ha pouco: nao pede de novo. 404 repetido bloqueia igual a
+        # excesso, e um 404 estrutural se repetiria a cada volta da noite inteira.
+        faltou = self._ausentes.get(url)
+        if faltou is not None:
+            if time.monotonic() - faltou < MEMORIA_404:
+                self.contador["evitados"] += 1
+                return None
+            del self._ausentes[url]
+
         req = urllib.request.Request(url, headers=dict(CABECALHOS))
         etag = self._etags.get(url) if cache else None
         if etag:
             req.add_header("If-None-Match", etag)
 
         for tentativa in range(1, self.tentativas + 1):
+            self._esperar_bloqueio()
             self._limitador.esperar()
             try:
                 with urllib.request.urlopen(req, timeout=60) as resp:
                     corpo = resp.read()
+                    self._conhecidas.add(url)
                     self.contador["get"] += 1
                     self.contador["bytes"] += len(corpo)
                     if cache:
@@ -220,19 +313,21 @@ class Cliente:
                     return self._corpos.get(url)
                 if err.code == 404:
                     self.contador["404"] += 1
+                    self._ausentes[url] = time.monotonic()
                     return None
-                # 403/429 = provavel bloqueio por excesso. Recuar de verdade,
-                # nao insistir: o bloqueio e de 10 minutos e renovavel.
+                # 403 e ambiguo neste CDN: tanto a punicao por excesso quanto a
+                # resposta para objeto inexistente saem assim. O que separa os
+                # dois e se a URL ja funcionou antes — punicao atinge o que
+                # funcionava; caminho errado nunca funcionou.
+                if err.code == 403 and url not in self._conhecidas \
+                        and self._e_ausencia(err.read()):
+                    self.contador["404"] += 1
+                    self._ausentes[url] = time.monotonic()
+                    return None
                 if err.code in (403, 429):
-                    # Na ultima tentativa nao ha o que esperar: recuar antes de
-                    # desistir so atrasa quem chamou. Acontece na sondagem de
-                    # ambiente, onde 403 e a resposta normal para caminho que nao
-                    # existe neste host.
+                    self._abrir_disjuntor(err.code, url)
                     if tentativa == self.tentativas:
                         return None
-                    espera = min(120, 15 * tentativa)
-                    print(f"  ! HTTP {err.code} em {url} — recuando {espera}s", flush=True)
-                    time.sleep(espera)
                     continue
                 if tentativa == self.tentativas:
                     raise

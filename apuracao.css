@@ -1466,3 +1466,14 @@ body:has(#mapaUF) .apu-aside .apu-results {
 @media (max-width: 720px) {
   .apu-saude .apu-stats { grid-template-columns: 1fr 1fr; }
 }
+
+/* Saúde do plantão em alarme. As três regras do TSE — teto de 100 requisições
+   por IP por segundo, bloqueio de 10 minutos renovável e 404 que pune igual a
+   excesso — só viram defesa se a tela gritar quando saem da faixa. */
+.apu-saude .is-alarme .apu-stat-v { color: #b42318; }
+.apu-saude .is-alarme .apu-stat-l { color: #b42318; }
+
+.apu-saude.is-alarme {
+  border-color: #fda29b;
+  background: #fef3f2;
+}

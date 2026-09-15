@@ -282,20 +282,38 @@ const APUUI = (function () {
     const req = estado.req || {};
     const br = estado.abrangencia || {};
     const minutos = Math.round((estado.segundos || 0) / 60);
-    const cel = (v, l) => `<div><div class="apu-stat-v">${v}</div>`
-      + `<div class="apu-stat-l">${l}</div></div>`;
+    const cel = (v, l, alarme) => `<div${alarme ? ' class="is-alarme"' : ''}>`
+      + `<div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;
+
+    /* As três regras do TSE, cada uma com o seu número na tela: teto de 100
+       requisições por IP por segundo, bloqueio de 10 minutos renovável, e 404
+       que pune igual a excesso. Número sem alarme não serve de nada numa noite
+       de seis horas, então cada um acende quando sai da faixa segura. */
+    const taxa = estado.taxa_medida != null
+      ? estado.taxa_medida
+      : (req.get || 0) / Math.max(1, estado.segundos || 1);
+    const bloqueios = req.bloqueios || 0;
+    const pausado = estado.bloqueado_por || 0;
+
+    el.classList.toggle('is-alarme', bloqueios > 0 || pausado > 0);
 
     el.innerHTML = '<div class="apu-stats">' + [
       cel(esc(estado.ambiente || '—'),
         'Ambiente' + (estado.fase === 's' ? '<br>fase simulada' : '')),
       cel(APU.fmt.int(estado.volta), `Voltas<br>${minutos} min de plantão`),
       cel(APU.fmt.int(req.get), `Requisições<br>${APU.fmt.int(req['304'])} não modificadas`),
-      cel(APU.fmt.int(req['404']), '404 recebidos<br>bloqueiam como excesso'),
+      cel(taxa.toFixed(1) + '/s', 'Taxa média<br>teto do TSE: 100/s', taxa > 80),
+      cel(APU.fmt.int(bloqueios),
+        pausado > 0
+          ? `<strong>Pausado por ${Math.ceil(pausado / 60)} min</strong><br>bloqueio do TSE`
+          : 'Bloqueios<br>' + (bloqueios ? 'já houve punição' : 'nenhuma punição'),
+        bloqueios > 0),
+      cel(APU.fmt.int(req['404']),
+        `404 recebidos<br>${APU.fmt.int(req.evitados)} repetições evitadas`,
+        (req['404'] || 0) > 0),
       cel(((req.bytes || 0) / 1e6).toFixed(1) + ' MB', 'Tráfego lido'),
       cel(br.pst != null ? APU.fmt.pct(br.pst) : '—',
-        br.ht ? `Totalizado às ${esc(br.ht)}` : 'Apurado no país'),
-      cel(APU.fmt.int(br.uff), `UFs finalizadas<br>${APU.fmt.int(br.ufpt)} parciais`),
-      cel(APU.fmt.int(br.muf), `Municípios finalizados<br>${APU.fmt.int(br.mupt)} parciais`)
+        br.ht ? `Totalizado às ${esc(br.ht)}` : 'Apurado no país')
     ].join('') + '</div>';
   }
 

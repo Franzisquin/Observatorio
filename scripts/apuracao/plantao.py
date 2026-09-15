@@ -98,7 +98,8 @@ def main() -> int:
     ap.add_argument("--minutos", type=float, default=300, help="duracao do plantao")
     ap.add_argument("--intervalo-alto", type=float, default=45)
     ap.add_argument("--intervalo-mun", type=float, default=240)
-    ap.add_argument("--taxa", type=float, default=80.0, help="requisicoes/s (limite do TSE: 100)")
+    ap.add_argument("--taxa", type=float, default=60.0,
+                    help="requisicoes/s; o teto do TSE e 100 por IP e a folga e de proposito")
     ap.add_argument("--paralelo", type=int, default=24,
                     help="requisicoes simultaneas; o teto real e --taxa")
     ap.add_argument("--saida", type=Path, default=RAIZ / "scratch" / "apuracao" / "plantao")
@@ -210,6 +211,8 @@ def main() -> int:
             "taxa": args.taxa,
             "municipal": municipal,
             "req": dict(cli.contador),
+            "taxa_medida": round(cli.contador["get"] / max(1.0, time.time() - partida), 1),
+            "bloqueado_por": round(cli.bloqueio_restante()),
             "abrangencia": (ab.get("br") or {}) if ab else {},
             "estado": estados,
             "finalizados": [f"{e}-{c}" for e, c in sorted(finalizados)],
