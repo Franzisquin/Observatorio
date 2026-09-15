@@ -25,6 +25,28 @@ const APUUI = (function () {
     return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
   }
 
+  /* Ícones em SVG, não em caractere. O ✓ (U+2713) cai na apresentação emoji em
+     boa parte dos sistemas e sai como um quadrado verde, fora do tom do resto da
+     tela; ▼, + e − sofrem do mesmo problema em menor grau, e nenhum deles
+     acompanha o peso da fonte ao redor. Mesmo traçado dos ícones que já estavam
+     no HTML: viewBox de 24, traço de 2, pontas arredondadas, cor herdada do
+     texto por currentColor. */
+  const TRACOS = {
+    tique: 'M20 6 9 17l-5-5',
+    mais: 'M12 5v14M5 12h14',
+    menos: 'M5 12h14',
+    baixo: 'M6 9l6 6 6-6'
+  };
+
+  function icone(nome, tamanho) {
+    const d = TRACOS[nome];
+    if (!d) return '';
+    const t = tamanho || 12;
+    return `<svg class="apu-icone" width="${t}" height="${t}" viewBox="0 0 24 24"`
+      + ' fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"'
+      + ` stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+  }
+
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g,
       (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -125,6 +147,20 @@ const APUUI = (function () {
     }
   }
 
+  /* Selo de eleito / segundo turno. `is-previsto` é a leitura deduzida de `md`
+     e `nv`; sem ele, dado oficial e dedução ficariam com a mesma cara. */
+  function selosDaMarca(c) {
+    if (!c.marca) return '';
+    const rotulo = APU.ROTULO_MARCA[c.marca] || '';
+    if (!rotulo) return '';
+    const titulo = c.oficial
+      ? 'Declarado pelo TSE no arquivo de resultado'
+      : 'Leitura das vagas do cargo e do campo "matematicamente definido" do TSE; '
+        + 'ainda não há declaração oficial';
+    return `<span class="apu-marca is-${c.marca}${c.oficial ? '' : ' is-previsto'}"`
+      + ` title="${esc(titulo)}">${c.oficial ? icone('tique', 11) : ''}${rotulo}</span>`;
+  }
+
   function rotuloSituacao(c) {
     const st = String(c.situacao || '');
     /* Registro pendente é o estado normal de quase toda a lista, e "Não eleito"
@@ -132,16 +168,39 @@ const APUUI = (function () {
        qualquer um dos dois em cada linha não informa nada. O que informa são as
        situações do art. 215 — eleito por quociente, eleito por média, suplente —
        e as que mudam quem está de fato na disputa. */
-    const muda = st && !/^(Deferido|Aguardando|N[ãa]o eleit)/i.test(st);
-    const chips = [];
+    const muda = st && !/^(Deferido|Aguardando|N[ãa]o eleit|Eleit|2. turno|Suplente)/i.test(st);
+    const chips = [selosDaMarca(c)];
     if (muda) chips.push(`<span class="apu-cand-sit">${esc(st)}</span>`);
     /* dvt: a destinação do voto. Anulado e sub judice mudam a leitura do número
        que está ao lado — é o que o art. 265 §2 manda informar. */
     if (/anulado/i.test(String(c.destino || ''))) {
       chips.push(`<span class="apu-cand-sit is-anulado">${esc(c.destino)}</span>`);
     }
-    if (!muda && c.eleito) chips.push('<span class="apu-cand-sit is-eleito">Eleito</span>');
-    return chips.join('');
+    return chips.filter(Boolean).join('');
+  }
+
+  /* Legenda dos selos. A diferença entre sólido e tracejado é a diferença entre
+     "o TSE declarou" e "nós deduzimos", e ela não pode morar só no `title`: em
+     tela de toque não existe passar o mouse. Aparece apenas quando há selo de
+     cada tipo na tela, para não ocupar espaço explicando o que não está ali. */
+  function legendaMarcas(lista, alvo) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    const oficial = lista.some((c) => c.marca && c.oficial);
+    const previsto = lista.some((c) => c.marca && !c.oficial);
+    el.hidden = !(oficial || previsto);
+    if (el.hidden) { el.innerHTML = ''; return; }
+
+    const item = (classe, texto, explica) =>
+      `<span class="apu-legenda-item"><span class="apu-marca ${classe}">`
+      + `${classe.includes('previsto') ? '' : icone('tique', 10)}${texto}</span>`
+      + `<span class="apu-legenda-txt">${explica}</span></span>`;
+
+    el.innerHTML = [
+      oficial ? item('is-eleito', 'Sólido', 'declarado pelo TSE na totalização final') : '',
+      previsto ? item('is-segundo is-previsto', 'Tracejado',
+        'leitura das vagas do cargo e do “matematicamente definido”; o TSE ainda não declarou') : ''
+    ].filter(Boolean).join('');
   }
 
   /* ---------------------------------------------------------------- placar */
@@ -163,6 +222,7 @@ const APUUI = (function () {
 
     /* Só os quatro primeiros — inclusive antes da primeira urna, quando a chapa
        inteira estouraria a altura do mapa. O resto entra pelo botão. */
+    APU.marcar(lista, o.entrada, o.cargo);
     const limite = o.limite || 4;
     const chave = (typeof alvo === 'string' ? alvo : el.id) || 'placar';
     const aberto = !!abertos[chave];
@@ -457,5 +517,5 @@ const APUUI = (function () {
   }
 
   return { selo, avisos, progresso, placar, participacao, saude, legenda,
-    lideresDistintos, balao, pintarMapa, foto, esc };
+    legendaMarcas, lideresDistintos, balao, pintarMapa, foto, esc, icone };
 })();

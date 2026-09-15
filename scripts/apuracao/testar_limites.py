@@ -59,6 +59,17 @@ class Punidor(http.server.BaseHTTPRequestHandler):
             self.wfile.write(corpo)
         elif self.path.startswith("/ausente"):
             self.send_error(404)
+        elif self.path.startswith("/truncado"):
+            # Promete mais bytes do que entrega: e o que o urllib devolve como
+            # http.client.IncompleteRead. Na primeira vez trunca; depois responde
+            # inteiro, para o teste poder provar que a retentativa resolve.
+            with _trava:
+                truncar = pedidos[self.path] == 1
+            corpo = b'{"ok":true}'
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(corpo) + (5 if truncar else 0)))
+            self.end_headers()
+            self.wfile.write(corpo)
         elif self.path.startswith("/akamai"):
             self.send_response(403)
             self.send_header("Content-Length", str(len(PAGINA_AKAMAI)))
@@ -114,6 +125,25 @@ def main() -> int:
     ok(cli2.bloqueio_restante() == 0, "cliente segue liberado")
     ok(cli2.contador["404"] == 1, "contabiliza como ausencia")
     ok(cli2.bytes_de(f"{base}/ok") is not None, "e continua lendo normalmente")
+
+    # ------------------------------------------------- resposta truncada
+    # Foi o que matou o plantao de 15/09 depois de duas horas no ar:
+    #   http.client.IncompleteRead(15573 bytes read, 1 more expected)
+    # IncompleteRead nao herda de OSError, entao escapava de todos os except do
+    # cliente e subia ate encerrar o processo.
+    print("\nresposta truncada (IncompleteRead) e retentativa")
+    cli5 = Cliente(base=base, tentativas=3)
+    corpo = None
+    estourou = None
+    try:
+        corpo = cli5.bytes_de(f"{base}/truncado")
+    except Exception as err:  # noqa: BLE001 - e exatamente o que nao pode acontecer
+        estourou = err
+    ok(estourou is None, "resposta truncada nao sobe excecao para quem chamou",
+       f"{type(estourou).__name__}: {estourou}" if estourou else "")
+    ok(corpo == b'{"ok":true}', "a retentativa traz o corpo inteiro", repr(corpo))
+    ok(contagem("/truncado") == 2, "custou duas idas ao servidor",
+       f"{contagem('/truncado')} idas")
 
     # ------------------------------------------ 429 para TODAS as threads
     print("\ndisjuntor: 429 para o cliente inteiro, nao so a thread que levou")

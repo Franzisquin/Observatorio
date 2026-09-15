@@ -403,6 +403,63 @@ const APU = (function () {
     return ranking(entrada, dicionario)[0] || null;
   }
 
+  /* ------------------------------------------------- eleito e segundo turno */
+
+  /* Quem está eleito, e quem vai ao segundo turno. Duas origens, e a diferença
+     entre elas fica visível na tela:
+
+     OFICIAL — o TSE declarou. `st` (situação da totalização) só é preenchido
+     quando há totalização final, e `e` marca eleito ou classificado ao segundo
+     turno. Enquanto a apuração corre, os dois vêm vazios: medido no simulado de
+     15/09, com `md` já em 's', todos os candidatos ainda estavam com `e='n'`.
+
+     DEDUZIDO — a leitura aritmética dos campos que o TSE publica:
+       `md='s'`  o próprio tribunal diz que a eleição está matematicamente
+                 definida em segundo turno; os dois primeiros são quem vai.
+       `md='e'`  definida no primeiro turno; o primeiro está eleito.
+       `nv`      vagas do cargo na abrangência. No Senado de 2026 são duas, e com
+                 a apuração encerrada elas são dos dois primeiros.
+
+     Deduzir não é alterar o dado — nenhum número publicado muda. Mas a tela
+     precisa dizer qual é qual, e por isso `oficial` acompanha a marca. */
+  function marcar(lista, entrada, cargo) {
+    const e = entrada || {};
+    if (PROPORCIONAIS.has(cargo || cfg.cargo)) return lista;
+
+    const vagas = Number(e.nv) || 1;
+    const segundoTurno = e.md === 's';
+    const definido = e.md === 'e';
+    /* snt é o que ainda falta totalizar; pst arredonda para 100,00 antes do fim,
+       então quem manda é a contagem de seções, não o percentual. */
+    const acabou = e.snt === 0 || e.and === 'f' || e.tf === 's';
+
+    lista.forEach((c, i) => {
+      c.oficial = false;
+      if (c.situacao) {
+        c.marca = /^eleit/i.test(c.situacao) ? 'eleito'
+          : /turno/i.test(c.situacao) ? 'segundo'
+            : /suplente/i.test(c.situacao) ? 'suplente' : '';
+        c.oficial = !!c.marca;
+      } else if (c.eleito) {
+        c.marca = segundoTurno ? 'segundo' : 'eleito';
+        c.oficial = true;
+      } else if (segundoTurno) {
+        c.marca = i < 2 ? 'segundo' : '';
+      } else if (definido) {
+        c.marca = i < 1 ? 'eleito' : '';
+      } else if (vagas > 1 && acabou) {
+        /* Só o Senado cai aqui. Para cargo de vaga única sem `md`, declarar
+           vencedor por estar na frente seria projeção — e o TSE ainda não disse. */
+        c.marca = i < vagas ? 'eleito' : '';
+      } else {
+        c.marca = '';
+      }
+    });
+    return lista;
+  }
+
+  const ROTULO_MARCA = { eleito: 'Eleito', segundo: '2º turno', suplente: 'Suplente' };
+
   /* Soma um conjunto de entradas numa só. Serve para compor o total de uma UF
      a partir dos municípios quando o arquivo de UF ainda não chegou. */
   /* Só os campos que a camada municipal também traz. Os da anatomia completa
@@ -509,6 +566,7 @@ const APU = (function () {
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo, arquivo, acompanhamento, eleitos, saude,
-    bloqueado, definicao, faltam, indice, eleicaoDe, segundoTurnoDe
+    bloqueado, definicao, faltam, indice, eleicaoDe, segundoTurnoDe,
+    marcar, ROTULO_MARCA
   };
 })();

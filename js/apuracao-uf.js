@@ -142,7 +142,8 @@
     $('voltarMun').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
-    APUUI.placar(lista.length ? lista : chapaZerada(), 'placar');
+    APUUI.placar(lista.length ? lista : chapaZerada(), 'placar',
+      { entrada: alvo, cargo: APU.cfg.cargo });
     APUUI.participacao(alvo, 'participacao');
   }
 
@@ -336,7 +337,9 @@
 
   function aplicarTopo() {
     $('topMun').classList.toggle('is-aberto', estado.topAberto);
-    $('verTodosMun').textContent = estado.topAberto ? '− Mostrar menos' : '+ Mostrar todos';
+    $('verTodosMun').innerHTML = estado.topAberto
+      ? APUUI.icone('menos', 13) + ' Mostrar menos'
+      : APUUI.icone('mais', 13) + ' Mostrar todos';
   }
 
   function tabela(dados, dicionario) {

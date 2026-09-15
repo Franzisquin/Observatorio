@@ -157,66 +157,76 @@ def main() -> int:
     while time.monotonic() < fim:
         inicio = time.monotonic()
         volta += 1
-        for eleicao, do_pleito in plano.items():
-            alvos = escolher_ufs(mapas[eleicao], args.uf)
-            for cargo in do_pleito:
-                estado = camada_alta(cli, config, eleicao, cargo, alvos, saida,
-                                     silencioso=True)
-                if estado:
-                    estados[f"{eleicao}-{cargo}"] = estado
-                    if estado.get("tf") == "s":
-                        finalizados.add((eleicao, cargo))
-
-        # EA14: uma requisicao por eleicao e volta, e dela sai o mapa de onde
-        # ainda se esta contando — andamento por UF e municipios por estagio.
-        ab = {}
-        for eleicao in plano:
-            ab = acompanhamento(cli, config, eleicao, saida, silencioso=True) or ab
-
-        municipal = time.monotonic() >= proxima_municipal
-        if municipal:
+        # Mesma licao do laco da pagina: uma volta que estoura nao pode levar o
+        # plantao junto. Numa noite de seis horas qualquer excecao nao prevista —
+        # rede, disco, um campo novo do TSE — encerraria a cobertura em silencio, e
+        # o unico aviso seria a tela parada no ultimo boletim.
+        municipal = False
+        try:
             for eleicao, do_pleito in plano.items():
                 alvos = escolher_ufs(mapas[eleicao], args.uf)
                 for cargo in do_pleito:
-                    camada_municipal(cli, config, eleicao, cargo, alvos, mapas[eleicao],
-                                     saida, paralelo=args.paralelo, silencioso=True)
-                    # Prefeito nao tem camada alta: a totalizacao final aparece no
-                    # snapshot municipal, entao ela e lida aqui.
-                    if (eleicao, cargo) not in finalizados:
-                        pacote = saida / f"{eleicao}-{cargo}-{alvos[0]}.json"
-                        if pacote.exists():
-                            try:
-                                dados = json.loads(pacote.read_text(encoding="utf-8"))
-                                if any(e.get("tf") == "s"
-                                       for e in dados.get("abr", {}).values()):
-                                    finalizados.add((eleicao, cargo))
-                            except (ValueError, OSError):
-                                pass
-            for eleicao, cargo in sorted(finalizados):
-                eleitos(cli, config, eleicao, cargo,
-                        escolher_ufs(mapas[eleicao], args.uf), saida, silencioso=True)
-            proxima_municipal = time.monotonic() + args.intervalo_mun
+                    estado = camada_alta(cli, config, eleicao, cargo, alvos, saida,
+                                         silencioso=True)
+                    if estado:
+                        estados[f"{eleicao}-{cargo}"] = estado
+                        if estado.get("tf") == "s":
+                            finalizados.add((eleicao, cargo))
 
-        saude(saida / "status.json", {
-            "ambiente": ambiente,
-            "base": base,
-            "fase": config.get("f", ""),
-            "eleicoes": plano,
-            "volta": volta,
-            "inicio": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(partida)),
-            "agora": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "segundos": round(time.time() - partida),
-            "intervalo_alto": args.intervalo_alto,
-            "intervalo_mun": args.intervalo_mun,
-            "taxa": args.taxa,
-            "municipal": municipal,
-            "req": dict(cli.contador),
-            "taxa_medida": round(cli.contador["get"] / max(1.0, time.time() - partida), 1),
-            "bloqueado_por": round(cli.bloqueio_restante()),
-            "abrangencia": (ab.get("br") or {}) if ab else {},
-            "estado": estados,
-            "finalizados": [f"{e}-{c}" for e, c in sorted(finalizados)],
-        })
+            # EA14: uma requisicao por eleicao e volta, e dela sai o mapa de onde
+            # ainda se esta contando — andamento por UF e municipios por estagio.
+            ab = {}
+            for eleicao in plano:
+                ab = acompanhamento(cli, config, eleicao, saida, silencioso=True) or ab
+
+            municipal = time.monotonic() >= proxima_municipal
+            if municipal:
+                for eleicao, do_pleito in plano.items():
+                    alvos = escolher_ufs(mapas[eleicao], args.uf)
+                    for cargo in do_pleito:
+                        camada_municipal(cli, config, eleicao, cargo, alvos, mapas[eleicao],
+                                         saida, paralelo=args.paralelo, silencioso=True)
+                        # Prefeito nao tem camada alta: a totalizacao final aparece no
+                        # snapshot municipal, entao ela e lida aqui.
+                        if (eleicao, cargo) not in finalizados:
+                            pacote = saida / f"{eleicao}-{cargo}-{alvos[0]}.json"
+                            if pacote.exists():
+                                try:
+                                    dados = json.loads(pacote.read_text(encoding="utf-8"))
+                                    if any(e.get("tf") == "s"
+                                           for e in dados.get("abr", {}).values()):
+                                        finalizados.add((eleicao, cargo))
+                                except (ValueError, OSError):
+                                    pass
+                for eleicao, cargo in sorted(finalizados):
+                    eleitos(cli, config, eleicao, cargo,
+                            escolher_ufs(mapas[eleicao], args.uf), saida, silencioso=True)
+                proxima_municipal = time.monotonic() + args.intervalo_mun
+
+            saude(saida / "status.json", {
+                "ambiente": ambiente,
+                "base": base,
+                "fase": config.get("f", ""),
+                "eleicoes": plano,
+                "volta": volta,
+                "inicio": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(partida)),
+                "agora": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "segundos": round(time.time() - partida),
+                "intervalo_alto": args.intervalo_alto,
+                "intervalo_mun": args.intervalo_mun,
+                "taxa": args.taxa,
+                "municipal": municipal,
+                "req": dict(cli.contador),
+                "taxa_medida": round(cli.contador["get"] / max(1.0, time.time() - partida), 1),
+                "bloqueado_por": round(cli.bloqueio_restante()),
+                "abrangencia": (ab.get("br") or {}) if ab else {},
+                "estado": estados,
+                "finalizados": [f"{e}-{c}" for e, c in sorted(finalizados)],
+            })
+
+        except Exception as err:  # noqa: BLE001 — ver comentario acima
+            print(f"  ! volta {volta} falhou ({type(err).__name__}: {err}); "
+                  f"seguindo para a proxima", flush=True)
 
         enviado = False
         if args.publicar:

@@ -20,6 +20,7 @@ https://www.tse.jus.br/eleicoes/informacoes-tecnicas-sobre-a-divulgacao-de-resul
 from __future__ import annotations
 
 import html
+import http.client
 import json
 import threading
 import time
@@ -332,7 +333,14 @@ class Cliente:
                 if tentativa == self.tentativas:
                     raise
                 time.sleep(min(30, 2 ** tentativa))
-            except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as err:
+            # http.client.HTTPException cobre a resposta que chega pela metade
+            # (IncompleteRead), a linha de status quebrada e a conexao derrubada no
+            # meio do corpo. Nao herda de OSError, entao escapava de todos os
+            # except e subia ate matar o processo — foi o que aconteceu na janela
+            # de 15/09, depois de duas horas no ar:
+            #   IncompleteRead(15573 bytes read, 1 more expected)
+            except (urllib.error.URLError, http.client.HTTPException,
+                    TimeoutError, ConnectionError, OSError) as err:
                 if tentativa == self.tentativas:
                     raise
                 espera = min(30, 2 ** tentativa)

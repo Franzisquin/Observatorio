@@ -59,7 +59,9 @@
     const lista = nacional
       ? APU.ranking(nacional, dicionario)
       : APU.rankingZerado(estado.chapaPres);
-    APUUI.placar(lista, 'placarPresidente', { limite: 4 });
+    APUUI.placar(lista, 'placarPresidente',
+      { limite: 4, entrada: nacional, cargo: '0001' });
+    APUUI.legendaMarcas(lista, 'legendaPres');
     APUUI.avisos(nacional, lista, 'avisos');
 
     pintarMapaNacional();
@@ -97,8 +99,13 @@
     /* Com voto, os dois primeiros de verdade. Sem voto, os dois primeiros da
        chapa registrada — todos em 0,00%, então nenhum aparece à frente do
        outro, porque nada foi apurado. */
-    const lista = (comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf))
-      .slice(0, 2);
+    /* A marca sai da lista inteira, não do recorte: quem ocupa a segunda vaga do
+       Senado é o segundo da UF, e cortar antes de marcar mudaria o índice. */
+    const completa = comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf);
+    if (comVotos) APU.marcar(completa, entrada, cargo);
+    /* Duas linhas porque o Senado de 2026 tem duas vagas por estado e a
+       majoritária de vaga única precisa mostrar o segundo para dar a margem. */
+    const lista = completa.slice(0, 2);
     const pst = entrada ? (entrada.pst || 0) : 0;
 
     if (!lista.length) {
@@ -108,11 +115,19 @@
     }
 
     const lider = comVotos ? APU.cor(lista[0].partido) : 'var(--line-strong)';
-    const linhas = lista.map((c, i) =>
-      '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
-      + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
-      + '<span class="apu-estado-nome">' + APUUI.esc(c.urna) + '</span>'
-      + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>').join('');
+    const linhas = lista.map((c, i) => {
+      const marca = c.marca
+        ? '<span class="apu-tique is-' + c.marca + (c.oficial ? '' : ' is-previsto')
+          + '" title="' + APUUI.esc(c.oficial
+            ? 'Declarado pelo TSE'
+            : 'Leitura das vagas do cargo e do "matematicamente definido" do TSE')
+          + '">' + (c.marca === 'segundo' ? '2º' : APUUI.icone('tique', 11)) + '</span>'
+        : '';
+      return '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
+        + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
+        + '<span class="apu-estado-nome">' + APUUI.esc(c.urna) + marca + '</span>'
+        + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>';
+    }).join('');
 
     return '<a class="apu-estado" href="' + href + '" style="--cor:' + lider + '">'
       + '<div class="apu-estado-head"><span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
@@ -165,11 +180,25 @@
     }).join('');
   }
 
+  /* As marcas de todos os cartões de um cargo, para a legenda saber se há selo
+     oficial, deduzido, ou os dois na tela. */
+  function marcasDe(pacote, cargo) {
+    if (!pacote || !pacote.abr) return [];
+    const dicionario = pacote.cand || {};
+    return UFS.flatMap((uf) => {
+      const entrada = pacote.abr[uf];
+      if (!entrada || !(entrada.vv > 0)) return [];
+      return APU.marcar(APU.ranking(entrada, dicionario), entrada, cargo).slice(0, 2);
+    });
+  }
+
   function pintarEstados() {
     $('gradeGov').innerHTML = UFS
       .map((uf) => cartao(uf, CARGO_GOV, estado.gov, estado.chapaGov)).join('');
     $('gradeSen').innerHTML = UFS
       .map((uf) => cartao(uf, CARGO_SEN, estado.sen, estado.chapaSen)).join('');
+    APUUI.legendaMarcas(marcasDe(estado.gov, CARGO_GOV), 'legendaGov');
+    APUUI.legendaMarcas(marcasDe(estado.sen, CARGO_SEN), 'legendaSen');
 
     const comDados = (p) => p && p.abr
       ? UFS.filter((uf) => p.abr[uf] && p.abr[uf].vv > 0).length : 0;

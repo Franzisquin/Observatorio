@@ -75,7 +75,7 @@
     const lista = APU.ranking(nacional, dicionario);
     APUUI.selo(meta, nacional);
     APUUI.progresso(nacional);
-    APUUI.placar(lista, 'placar');
+    APUUI.placar(lista, 'placar', { entrada: nacional, cargo: APU.cfg.cargo });
     APUUI.avisos(nacional, lista, 'avisos');
     APUUI.participacao(nacional, 'participacao');
 

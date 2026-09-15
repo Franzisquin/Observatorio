@@ -302,13 +302,17 @@ def resumo(payload: dict, cargo: str = "", com_candidatos: bool = True,
     votos = payload.get("v", {})
     proporcional = cargo in CARGOS_PROPORCIONAIS
     extra: dict = {}
+    # nv e o numero de vagas do cargo naquela abrangencia, e vale para todos: o
+    # Senado de 2026 renova dois tercos, entao nv=2 e cada estado elege DOIS
+    # senadores. Sem esse campo a tela nao tem como saber quantos cabem.
+    for c in payload.get("carg", []):
+        if c.get("nv"):
+            extra["nv"] = inteiro(c.get("nv"))
     if proporcional:
         extra["part"] = partidos(payload)
         for c in payload.get("carg", []):
             if c.get("qe"):
                 extra["qe"] = inteiro(c.get("qe"))
-            if c.get("nv"):
-                extra["nv"] = inteiro(c.get("nv"))
 
     if completo:
         extra.update({

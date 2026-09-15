@@ -207,6 +207,68 @@ ok(soma.vvc === rr.vvc, 'soma dos municípios fecha com o vvc da UF',
 ok(soma.vv === rr.vv, 'soma dos municípios fecha com os válidos da UF');
 ok(soma.van === undefined, 'agregado não inventa campo que a camada não traz');
 
+/* ------------------------------------------ eleito e segundo turno */
+
+/* A marca declara gente eleita numa tela pública, então o que ela pode e o que
+   ela NÃO pode fazer vale um check próprio. Medido no simulado de 15/09: com a
+   apuração correndo, o TSE deixa `e` e `st` vazios mesmo com `md` já em 's' — a
+   marca tem de sair de `nv` e `md`, e tem de se identificar como dedução. */
+
+console.log('\nmarca de eleito e de segundo turno');
+
+const chapa = (n) => Array.from({ length: n }, (_, i) => ({
+  chave: String(i), urna: 'C' + i, votos: 100 - i, pct: 10 - i, partido: 'P' + i
+}));
+
+// Senado: duas vagas, apuração encerrada, TSE ainda sem declarar
+let l = APU.marcar(chapa(4), { nv: 2, snt: 0 }, '0005');
+ok(l[0].marca === 'eleito' && l[1].marca === 'eleito',
+  'Senado com nv=2 e apuração fechada marca os DOIS primeiros',
+  l.map((c) => c.marca).join(','));
+ok(l[2].marca === '', 'e não marca o terceiro');
+ok(l[0].oficial === false, 'a marca se identifica como dedução, não como oficial');
+
+// Senado ainda contando: nada de marca
+l = APU.marcar(chapa(4), { nv: 2, snt: 1200 }, '0005');
+ok(l.every((c) => !c.marca), 'Senado com seções a totalizar não marca ninguém',
+  l.map((c) => c.marca).join(','));
+
+// Presidente: md='s' é o TSE dizendo que a eleição está definida em 2º turno
+l = APU.marcar(chapa(5), { nv: 1, md: 's', snt: 9000 }, '0001');
+ok(l[0].marca === 'segundo' && l[1].marca === 'segundo',
+  'md=s marca os dois primeiros como segundo turno');
+ok(l[2].marca === '', 'e o terceiro fica sem marca');
+ok(l[0].oficial === false, 'ainda é dedução, porque o TSE não declarou');
+
+// Presidente definido no primeiro turno
+l = APU.marcar(chapa(3), { nv: 1, md: 'e', snt: 9000 }, '0001');
+ok(l[0].marca === 'eleito' && l[1].marca === '', 'md=e marca só o primeiro');
+
+// Vaga única, 100% apurado, sem md: NÃO declara vencedor
+l = APU.marcar(chapa(3), { nv: 1, snt: 0 }, '0003');
+ok(l.every((c) => !c.marca),
+  'governador com tudo apurado mas sem md não ganha marca — isso seria projeção',
+  l.map((c) => c.marca).join(','));
+
+// O que o TSE declara manda, e vira oficial
+l = APU.marcar([{ ...chapa(1)[0], situacao: 'Eleito por média' }], { nv: 8 }, '0005');
+ok(l[0].marca === 'eleito' && l[0].oficial === true,
+  'situação preenchida pelo TSE vira marca oficial');
+
+l = APU.marcar([{ ...chapa(1)[0], situacao: 'Suplente' }], { nv: 2, snt: 0 }, '0005');
+ok(l[0].marca === 'suplente' && l[0].oficial === true, 'suplente é reconhecido');
+
+l = APU.marcar(chapa(3).map((c) => ({ ...c, eleito: true })),
+  { nv: 1, md: 's' }, '0001');
+ok(l[0].marca === 'segundo' && l[0].oficial === true,
+  'e=s com md=s é classificação ao segundo turno, não eleição');
+
+// Proporcional não recebe marca: a lista ali é de partidos
+const antes = chapa(3);
+APU.marcar(antes, { nv: 70, snt: 0 }, '0006');
+ok(antes.every((c) => c.marca === undefined),
+  'cargo proporcional não recebe marca nenhuma');
+
 /* --------------------------------------------- entidades HTML nos snapshots */
 
 /* Todo texto do TSE vem com entidade dentro da string — "D&apos;OESTE",

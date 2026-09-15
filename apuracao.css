@@ -929,7 +929,15 @@
 .apu-top-table th.num,
 .apu-top-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-.apu-top-mark { margin-right: 5px; font-size: 0.6rem; vertical-align: 1px; }
+.apu-top-mark { margin-right: 5px; vertical-align: -1px; }
+
+/* Ícone em traço alinhado ao texto que o acompanha. `currentColor` no SVG faz a
+   cor vir do selo, então o mesmo ícone serve no selo sólido e no contornado. */
+.apu-icone { vertical-align: -2px; }
+
+.apu-marca .apu-icone { margin-right: 3px; vertical-align: -1px; }
+
+.apu-tique .apu-icone { vertical-align: -1px; margin: 0; }
 
 .apu-top-table tbody td {
   padding: 13px 18px;
@@ -1477,3 +1485,67 @@ body:has(#mapaUF) .apu-aside .apu-results {
   border-color: #fda29b;
   background: #fef3f2;
 }
+
+/* Eleito e segundo turno. Duas origens, duas aparências: sólido é o que o TSE
+   declarou no arquivo; contornado (is-previsto) é a leitura das vagas do cargo
+   e do campo "matematicamente definido" — enquanto a apuração corre, o TSE deixa
+   `e` e `st` vazios, então tudo o que aparece antes da totalização final é
+   dedução, e a tela não pode fingir que não é. */
+.apu-marca {
+  display: inline-block;
+  margin-left: 8px;
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.apu-marca.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
+.apu-marca.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-marca.is-suplente { background: var(--line-strong); color: var(--paper); }
+
+.apu-marca.is-previsto {
+  background: transparent;
+  border-style: dashed;
+}
+
+.apu-marca.is-eleito.is-previsto { color: #17a34a; border-color: #17a34a; }
+.apu-marca.is-segundo.is-previsto { color: #6e8bff; border-color: #6e8bff; }
+
+/* Versão curta, para o cartão de estado, onde não cabe a palavra inteira. */
+.apu-tique {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 15px;
+  padding: 0 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.apu-tique.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
+.apu-tique.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-tique.is-previsto { background: transparent; border-style: dashed; }
+.apu-tique.is-eleito.is-previsto { color: #17a34a; border-color: #17a34a; }
+.apu-tique.is-segundo.is-previsto { color: #6e8bff; border-color: #6e8bff; }
+
+/* Legenda dos selos de eleito e segundo turno. */
+.apu-legenda-marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 12px 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.apu-legenda-item { display: inline-flex; align-items: center; gap: 7px; }
+.apu-legenda-item .apu-marca { margin-left: 0; }
+.apu-legenda-txt { line-height: 1.35; }
