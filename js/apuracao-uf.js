@@ -26,7 +26,14 @@
        a anatomia completa do voto e do eleitorado, e é número publicado em vez de
        conta feita aqui. A soma fica como reserva, para quando a camada alta
        daquele cargo ainda não tiver chegado. */
-    ufTSE: null
+    ufTSE: null,
+
+    /* O dicionario de candidatos do arquivo de UF. A camada municipal traz uma
+       versao reduzida do mesmo candidato: sem `situacao`, e com `eleito` que nao
+       acompanha o resultado estadual — em SP os dois que foram ao segundo turno
+       constam `eleito=n` no arquivo do municipio e `eleito=s, situacao=2o turno`
+       no da UF. Quem manda no selo e o estadual. */
+    candTSE: null
   };
 
   function lerUF() {
@@ -141,7 +148,12 @@
     const sel = estado.sel;
     const nomeUF = APU.UF_NOMES[estado.uf] || estado.uf.toUpperCase();
     const alvo = sel ? (estado.porChave[sel.chave] || null) : estado.total;
-    const lista = APU.ranking(alvo, (estado.dados && estado.dados.cand) || {});
+    /* Mesma sobreposicao de pintar(): sem o dicionario da UF por cima, o placar
+       perde `situacao` e o selo de eleito some justo quando o TSE o declara. */
+    const lista = APU.ranking(alvo, {
+      ...((estado.dados && estado.dados.cand) || {}),
+      ...(estado.candTSE || {})
+    });
 
     $('voltarMun').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? sel.nome
@@ -234,7 +246,10 @@
     $('municipios').hidden = false;
     $('maisVotos').hidden = false;
 
-    const dicionario = dados.cand || {};
+    /* Municipal como base, estadual por cima: a base garante que nenhum
+       candidato da camada municipal fique sem nome, e a sobreposicao traz a
+       `situacao` e o `eleito` corretos, que so o arquivo de UF tem. */
+    const dicionario = { ...(dados.cand || {}), ...(estado.candTSE || {}) };
     const entradas = Object.values(dados.abr);
     const total = estado.ufTSE || APU.agregar(entradas);
     estado.total = total;
@@ -389,6 +404,7 @@
     const [d, alto] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf')]);
     if (d) estado.dados = d;
     if (alto && alto.abr && alto.abr[estado.uf]) estado.ufTSE = alto.abr[estado.uf];
+    if (alto && alto.cand) estado.candTSE = alto.cand;
     await pintar();
   }
 
