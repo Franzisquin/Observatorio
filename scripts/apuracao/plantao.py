@@ -19,16 +19,33 @@ Duas cadencias, porque as camadas custam coisas muito diferentes:
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from coleta import camada_alta, camada_municipal, municipios  # noqa: E402
-from tse import CARGOS, Cliente  # noqa: E402
+from coleta import (acompanhamento, camada_alta, camada_municipal,  # noqa: E402
+                    cargos_da_eleicao, eleitos, escolher_ufs, escrever_indice,
+                    municipios)
+from tse import BASE, CARGOS, SIM_2026, Cliente, descobrir_ambiente  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
+
+
+def saude(caminho: Path, estado: dict) -> None:
+    """Escreve o status.json que a pagina de saude do plantao le.
+
+    Um plantao de seis horas so e observavel se ele contar o que esta fazendo:
+    qual geracao do TSE foi lida (idg), qual a hora da totalizacao no arquivo,
+    quantas requisicoes sairam e quantos 404 voltaram. O teto e de 100 requisicoes
+    por IP por segundo e um 404 repetido bloqueia igual a excesso — dez minutos
+    fora do ar, renovados a cada nova tentativa. Sem esse arquivo, a primeira
+    noticia de bloqueio seria a tela vazia.
+    """
+    caminho.write_text(json.dumps(estado, ensure_ascii=False, separators=(",", ":")),
+                       encoding="utf-8")
 
 
 def git(*args: str, cwd: Path) -> subprocess.CompletedProcess:
@@ -65,11 +82,19 @@ def publicar(saida: Path, branch: str, primeira: bool) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--eleicao", required=True)
+    ap.add_argument("--eleicao", required=True,
+                    help="codigos separados por virgula; em 2026 a geral e duas — "
+                         "a federal (presidente) e a estadual (governador, senador, "
+                         "assembleias)")
     ap.add_argument("--cargos", default="0001,0003,0005,0006,0007",
                     help="codigos separados por virgula, ou apelidos: " + ", ".join(CARGOS))
-    ap.add_argument("--uf", nargs="*", default=[], help="UFs (padrao: todas as da eleicao)")
-    ap.add_argument("--ambiente", default="oficial")
+    ap.add_argument("--uf", nargs="*", default=[],
+                    help="UFs separadas por espaco (padrao: todas as da eleicao)")
+    ap.add_argument("--ambiente", default="auto",
+                    help="pasta de ambiente no CDN; 'auto' sonda os lugares conhecidos "
+                         "e prefere o que estiver em fase simulada")
+    ap.add_argument("--base", default=BASE,
+                    help="host do CDN; o simulado de 2026 usa " + SIM_2026)
     ap.add_argument("--minutos", type=float, default=300, help="duracao do plantao")
     ap.add_argument("--intervalo-alto", type=float, default=45)
     ap.add_argument("--intervalo-mun", type=float, default=240)
@@ -85,30 +110,110 @@ def main() -> int:
     saida: Path = args.saida
     saida.mkdir(parents=True, exist_ok=True)
 
-    cli = Cliente(ambiente=args.ambiente, por_segundo=args.taxa)
-    config = cli.config_eleicoes()
-    mapa = municipios(cli, config, args.eleicao)
-    ufs = [u.lower() for u in args.uf] or sorted(mapa)
-    print(f"plantao: eleicao {args.eleicao} | cargos {cargos} | {len(ufs)} UFs | "
-          f"{args.minutos:.0f} min | saida {saida}", flush=True)
+    base, ambiente, config = args.base, args.ambiente, None
+    if ambiente in ("auto", "descobrir"):
+        print("sondando os lugares conhecidos (1 requisicao para cada):", flush=True)
+        base, ambiente, config = descobrir_ambiente(por_segundo=args.taxa)
+        if not ambiente:
+            print("nenhum ambiente respondeu — nao ha o que coletar.", flush=True)
+            return 1
+
+    cli = Cliente(ambiente=ambiente, por_segundo=args.taxa, base=base)
+    config = config or cli.config_eleicoes()
+    eleicoes = [e.strip() for e in args.eleicao.split(",") if e.strip()]
+    # Cada eleicao traz os seus cargos e a sua lista de municipios; pedir o cargo
+    # errado na eleicao errada e 404 em serie.
+    plano: dict[str, list[str]] = {}
+    mapas: dict[str, dict] = {}
+    for eleicao in eleicoes:
+        do_pleito = cargos_da_eleicao(config, eleicao, cargos)
+        if not do_pleito:
+            print(f"  ! eleicao {eleicao} nao tem nenhum dos cargos pedidos — fora do plano",
+                  flush=True)
+            continue
+        plano[eleicao] = do_pleito
+        mapas[eleicao] = municipios(cli, config, eleicao)
+    if not plano:
+        print("nenhuma eleicao pedida tem os cargos pedidos.", flush=True)
+        return 1
+
+    ufs = escolher_ufs(mapas[next(iter(plano))], args.uf)
+    escrever_indice(saida, base, ambiente, config, plano)
+    resumo_plano = " | ".join(f"{e}:{','.join(c)}" for e, c in plano.items())
+    print(f"plantao: {base}/{ambiente} | fase {config.get('f')} | {resumo_plano} | "
+          f"{len(ufs)} UFs | {args.minutos:.0f} min | saida {saida}", flush=True)
 
     fim = time.monotonic() + args.minutos * 60
+    partida = time.time()
     proxima_municipal = 0.0
     primeira_publicacao = True
     volta = 0
+    # Cargos cuja totalizacao final ja foi vista: o EA10 daquele cargo passa a
+    # existir e vale reler a cada volta municipal. Antes disso e 404 em serie.
+    finalizados: set[str] = set()
+    estados: dict[str, dict] = {}
 
     while time.monotonic() < fim:
         inicio = time.monotonic()
         volta += 1
-        for cargo in cargos:
-            camada_alta(cli, config, args.eleicao, cargo, ufs, saida, silencioso=True)
+        for eleicao, do_pleito in plano.items():
+            alvos = escolher_ufs(mapas[eleicao], args.uf)
+            for cargo in do_pleito:
+                estado = camada_alta(cli, config, eleicao, cargo, alvos, saida,
+                                     silencioso=True)
+                if estado:
+                    estados[f"{eleicao}-{cargo}"] = estado
+                    if estado.get("tf") == "s":
+                        finalizados.add((eleicao, cargo))
+
+        # EA14: uma requisicao por eleicao e volta, e dela sai o mapa de onde
+        # ainda se esta contando — andamento por UF e municipios por estagio.
+        ab = {}
+        for eleicao in plano:
+            ab = acompanhamento(cli, config, eleicao, saida, silencioso=True) or ab
 
         municipal = time.monotonic() >= proxima_municipal
         if municipal:
-            for cargo in cargos:
-                camada_municipal(cli, config, args.eleicao, cargo, ufs, mapa, saida,
-                                 paralelo=args.paralelo, silencioso=True)
+            for eleicao, do_pleito in plano.items():
+                alvos = escolher_ufs(mapas[eleicao], args.uf)
+                for cargo in do_pleito:
+                    camada_municipal(cli, config, eleicao, cargo, alvos, mapas[eleicao],
+                                     saida, paralelo=args.paralelo, silencioso=True)
+                    # Prefeito nao tem camada alta: a totalizacao final aparece no
+                    # snapshot municipal, entao ela e lida aqui.
+                    if (eleicao, cargo) not in finalizados:
+                        pacote = saida / f"{eleicao}-{cargo}-{alvos[0]}.json"
+                        if pacote.exists():
+                            try:
+                                dados = json.loads(pacote.read_text(encoding="utf-8"))
+                                if any(e.get("tf") == "s"
+                                       for e in dados.get("abr", {}).values()):
+                                    finalizados.add((eleicao, cargo))
+                            except (ValueError, OSError):
+                                pass
+            for eleicao, cargo in sorted(finalizados):
+                eleitos(cli, config, eleicao, cargo,
+                        escolher_ufs(mapas[eleicao], args.uf), saida, silencioso=True)
             proxima_municipal = time.monotonic() + args.intervalo_mun
+
+        saude(saida / "status.json", {
+            "ambiente": ambiente,
+            "base": base,
+            "fase": config.get("f", ""),
+            "eleicoes": plano,
+            "volta": volta,
+            "inicio": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(partida)),
+            "agora": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "segundos": round(time.time() - partida),
+            "intervalo_alto": args.intervalo_alto,
+            "intervalo_mun": args.intervalo_mun,
+            "taxa": args.taxa,
+            "municipal": municipal,
+            "req": dict(cli.contador),
+            "abrangencia": (ab.get("br") or {}) if ab else {},
+            "estado": estados,
+            "finalizados": [f"{e}-{c}" for e, c in sorted(finalizados)],
+        })
 
         enviado = False
         if args.publicar:

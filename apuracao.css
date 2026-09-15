@@ -1388,3 +1388,81 @@ body:has(#mapaUF) .apu-aside .apu-results {
   body:has(#mapaUF) .apu-mapwrap .apu-map { height: auto; min-height: 0; }
   body:has(#mapaUF) .apu-aside .apu-results { display: block; }
 }
+
+/* ===========================================================================
+   Estados que o leiaute do TSE descreve e a tela precisa nomear
+   =========================================================================== */
+
+/* Matematicamente definido (md). Fica ao lado do selo de ensaio, na mesma
+   escala, mas em tom sóbrio: é uma afirmação do tribunal sobre a aritmética da
+   disputa, não um alerta. */
+.apu-selo.is-md {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* Aviso de contexto: liberação das 17h, eleição sem eleito atribuído, eleitorado
+   que ainda falta totalizar. É texto que explica o número ao lado, então segue a
+   largura da coluna em vez de virar faixa. */
+#avisos { margin: 0 0 16px; }
+
+.apu-aviso {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand) 6%, var(--paper));
+  border-left: 3px solid var(--brand);
+}
+
+.apu-aviso:last-child { margin-bottom: 0; }
+.apu-aviso strong { font-weight: 600; }
+
+/* Voto anulado e sub judice: o art. 265 §2 manda informar a situação do voto.
+   Vermelho porque o número ao lado não conta para o resultado da mesma forma. */
+.apu-cand-sit.is-anulado {
+  color: #b42318;
+  border-color: #fda29b;
+  background: #fef3f2;
+}
+
+.apu-cand-sit.is-eleito {
+  color: #085d3a;
+  border-color: #75e0a7;
+  background: #ecfdf3;
+}
+
+/* Estágio da totalização de uma UF (campo `and` do EA14). */
+.apu-estagio {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.apu-estagio.is-p { color: #93370d; border-color: #fec84b; background: #fffaeb; }
+.apu-estagio.is-f { color: #085d3a; border-color: #75e0a7; background: #ecfdf3; }
+
+/* Saúde do plantão. Sóbria e no fim da página: é instrumentação, não notícia —
+   mas sem ela a primeira notícia de bloqueio no CDN seria a tela vazia. */
+.apu-saude {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.apu-saude .apu-stats { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 720px) {
+  .apu-saude .apu-stats { grid-template-columns: 1fr 1fr; }
+}

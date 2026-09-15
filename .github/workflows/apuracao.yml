@@ -21,8 +21,8 @@ on:
         description: "Codigos separados por virgula"
         default: "0001,0003,0005,0006,0007"
       ambiente:
-        description: "Pasta de ambiente no CDN: oficial, ou a do simulado"
-        default: "oficial"
+        description: "Pasta de ambiente no CDN: oficial, a do simulado, ou auto para sondar"
+        default: "auto"
       minutos:
         description: "Duracao do plantao (o runner corta em 6h)"
         default: "300"
@@ -67,6 +67,18 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git checkout -q --orphan apuracao-data
+
+      # Antes do laco, imprime o que existe: qual ambiente respondeu, qual a fase
+      # (simulado ou oficial) e quais eleicoes o EA11 lista com os seus cargos. E o
+      # passo que mostra, no log, se o codigo de eleicao passado na mao esta certo —
+      # numa janela de tres horas de simulado, descobrir isso pela tela vazia custa
+      # a janela inteira.
+      - name: Reconhecimento do CDN
+        continue-on-error: true
+        run: |
+          python scripts/apuracao/coleta.py --descobrir || true
+          python scripts/apuracao/coleta.py --ambiente "${{ inputs.ambiente }}" --listar \
+            || echo "nao foi possivel listar com ambiente=${{ inputs.ambiente }}"
 
       - name: Plantao
         run: |

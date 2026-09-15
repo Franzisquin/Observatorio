@@ -17,7 +17,7 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css?v=20260829a" />
-  <link rel="stylesheet" href="apuracao.css?v=20260823b" />
+  <link rel="stylesheet" href="apuracao.css?v=20260915c" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -50,6 +50,7 @@
           <div class="apu-kicker">
             <span class="apu-live is-off" id="selLive">Aguardando</span>
             <span class="apu-selo" id="selSimulado">Simulado</span>
+            <span class="apu-selo is-md" id="selDefinido"></span>
             <span class="apu-stamp" id="selCarimbo"></span>
           </div>
           <h1 class="apu-destaque-titulo">Presidente da República</h1>
@@ -57,6 +58,8 @@
 
         <div class="apu-destaque-grid">
           <div class="apu-destaque-coluna">
+            <!-- Liberacao das 17h, eleicao sem eleito, eleitorado que falta -->
+            <div id="avisos" hidden></div>
             <div class="apu-results" id="placarPresidente"></div>
 
             <div class="apu-destaque-andamento">
@@ -137,6 +140,46 @@
       </div>
     </section>
 
+    <!-- ------------------------------------------- andamento: onde falta contar -->
+    <!-- Arquivo de acompanhamento do TSE (EA14): uma requisicao por volta, e dela
+         sai o estagio de cada UF e quantos dos seus municipios ja finalizaram. -->
+    <section class="apu-table-sec" id="andamento" hidden>
+      <div class="wrap">
+        <div class="apu-table-head">
+          <h2 class="apu-h2">Onde ainda se está contando</h2>
+          <span class="apu-progress-lab" id="notaAndamento"></span>
+        </div>
+        <div class="apu-table-wrap">
+          <table class="apu-table">
+            <thead>
+              <tr>
+                <th scope="col">Unidade</th>
+                <th scope="col">Totalização</th>
+                <th scope="col" class="num">Apurado</th>
+                <th scope="col" class="num">Seções a totalizar</th>
+                <th scope="col" class="num">Eleitores nelas</th>
+                <th scope="col" class="num">Municípios finalizados</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaAndamento"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- --------------------------------------------------- saude do plantao -->
+    <section class="apu-bloco">
+      <div class="wrap">
+        <div class="apu-bloco-head">
+          <h2 class="apu-h2">Saúde do plantão</h2>
+          <span class="apu-progress-lab">
+            Teto do TSE: 100 requisições por IP por segundo; 404 repetido bloqueia igual a excesso.
+          </span>
+        </div>
+        <div class="apu-saude" id="saude" hidden></div>
+      </div>
+    </section>
+
   </main>
 
   <footer class="site-foot">
@@ -152,9 +195,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20260823b"></script>
-  <script src="js/apuracao-ui.js?v=20260823b"></script>
-  <script src="js/apuracao-central.js?v=20260823b"></script>
+  <script src="js/apuracao-dados.js?v=20260915c"></script>
+  <script src="js/apuracao-ui.js?v=20260915c"></script>
+  <script src="js/apuracao-central.js?v=20260915c"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

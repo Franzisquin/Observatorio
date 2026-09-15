@@ -35,6 +35,7 @@
       $('estados').hidden = true;
       APUUI.selo(null, null);
       APUUI.progresso(null);
+      APUUI.avisos(null, [], 'avisos');
 
       if (!estado.chapa) {
         $('semDadosTexto').textContent =
@@ -71,9 +72,11 @@
     $('subtitulo').textContent = dadosBR ? 'Brasil' : 'Brasil — soma das unidades federativas';
     $('rotuloPlacar').textContent = 'Resultado nacional';
 
+    const lista = APU.ranking(nacional, dicionario);
     APUUI.selo(meta, nacional);
     APUUI.progresso(nacional);
-    APUUI.placar(APU.ranking(nacional, dicionario), 'placar');
+    APUUI.placar(lista, 'placar');
+    APUUI.avisos(nacional, lista, 'avisos');
     APUUI.participacao(nacional, 'participacao');
 
     if (!dadosUF) return;
@@ -146,13 +149,20 @@
     /* Aba oculta não precisa de boletim: retoma na volta do foco. */
     if (document.visibilityState === 'hidden') return;
     estado.timer = setTimeout(async () => {
-      await atualizar();
+      /* Uma volta que estoura nao pode levar o plantao junto: sem este try, um
+         unico snapshot malformado congelaria a pagina no ultimo boletim e so um
+         F5 a traria de volta — sem nada na tela dizendo que parou. */
+      try {
+        await atualizar();
+      } catch (e) {
+        console.warn('[apuracao] volta falhou, seguindo para a proxima', e);
+      }
       agendar();
     }, APU.cfg.intervalo);
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { atualizar().then(agendar); }
+    if (document.visibilityState === 'visible') { atualizar().catch(() => {}).then(agendar); }
     else clearTimeout(estado.timer);
   });
 
@@ -160,7 +170,11 @@
     document.title = `${nomeDoCargo()} — Apuração ao vivo — ElectoMaps`;
     const central = $('navCentral');
     if (central) central.href = 'apuracao.html' + (sufixoParams() ? '?' + sufixoParams().slice(1) : '');
-    await atualizar();
+    try {
+      await atualizar();
+    } catch (e) {
+      console.warn('[apuracao] primeira carga falhou', e);
+    }
     agendar();
   })();
 })();

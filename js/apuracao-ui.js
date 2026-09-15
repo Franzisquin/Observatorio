@@ -36,19 +36,73 @@ const APUUI = (function () {
     const live = $('selLive');
     const sim = $('selSimulado');
     const carimbo = $('selCarimbo');
+    const definido = $('selDefinido');
 
-    const emAndamento = entrada && entrada.and === 's';
-    const encerrada = entrada && entrada.and === 'f';
+    /* and: 'n' não houve totalização, 'p' em andamento, 'f' finalizada. O valor
+       era comparado com 's', que não existe no leiaute — nenhuma abrangência
+       jamais aparecia "ao vivo". */
+    const emAndamento = !!entrada && entrada.and === 'p';
+    const encerrada = !!entrada && entrada.and === 'f';
 
     if (live) {
       live.classList.toggle('is-off', !emAndamento);
       live.textContent = emAndamento ? 'Ao vivo' : (encerrada ? 'Encerrada' : 'Aguardando');
     }
     if (sim) sim.classList.toggle('is-on', APU.simulado(meta));
+
+    /* Matematicamente definido: quem preenche esse campo é o TSE, no instante em
+       que os votos totalizados já bastam. Some quando há totalização final, e aí
+       a situação do candidato passa a dizer o mesmo com mais precisão. */
+    if (definido) {
+      const md = APU.definicao(entrada);
+      definido.classList.toggle('is-on', !!md);
+      definido.textContent = md === 'e'
+        ? 'Matematicamente definido'
+        : (md === 's' ? 'Segundo turno definido' : '');
+    }
+
     if (carimbo) {
       const c = APU.carimbo(entrada);
-      carimbo.textContent = c ? `Atualizado em ${c}` : '';
+      const g = meta && meta.idg ? ` · geração ${meta.idg}` : '';
+      carimbo.textContent = c ? `Totalizado em ${c}${g}` : '';
     }
+  }
+
+  /* ---------------------------------------------------------------- avisos */
+
+  /* As três coisas que uma tela de apuração precisa dizer e quase nenhuma diz:
+     que a divulgação presidencial ainda está bloqueada, que a eleição terminou
+     sem eleito, e quanto eleitorado ainda falta contar. Tudo num só lugar. */
+  function avisos(entrada, lista, alvo) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    const partes = [];
+
+    if (APU.bloqueado(entrada)) {
+      partes.push('<strong>Divulgação presidencial ainda bloqueada.</strong> '
+        + 'O arquivo do TSE chega com a votação zerada até as 17h de Brasília, '
+        + 'para todas as unidades da Federação e o exterior (art. 265 §1 da '
+        + 'Resolução TSE nº 23.751/2026). O zero abaixo é a regra, não uma falha.');
+    }
+
+    if (entrada && entrada.esae === 's') {
+      const motivos = (entrada.mnae || []).map(esc).join('; ');
+      partes.push('<strong>Totalização final sem atribuição de eleito.</strong>'
+        + (motivos ? ' ' + motivos + '.' : ''));
+    }
+
+    const falta = APU.faltam(entrada, lista);
+    if (falta && falta.eleitorado > 0) {
+      const dif = falta.diferenca != null
+        ? ` A diferença entre o primeiro e o segundo colocado é de ${APU.fmt.int(falta.diferenca)} votos, `
+          + `então o que falta ${falta.alcancavel ? 'ainda pode' : 'já não'} alterar a ordem.`
+        : '';
+      partes.push(`<strong>${APU.fmt.int(falta.eleitorado)} eleitores</strong> em `
+        + `${APU.fmt.int(falta.secoes)} seções ainda não totalizadas.` + dif);
+    }
+
+    el.innerHTML = partes.map((p) => `<p class="apu-aviso">${p}</p>`).join('');
+    el.hidden = !partes.length;
   }
 
   /* ------------------------------------------------------------- andamento */
@@ -66,17 +120,28 @@ const APUUI = (function () {
     if (secoes) {
       secoes.textContent = entrada
         ? `${APU.fmt.int(entrada.st)} de ${APU.fmt.int(entrada.ts)} seções`
+          + (entrada.snt ? ` · faltam ${APU.fmt.int(entrada.snt)}` : '')
         : 'seções totalizadas';
     }
   }
 
-  /* Registro pendente de julgamento e o estado normal de quase toda a lista
-     nesta altura do calendario — marcar isso em cada linha nao informa nada.
-     Indeferimento e renuncia, sim: mudam quem esta de fato na disputa. */
   function rotuloSituacao(c) {
     const st = String(c.situacao || '');
-    if (!st || /^(Deferido|Aguardando)/i.test(st)) return '';
-    return `<span class="apu-cand-sit">${esc(st)}</span>`;
+    /* Registro pendente é o estado normal de quase toda a lista, e "Não eleito"
+       é o estado normal de quase todo candidato depois da totalização: marcar
+       qualquer um dos dois em cada linha não informa nada. O que informa são as
+       situações do art. 215 — eleito por quociente, eleito por média, suplente —
+       e as que mudam quem está de fato na disputa. */
+    const muda = st && !/^(Deferido|Aguardando|N[ãa]o eleit)/i.test(st);
+    const chips = [];
+    if (muda) chips.push(`<span class="apu-cand-sit">${esc(st)}</span>`);
+    /* dvt: a destinação do voto. Anulado e sub judice mudam a leitura do número
+       que está ao lado — é o que o art. 265 §2 manda informar. */
+    if (/anulado/i.test(String(c.destino || ''))) {
+      chips.push(`<span class="apu-cand-sit is-anulado">${esc(c.destino)}</span>`);
+    }
+    if (!muda && c.eleito) chips.push('<span class="apu-cand-sit is-eleito">Eleito</span>');
+    return chips.join('');
   }
 
   /* ---------------------------------------------------------------- placar */
@@ -157,14 +222,81 @@ const APUUI = (function () {
     if (!entrada) { el.innerHTML = ''; return; }
 
     const cel = (v, l) => `<div><div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;
-    el.innerHTML = [
-      cel(APU.fmt.int(entrada.te), 'Eleitorado'),
-      cel(APU.fmt.int(entrada.comp), `Comparecimento<br>${APU.fmt.pct(APU.fmt.parte(entrada.comp, entrada.te))}`),
-      cel(APU.fmt.int(entrada.abst), `Abstenção<br>${APU.fmt.pct(APU.fmt.parte(entrada.abst, entrada.te))}`),
-      cel(APU.fmt.int(entrada.vv), 'Votos válidos'),
-      cel(APU.fmt.int(entrada.vb), `Brancos<br>${APU.fmt.pct(APU.fmt.parte(entrada.vb, entrada.tv))}`),
-      cel(APU.fmt.int(entrada.vn), `Nulos<br>${APU.fmt.pct(APU.fmt.parte(entrada.vn, entrada.tv))}`)
-    ].join('');
+    const tem = (k) => entrada[k] != null;
+    const pc = (parte, total) => APU.fmt.pct(APU.fmt.parte(parte, total));
+
+    /* Cada percentual usa a base que o TSE usa para o seu: comparecimento e
+       abstenção sobre o eleitorado das seções instaladas (esi), válidos e
+       anulados sobre os votos a votáveis concorrentes (vvc), brancos e total de
+       nulos sobre o total de votos, e nulo contra nulo técnico sobre o total de
+       nulos. Assim o número da tela é o número do arquivo.
+
+       Campo ausente é campo que aquela camada não traz: a célula não aparece, em
+       vez de mostrar um zero que se leria como "não houve". */
+    const baseComp = entrada.esi || entrada.te;
+    const baseVot = entrada.vvc || entrada.vv;
+    const celulas = [
+      [true, APU.fmt.int(entrada.te), 'Eleitorado'],
+      [true, APU.fmt.int(entrada.comp), `Comparecimento<br>${pc(entrada.comp, baseComp)}`],
+      [true, APU.fmt.int(entrada.abst), `Abstenção<br>${pc(entrada.abst, baseComp)}`],
+      [true, APU.fmt.int(entrada.vv), `Votos válidos<br>${pc(entrada.vv, baseVot)}`],
+      [tem('vnom'), APU.fmt.int(entrada.vnom), `Nominais<br>${pc(entrada.vnom, entrada.vv)}`],
+      [tem('vl') && entrada.vl > 0, APU.fmt.int(entrada.vl),
+        `De legenda<br>${pc(entrada.vl, entrada.vv)}`],
+      [true, APU.fmt.int(entrada.vb), `Brancos<br>${pc(entrada.vb, entrada.tv)}`],
+      /* Nulo e nulo técnico: quase nenhum painel separa os dois, e a diferença é
+         justamente a que separa protesto de falha operacional da urna. */
+      [true, APU.fmt.int(entrada.vn),
+        `Nulos<br>${pc(entrada.vn, entrada.tvn || entrada.tv)} dos nulos`],
+      [tem('vnt') && entrada.vnt > 0, APU.fmt.int(entrada.vnt),
+        `Nulos técnicos<br>${pc(entrada.vnt, entrada.tvn)} dos nulos`],
+      [tem('van') && entrada.van > 0, APU.fmt.int(entrada.van),
+        `Anulados<br>${pc(entrada.van, baseVot)}`],
+      [tem('vansj') && entrada.vansj > 0, APU.fmt.int(entrada.vansj),
+        `Anulados sub judice<br>${pc(entrada.vansj, baseVot)}`],
+      [tem('vscv') && entrada.vscv > 0, APU.fmt.int(entrada.vscv), 'Sem candidato para votar'],
+      [tem('vsan') && entrada.vsan > 0, APU.fmt.int(entrada.vsan), 'Votos de seções anuladas'],
+      /* Urnas que não abriram, e as marcadas como não apuradas. É a estatística
+         que ninguém publica e que aparece em toda contestação. */
+      [tem('sni') && entrada.sni > 0, APU.fmt.int(entrada.sni),
+        `Seções não instaladas<br>${APU.fmt.int(entrada.esni)} eleitores`],
+      [tem('sna') && entrada.sna > 0, APU.fmt.int(entrada.sna),
+        `Seções não apuradas<br>${APU.fmt.int(entrada.esna)} eleitores`]
+    ];
+    el.innerHTML = celulas.filter(([mostrar]) => mostrar)
+      .map(([, v, l]) => cel(v, l)).join('');
+  }
+
+  /* ----------------------------------------------------- saúde do plantão */
+
+  /* O gargalo de uma cobertura ao vivo não é a ideia, é o coletor aguentar seis
+     horas sem ser bloqueado. Última geração lida, requisições, 404 e atraso em
+     relação à hora da totalização — o teto é 100 requisições por IP por segundo,
+     e um 404 repetido bloqueia igual a excesso, por dez minutos renováveis. */
+  function saude(estado, alvo) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    if (!estado) { el.hidden = true; return; }
+    el.hidden = false;
+
+    const req = estado.req || {};
+    const br = estado.abrangencia || {};
+    const minutos = Math.round((estado.segundos || 0) / 60);
+    const cel = (v, l) => `<div><div class="apu-stat-v">${v}</div>`
+      + `<div class="apu-stat-l">${l}</div></div>`;
+
+    el.innerHTML = '<div class="apu-stats">' + [
+      cel(esc(estado.ambiente || '—'),
+        'Ambiente' + (estado.fase === 's' ? '<br>fase simulada' : '')),
+      cel(APU.fmt.int(estado.volta), `Voltas<br>${minutos} min de plantão`),
+      cel(APU.fmt.int(req.get), `Requisições<br>${APU.fmt.int(req['304'])} não modificadas`),
+      cel(APU.fmt.int(req['404']), '404 recebidos<br>bloqueiam como excesso'),
+      cel(((req.bytes || 0) / 1e6).toFixed(1) + ' MB', 'Tráfego lido'),
+      cel(br.pst != null ? APU.fmt.pct(br.pst) : '—',
+        br.ht ? `Totalizado às ${esc(br.ht)}` : 'Apurado no país'),
+      cel(APU.fmt.int(br.uff), `UFs finalizadas<br>${APU.fmt.int(br.ufpt)} parciais`),
+      cel(APU.fmt.int(br.muf), `Municípios finalizados<br>${APU.fmt.int(br.mupt)} parciais`)
+    ].join('') + '</div>';
   }
 
   /* -------------------------------------------------------------- legenda */
@@ -306,5 +438,6 @@ const APUUI = (function () {
     });
   }
 
-  return { selo, progresso, placar, participacao, legenda, lideresDistintos, balao, pintarMapa, foto, esc };
+  return { selo, avisos, progresso, placar, participacao, saude, legenda,
+    lideresDistintos, balao, pintarMapa, foto, esc };
 })();

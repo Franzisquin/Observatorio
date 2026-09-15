@@ -12,7 +12,20 @@
      {ele}-{cargo}-{uf}.json {meta, abr:{cdTse:{...}}, mun:{cdTse:{nm,ibge}}, cand:{...}}
 
    Cada entrada de `abr`: st/ts/pst (seções), te/comp/abst (eleitorado),
-   tv/vv/vb/vn (votos), cand:{sq:votos}. Proporcional troca `cand` por `part`.
+   tv/vvc/vv/vb/vn (votos), cand:{sq:votos}. Proporcional troca `cand` por `part`.
+
+   A camada alta (br e uf) vem completa: as três hierarquias do EA20 inteiras —
+   seções (ts = st + snt; st = si + sni; si = sa + sna), eleitorado (te = est +
+   esnt; est = esi + esni) e votos (tv = vvc + vb + tvn + vscv; vvc = vv + van +
+   vansj; vv = vnom + vl; tvn = vn + vnt). Na camada municipal só o essencial:
+   por município, o detalhe multiplicaria por 5.569 o arquivo que o navegador
+   recarrega. Campo ausente é campo desconhecido — a tela esconde a célula em vez
+   de mostrar zero.
+
+   Dois arquivos avulsos, fora do eixo eleição/cargo:
+     {ele}-ab.json              EA14 — andamento por UF e estágio dos municípios
+     {ele}-{cargo}-eleitos.json EA10 — quem venceu, após a totalização final
+     status.json                saúde do plantão, escrita por plantao.py
    =========================================================================== */
 'use strict';
 
@@ -84,12 +97,69 @@ const APU = (function () {
 
   const CINZA = '#94a3b8';
 
-  function cor(sigla) {
+  /* ---------------------------------------------------- cor de sigla nova */
+
+  /* A paleta acima cobre os partidos que existiram. O que ela não cobre —
+     federação recém-registrada, partido novo, e as siglas "P 9998" dos dados
+     simulados — caía todo no mesmo cinza, e um placar de treze candidaturas
+     ficava indistinguível.
+
+     A cor derivada não sai de um hash da sigla: testado contra as 31 siglas do
+     simulado de setembro, o hash deixou 23 pares a menos de 15° de matiz e dois
+     no mesmo tom. Em vez disso, cada sigla nova recebe o matiz mais distante dos
+     já entregues — uma escolha gulosa que mantém a roda de cor bem dividida por
+     construção.
+
+     Uma vez atribuída, a cor nunca muda: a atribuição é feita em ordem
+     alfabética, e não na ordem do ranking, que se reordena a cada boletim. */
+  const _derivadas = new Map();
+  const _matizes = [];
+
+  function matizMaisDistante() {
+    if (!_matizes.length) return 210;
+    let melhor = 0;
+    let maiorFolga = -1;
+    for (let h = 0; h < 360; h += 2) {
+      let folga = 360;
+      for (const usado of _matizes) {
+        const d = Math.abs(h - usado);
+        folga = Math.min(folga, Math.min(d, 360 - d));
+      }
+      if (folga > maiorFolga) { maiorFolga = folga; melhor = h; }
+    }
+    return melhor;
+  }
+
+  function corDerivada(chave) {
+    if (_derivadas.has(chave)) return _derivadas.get(chave);
+    const matiz = matizMaisDistante();
+    _matizes.push(matiz);
+    /* Saturação e luminosidade fixas: a distinção fica por conta do matiz, e o
+       contraste continua o mesmo no tema claro e no escuro. Amarelo e verde
+       puros ficariam claros demais no claro, então a luminosidade é média. */
+    const cor = `hsl(${matiz} 58% 56%)`;
+    _derivadas.set(chave, cor);
+    return cor;
+  }
+
+  function chaveDeCor(sigla) {
     let k = String(sigla || '').trim().toUpperCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/\s+/g, ' ').replace(/^FEDERACAO /, '');
-    if (APELIDOS[k]) k = APELIDOS[k];
-    return CORES[k] || CORES[k.replace(/\s+/g, '')] || CINZA;
+    return APELIDOS[k] || k;
+  }
+
+  function cor(sigla) {
+    const k = chaveDeCor(sigla);
+    if (!k) return CINZA;
+    return CORES[k] || CORES[k.replace(/\s+/g, '')] || corDerivada(k);
+  }
+
+  /* Reserva a cor das siglas de um lote, em ordem alfabética. Chamado antes de
+     montar qualquer ranking: sem isso a primeira cor sairia para quem estivesse
+     na frente naquele boletim, e a paleta inteira se remexeria a cada virada. */
+  function semearCores(siglas) {
+    Array.from(new Set(siglas.filter(Boolean))).sort().forEach(cor);
   }
 
   /* ------------------------------------------------------------------ nomes */
@@ -143,9 +213,39 @@ const APU = (function () {
     return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
   }
 
-  async function snapshot(sufixo) {
-    if (!cfg.eleicao) return null;
-    const url = `${cfg.base}${cfg.eleicao}-${cfg.cargo}-${sufixo}.json`;
+  /* Qual eleição responde por cada cargo. Em 2026 a eleição geral vem partida
+     em duas — uma federal, com presidente e deputado federal, e uma estadual,
+     com governador, senador e as assembleias —, e cada uma tem o seu código.
+     Uma página que mostra os três cargos ao mesmo tempo não pode depender de um
+     código só, então o coletor publica o mapa cargo → eleição em indice.json e
+     aqui só se lê. `eleicao=` na URL continua valendo como reserva e como
+     override manual. */
+  let _indice;
+
+  async function indice() {
+    if (_indice !== undefined) return _indice;
+    _indice = (await arquivo('indice.json')) || null;
+    return _indice;
+  }
+
+  function eleicaoDe(cargo) {
+    const i = _indice;
+    return (i && i.cargos && i.cargos[cargo || cfg.cargo]) || cfg.eleicao || '';
+  }
+
+  /* Código do segundo turno da eleição daquele cargo, direto do `cdt2` do TSE. */
+  function segundoTurnoDe(cargo) {
+    const i = _indice;
+    const e = i && i.eleicoes && i.eleicoes[eleicaoDe(cargo)];
+    return (e && e.t2) || '';
+  }
+
+  async function snapshot(sufixo, cargo) {
+    await indice();
+    const c = cargo || cfg.cargo;
+    const eleicao = eleicaoDe(c);
+    if (!eleicao) return null;
+    const url = `${cfg.base}${eleicao}-${c}-${sufixo}.json`;
     try {
       const r = await fetch(comBust(url), { cache: 'no-store' });
       if (!r.ok) return null;
@@ -155,6 +255,61 @@ const APU = (function () {
       return null;
     }
   }
+
+  /* Snapshot que não segue o padrão eleição-cargo-abrangência: o EA14 de
+     acompanhamento, o EA10 de eleitos e o status.json do plantão. */
+  async function arquivo(nome) {
+    try {
+      const r = await fetch(comBust(cfg.base + nome), { cache: 'no-store' });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function acompanhamento(cargo) {
+    await indice();
+    const e = eleicaoDe(cargo);
+    return e ? arquivo(e + '-ab.json') : null;
+  }
+
+  async function eleitos(cargo) {
+    await indice();
+    const c = cargo || cfg.cargo;
+    const e = eleicaoDe(c);
+    return e ? arquivo(e + '-' + c + '-eleitos.json') : null;
+  }
+
+  const saude = () => arquivo('status.json');
+
+  /* ----------------------------------------------- leituras do EA20 */
+
+  /* dv = n: o TSE publica o arquivo presidencial com a votação zerada até a
+     liberação das 17h de Brasília (art. 265 §1 da Res. 23.751/2026, para todas
+     as unidades e o exterior). Sem nomear a espera, a tela mostra 0,00% e todo
+     leitor entende como defeito. */
+  const bloqueado = (entrada) => !!entrada && entrada.dv === 'n';
+
+  /* md só existe enquanto não há totalização final, e só para presidente,
+     governador e prefeito: 'e' eleito, 's' segundo turno. É o próprio TSE
+     dizendo que a conta fechou — não é projeção do site. */
+  function definicao(entrada) {
+    if (!entrada || entrada.tf === 's') return '';
+    return entrada.md === 'e' ? 'e' : (entrada.md === 's' ? 's' : '');
+  }
+
+  /* Eleitorado das seções que ainda não foram totalizadas. Comparado à diferença
+     entre primeiro e segundo colocado, responde "ainda dá?" com dado do TSE. */
+  function faltam(entrada, lista) {
+    if (!entrada || entrada.esnt == null) return null;
+    const dois = (lista || []).slice(0, 2);
+    const diferenca = dois.length > 1 ? dois[0].votos - dois[1].votos : null;
+    return { eleitorado: entrada.esnt, secoes: entrada.snt || 0, diferenca,
+             alcancavel: diferenca != null && entrada.esnt > diferenca };
+  }
+
+  const ESTAGIOS = { n: 'não iniciada', p: 'em andamento', f: 'finalizada' };
 
   const _malhas = {};
 
@@ -192,9 +347,12 @@ const APU = (function () {
      do pvap do TSE. */
   function ranking(entrada, dicionario) {
     if (!entrada) return [];
-    const validos = entrada.vv || 0;
 
+    /* Proporcional: `part` soma os votos válidos do partido (nominais + legenda),
+       então a base é a dos válidos. */
     if (PROPORCIONAIS.has(cfg.cargo)) {
+      const validos = entrada.vv || 0;
+      semearCores(Object.keys(entrada.part || {}));
       return Object.entries(entrada.part || {})
         .map(([sigla, votos]) => ({
           chave: sigla, nome: sigla, urna: sigla, partido: sigla,
@@ -202,6 +360,15 @@ const APU = (function () {
         }))
         .sort((a, b) => b.votos - a.votos);
     }
+
+    /* Majoritário: `vap` é voto computado, e a base do pvap que o TSE publica é
+       `vvc` — votos a votáveis concorrentes —, não os válidos. As duas coincidem
+       enquanto não há voto anulado; quando há, divergem muito. Na suplementar de
+       governador de Roraima em 2024, com 160.004 votos anulados sub judice,
+       dividir pelos válidos dava 155,58% ao primeiro colocado, contra os 60,87%
+       que o TSE divulgou. `vv` fica como reserva para snapshot antigo, sem vvc. */
+    const base = entrada.vvc || entrada.vv || 0;
+    semearCores(Object.values(dicionario || {}).map((d) => d.partido));
 
     return Object.entries(entrada.cand || {})
       .map(([sq, votos]) => {
@@ -213,7 +380,16 @@ const APU = (function () {
           numero: d.numero || '',
           partido: d.partido || '',
           votos,
-          pct: fmt.parte(votos, validos)
+          pct: fmt.parte(votos, base),
+          /* dvt do TSE: Válido, Válido (legenda), Anulado, Anulado sub judice. O
+             art. 265 §2 manda informar a situação do voto, não só o número. */
+          destino: d.destino || '',
+          eleito: d.eleito === 's',
+          situacao: d.situacao || '',
+          coligacao: d.coligacao || '',
+          federacao: d.federacao || '',
+          vice: d.vice || [],
+          subs: d.subs || []
         };
       })
       .sort((a, b) => b.votos - a.votos);
@@ -225,12 +401,17 @@ const APU = (function () {
 
   /* Soma um conjunto de entradas numa só. Serve para compor o total de uma UF
      a partir dos municípios quando o arquivo de UF ainda não chegou. */
+  /* Só os campos que a camada municipal também traz. Os da anatomia completa
+     ficam de fora de propósito: somar campo ausente daria zero, e zero aqui
+     significaria "não houve voto anulado" quando o certo é "não sei". */
+  const SOMAVEIS = ['st', 'ts', 'te', 'comp', 'abst', 'tv', 'vvc', 'vv', 'vb', 'vn'];
+
   function agregar(entradas) {
     const total = { cand: {}, part: {} };
-    ['st', 'ts', 'te', 'comp', 'abst', 'tv', 'vv', 'vb', 'vn'].forEach((c) => (total[c] = 0));
+    SOMAVEIS.forEach((c) => (total[c] = 0));
     entradas.forEach((e) => {
       if (!e) return;
-      ['st', 'ts', 'te', 'comp', 'abst', 'tv', 'vv', 'vb', 'vn'].forEach((c) => {
+      SOMAVEIS.forEach((c) => {
         total[c] += Number(e[c]) || 0;
       });
       Object.entries(e.cand || {}).forEach(([k, v]) => (total.cand[k] = (total.cand[k] || 0) + v));
@@ -285,6 +466,7 @@ const APU = (function () {
      voto, qualquer outra ordenação sugeriria uma disputa que ainda não houve. */
   function rankingZerado(dicionario, uf) {
     if (!dicionario) return [];
+    semearCores(Object.values(dicionario).map((c) => c.partido));
     var alvo = (uf || '').toUpperCase();
     return Object.entries(dicionario)
       /* Quem renunciou saiu da disputa: não é candidatura em zero, é ausência. */
@@ -319,9 +501,10 @@ const APU = (function () {
   }
 
   return {
-    cfg, CARGOS, PROPORCIONAIS, UF_NOMES,
+    cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
-    simulado, carimbo
+    simulado, carimbo, arquivo, acompanhamento, eleitos, saude,
+    bloqueado, definicao, faltam, indice, eleicaoDe, segundoTurnoDe
   };
 })();

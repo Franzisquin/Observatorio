@@ -56,6 +56,10 @@ CARGOS_COM_BR = {"0001"}
 # o arquivo de vereador de uma capital sozinho passa de 200 KB.
 CARGOS_PROPORCIONAIS = {"0006", "0007", "0008", "0013"}
 
+# Cargos com arquivo de eleitos (EA10, secao 2). Presidente nao tem: o eleito
+# presidencial sai do proprio EA20, pelo campo `e` do candidato.
+CARGOS_COM_ELEITOS = {"0003", "0005", "0006", "0011"}
+
 UFS = [
     "ac", "al", "am", "ap", "ba", "ce", "df", "es", "go", "ma", "mg", "ms", "mt",
     "pa", "pb", "pe", "pi", "pr", "rj", "rn", "ro", "rr", "rs", "sc", "se", "sp", "to",
@@ -86,6 +90,62 @@ def texto(bruto) -> str:
     novo na hora de montar o HTML transforma em "D&amp;apos;AVILA".
     """
     return html.unescape(str(bruto or "")).strip()
+
+
+def ciclo_de(config: dict, eleicao=None) -> str:
+    """Ciclo eleitoral do token <ciclo>. Vem do pleito, nao da raiz.
+
+    O EA11 de 2026 passou a listar eleicoes de mais de um ciclo (2024 segue no ar
+    ate 04/04/2028), e o ciclo e atributo do pleito — `pl[].c`. O arquivo atual
+    ainda repete o valor na raiz; ler o do pleito primeiro e o que mantem a URL
+    correta quando a raiz deixar de ter um ciclo unico para publicar.
+    """
+    if eleicao is not None:
+        alvo = str(eleicao)
+        for pleito in config.get("pl", []):
+            if any(str(e.get("cd")) == alvo for e in pleito.get("e", [])):
+                if pleito.get("c"):
+                    return str(pleito["c"])
+                break
+    return str(config.get("c", "") or "")
+
+
+# Tipos de eleicao do EA11 (`e.tp`). O acompanhamento (EA14/EA15) e o arquivo de
+# eleitos (EA10) so existem nas ordinarias — pedi-los numa suplementar ou numa
+# consulta popular devolve 404, e 404 repetido bloqueia o acesso por 10 minutos.
+TIPOS_ELEICAO = {1: "estadual ordinaria", 2: "estadual suplementar",
+                 3: "municipal ordinaria", 4: "municipal suplementar",
+                 5: "consulta popular nacional", 6: "consulta popular estadual",
+                 7: "consulta popular municipal", 8: "federal ordinaria",
+                 9: "federal suplementar"}
+TIPOS_ORDINARIAS = {1, 3, 8}
+
+
+def eleicao_de(config: dict, eleicao) -> dict:
+    """O registro da eleicao dentro do EA11, ou {} se ela nao estiver na lista."""
+    alvo = str(eleicao)
+    for pleito in config.get("pl", []):
+        for e in pleito.get("e", []):
+            if str(e.get("cd")) == alvo:
+                return e
+    return {}
+
+
+def tipo_eleicao(config: dict, eleicao) -> int:
+    """Codigo do tipo da eleicao (`e.tp` do EA11). 0 quando desconhecido."""
+    try:
+        return int(eleicao_de(config, eleicao).get("tp") or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def pleito_de(config: dict, eleicao) -> str:
+    """Codigo do pleito de uma eleicao — token <cd_pleito> (EA16, arquivos de urna)."""
+    alvo = str(eleicao)
+    for pleito in config.get("pl", []):
+        if any(str(e.get("cd")) == alvo for e in pleito.get("e", [])):
+            return str(pleito.get("cd", ""))
+    return ""
 
 
 class Limitador:
@@ -164,6 +224,12 @@ class Cliente:
                 # 403/429 = provavel bloqueio por excesso. Recuar de verdade,
                 # nao insistir: o bloqueio e de 10 minutos e renovavel.
                 if err.code in (403, 429):
+                    # Na ultima tentativa nao ha o que esperar: recuar antes de
+                    # desistir so atrasa quem chamou. Acontece na sondagem de
+                    # ambiente, onde 403 e a resposta normal para caminho que nao
+                    # existe neste host.
+                    if tentativa == self.tentativas:
+                        return None
                     espera = min(120, 15 * tentativa)
                     print(f"  ! HTTP {err.code} em {url} — recuando {espera}s", flush=True)
                     time.sleep(espera)
@@ -188,12 +254,14 @@ class Cliente:
 
     # ---- montagem de URL -----------------------------------------------
 
+    def url_config(self) -> str:
+        return f"{self.base}/{self.ambiente}/comum/config/ele-c.json"
+
     def config_eleicoes(self) -> dict:
         """EA11 — a raiz de tudo. Traz ciclo, pleitos, eleicoes e os diretorios."""
-        url = f"{self.base}/{self.ambiente}/comum/config/ele-c.json"
-        dados = self.json_de(url, cache=False)
+        dados = self.json_de(self.url_config(), cache=False)
         if dados is None:
-            raise RuntimeError(f"EA11 nao encontrado em {url}")
+            raise RuntimeError(f"EA11 nao encontrado em {self.url_config()}")
         return dados
 
     def diretorio(self, config: dict, tipo: str, **tokens) -> str:
@@ -213,12 +281,73 @@ class Cliente:
         valores = {
             "base": self.base,
             "ambiente": self.ambiente,
-            "ciclo": config.get("c", ""),
+            "ciclo": ciclo_de(config, tokens.get("cd_eleicao")),
+            "cd_pleito": pleito_de(config, tokens.get("cd_eleicao")),
             **tokens,
         }
         for chave, valor in valores.items():
             modelo = modelo.replace(f"<{chave}>", str(valor))
         return modelo
+
+
+# Onde procurar, como pares (host, ambiente). O simulado de 2026 nao esta no
+# host oficial: fica em resultados-sim.tse.jus.br, e o seu "ambiente" tem DOIS
+# segmentos — `simulado/simulado2026`. Foi o proprio aplicativo Resultados do TSE
+# que entregou isso: a raiz do host redireciona para
+# /simulado/simulado2026/app/index.html, e o bundle do app traz a base e o
+# ambiente em claro. No host oficial, `/simulado` responde com conexao cortada,
+# nao com 404 — procurar so por la nao acharia nada.
+SIM_2026 = "https://resultados-sim.tse.jus.br"
+
+AMBIENTES = [
+    (SIM_2026, "simulado/simulado2026"),   # simulados de setembro/2026
+    (BASE, "oficial"),                     # a eleicao de verdade
+    (SIM_2026, "simulado/teste"),          # ambientes de ensaio do proprio TSE
+    (BASE, "simulado"),
+]
+
+
+def descobrir_ambiente(candidatos: list[tuple[str, str]] | None = None,
+                       por_segundo: float = 80.0, preferir_simulado: bool = True
+                       ) -> tuple[str, str, dict] | tuple[None, None, None]:
+    """Sonda os pares (host, ambiente) conhecidos e devolve o escolhido com o EA11.
+
+    Sondagem curta e de uma vez so: cada candidato custa UMA requisicao a
+    `comum/config/ele-c.json`. Nao e varredura de diretorio — e a lista fechada de
+    lugares que o TSE ja usou ou documentou. Ainda assim, 404 conta para o
+    bloqueio, entao isto nunca deve entrar no laco do plantao: roda na abertura e
+    o que for encontrado vale para a sessao inteira.
+
+    Sonda todos antes de escolher, em vez de parar no primeiro que responde: o
+    `oficial` existe sempre, e parar nele faria a descoberta nunca achar o
+    simulado — que e justamente o que se quer numa janela de teste. Com
+    `preferir_simulado`, ganha o primeiro cuja fase seja `s`.
+    """
+    achados: list[tuple[str, str, dict]] = []
+    for base, ambiente in (candidatos or AMBIENTES):
+        rotulo = f"{base.split('//')[-1]}/{ambiente}"
+        cli = Cliente(ambiente=ambiente, por_segundo=por_segundo, tentativas=1, base=base)
+        try:
+            dados = cli.json_de(cli.url_config(), cache=False)
+        except Exception as err:  # conexao recusada/cortada tambem e "nao existe"
+            print(f"  {rotulo:48s} {type(err).__name__}", flush=True)
+            continue
+        if not dados:
+            print(f"  {rotulo:48s} ausente", flush=True)
+            continue
+        fase = "simulada" if dados.get("f") == "s" else "oficial"
+        print(f"  {rotulo:48s} OK — fase {dados.get('f')} ({fase}), gerado "
+              f"{dados.get('dg')} {dados.get('hg')} idg {dados.get('idg') or '-'}",
+              flush=True)
+        achados.append((base, ambiente, dados))
+
+    if not achados:
+        return None, None, None
+    if preferir_simulado:
+        for achado in achados:
+            if achado[2].get("f") == "s":
+                return achado
+    return achados[0]
 
 
 def e6(codigo) -> str:
