@@ -524,5 +524,5 @@ const APUUI = (function () {
   }
 
   return { selo, avisos, progresso, placar, participacao, saude,
-    legendaMarcas, balao, pintarMapa, foto, esc, icone };
+    legendaMarcas, balao, conteudoDoBalao, pintarMapa, foto, esc, icone };
 })();

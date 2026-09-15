@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Locais de votação — ElectoMaps</title>
+  <link rel="icon" type="image/png" href="favicon.png?v=2" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
+  <meta name="description"
+    content="Mapa dos locais de votação por estado, com as seções eleitorais de cada local e o eleitorado de cada seção. Dados do TSE." />
+
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="consent.css" />
+  <link rel="stylesheet" href="locais.css?v=20260915c" />
+</head>
+
+<body data-theme="dark">
+
+  <header class="loc-topo">
+    <a class="loc-marca" href="index.html">
+      <img src="logo.png?v=2" alt="" width="128" height="128" />
+      <span>ElectoMaps</span>
+      <span class="loc-sep" aria-hidden="true">/</span>
+      <span class="loc-escopo">Locais de votação</span>
+    </a>
+
+    <div class="loc-controles">
+      <label class="loc-rotulo" for="seletorUF">Estado</label>
+      <select id="seletorUF" class="loc-select"></select>
+
+      <label class="loc-rotulo" for="seletorConjunto">Eleição</label>
+      <select id="seletorConjunto" class="loc-select" hidden></select>
+
+      <label class="loc-rotulo" for="busca">Buscar</label>
+      <input id="busca" class="loc-busca" type="search" placeholder="Local, bairro ou município"
+        autocomplete="off" />
+
+      <button id="alternarTema" class="loc-botao" type="button" title="Alternar tema">Tema</button>
+    </div>
+  </header>
+
+  <main class="loc-palco">
+    <div id="map" class="loc-mapa"></div>
+
+    <aside class="loc-painel" id="painel">
+      <div class="loc-painel-topo">
+        <h1 class="loc-titulo" id="tituloPainel">Locais de votação</h1>
+        <p class="loc-sub" id="subPainel">Carregando…</p>
+      </div>
+
+      <div class="loc-resumo" id="resumo"></div>
+
+      <div class="loc-corpo" id="corpo">
+        <p class="loc-dica">
+          Clique num ponto do mapa para ver o local, o seu eleitorado e as seções
+          que votam ali.
+        </p>
+      </div>
+
+      <div class="loc-lista-wrap" id="listaWrap">
+        <h2 class="loc-rot">Maiores locais</h2>
+        <ol class="loc-lista" id="lista"></ol>
+      </div>
+    </aside>
+  </main>
+
+  <div class="loc-tip" id="tip" role="status" aria-live="polite"></div>
+
+  <!-- utils.js entra pelo getUniversalGradientColor: é a mesma função que o
+       visualizador usa para escurecer a cor do partido pela margem, e carregá-la
+       aqui é o que faz um local sair com a mesma cor nas duas telas. -->
+  <script src="js/utils.js?v=20260915a"></script>
+  <script src="js/apuracao-dados.js?v=20260915h"></script>
+  <!-- apuracao-ui.js entra pelo conteudoDoBalao: e o mesmo balao .district-nyt-*
+       do visualizador, ja usado nas telas de apuracao. -->
+  <script src="js/apuracao-ui.js?v=20260915h"></script>
+  <script src="js/maplibre-compat.js?v=20260905l"></script>
+  <script src="js/locais-view.js?v=20260915f"></script>
+  <script src="js/consent.js" defer></script>
+</body>
+
+</html>
