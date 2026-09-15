@@ -85,17 +85,20 @@ const APUUI = (function () {
 
     if (carimbo) {
       const c = APU.carimbo(entrada);
-      const g = meta && meta.idg ? ` · geração ${meta.idg}` : '';
-      carimbo.textContent = c ? `Totalizado em ${c}${g}` : '';
+      carimbo.textContent = c ? `Totalizado em ${c}` : '';
     }
   }
 
   /* ---------------------------------------------------------------- avisos */
 
-  /* As três coisas que uma tela de apuração precisa dizer e quase nenhuma diz:
-     que a divulgação presidencial ainda está bloqueada, que a eleição terminou
-     sem eleito, e quanto eleitorado ainda falta contar. Tudo num só lugar. */
-  function avisos(entrada, lista, alvo) {
+  /* As duas coisas que uma tela de apuração precisa dizer e quase nenhuma diz:
+     que a divulgação presidencial ainda está bloqueada, e que a eleição terminou
+     sem eleito. Tudo num só lugar.
+
+     O aviso de quanto eleitorado ainda falta contar saiu daqui: a linha de
+     seções do cabeçalho já dá o que falta, e a projeção de virada repetia a
+     cada boletim um recado que o próprio placar mostra. */
+  function avisos(entrada, alvo) {
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return;
     const partes = [];
@@ -111,16 +114,6 @@ const APUUI = (function () {
       const motivos = (entrada.mnae || []).map(esc).join('; ');
       partes.push('<strong>Totalização final sem atribuição de eleito.</strong>'
         + (motivos ? ' ' + motivos + '.' : ''));
-    }
-
-    const falta = APU.faltam(entrada, lista);
-    if (falta && falta.eleitorado > 0) {
-      const dif = falta.diferenca != null
-        ? ` A diferença entre o primeiro e o segundo colocado é de ${APU.fmt.int(falta.diferenca)} votos, `
-          + `então o que falta ${falta.alcancavel ? 'ainda pode' : 'já não'} alterar a ordem.`
-        : '';
-      partes.push(`<strong>${APU.fmt.int(falta.eleitorado)} eleitores</strong> em `
-        + `${APU.fmt.int(falta.secoes)} seções ainda não totalizadas.` + dif);
     }
 
     el.innerHTML = partes.map((p) => `<p class="apu-aviso">${p}</p>`).join('');
@@ -142,7 +135,6 @@ const APUUI = (function () {
     if (secoes) {
       secoes.textContent = entrada
         ? `${APU.fmt.int(entrada.st)} de ${APU.fmt.int(entrada.ts)} seções`
-          + (entrada.snt ? ` · faltam ${APU.fmt.int(entrada.snt)}` : '')
         : 'seções totalizadas';
     }
   }
@@ -253,6 +245,15 @@ const APUUI = (function () {
         </div>`;
     }).join('');
 
+    /* O botão pode morar fora do placar. Na apuração ele abre e fecha o bloco
+       inteiro — candidaturas e participação —, e um botão de "Mostrar menos" no
+       meio do que ele fecha se lê como se não valesse para o que vem abaixo. */
+    const casa = o.botao
+      ? (typeof o.botao === 'string' ? $(o.botao) : o.botao)
+      : el;
+    if (!casa) return;
+    if (casa !== el) casa.innerHTML = '';
+
     if (lista.length > limite) {
       const botao = document.createElement('button');
       botao.type = 'button';
@@ -265,14 +266,16 @@ const APUUI = (function () {
         placar(lista, alvo, opcoes);
         /* Fechar com a lista rolada deixaria o cartão preso no meio dela. */
         if (aberto) el.scrollTop = 0;
+        if (typeof o.aoAlternar === 'function') o.aoAlternar(!aberto);
       };
-      el.appendChild(botao);
+      casa.appendChild(botao);
     }
   }
 
   /* --------------------------------------------------------- participação */
 
-  function participacao(entrada, alvo) {
+  function participacao(entrada, alvo, opcoes) {
+    const o = opcoes || {};
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return;
     /* Sem boletim nao ha participacao: esconde o titulo junto, em vez de deixar
@@ -323,8 +326,33 @@ const APUUI = (function () {
       [tem('sna') && entrada.sna > 0, APU.fmt.int(entrada.sna),
         `Seções não apuradas<br>${APU.fmt.int(entrada.esna)} eleitores`]
     ];
-    el.innerHTML = celulas.filter(([mostrar]) => mostrar)
-      .map(([, v, l]) => cel(v, l)).join('');
+    /* A anatomia do voto são treze células de detalhe, e ocupava mais altura do
+       que o placar que a pessoa veio ver. Fica fechada — o estado sobrevive ao
+       redesenho de cada boletim.
+
+       `seguir` entrega a chave de abertura de outro bloco: com ela o painel não
+       ganha botão próprio e abre junto com a lista completa de candidaturas,
+       sob um botão só. O título acompanha, senão sobraria um rótulo sobre nada. */
+    const visiveis = celulas.filter(([mostrar]) => mostrar);
+    const chave = o.seguir || ('participacao:'
+      + ((typeof alvo === 'string' ? alvo : el.id) || 'participacao'));
+    const aberto = !!abertos[chave];
+
+    if (rot) rot.hidden = !aberto;
+    el.innerHTML = aberto ? visiveis.map(([, v, l]) => cel(v, l)).join('') : '';
+    if (o.seguir) return;
+
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'apu-more';
+    botao.textContent = aberto
+      ? 'Mostrar menos'
+      : `Mostrar mais (${visiveis.length})`;
+    botao.onclick = () => {
+      abertos[chave] = !aberto;
+      participacao(entrada, alvo, opcoes);
+    };
+    el.appendChild(botao);
   }
 
   /* ----------------------------------------------------- saúde do plantão */
@@ -377,30 +405,9 @@ const APUUI = (function () {
     ].join('') + '</div>';
   }
 
-  /* -------------------------------------------------------------- legenda */
-
-  function legenda(lideres, alvo) {
-    const el = typeof alvo === 'string' ? $(alvo) : alvo;
-    if (!el) return;
-    el.innerHTML = lideres.map((l) =>
-      `<span class="apu-legend-item">
-         <span class="apu-swatch" style="background:${APU.cor(l.partido)}"></span>
-         ${esc(l.urna || l.nome)}${l.partido ? ' <span style="color:var(--muted)">(' + esc(l.partido) + ')</span>' : ''}
-         <span style="color:var(--muted)">· ${l.n}</span>
-       </span>`).join('');
-  }
-
-  /* Quem lidera onde, para montar a legenda sem repetir nome. */
-  function lideresDistintos(entradas, dicionario) {
-    const conta = {};
-    entradas.forEach((e) => {
-      const l = APU.lider(e, dicionario);
-      if (!l) return;
-      if (!conta[l.chave]) conta[l.chave] = { ...l, n: 0 };
-      conta[l.chave].n++;
-    });
-    return Object.values(conta).sort((a, b) => b.n - a.n);
-  }
+  /* A legenda de cores do mapa (quem lidera, e em quantas unidades) saiu: o
+     mapa já é clicável e o balão diz o mesmo com mais precisão, e a lista
+     logo abaixo repete nome, cor e contagem. */
 
   /* ---------------------------------------------------------------- balão */
 
@@ -516,6 +523,6 @@ const APUUI = (function () {
     });
   }
 
-  return { selo, avisos, progresso, placar, participacao, saude, legenda,
-    legendaMarcas, lideresDistintos, balao, pintarMapa, foto, esc, icone };
+  return { selo, avisos, progresso, placar, participacao, saude,
+    legendaMarcas, balao, pintarMapa, foto, esc, icone };
 })();

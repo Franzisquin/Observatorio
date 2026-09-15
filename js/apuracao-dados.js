@@ -62,8 +62,17 @@ const APU = (function () {
     mt: 'Mato Grosso', pa: 'Pará', pb: 'Paraíba', pe: 'Pernambuco',
     pi: 'Piauí', pr: 'Paraná', rj: 'Rio de Janeiro', rn: 'Rio Grande do Norte',
     ro: 'Rondônia', rr: 'Roraima', rs: 'Rio Grande do Sul',
-    sc: 'Santa Catarina', se: 'Sergipe', sp: 'São Paulo', to: 'Tocantins'
+    sc: 'Santa Catarina', se: 'Sergipe', sp: 'São Paulo', to: 'Tocantins',
+    /* Nome, e não sigla: o TSE identifica o exterior por `zz`, e sem entrada
+       aqui toda tabela caía no `cd.toUpperCase()` e mostrava "ZZ". Isto é só o
+       rótulo — quem decide se ele conta como unidade é EXTERIOR, abaixo. */
+    zz: 'Exterior'
   };
+
+  /* O exterior é uma abrangência do TSE como qualquer UF — o EA12 o lista junto
+     e os votos dele entram no total do país —, mas não é unidade da Federação.
+     Onde a tela conta *unidades*, ele fica de fora; onde soma *votos*, entra. */
+  const EXTERIOR = 'zz';
 
   /* Paleta partidária do site, derivada de PARTY_COLOR_OVERRIDES (js/globals.js)
      — a predefinição que o visualizador pinta no mapa e que simulador.js
@@ -301,16 +310,6 @@ const APU = (function () {
   function definicao(entrada) {
     if (!entrada || entrada.tf === 's') return '';
     return entrada.md === 'e' ? 'e' : (entrada.md === 's' ? 's' : '');
-  }
-
-  /* Eleitorado das seções que ainda não foram totalizadas. Comparado à diferença
-     entre primeiro e segundo colocado, responde "ainda dá?" com dado do TSE. */
-  function faltam(entrada, lista) {
-    if (!entrada || entrada.esnt == null) return null;
-    const dois = (lista || []).slice(0, 2);
-    const diferenca = dois.length > 1 ? dois[0].votos - dois[1].votos : null;
-    return { eleitorado: entrada.esnt, secoes: entrada.snt || 0, diferenca,
-             alcancavel: diferenca != null && entrada.esnt > diferenca };
   }
 
   const ESTAGIOS = { n: 'não iniciada', p: 'em andamento', f: 'finalizada' };
@@ -562,11 +561,11 @@ const APU = (function () {
   }
 
   return {
-    cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS,
+    cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo, arquivo, acompanhamento, eleitos, saude,
-    bloqueado, definicao, faltam, indice, eleicaoDe, segundoTurnoDe,
+    bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA
   };
 })();

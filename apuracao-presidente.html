@@ -17,7 +17,7 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css?v=20260829a" />
-  <link rel="stylesheet" href="apuracao.css?v=20260915h" />
+  <link rel="stylesheet" href="apuracao.css?v=20260915p" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -78,8 +78,8 @@
           <path data-chave="df" data-nome="Distrito Federal" d="M590.7 471.8 589.2 470.7 589.5 469.3 589.1 468.3 590.6 465.2 590.2 462.8 590.6 462.0 588.3 460.9 588.3 459.9 571.0 459.9 571.0 462.6 570.2 463.0 570.1 464.0 570.1 464.5 570.8 464.7 570.8 465.5 569.1 467.3 569.3 469.4 569.9 469.8 569.3 472.1 590.7 472.1 590.7 471.8Z"></path>
           <g class="apu-exterior">
           <path class="apu-exterior-disco" data-chave="zz" data-nome="Exterior" d="M162.0 532.0A34 34 0 1 0 230.0 532.0A34 34 0 1 0 162.0 532.0Z"></path>
-          <path class="apu-exterior-grade" d="M196.0 498.0A34.0 34 0 1 0 196.0 566.0A34.0 34 0 1 0 196.0 498.0Z"></path>
-          <path class="apu-exterior-grade" d="M196.0 498.0A18.7 34 0 1 0 196.0 566.0A18.7 34 0 1 0 196.0 498.0Z"></path>
+          <path class="apu-exterior-grade" d="M196.0 498.0A11.3 34 0 1 0 196.0 566.0A11.3 34 0 1 0 196.0 498.0Z"></path>
+          <path class="apu-exterior-grade" d="M196.0 498.0A22.7 34 0 1 0 196.0 566.0A22.7 34 0 1 0 196.0 498.0Z"></path>
           <path class="apu-exterior-grade" d="M196.0 498.0L196.0 566.0"></path>
           <path class="apu-exterior-grade" d="M168.8 511.6L223.2 511.6"></path>
           <path class="apu-exterior-grade" d="M162.0 532.0L230.0 532.0"></path>
@@ -87,7 +87,6 @@
           <text class="apu-exterior-rot" x="196" y="582" text-anchor="middle">Exterior</text>
         </g></svg>
 
-        <div class="apu-legend" id="legenda"></div>
 
         <div id="semDados" class="apu-stage-empty" hidden>
           <h3>A apuração ainda não começou</h3>
@@ -126,6 +125,11 @@
           <h3 class="apu-dock-rot" id="rotuloParticipacao" style="margin-top:18px">Participação</h3>
           <div class="apu-stats" id="participacao"></div>
 
+          <!-- O botão do placar é ancorado aqui, e não dentro dele: abre e fecha
+               as candidaturas e a participação de uma vez, então fica no fim do
+               que controla. -->
+          <div id="maisResultado"></div>
+
           <p class="apu-progress-lab" id="mapaNota" style="margin-top:14px"></p>
 
           <p class="apu-credito">
@@ -163,9 +167,9 @@
 
   <div class="apu-tip" id="tip" role="status" aria-live="polite"></div>
 
-  <script src="js/apuracao-dados.js?v=20260915h"></script>
-  <script src="js/apuracao-ui.js?v=20260915h"></script>
-  <script src="js/apuracao-nacional.js?v=20260915h"></script>
+  <script src="js/apuracao-dados.js?v=20260915p"></script>
+  <script src="js/apuracao-ui.js?v=20260915p"></script>
+  <script src="js/apuracao-nacional.js?v=20260915p"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

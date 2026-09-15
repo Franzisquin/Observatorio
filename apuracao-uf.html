@@ -17,7 +17,7 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css?v=20260829a" />
-  <link rel="stylesheet" href="apuracao.css?v=20260915h" />
+  <link rel="stylesheet" href="apuracao.css?v=20260915p" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -105,7 +105,6 @@
             <svg class="apu-map" id="mapaUF" role="img" aria-label="Mapa do estado por município"></svg>
           </div>
 
-          <div class="apu-legend" id="legenda"></div>
         </div>
 
         <aside class="apu-aside">
@@ -115,11 +114,13 @@
               <button class="apu-back" id="voltarMun" type="button" hidden>Voltar ao estado</button>
             </div>
             <div class="apu-results" id="placar"></div>
-          </div>
 
-          <div class="apu-card">
-            <h3>Participação</h3>
+            <h3 id="rotuloParticipacao" style="margin-top:18px">Participação</h3>
             <div class="apu-stats" id="participacao"></div>
+
+            <!-- Um cartão só, e o botão no fim dele: abre e fecha as
+                 candidaturas e a participação de uma vez, como na presidencial. -->
+            <div id="maisResultado"></div>
           </div>
         </aside>
       </div>
@@ -191,9 +192,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20260915h"></script>
-  <script src="js/apuracao-ui.js?v=20260915h"></script>
-  <script src="js/apuracao-uf.js?v=20260915h"></script>
+  <script src="js/apuracao-dados.js?v=20260915p"></script>
+  <script src="js/apuracao-ui.js?v=20260915p"></script>
+  <script src="js/apuracao-uf.js?v=20260915p"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

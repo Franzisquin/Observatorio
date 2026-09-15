@@ -35,7 +35,7 @@
       $('estados').hidden = true;
       APUUI.selo(null, null);
       APUUI.progresso(null);
-      APUUI.avisos(null, [], 'avisos');
+      APUUI.avisos(null, 'avisos');
 
       if (!estado.chapa) {
         $('semDadosTexto').textContent =
@@ -47,12 +47,12 @@
       $('subtitulo').textContent = 'Brasil — candidaturas registradas';
       $('rotuloPlacar').textContent = 'Candidaturas';
       $('mapaNota').textContent = 'aguardando o primeiro boletim';
-      $('legenda').innerHTML = '';
       APUUI.pintarMapa($('mapaBrasil'), () => null, {}, (sigla) => {
         location.href = `apuracao-uf.html?uf=${sigla}${sufixoParams()}`;
       });
-      APUUI.placar(APU.rankingZerado(estado.chapa), 'placar');
-      APUUI.participacao(null, 'participacao');
+      APUUI.placar(APU.rankingZerado(estado.chapa), 'placar',
+        { botao: 'maisResultado' });
+      APUUI.participacao(null, 'participacao', { seguir: 'placar' });
       return;
     }
 
@@ -75,9 +75,14 @@
     const lista = APU.ranking(nacional, dicionario);
     APUUI.selo(meta, nacional);
     APUUI.progresso(nacional);
-    APUUI.placar(lista, 'placar', { entrada: nacional, cargo: APU.cfg.cargo });
-    APUUI.avisos(nacional, lista, 'avisos');
-    APUUI.participacao(nacional, 'participacao');
+    /* Um botão só para os dois blocos: a participação segue a abertura do
+       placar, e o redesenho dela é o que o `aoAlternar` do botão dispara. */
+    const verParticipacao = () =>
+      APUUI.participacao(nacional, 'participacao', { seguir: 'placar' });
+    APUUI.placar(lista, 'placar', { entrada: nacional, cargo: APU.cfg.cargo,
+      botao: 'maisResultado', aoAlternar: verParticipacao });
+    APUUI.avisos(nacional, 'avisos');
+    verParticipacao();
 
     if (!dadosUF) return;
 
@@ -87,9 +92,13 @@
       location.href = `apuracao-uf.html?uf=${sigla}${sufixoParams()}`;
     });
 
-    const comApuracao = entradasUF.filter((e) => e && e.vv > 0);
-    $('mapaNota').textContent = `${comApuracao.length} de ${entradasUF.length} unidades com votos`;
-    APUUI.legenda(APUUI.lideresDistintos(entradasUF, dicionario), 'legenda');
+    /* `entradasUF` alimenta o agregado nacional e precisa do exterior; a
+       contagem de unidades, não — o exterior não é unidade da Federação. */
+    const unidades = Object.entries(dadosUF.abr)
+      .filter(([sigla]) => sigla !== APU.EXTERIOR)
+      .map(([, e]) => e);
+    const comApuracao = unidades.filter((e) => e && e.vv > 0);
+    $('mapaNota').textContent = `${comApuracao.length} de ${unidades.length} unidades com votos`;
 
     tabela(dadosUF, dicionario);
   }
@@ -121,10 +130,7 @@
         </td>
         <td class="num">${lider ? APU.fmt.pct(lider.pct) : '—'}</td>
         <td class="num">${lider ? APU.fmt.int(lider.votos) : '—'}</td>
-        <td class="num">
-          <span class="apu-mini"><span style="width:${Math.min(100, entrada.pst || 0)}%;background:var(--ink)"></span></span>
-          ${APU.fmt.pct(entrada.pst || 0)}
-        </td>
+        <td class="num">${APU.fmt.pct(entrada.pst || 0)}</td>
       </tr>`;
     }).join('');
   }

@@ -62,7 +62,7 @@
     APUUI.placar(lista, 'placarPresidente',
       { limite: 4, entrada: nacional, cargo: '0001' });
     APUUI.legendaMarcas(lista, 'legendaPres');
-    APUUI.avisos(nacional, lista, 'avisos');
+    APUUI.avisos(nacional, 'avisos');
 
     pintarMapaNacional();
   }
@@ -78,7 +78,13 @@
       location.href = 'apuracao-uf.html' + params({ uf: uf, cargo: '0001' });
     });
 
-    const entradas = pacote && pacote.abr ? Object.values(pacote.abr) : [];
+    /* O exterior vota para presidente e entra no total do país, mas não é
+       unidade da Federação: fica fora desta contagem. */
+    const entradas = pacote && pacote.abr
+      ? Object.entries(pacote.abr)
+        .filter(([sigla]) => sigla !== APU.EXTERIOR)
+        .map(([, e]) => e)
+      : [];
     const comVotos = entradas.filter((e) => e && e.vv > 0).length;
     $('notaMapa').textContent = comVotos
       ? comVotos + ' de ' + entradas.length + ' unidades com votos'
@@ -154,9 +160,16 @@
     secao.hidden = false;
 
     const br = ab.br || {};
+    /* Os contadores do EA14 somam todas as abrangências, exterior incluído.
+       Aqui a frase é sobre unidades da Federação, então ele sai dos dois lados:
+       do total e, se já tiver finalizado, também do numerador. */
+    const ext = ab.uf[APU.EXTERIOR];
+    const fora = ext ? 1 : 0;
+    const foraFinalizada = ext && ext.and === 'f' ? 1 : 0;
     $('notaAndamento').textContent = br.pst != null
-      ? `${APU.fmt.pct(br.pst)} das seções do país · ${APU.fmt.int(br.uff)} de `
-        + `${APU.fmt.int(br.uff + br.ufpt + br.ufnr)} unidades finalizadas`
+      ? `${APU.fmt.pct(br.pst)} das seções do país · `
+        + `${APU.fmt.int(br.uff - foraFinalizada)} de `
+        + `${APU.fmt.int(br.uff + br.ufpt + br.ufnr - fora)} unidades finalizadas`
       : '';
 
     const linhas = Object.values(ab.uf)
@@ -169,10 +182,7 @@
       return `<tr>
         <td><a href="apuracao-uf.html${params({ uf: u.cd, cargo: '0001' })}">${APUUI.esc(nome)}</a></td>
         <td><span class="apu-estagio is-${u.and}">${APUUI.esc(APU.ESTAGIOS[u.and] || u.and)}</span></td>
-        <td class="num">
-          <span class="apu-mini"><span style="width:${Math.min(100, u.pst || 0)}%;background:var(--ink)"></span></span>
-          ${APU.fmt.pct(u.pst || 0)}
-        </td>
+        <td class="num">${APU.fmt.pct(u.pst || 0)}</td>
         <td class="num">${APU.fmt.int(u.snt)}</td>
         <td class="num">${APU.fmt.int(u.esnt)}</td>
         <td class="num">${total ? APU.fmt.int(u.muf) + ' / ' + APU.fmt.int(total) : '—'}</td>

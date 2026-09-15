@@ -44,8 +44,8 @@ function perto(a, b, tolerancia, rotulo) {
    textContent. Um nó falso com essas três coisas é tudo de que precisam — sem
    jsdom, que seria uma dependência nova para não testar nada a mais. */
 function no(id) {
-  return {
-    id, innerHTML: '', textContent: '', hidden: false, style: {},
+  const n = {
+    id, textContent: '', hidden: false, style: {},
     classList: {
       _c: new Set(),
       add(c) { this._c.add(c); },
@@ -55,9 +55,23 @@ function no(id) {
     },
     querySelectorAll: () => [],
     querySelector: () => null,
-    appendChild() {},
+    /* Guarda o que foi anexado: os botões de "Mostrar mais" do placar e da
+       participação entram por aqui, e sem isso não haveria como acioná-los. */
+    filhos: [],
+    appendChild(filho) { this.filhos.push(filho); },
     getBoundingClientRect: () => ({ width: 0, height: 0 })
   };
+
+  /* Reatribuir innerHTML descarta os filhos, como no navegador. Sem isso um
+     botão de uma renderização anterior sobrevivia à seguinte, e uma asserção
+     sobre "tem botão?" passaria a responder sobre lixo acumulado. */
+  let html = '';
+  Object.defineProperty(n, 'innerHTML', {
+    get: () => html,
+    set: (v) => { html = v; n.filhos.length = 0; },
+    enumerable: true
+  });
+  return n;
 }
 
 const nos = {};
@@ -144,39 +158,97 @@ ok(nos.selSimulado.classList.contains('is-on') === (uf.meta.f === 's'),
 
 /* ------------------------------------------------------------------ avisos */
 
-console.log('\navisos: liberação das 17h, sem eleito, eleitorado que falta');
-APUUI.avisos({ dv: 'n', esnt: 0 }, [], 'avisos');
+console.log('\navisos: liberação das 17h e totalização sem eleito');
+APUUI.avisos({ dv: 'n', esnt: 0 }, 'avisos');
 ok(nos.avisos.innerHTML.includes('17h'), 'dv=n explica a liberação das 17h');
 ok(nos.avisos.hidden === false, 'bloco de avisos aparece quando há aviso');
 
-APUUI.avisos({ dv: 's', esae: 's', mnae: ['Motivo de teste'] }, [], 'avisos');
+APUUI.avisos({ dv: 's', esae: 's', mnae: ['Motivo de teste'] }, 'avisos');
 ok(nos.avisos.innerHTML.includes('sem atribuição de eleito'), 'esae=s é anunciado');
 ok(nos.avisos.innerHTML.includes('Motivo de teste'), 'mnae lista os motivos');
 
-APUUI.avisos({ dv: 's', esnt: 5000, snt: 12 },
-  [{ votos: 1000 }, { votos: 900 }], 'avisos');
-ok(nos.avisos.innerHTML.includes('ainda pode'),
-  '5.000 eleitores contra 100 de diferença: ainda pode virar');
-APUUI.avisos({ dv: 's', esnt: 50, snt: 1 },
-  [{ votos: 1000 }, { votos: 900 }], 'avisos');
-ok(nos.avisos.innerHTML.includes('já não'),
-  '50 eleitores contra 100 de diferença: já não vira');
+/* O aviso de eleitorado que falta e de virada possível saiu da tela: a linha de
+   seções do cabeçalho já diz o que falta. Aqui se garante que não voltou. */
+APUUI.avisos({ dv: 's', esnt: 5000, snt: 12 }, 'avisos');
+ok(nos.avisos.hidden === true,
+  'eleitorado que falta não gera aviso — o bloco fica escondido');
 
-APUUI.avisos({ dv: 's' }, [], 'avisos');
+APUUI.avisos({ dv: 's' }, 'avisos');
 ok(nos.avisos.hidden === true, 'sem aviso, o bloco se esconde');
 
 /* ------------------------------------------------------- anatomia do voto */
 
 console.log('\nanatomia do voto e das seções');
+
+/* O painel nasce fechado: o que aparece é o botão, não as treze células. */
+const abrirParticipacao = () => {
+  const filhos = nos.participacao.filhos;
+  filhos[filhos.length - 1].onclick();
+};
+
 APUUI.participacao(rr, 'participacao');
+ok(nos.participacao.innerHTML === '', 'participação nasce fechada, sem células');
+ok(/^Mostrar mais \(\d+\)$/.test(
+  nos.participacao.filhos[nos.participacao.filhos.length - 1].textContent),
+'e oferece o botão de mostrar mais');
+
+abrirParticipacao();
 const p = nos.participacao.innerHTML;
 ok(p.includes('Anulados sub judice'), 'célula de anulados sub judice aparece');
 ok(p.includes('Nominais'), 'célula de votos nominais aparece');
 ok(!p.includes('Nulos técnicos'), 'nulo técnico zerado não ocupa célula');
+ok(nos.participacao.filhos[nos.participacao.filhos.length - 1].textContent
+  === 'Mostrar menos', 'aberto, o botão oferece fechar');
+
+/* A escolha de quem abriu tem de sobreviver ao redesenho de cada boletim. */
+APUUI.participacao(rr, 'participacao');
+ok(nos.participacao.innerHTML.includes('Nominais'),
+  'o painel aberto continua aberto no boletim seguinte');
+
+abrirParticipacao();
+ok(nos.participacao.innerHTML === '', 'e fecha de volta pelo mesmo botão');
+
+/* --- o arranjo que as páginas usam: um botão só para os dois blocos --- */
+
+/* `seguir` amarra a participação à abertura do placar, e o botão do placar é
+   ancorado fora dele, depois da participação — senão o "Mostrar menos" ficaria
+   no meio do que fecha. É a montagem de apuracao-nacional.js e apuracao-uf.js. */
+/* `limite: 2` porque a suplementar de RR tem poucas candidaturas: sem isso a
+   lista caberia inteira e o botão — que é o objeto do teste — não existiria. */
+const chapaRR = APU.ranking(rr, dicionario);
+const verParticipacao = () =>
+  APUUI.participacao(rr, 'participacao', { seguir: 'placar' });
+const montar = () => APUUI.placar(chapaRR, 'placar',
+  { entrada: rr, cargo: '0003', limite: 2, botao: 'maisResultado',
+    aoAlternar: verParticipacao });
+
+montar();
+verParticipacao();
+ok(chapaRR.length > 2, 'a chapa de prova excede o limite, então há botão',
+  String(chapaRR.length));
+ok(nos.participacao.filhos.length === 0,
+  'com `seguir`, a participação não ganha botão próprio');
+ok(nos.maisResultado.filhos.length === 1,
+  'o botão do placar é ancorado fora dele');
+ok(nos.placar.filhos.length === 0, 'e não sobra botão dentro do placar');
+ok(nos.participacao.innerHTML === '' && nos.rotuloParticipacao.hidden === true,
+  'fechada, a participação esconde células e título');
+
+nos.maisResultado.filhos[0].onclick();
+ok(nos.participacao.innerHTML.includes('Nominais'),
+  'o botão do placar abre a participação junto');
+ok(nos.rotuloParticipacao.hidden === false, 'e traz o título de volta');
+ok(nos.maisResultado.filhos[nos.maisResultado.filhos.length - 1].textContent
+  === 'Mostrar menos', 'e passa a oferecer fechar');
+
+nos.maisResultado.filhos[nos.maisResultado.filhos.length - 1].onclick();
+ok(nos.participacao.innerHTML === '' && nos.rotuloParticipacao.hidden === true,
+  'e fecha os dois de uma vez');
 
 /* A camada municipal não traz a anatomia: célula ausente, não célula zerada. */
 const umMunicipio = Object.values(mun.abr)[0];
 APUUI.participacao(umMunicipio, 'participacao');
+abrirParticipacao();
 const pm = nos.participacao.innerHTML;
 ok(!pm.includes('Anulados sub judice'),
   'município sem o campo não ganha célula de anulados');

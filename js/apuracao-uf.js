@@ -31,6 +31,10 @@
 
   function lerUF() {
     const u = (APU.cfg.uf || '').toLowerCase();
+    /* O exterior ganhou nome em UF_NOMES para os rótulos das tabelas, mas não
+       tem página de estado: não há malha municipal para desenhar. Sem esta
+       exclusão, passar a nomeá-lo abriria `?uf=zz` para um mapa inexistente. */
+    if (u === APU.EXTERIOR) return '';
     return APU.UF_NOMES[u] ? u : '';
   }
 
@@ -142,9 +146,14 @@
     $('voltarMun').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
+    /* Mesmo arranjo da presidencial: a participação abre junto com a lista
+       completa de candidaturas, sob o botão único do fim do cartão. */
+    const verParticipacao = () =>
+      APUUI.participacao(alvo, 'participacao', { seguir: 'placar' });
     APUUI.placar(lista.length ? lista : chapaZerada(), 'placar',
-      { entrada: alvo, cargo: APU.cfg.cargo });
-    APUUI.participacao(alvo, 'participacao');
+      { entrada: alvo, cargo: APU.cfg.cargo,
+        botao: 'maisResultado', aoAlternar: verParticipacao });
+    verParticipacao();
   }
 
   function selecionar(chave, nome) {
@@ -240,7 +249,7 @@
     };
     APUUI.selo(dados.meta, cabecalho);
     APUUI.progresso(cabecalho);
-    APUUI.avisos(cabecalho, APU.ranking(total, dicionario), 'avisos');
+    APUUI.avisos(cabecalho, 'avisos');
 
     const proj = await montarMapa(uf);
     estado.porChave = agruparPorChave(dados, proj);
@@ -250,7 +259,6 @@
       const comApuracao = alvos.filter((e) => e && e.vv > 0).length;
       $('mapaNota').textContent =
         `${comApuracao} de ${alvos.length} ${NIVEIS[estado.nivel].un} com votos`;
-      APUUI.legenda(APUUI.lideresDistintos(alvos, dicionario), 'legenda');
     } else {
       $('mapaNota').textContent = 'Malha indisponível';
     }
@@ -365,10 +373,7 @@
         </td>
         <td class="num">${lider ? APU.fmt.pct(lider.pct) : '—'}</td>
         <td class="num">${lider ? APU.fmt.int(lider.votos) : '—'}</td>
-        <td class="num">
-          <span class="apu-mini"><span style="width:${Math.min(100, entrada.pst || 0)}%;background:var(--ink)"></span></span>
-          ${APU.fmt.pct(entrada.pst || 0)}
-        </td>
+        <td class="num">${APU.fmt.pct(entrada.pst || 0)}</td>
       </tr>`;
     }).join('');
   }

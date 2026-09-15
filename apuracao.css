@@ -153,19 +153,6 @@
   .apu-grid { grid-template-columns: 1fr; }
 }
 
-/* Na estadual a legenda volta a ser bloco no fluxo, sob o mapa. */
-.apu-grid .apu-legend {
-  position: static;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6px 16px;
-  padding: 0;
-  border: 0;
-  background: none;
-  max-width: none;
-  margin-top: 12px;
-}
-
 /* --------------------------------------------------------------- palco
 
    O mapa toma toda a altura util abaixo da barra do site, e o painel fica
@@ -362,31 +349,7 @@
   color: var(--muted);
 }
 
-/* legenda de líderes */
-.apu-legend {
-  position: absolute;
-  left: clamp(14px, 2.4vw, 30px);
-  bottom: clamp(14px, 2vw, 24px);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 10px 13px;
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  max-width: 46%;
-}
-
-.apu-legend:empty { display: none; }
-
-.apu-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 0.78rem;
-  color: var(--ink-2);
-}
-
+/* Quadradinho de cor da coluna de lider, nas tabelas de UF e de municipio. */
 .apu-swatch {
   width: 11px;
   height: 11px;
@@ -716,29 +679,83 @@
   overflow-y: auto;
 }
 
-/* A barra do painel e do fio da casa, fina e sobre trilho transparente: a lista
-   ja tem contraste demais para dividir espaco com a barra cinza do sistema.
-   `scrollbar-*` atende o Firefox; o pseudo, os navegadores WebKit. */
-.apu-results,
-.apu-top {
-  scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
-}
+/* --------------------------------------------------------- barra de rolagem
 
-.apu-results::-webkit-scrollbar,
-.apu-top::-webkit-scrollbar { width: 6px; height: 6px; }
+   Vale para toda area rolavel da apuracao — o painel encostado, a lista de
+   candidaturas, a tabela larga e a faixa de municipios. O painel ficava de fora
+   e herdava a barra do sistema, clara e larga, que era o unico elemento da tela
+   a nao seguir o tema.
 
-.apu-results::-webkit-scrollbar-track,
-.apu-top::-webkit-scrollbar-track { background: transparent; }
+   Trilho transparente de proposito, em vez de uma cor propria: assim a barra
+   assume o fundo de onde estiver — preta sobre o painel preto — e nao desenha
+   uma faixa a mais na borda. O polegar e `--line`, o mesmo fio que separa os
+   blocos, e so ganha contraste sob o cursor; os tokens cuidam do tema claro,
+   onde uma barra preta destoaria.
 
-.apu-results::-webkit-scrollbar-thumb,
-.apu-top::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
+   Os dois mecanismos nao convivem: onde `scrollbar-width` esta declarado, o
+   Chromium ignora a largura do pseudo-elemento e impoe os ~10px do `thin` dele.
+   Por isso o `scrollbar-*` fica atras de um `@supports` negativo, valendo so
+   onde nao ha pseudo-elemento — na pratica, o Firefox. */
+/* A barra da propria pagina, que e a que corre a altura inteira ao lado do
+   painel. As paginas da apuracao carregam portal.css e este arquivo, nao
+   style.css — que e onde o resto do site trata da sua —, entao sem esta regra
+   sobra a do sistema: 15px, clara, encostada no painel preto.
+
+   Aqui o trilho e `--paper` declarado, e nao transparente: no scroller da raiz
+   o transparente deixa o Chromium pintar o proprio cinza por baixo. */
+html::-webkit-scrollbar { width: 8px; }
+html::-webkit-scrollbar-track { background: var(--paper); }
+
+html::-webkit-scrollbar-thumb {
+  background: var(--line);
   border-radius: 99px;
 }
 
+html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+/* As de dentro sao mais estreitas de proposito: rolam um bloco, nao a pagina,
+   e nao devem competir com ela. */
+.apu-dock-body::-webkit-scrollbar,
+.apu-results::-webkit-scrollbar,
+.apu-top::-webkit-scrollbar,
+.apu-table-wrap::-webkit-scrollbar { width: 5px; height: 5px; }
+
+.apu-dock-body::-webkit-scrollbar-track,
+.apu-results::-webkit-scrollbar-track,
+.apu-top::-webkit-scrollbar-track,
+.apu-table-wrap::-webkit-scrollbar-track { background: transparent; }
+
+.apu-dock-body::-webkit-scrollbar-thumb,
+.apu-results::-webkit-scrollbar-thumb,
+.apu-top::-webkit-scrollbar-thumb,
+.apu-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 99px;
+}
+
+.apu-dock-body::-webkit-scrollbar-thumb:hover,
 .apu-results::-webkit-scrollbar-thumb:hover,
-.apu-top::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+.apu-top::-webkit-scrollbar-thumb:hover,
+.apu-table-wrap::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+/* O canto onde as duas barras se encontram, na tabela larga: sem isto ele fica
+   com o cinza do sistema, que e justamente o que esta regra veio tirar. */
+.apu-table-wrap::-webkit-scrollbar-corner { background: transparent; }
+
+@supports not selector(::-webkit-scrollbar) {
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) var(--paper);
+  }
+
+  .apu-dock-body,
+  .apu-results,
+  .apu-top,
+  .apu-table-wrap {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+  }
+}
 
 /* Em coluna unica a lateral fica sozinha na linha: sem nada para lhe dar
    altura, `min-height: 100%` a fecharia em zero. */
@@ -785,6 +802,10 @@
 }
 
 .apu-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px 10px; }
+
+/* O botao que abre e fecha a anatomia do voto e um item da grade como as
+   celulas: sem isto ele ocuparia uma coluna de tres. */
+.apu-stats > .apu-more { grid-column: 1 / -1; margin-top: 2px; }
 
 .apu-stat-v {
   font-family: var(--display);
@@ -1086,11 +1107,19 @@
    unidade sem apuração.
    ------------------------------------------------------------------------ */
 
-.apu-exterior-grade {
+/* Precisa do `.apu-map` na frente: `.apu-map path` tem uma classe e um tipo, e
+   vencia esta regra quando ela era só a classe. A grade saía com o `fill` e o
+   `stroke` do mapa — meridiano preenchido de escuro sobre o disco pintado, que
+   é o que fazia o globo parecer ter um "O" dentro, e traço da cor do fundo, que
+   é o que o deixava invisível. Mesmo escopo da regra do disco, logo abaixo.
+
+   `non-scaling-stroke` faz o traço valer sempre o mesmo em px de tela, então a
+   espessura serve ao tamanho em que o globo realmente aparece: ~60px. */
+.apu-map .apu-exterior-grade {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 0.6;
-  opacity: 0.55;
+  stroke-width: 1;
+  opacity: 0.8;
   pointer-events: none;
   vector-effect: non-scaling-stroke;
 }
@@ -1321,9 +1350,10 @@
   font-weight: 600;
 }
 
-/* O cartao de participacao some junto com o conteudo: um titulo sobre uma
-   caixa vazia era o que abria o vao no pe da pagina. */
-.apu-card:has(> .apu-stats:empty) { display: none; }
+/* A participação deixou de ter cartão próprio — vive no mesmo do placar, atrás
+   do botão dele. A regra que escondia o cartão de grade vazia saiu junto: aqui
+   ela apagaria o placar também, porque a grade fica vazia enquanto fechada.
+   Quem esconde o título agora é `participacao()`, pelo `hidden` do rótulo. */
 
 /* Rodape colado no fim da janela quando a pagina e mais curta que a tela —
    sem isto ele flutuava no meio, com fundo do corpo embaixo. So na pagina
