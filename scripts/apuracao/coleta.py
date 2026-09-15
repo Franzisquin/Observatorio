@@ -80,6 +80,33 @@ def cargos_da_eleicao(config: dict, eleicao, pedidos: list[str] | None = None) -
     return [c for c in pedidos if c in declarados]
 
 
+def eleicoes_ordinarias(config: dict, pedidos: list[str] | None = None) -> list[str]:
+    """Codigos das eleicoes ordinarias do EA11, na ordem em que aparecem.
+
+    Os codigos mudam a cada janela de simulado e so sao divulgados as vesperas do
+    pleito. Chumbar numero na linha de comando e o jeito mais facil de chegar as
+    14h com a tela vazia — daqui eles saem do proprio arquivo de configuracao.
+
+    Suplementar e consulta popular ficam de fora: tem numeracao propria e nao sao
+    o que se quer acompanhar numa noite de eleicao geral.
+    """
+    achadas = []
+    for pleito in config.get("pl", []):
+        for e in pleito.get("e", []):
+            codigo = str(e.get("cd") or "")
+            if not codigo:
+                continue
+            try:
+                if int(e.get("tp") or 0) not in TIPOS_ORDINARIAS:
+                    continue
+            except (TypeError, ValueError):
+                continue
+            if pedidos is not None and not cargos_da_eleicao(config, codigo, pedidos):
+                continue
+            achadas.append(codigo)
+    return achadas
+
+
 def escrever_indice(destino: Path, base: str, ambiente: str, config: dict,
                     por_eleicao: dict[str, list[str]]) -> None:
     """Diz ao front qual codigo de eleicao vale para cada cargo.

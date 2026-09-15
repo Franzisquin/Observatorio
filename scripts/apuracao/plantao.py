@@ -19,19 +19,46 @@ Duas cadencias, porque as camadas custam coisas muito diferentes:
 from __future__ import annotations
 
 import argparse
+import http.server
 import json
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coleta import (acompanhamento, camada_alta, camada_municipal,  # noqa: E402
-                    cargos_da_eleicao, eleitos, escolher_ufs, escrever_indice,
-                    municipios)
+                    cargos_da_eleicao, eleicoes_ordinarias, eleitos, escolher_ufs,
+                    escrever_indice, municipios)
 from tse import BASE, CARGOS, SIM_2026, Cliente, descobrir_ambiente  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
+
+
+def servir(porta: int, saida: Path) -> None:
+    """Sobe um servidor local para a pagina e imprime o endereco pronto.
+
+    A pagina le os snapshots por fetch, e navegador nao faz fetch de file://.
+    Sem servidor a tela abre e fica vazia, sem dizer por que — e o erro mais
+    provavel de quem esta so acompanhando uma janela de teste.
+    """
+    from functools import partial
+
+    manipulador = partial(http.server.SimpleHTTPRequestHandler, directory=str(RAIZ))
+    manipulador.log_message = lambda *a, **k: None
+    servidor = http.server.ThreadingHTTPServer(("127.0.0.1", porta), manipulador)
+    threading.Thread(target=servidor.serve_forever, daemon=True).start()
+
+    dados = saida.resolve().relative_to(RAIZ).as_posix() + "/"
+    endereco = f"http://127.0.0.1:{porta}"
+    print("", flush=True)
+    print(f"  tela da apuracao   {endereco}/apuracao.html?dados={dados}", flush=True)
+    print(f"  mapa presidencial  {endereco}/apuracao-presidente.html?cargo=0001&dados={dados}",
+          flush=True)
+    print(f"  um estado          {endereco}/apuracao-uf.html?uf=sp&cargo=0003&dados={dados}",
+          flush=True)
+    print("", flush=True)
 
 
 def saude(caminho: Path, estado: dict) -> None:
@@ -82,10 +109,14 @@ def publicar(saida: Path, branch: str, primeira: bool) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--eleicao", required=True,
-                    help="codigos separados por virgula; em 2026 a geral e duas — "
-                         "a federal (presidente) e a estadual (governador, senador, "
-                         "assembleias)")
+    ap.add_argument("--eleicao", default="auto",
+                    help="codigos separados por virgula, ou 'auto' para pegar as "
+                         "eleicoes ordinarias que o proprio EA11 listar. Em 2026 a "
+                         "geral e duas: a federal (presidente) e a estadual "
+                         "(governador, senador, assembleias)")
+    ap.add_argument("--servir", type=int, default=0, metavar="PORTA",
+                    help="sobe um servidor local nesta porta e imprime o endereco "
+                         "da tela; sem isso, a pagina precisa ser servida a parte")
     ap.add_argument("--cargos", default="0001,0003,0005,0006,0007",
                     help="codigos separados por virgula, ou apelidos: " + ", ".join(CARGOS))
     ap.add_argument("--uf", nargs="*", default=[],
@@ -121,7 +152,16 @@ def main() -> int:
 
     cli = Cliente(ambiente=ambiente, por_segundo=args.taxa, base=base)
     config = config or cli.config_eleicoes()
-    eleicoes = [e.strip() for e in args.eleicao.split(",") if e.strip()]
+    if args.eleicao.strip().lower() in ("auto", "todas"):
+        eleicoes = eleicoes_ordinarias(config, cargos)
+        print(f"eleicoes descobertas no EA11: {', '.join(eleicoes) or '(nenhuma)'}",
+              flush=True)
+        if not eleicoes:
+            print("nenhuma eleicao ordinaria com os cargos pedidos neste ambiente.",
+                  flush=True)
+            return 1
+    else:
+        eleicoes = [e.strip() for e in args.eleicao.split(",") if e.strip()]
     # Cada eleicao traz os seus cargos e a sua lista de municipios; pedir o cargo
     # errado na eleicao errada e 404 em serie.
     plano: dict[str, list[str]] = {}
@@ -143,6 +183,9 @@ def main() -> int:
     resumo_plano = " | ".join(f"{e}:{','.join(c)}" for e, c in plano.items())
     print(f"plantao: {base}/{ambiente} | fase {config.get('f')} | {resumo_plano} | "
           f"{len(ufs)} UFs | {args.minutos:.0f} min | saida {saida}", flush=True)
+
+    if args.servir:
+        servir(args.servir, saida)
 
     fim = time.monotonic() + args.minutos * 60
     partida = time.time()

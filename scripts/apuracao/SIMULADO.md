@@ -11,6 +11,10 @@ comando, não por adivinhação:
   para os testes "será divulgado oportunamente";
 - **o código da eleição** — sai do próprio `ele-c.json`.
 
+> **Só vai acompanhar uma janela, sem mexer no código?** Use
+> [COMECAR-AQUI.md](COMECAR-AQUI.md): é um comando só, e explica por que abrir o
+> HTML sozinho não traz dado nenhum. Este arquivo aqui é o detalhe de operação.
+
 ## 1. Reconhecimento (antes de qualquer coleta)
 
 ```bash
