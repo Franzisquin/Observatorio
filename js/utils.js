@@ -883,6 +883,13 @@ function getScopeBackTarget() {
     return { kind: 'municipal-uf', label: UF_MAP.get(uf) || uf || 'Estado' };
   }
 
+  // Exterior com um pais ou uma urna aberto no painel: o degrau de cima e o
+  // exterior inteiro. Vem antes do teste de escopo agregado, que devolveria null
+  // para ZZ e deixaria o clique no mapa do mundo sem volta.
+  if (typeof window !== 'undefined' && window.diasporaSelectionLabel?.()) {
+    return { kind: 'diaspora', label: 'Exterior' };
+  }
+
   const uf = String(dom?.selectUFGeneral?.value || '').toUpperCase();
   // Escopo agregado e topo da escada: nem o Brasil nem o exterior tem acima de
   // si um nivel de abrangencia para onde voltar.

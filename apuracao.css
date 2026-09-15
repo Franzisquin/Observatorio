@@ -929,7 +929,15 @@
 .apu-top-table th.num,
 .apu-top-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
-.apu-top-mark { margin-right: 5px; font-size: 0.6rem; vertical-align: 1px; }
+.apu-top-mark { margin-right: 5px; vertical-align: -1px; }
+
+/* Ícone em traço alinhado ao texto que o acompanha. `currentColor` no SVG faz a
+   cor vir do selo, então o mesmo ícone serve no selo sólido e no contornado. */
+.apu-icone { vertical-align: -2px; }
+
+.apu-marca .apu-icone { margin-right: 3px; vertical-align: -1px; }
+
+.apu-tique .apu-icone { vertical-align: -1px; margin: 0; }
 
 .apu-top-table tbody td {
   padding: 13px 18px;
@@ -1388,3 +1396,156 @@ body:has(#mapaUF) .apu-aside .apu-results {
   body:has(#mapaUF) .apu-mapwrap .apu-map { height: auto; min-height: 0; }
   body:has(#mapaUF) .apu-aside .apu-results { display: block; }
 }
+
+/* ===========================================================================
+   Estados que o leiaute do TSE descreve e a tela precisa nomear
+   =========================================================================== */
+
+/* Matematicamente definido (md). Fica ao lado do selo de ensaio, na mesma
+   escala, mas em tom sóbrio: é uma afirmação do tribunal sobre a aritmética da
+   disputa, não um alerta. */
+.apu-selo.is-md {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+
+/* Aviso de contexto: liberação das 17h, eleição sem eleito atribuído, eleitorado
+   que ainda falta totalizar. É texto que explica o número ao lado, então segue a
+   largura da coluna em vez de virar faixa. */
+#avisos { margin: 0 0 16px; }
+
+.apu-aviso {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brand) 6%, var(--paper));
+  border-left: 3px solid var(--brand);
+}
+
+.apu-aviso:last-child { margin-bottom: 0; }
+.apu-aviso strong { font-weight: 600; }
+
+/* Voto anulado e sub judice: o art. 265 §2 manda informar a situação do voto.
+   Vermelho porque o número ao lado não conta para o resultado da mesma forma. */
+.apu-cand-sit.is-anulado {
+  color: #b42318;
+  border-color: #fda29b;
+  background: #fef3f2;
+}
+
+.apu-cand-sit.is-eleito {
+  color: #085d3a;
+  border-color: #75e0a7;
+  background: #ecfdf3;
+}
+
+/* Estágio da totalização de uma UF (campo `and` do EA14). */
+.apu-estagio {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.apu-estagio.is-p { color: #93370d; border-color: #fec84b; background: #fffaeb; }
+.apu-estagio.is-f { color: #085d3a; border-color: #75e0a7; background: #ecfdf3; }
+
+/* Saúde do plantão. Sóbria e no fim da página: é instrumentação, não notícia —
+   mas sem ela a primeira notícia de bloqueio no CDN seria a tela vazia. */
+.apu-saude {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.apu-saude .apu-stats { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 720px) {
+  .apu-saude .apu-stats { grid-template-columns: 1fr 1fr; }
+}
+
+/* Saúde do plantão em alarme. As três regras do TSE — teto de 100 requisições
+   por IP por segundo, bloqueio de 10 minutos renovável e 404 que pune igual a
+   excesso — só viram defesa se a tela gritar quando saem da faixa. */
+.apu-saude .is-alarme .apu-stat-v { color: #b42318; }
+.apu-saude .is-alarme .apu-stat-l { color: #b42318; }
+
+.apu-saude.is-alarme {
+  border-color: #fda29b;
+  background: #fef3f2;
+}
+
+/* Eleito e segundo turno. Duas origens, duas aparências: sólido é o que o TSE
+   declarou no arquivo; contornado (is-previsto) é a leitura das vagas do cargo
+   e do campo "matematicamente definido" — enquanto a apuração corre, o TSE deixa
+   `e` e `st` vazios, então tudo o que aparece antes da totalização final é
+   dedução, e a tela não pode fingir que não é. */
+.apu-marca {
+  display: inline-block;
+  margin-left: 8px;
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.apu-marca.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
+.apu-marca.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-marca.is-suplente { background: var(--line-strong); color: var(--paper); }
+
+.apu-marca.is-previsto {
+  background: transparent;
+  border-style: dashed;
+}
+
+.apu-marca.is-eleito.is-previsto { color: #17a34a; border-color: #17a34a; }
+.apu-marca.is-segundo.is-previsto { color: #6e8bff; border-color: #6e8bff; }
+
+/* Versão curta, para o cartão de estado, onde não cabe a palavra inteira. */
+.apu-tique {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 15px;
+  padding: 0 3px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: center;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.apu-tique.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
+.apu-tique.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-tique.is-previsto { background: transparent; border-style: dashed; }
+.apu-tique.is-eleito.is-previsto { color: #17a34a; border-color: #17a34a; }
+.apu-tique.is-segundo.is-previsto { color: #6e8bff; border-color: #6e8bff; }
+
+/* Legenda dos selos de eleito e segundo turno. */
+.apu-legenda-marcas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 12px 0 0;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.apu-legenda-item { display: inline-flex; align-items: center; gap: 7px; }
+.apu-legenda-item .apu-marca { margin-left: 0; }
+.apu-legenda-txt { line-height: 1.35; }

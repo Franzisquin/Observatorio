@@ -17,7 +17,7 @@
     rel="stylesheet" />
 
   <link rel="stylesheet" href="portal.css?v=20260829a" />
-  <link rel="stylesheet" href="apuracao.css?v=20260823b" />
+  <link rel="stylesheet" href="apuracao.css?v=20260915h" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -56,6 +56,7 @@
         <div class="apu-kicker">
           <span class="apu-live is-off" id="selLive">Aguardando</span>
           <span class="apu-selo" id="selSimulado">Simulado</span>
+          <span class="apu-selo is-md" id="selDefinido"></span>
           <span class="apu-stamp" id="selCarimbo"></span>
         </div>
 
@@ -83,6 +84,8 @@
           próxima atualização.
         </p>
       </div>
+
+      <div id="avisos" hidden></div>
 
       <div class="apu-grid" id="painel">
         <div>
@@ -134,7 +137,10 @@
               <tr>
                 <th scope="col">Município</th>
                 <th scope="col">Margem</th>
-                <th scope="col" class="num"><span class="apu-top-mark" aria-hidden="true">▼</span>Votos</th>
+                <th scope="col" class="num"><svg class="apu-top-mark" width="11" height="11"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
+                      d="M6 9l6 6 6-6" /></svg>Votos</th>
                 <th scope="col" class="num">% apurado</th>
               </tr>
             </thead>
@@ -185,9 +191,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20260823b"></script>
-  <script src="js/apuracao-ui.js?v=20260823b"></script>
-  <script src="js/apuracao-uf.js?v=20260823b"></script>
+  <script src="js/apuracao-dados.js?v=20260915h"></script>
+  <script src="js/apuracao-ui.js?v=20260915h"></script>
+  <script src="js/apuracao-uf.js?v=20260915h"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

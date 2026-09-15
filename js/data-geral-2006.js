@@ -513,7 +513,13 @@ async function applyRmspSupplement(geojson, ano, resultKeys) {
 // O gerador so libera um par depois de conferir que
 //   soma(estacoes CEM) == soma(chaves S)
 // bate exatamente em presidente, governador e senador.
-async function applyRmspSecoes1998(geojson, cargo, merged, turnoKey, muniNameMap) {
+async function applyRmspSecoes1998(geojson, cargo, merged, turnoKey, muniNameMap, ufs) {
+  // Suplemento e' SO' da RM de Sao Paulo. Fora do escopo de SP as 295 estacoes
+  // entravam no geojson da outra UF e os votos paulistas eram rotulados com a
+  // metadata dela -- no 2o turno de 1998 o numero 45 (Covas) virava "Almir
+  // Gabriel" e inflava o Para em 678.959 votos.
+  if (!(ufs || []).some((uf) => String(uf).toUpperCase() === 'SP')) return new Set();
+
   const dados = (await loadRmspSupplement())?.['1998'];
   if (!dados?.estacoes?.length || !merged?.RESULTS || !geojson?.features) {
     return new Set();

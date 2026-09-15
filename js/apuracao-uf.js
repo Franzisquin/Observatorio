@@ -21,7 +21,12 @@
 
   const estado = {
     uf: null, dados: null, geo: null, geoNivel: null, chapa: null, timer: null,
-    nivel: 'municipios', porChave: {}, total: null, sel: null, topAberto: false
+    nivel: 'municipios', porChave: {}, total: null, sel: null, topAberto: false,
+    /* Entrada do arquivo de UF do TSE. Vale mais que a soma dos municípios: traz
+       a anatomia completa do voto e do eleitorado, e é número publicado em vez de
+       conta feita aqui. A soma fica como reserva, para quando a camada alta
+       daquele cargo ainda não tiver chegado. */
+    ufTSE: null
   };
 
   function lerUF() {
@@ -137,7 +142,8 @@
     $('voltarMun').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
-    APUUI.placar(lista.length ? lista : chapaZerada(), 'placar');
+    APUUI.placar(lista.length ? lista : chapaZerada(), 'placar',
+      { entrada: alvo, cargo: APU.cfg.cargo });
     APUUI.participacao(alvo, 'participacao');
   }
 
@@ -221,13 +227,20 @@
 
     const dicionario = dados.cand || {};
     const entradas = Object.values(dados.abr);
-    const total = APU.agregar(entradas);
+    const total = estado.ufTSE || APU.agregar(entradas);
     estado.total = total;
 
     $('subtitulo').textContent = `${nomeDoCargo()} · ${APU.fmt.int(entradas.length)} municípios`;
 
-    APUUI.selo(dados.meta, { ...total, and: entradas[0] && entradas[0].and, dt: entradas[0] && entradas[0].dt, ht: entradas[0] && entradas[0].ht });
-    APUUI.progresso(total);
+    const cabecalho = estado.ufTSE || {
+      ...total,
+      and: entradas[0] && entradas[0].and,
+      dt: entradas[0] && entradas[0].dt,
+      ht: entradas[0] && entradas[0].ht
+    };
+    APUUI.selo(dados.meta, cabecalho);
+    APUUI.progresso(cabecalho);
+    APUUI.avisos(cabecalho, APU.ranking(total, dicionario), 'avisos');
 
     const proj = await montarMapa(uf);
     estado.porChave = agruparPorChave(dados, proj);
@@ -324,7 +337,9 @@
 
   function aplicarTopo() {
     $('topMun').classList.toggle('is-aberto', estado.topAberto);
-    $('verTodosMun').textContent = estado.topAberto ? '− Mostrar menos' : '+ Mostrar todos';
+    $('verTodosMun').innerHTML = estado.topAberto
+      ? APUUI.icone('menos', 13) + ' Mostrar menos'
+      : APUUI.icone('mais', 13) + ' Mostrar todos';
   }
 
   function tabela(dados, dicionario) {
@@ -366,8 +381,9 @@
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
     }
-    const d = await APU.snapshot(estado.uf);
+    const [d, alto] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf')]);
     if (d) estado.dados = d;
+    if (alto && alto.abr && alto.abr[estado.uf]) estado.ufTSE = alto.abr[estado.uf];
     await pintar();
   }
 
@@ -377,13 +393,20 @@
     /* A camada municipal é a cara de coletar: o plantão a republica em cadência
        bem mais lenta que a nacional, então pedir de 45 em 45s seria desperdício. */
     estado.timer = setTimeout(async () => {
-      await atualizar();
+      /* Uma volta que estoura nao pode levar o plantao junto: sem este try, um
+         unico snapshot malformado congelaria a pagina no ultimo boletim e so um
+         F5 a traria de volta — sem nada na tela dizendo que parou. */
+      try {
+        await atualizar();
+      } catch (e) {
+        console.warn('[apuracao] volta falhou, seguindo para a proxima', e);
+      }
       agendar();
     }, APU.cfg.intervalo * 4);
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') { atualizar().then(agendar); }
+    if (document.visibilityState === 'visible') { atualizar().catch(() => {}).then(agendar); }
     else clearTimeout(estado.timer);
   });
 
@@ -407,7 +430,11 @@
         'Estado não informado ou inválido. Volte à apuração nacional e escolha um estado no mapa.';
       return;
     }
-    await atualizar();
+    try {
+      await atualizar();
+    } catch (e) {
+      console.warn('[apuracao] primeira carga falhou', e);
+    }
     agendar();
   })();
 })();

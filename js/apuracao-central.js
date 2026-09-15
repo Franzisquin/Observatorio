@@ -26,25 +26,19 @@
     br: null, ufPres: null,
     gov: null, sen: null,
     chapaPres: null, chapaGov: null, chapaSen: null,
+    ab: null, saude: null,
     timer: null
   };
 
-  /* Um snapshot de cargo diferente do configurado na URL: a central mostra os
-     três ao mesmo tempo, então não dá para depender de APU.cfg.cargo. */
-  async function snapshotDe(cargo, sufixo) {
-    if (!APU.cfg.eleicao) return null;
-    const url = `${APU.cfg.base}${APU.cfg.eleicao}-${cargo}-${sufixo}.json`;
-    try {
-      const r = await fetch(url + (url.includes('?') ? '&' : '?') + '_=' + Date.now(),
-        { cache: 'no-store' });
-      return r.ok ? await r.json() : null;
-    } catch (e) {
-      return null;
-    }
-  }
+  /* A central mostra três cargos ao mesmo tempo, e em 2026 eles não vivem na
+     mesma eleição: presidente está na federal, governador e senador na estadual.
+     APU.snapshot resolve o código de cada um pelo índice do coletor. */
+  const snapshotDe = (cargo, sufixo) => APU.snapshot(sufixo, cargo);
 
   function params(extra) {
     const p = [];
+    /* O cargo de destino decide a eleição; o índice faz a tradução do outro lado,
+       então basta repassar o que veio na URL. */
     if (APU.cfg.eleicao) p.push('eleicao=' + encodeURIComponent(APU.cfg.eleicao));
     Object.entries(extra || {}).forEach(([k, v]) => p.push(`${k}=${encodeURIComponent(v)}`));
     const dados = new URLSearchParams(location.search).get('dados');
@@ -65,7 +59,10 @@
     const lista = nacional
       ? APU.ranking(nacional, dicionario)
       : APU.rankingZerado(estado.chapaPres);
-    APUUI.placar(lista, 'placarPresidente', { limite: 4 });
+    APUUI.placar(lista, 'placarPresidente',
+      { limite: 4, entrada: nacional, cargo: '0001' });
+    APUUI.legendaMarcas(lista, 'legendaPres');
+    APUUI.avisos(nacional, lista, 'avisos');
 
     pintarMapaNacional();
   }
@@ -102,8 +99,13 @@
     /* Com voto, os dois primeiros de verdade. Sem voto, os dois primeiros da
        chapa registrada — todos em 0,00%, então nenhum aparece à frente do
        outro, porque nada foi apurado. */
-    const lista = (comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf))
-      .slice(0, 2);
+    /* A marca sai da lista inteira, não do recorte: quem ocupa a segunda vaga do
+       Senado é o segundo da UF, e cortar antes de marcar mudaria o índice. */
+    const completa = comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf);
+    if (comVotos) APU.marcar(completa, entrada, cargo);
+    /* Duas linhas porque o Senado de 2026 tem duas vagas por estado e a
+       majoritária de vaga única precisa mostrar o segundo para dar a margem. */
+    const lista = completa.slice(0, 2);
     const pst = entrada ? (entrada.pst || 0) : 0;
 
     if (!lista.length) {
@@ -113,11 +115,19 @@
     }
 
     const lider = comVotos ? APU.cor(lista[0].partido) : 'var(--line-strong)';
-    const linhas = lista.map((c, i) =>
-      '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
-      + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
-      + '<span class="apu-estado-nome">' + APUUI.esc(c.urna) + '</span>'
-      + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>').join('');
+    const linhas = lista.map((c, i) => {
+      const marca = c.marca
+        ? '<span class="apu-tique is-' + c.marca + (c.oficial ? '' : ' is-previsto')
+          + '" title="' + APUUI.esc(c.oficial
+            ? 'Declarado pelo TSE'
+            : 'Leitura das vagas do cargo e do "matematicamente definido" do TSE')
+          + '">' + (c.marca === 'segundo' ? '2º' : APUUI.icone('tique', 11)) + '</span>'
+        : '';
+      return '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
+        + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
+        + '<span class="apu-estado-nome">' + APUUI.esc(c.urna) + marca + '</span>'
+        + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>';
+    }).join('');
 
     return '<a class="apu-estado" href="' + href + '" style="--cor:' + lider + '">'
       + '<div class="apu-estado-head"><span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
@@ -128,11 +138,67 @@
       + '</div></a>';
   }
 
+  /* --------------------------------------------------- andamento (EA14) */
+
+  /* Onde ainda se está contando, com os contadores que o próprio TSE publica no
+     arquivo de acompanhamento: estágio da UF e quantos dos seus municípios já
+     finalizaram. É a leitura que fica interessante justamente quando o mapa de
+     quem ganha já saturou. */
+  function pintarAndamento() {
+    const secao = $('andamento');
+    const corpo = $('tabelaAndamento');
+    if (!secao || !corpo) return;
+
+    const ab = estado.ab;
+    if (!ab || !ab.uf || !Object.keys(ab.uf).length) { secao.hidden = true; return; }
+    secao.hidden = false;
+
+    const br = ab.br || {};
+    $('notaAndamento').textContent = br.pst != null
+      ? `${APU.fmt.pct(br.pst)} das seções do país · ${APU.fmt.int(br.uff)} de `
+        + `${APU.fmt.int(br.uff + br.ufpt + br.ufnr)} unidades finalizadas`
+      : '';
+
+    const linhas = Object.values(ab.uf)
+      .sort((a, b) => (b.pst || 0) - (a.pst || 0)
+        || (APU.UF_NOMES[a.cd] || a.cd).localeCompare(APU.UF_NOMES[b.cd] || b.cd, 'pt-BR'));
+
+    corpo.innerHTML = linhas.map((u) => {
+      const nome = APU.UF_NOMES[u.cd] || u.cd.toUpperCase();
+      const total = u.muf + u.mupt + u.munr;
+      return `<tr>
+        <td><a href="apuracao-uf.html${params({ uf: u.cd, cargo: '0001' })}">${APUUI.esc(nome)}</a></td>
+        <td><span class="apu-estagio is-${u.and}">${APUUI.esc(APU.ESTAGIOS[u.and] || u.and)}</span></td>
+        <td class="num">
+          <span class="apu-mini"><span style="width:${Math.min(100, u.pst || 0)}%;background:var(--ink)"></span></span>
+          ${APU.fmt.pct(u.pst || 0)}
+        </td>
+        <td class="num">${APU.fmt.int(u.snt)}</td>
+        <td class="num">${APU.fmt.int(u.esnt)}</td>
+        <td class="num">${total ? APU.fmt.int(u.muf) + ' / ' + APU.fmt.int(total) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  /* As marcas de todos os cartões de um cargo, para a legenda saber se há selo
+     oficial, deduzido, ou os dois na tela. */
+  function marcasDe(pacote, cargo) {
+    if (!pacote || !pacote.abr) return [];
+    const dicionario = pacote.cand || {};
+    return UFS.flatMap((uf) => {
+      const entrada = pacote.abr[uf];
+      if (!entrada || !(entrada.vv > 0)) return [];
+      return APU.marcar(APU.ranking(entrada, dicionario), entrada, cargo).slice(0, 2);
+    });
+  }
+
   function pintarEstados() {
     $('gradeGov').innerHTML = UFS
       .map((uf) => cartao(uf, CARGO_GOV, estado.gov, estado.chapaGov)).join('');
     $('gradeSen').innerHTML = UFS
       .map((uf) => cartao(uf, CARGO_SEN, estado.sen, estado.chapaSen)).join('');
+    APUUI.legendaMarcas(marcasDe(estado.gov, CARGO_GOV), 'legendaGov');
+    APUUI.legendaMarcas(marcasDe(estado.sen, CARGO_SEN), 'legendaSen');
 
     const comDados = (p) => p && p.abr
       ? UFS.filter((uf) => p.abr[uf] && p.abr[uf].vv > 0).length : 0;
@@ -154,37 +220,53 @@
       await APU.fotosDisponiveis();
     }
 
-    const [br, ufPres, gov, sen] = await Promise.all([
+    const [br, ufPres, gov, sen, ab, saudeDoPlantao] = await Promise.all([
       snapshotDe('0001', 'br'), snapshotDe('0001', 'uf'),
-      snapshotDe(CARGO_GOV, 'uf'), snapshotDe(CARGO_SEN, 'uf')
+      snapshotDe(CARGO_GOV, 'uf'), snapshotDe(CARGO_SEN, 'uf'),
+      APU.acompanhamento('0001'), APU.saude()
     ]);
     /* Boletim antigo vale mais que painel vazio: só substitui o que chegou. */
     if (br) estado.br = br;
     if (ufPres) estado.ufPres = ufPres;
     if (gov) estado.gov = gov;
     if (sen) estado.sen = sen;
+    if (ab) estado.ab = ab;
+    if (saudeDoPlantao) estado.saude = saudeDoPlantao;
 
     $('linkPresidente').href = 'apuracao-presidente.html' + params({ cargo: '0001' });
     pintarPresidente();
     pintarEstados();
+    pintarAndamento();
+    APUUI.saude(estado.saude, 'saude');
   }
 
   function agendar() {
     clearTimeout(estado.timer);
     if (document.visibilityState === 'hidden') return;
     estado.timer = setTimeout(async () => {
-      await atualizar();
+      /* Uma volta que estoura nao pode levar o plantao junto: sem este try, um
+         unico snapshot malformado congelaria a pagina no ultimo boletim e so um
+         F5 a traria de volta — sem nada na tela dizendo que parou. */
+      try {
+        await atualizar();
+      } catch (e) {
+        console.warn('[apuracao] volta falhou, seguindo para a proxima', e);
+      }
       agendar();
     }, APU.cfg.intervalo);
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') atualizar().then(agendar);
+    if (document.visibilityState === 'visible') atualizar().catch(() => {}).then(agendar);
     else clearTimeout(estado.timer);
   });
 
   (async function iniciar() {
-    await atualizar();
+    try {
+      await atualizar();
+    } catch (e) {
+      console.warn('[apuracao] primeira carga falhou', e);
+    }
     agendar();
   })();
 })();

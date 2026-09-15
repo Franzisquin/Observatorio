@@ -35,6 +35,10 @@ let diasporaView = {
 
 let diasporaPointsLayer = null;
 
+// Pais ou urna aberto no painel. null = exterior inteiro, o padrao. Fica fora do
+// STATE pelo mesmo motivo de diasporaView: nada mais no app le isto.
+let diasporaSelection = null;
+
 // O mapa nasce com minZoom 4, que e o zoom em que o Brasil preenche a tela. O
 // mundo inteiro nao cabe nesse piso: sem baixa-lo, o fitBounds da malha global e
 // clampado e a tela abre em cima do golfo da Guine em vez do planeta. Guardamos
@@ -117,6 +121,14 @@ async function loadDiasporaData(year) {
   return promise;
 }
 
+// Chave do ponto no summary. Em 1989 e 1994 o boletim agrega por PAIS e nao ha
+// codigo de urna: a chave e o iso3. Usar o cd nesses anos punha todos os pontos
+// do mundo na mesma entrada, e o mapa inteiro passava a mostrar o resultado do
+// ultimo pais lido.
+function diasporaConsulateKey(consulado) {
+  return consulado?.cd ? String(consulado.cd) : String(consulado?.iso3 || '');
+}
+
 // Um mapa { numero: votos } vira { chaveDeExibicao: votos } + brancos/nulos, no
 // formato que parseCandidateKey/renderResultsPanel usam. Mesma regra de
 // summarizeNationalUfPayload -- 95 e branco, 96 e nulo, o resto e candidato.
@@ -192,10 +204,22 @@ function diasporaCountryNames() {
   return DIASPORA_COUNTRY_NAMES;
 }
 
+// Um mapa { numero: votos } no formato que o painel consome. Serve tanto ao
+// exterior inteiro quanto a um pais ou urna: e a mesma conta.
+function diasporaSummaryFromVoteMap(voteMap, metadata, turnoKey) {
+  const { votes, totalValid, brancos, nulos } = summarizeDiasporaVotes(voteMap, metadata, turnoKey);
+  return {
+    votesByDisplayKey: votes,
+    totalValidos: totalValid,
+    brancos,
+    nulos,
+    comparecimento: totalValid + brancos + nulos
+  };
+}
+
 // Totais do exterior inteiro num turno.
 function buildDiasporaAggregate(byTurn, turnoKey) {
   const payload = byTurn?.[turnoKey];
-  const metadata = payload?.METADATA?.cand_names || {};
   const totais = {};
 
   Object.values(payload?.RESULTS || {}).forEach((voteMap) => {
@@ -204,13 +228,8 @@ function buildDiasporaAggregate(byTurn, turnoKey) {
     });
   });
 
-  const { votes, totalValid, brancos, nulos } = summarizeDiasporaVotes(totais, metadata, turnoKey);
   return {
-    votesByDisplayKey: votes,
-    totalValidos: totalValid,
-    brancos,
-    nulos,
-    comparecimento: totalValid + brancos + nulos,
+    ...diasporaSummaryFromVoteMap(totais, payload?.METADATA?.cand_names || {}, turnoKey),
     // Conta so quem tem voto valido, que e exatamente o que o mapa desenha: uma
     // urna com apenas branco e nulo nao tem vencedor para pintar nem para
     // colorir o circulo, e sairia da contagem do painel sem sair do subtitulo.
@@ -224,6 +243,99 @@ function temVotoValido(voteMap) {
     .some(([id, votos]) => id !== '95' && id !== '96' && ensureNumber(votos) > 0);
 }
 
+// ===================== SELECAO =====================
+
+// O recorte aberto traduzido em votos + rotulos. Devolve null quando nao ha
+// selecao E quando ela nao existe no turno corrente (pais que so aparece no 1o
+// turno, urna fechada no 2o): ai o painel volta sozinho ao exterior inteiro em
+// vez de mostrar zero.
+function diasporaPanelScope(byTurn, turnoKey) {
+  const sel = diasporaSelection;
+  if (!sel) return null;
+
+  const payload = byTurn?.[turnoKey];
+  const nomes = diasporaCountryNames();
+
+  if (sel.kind === 'urna') {
+    const consulado = (payload?.CONSULADOS || [])
+      .find((c) => diasporaConsulateKey(c) === sel.code);
+    if (!consulado || !temVotoValido(consulado.votos)) return null;
+    const pais = nomes.get(consulado.iso3) || consulado.iso3;
+    return {
+      votos: consulado.votos,
+      titulo: toTitleCase(consulado.nome),
+      // Quando o ponto E o pais (anos sem codigo de urna), repetir o nome daria
+      // "Portugal / Portugal"; ali o rotulo do escopo e o proprio exterior.
+      escopo: norm(consulado.nome) === norm(pais) ? 'Exterior' : pais
+    };
+  }
+
+  const votos = payload?.RESULTS?.[sel.code];
+  if (!votos || !temVotoValido(votos)) return null;
+  const urnas = (payload?.CONSULADOS || [])
+    .filter((c) => c.iso3 === sel.code && temVotoValido(c.votos)).length;
+  return {
+    votos,
+    titulo: nomes.get(sel.code) || sel.code,
+    escopo: urnas ? `${fmtInt(urnas)} ${urnas === 1 ? 'urna' : 'urnas'}` : 'Exterior'
+  };
+}
+
+// Clicar num pais ou numa urna abre o resultado dele no painel; clicar de novo
+// no mesmo alvo volta ao exterior inteiro. O botao de voltar da barra do mapa
+// faz o mesmo caminho (getScopeBackTarget, em js/utils.js).
+function setDiasporaSelection(kind, code) {
+  const alvo = String(code || '');
+  if (!alvo) return;
+  const mesmo = diasporaSelection?.kind === kind && diasporaSelection?.code === alvo;
+  diasporaSelection = mesmo ? null : { kind, code: alvo };
+  refreshDiasporaSelectionUI();
+}
+
+function clearDiasporaSelection() {
+  if (!diasporaSelection) return;
+  diasporaSelection = null;
+  refreshDiasporaSelectionUI();
+}
+
+function diasporaSelectionLabel() {
+  if (!isDiasporaScope() || !diasporaSelection || !diasporaView.byTurn) return '';
+  const recorte = diasporaPanelScope(diasporaView.byTurn, diasporaTurnoKey(diasporaView.byTurn));
+  return recorte ? recorte.titulo : '';
+}
+
+function refreshDiasporaSelectionUI() {
+  if (STATE.municipiosLayer?.refresh) STATE.municipiosLayer.refresh();
+  if (diasporaPointsLayer?.refresh) diasporaPointsLayer.refresh();
+  if (diasporaView.byTurn) {
+    renderDiasporaResults(diasporaView.byTurn, diasporaTurnoKey(diasporaView.byTurn));
+  }
+  if (typeof window.updateClearSelectionButtonVisibility === 'function') {
+    window.updateClearSelectionButtonVisibility();
+  }
+}
+
+// Contorno branco no alvo aberto. Sem isto o unico sinal de qual pais esta no
+// painel seria o titulo da sidebar, e o mapa nao acusaria nada.
+function diasporaSelectedStyle(style, selecionado) {
+  return selecionado
+    ? { ...style, color: '#ffffff', weight: 2.5, opacity: 1 }
+    : style;
+}
+
+function isDiasporaSelected(kind, code) {
+  return diasporaSelection?.kind === kind && diasporaSelection.code === String(code || '');
+}
+
+// Os dois handlers de camada do MapLibre disparam no MESMO clique quando o
+// circulo do consulado esta sobre o pais. O poligono foi registrado antes, entao
+// e ele quem tem de se calar -- senao o clique na urna abria o pais e logo em
+// seguida a urna, e um segundo clique nunca desfazia a selecao.
+function diasporaClickHitConsulate(event) {
+  if (!event?.point || !map?.getLayer?.(DIASPORA_POINTS_LAYER_ID)) return false;
+  return map.queryRenderedFeatures(event.point, { layers: [DIASPORA_POINTS_LAYER_ID] }).length > 0;
+}
+
 // ===================== CAMADAS =====================
 
 function createDiasporaCountriesLayer(geojson) {
@@ -232,11 +344,17 @@ function createDiasporaCountriesLayer(geojson) {
     id: 'muni',
     type: 'polygon',
     hover: true,
-    styleFn: (feature) => getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+    styleFn: (feature) => diasporaSelectedStyle(
+      getMunicipalPolygonStyle(feature, STATE.currentMapMuniSummary),
+      isDiasporaSelected('pais', feature?.properties?.CD_REG)),
     tooltipClass: 'district-nyt-tooltip',
     // A MESMA tooltip dos mapas municipal e de regiao. Delegar em vez de
     // reproduzir o markup garante que sao a mesma coisa, e nao duas parecidas.
-    tooltipFn: (feature) => buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary)
+    tooltipFn: (feature) => buildMunicipalityTooltip(feature, STATE.currentMapMuniSummary),
+    onClick: (feature, event) => {
+      if (diasporaClickHitConsulate(event)) return;
+      setDiasporaSelection('pais', feature?.properties?.CD_REG);
+    }
   });
   if (STATE.extrusion3DEnabled && isPolygonMapMode()) {
     layer.extrusionEnabled = true;
@@ -263,11 +381,7 @@ function buildDiasporaConsulateData(byTurn, turnoKey) {
     const entry = buildDiasporaEntry(consulado.nome, consulado.votos, metadata, turnoKey);
     if (!entry) return;
 
-    // Chave do ponto no summary. Em 1989 e 1994 o boletim agrega por PAIS e nao
-    // ha codigo de urna: a chave e o iso3. Usar o cd nesses anos punha todos os
-    // pontos do mundo na mesma entrada, e o mapa inteiro passava a mostrar o
-    // resultado do ultimo pais lido.
-    const chave = consulado.cd ? String(consulado.cd) : consulado.iso3;
+    const chave = diasporaConsulateKey(consulado);
     const pais = nomes.get(consulado.iso3) || consulado.iso3;
     // Segunda linha do tooltip: o pais onde o consulado fica. Quando o ponto E o
     // pais, repeti-lo seria "Portugal / Portugal"; ali vale o rotulo do escopo.
@@ -304,17 +418,18 @@ function createDiasporaConsulatesLayer(features, summary) {
     hover: true,
     styleFn: (feature) => {
       const entry = feature?.properties?.entry;
-      return {
+      return diasporaSelectedStyle({
         fillColor: getColorForCandidate(entry?.winnerName, entry?.winnerParty),
         fillOpacity: 0.92,
         color: '#ffffff',
         weight: 1,
         opacity: 0.9
-      };
+      }, isDiasporaSelected('urna', feature?.properties?.CD_REG));
     },
     radiusFn: (feature) => diasporaConsulateRadius(feature, maxVotos),
     tooltipClass: 'district-nyt-tooltip',
-    tooltipFn: (feature) => buildMunicipalityTooltip(feature, summary)
+    tooltipFn: (feature) => buildMunicipalityTooltip(feature, summary),
+    onClick: (feature) => setDiasporaSelection('urna', feature?.properties?.CD_REG)
   });
   layer.setFeatures(features);
   return layer;
@@ -333,6 +448,7 @@ function removeDiasporaConsulatesLayer() {
 function leaveDiasporaMapState() {
   removeDiasporaConsulatesLayer();
   restoreMapZoomAfterDiaspora();
+  diasporaSelection = null;
 }
 
 // ===================== PAINEL =====================
@@ -340,7 +456,14 @@ function leaveDiasporaMapState() {
 function renderDiasporaResults(byTurn, turnoKey) {
   if (typeof initializeCandidateColorUI === 'function') initializeCandidateColorUI();
 
-  const aggregate = buildDiasporaAggregate(byTurn, turnoKey);
+  // Sem recorte o painel e o exterior inteiro; com recorte, o pais ou a urna
+  // clicada. Da tabela para baixo o codigo e o mesmo -- a unica coisa que muda
+  // e de qual mapa de votos os totais sairam.
+  const recorte = diasporaPanelScope(byTurn, turnoKey);
+  const aggregate = recorte
+    ? diasporaSummaryFromVoteMap(
+      recorte.votos, byTurn?.[turnoKey]?.METADATA?.cand_names || {}, turnoKey)
+    : buildDiasporaAggregate(byTurn, turnoKey);
   const totalBase = aggregate.totalValidos;
 
   const results = Object.entries(aggregate.votesByDisplayKey)
@@ -354,12 +477,14 @@ function renderDiasporaResults(byTurn, turnoKey) {
 
   dom.resultsBox.classList.remove('section-hidden');
   dom.summaryBoxContainer.classList.add('section-hidden');
-  dom.resultsTitle.textContent = 'Exterior — Presidente';
+  dom.resultsTitle.textContent = recorte ? recorte.titulo : 'Exterior — Presidente';
   // Ate 1994 o boletim agrega por PAIS: nao ha urna consular para contar, e o
   // subtitulo nao inventa uma.
-  const escopo = aggregate.consuladoCount
-    ? `${fmtInt(aggregate.consuladoCount)} urnas em ${fmtInt(aggregate.paisCount)} países`
-    : `${fmtInt(aggregate.paisCount)} países`;
+  const escopo = recorte
+    ? recorte.escopo
+    : (aggregate.consuladoCount
+      ? `${fmtInt(aggregate.consuladoCount)} urnas em ${fmtInt(aggregate.paisCount)} países`
+      : `${fmtInt(aggregate.paisCount)} países`);
   dom.resultsSubtitle.textContent =
     `${STATE.currentElectionYear} • ${turnoKey === '2T' ? '2º turno' : '1º turno'} • ${escopo}`;
 
@@ -391,18 +516,24 @@ function renderDiasporaResults(byTurn, turnoKey) {
 
   const invalidos = aggregate.brancos + aggregate.nulos;
   const invalidosPct = aggregate.comparecimento > 0 ? (invalidos / aggregate.comparecimento) : 0;
-  const paisesVencidos = Object.values(buildDiasporaCountrySummary(byTurn, turnoKey));
-  const lider = results[0];
-  const paisesDoLider = lider
-    ? paisesVencidos.filter((entry) => entry.winnerName === lider.nome).length
-    : 0;
+  // "Paises vencidos" so faz sentido no agregado: dentro de um pais ou de uma
+  // urna o denominador seria sempre 1.
+  let paisesHtml = '';
+  if (!recorte) {
+    const paisesVencidos = Object.values(buildDiasporaCountrySummary(byTurn, turnoKey));
+    const lider = results[0];
+    const paisesDoLider = lider
+      ? paisesVencidos.filter((entry) => entry.winnerName === lider.nome).length
+      : 0;
+    paisesHtml = `<div class="metric-item"><span>Países vencidos (1º)</span><strong>${fmtInt(paisesDoLider)} de ${fmtInt(paisesVencidos.length)}</strong></div>`;
+  }
 
   dom.resultsMetrics.innerHTML = `
     <div class="metrics-grid">
       <div class="metric-item"><span>Votos válidos</span><strong>${fmtInt(totalBase)}</strong></div>
       <div class="metric-item"><span>Comparecimento</span><strong>${fmtInt(aggregate.comparecimento)}</strong></div>
       <div class="metric-item"><span>Votos inválidos</span><strong>${fmtInt(invalidos)} (${fmtPct(invalidosPct)})</strong></div>
-      <div class="metric-item"><span>Países vencidos (1º)</span><strong>${fmtInt(paisesDoLider)} de ${fmtInt(paisesVencidos.length)}</strong></div>
+      ${paisesHtml}
     </div>
   `;
 }
@@ -453,6 +584,7 @@ async function showDiasporaOverview(options = {}) {
 
   const generation = ++diasporaView.generation;
   const year = String(STATE.currentElectionYear);
+  diasporaSelection = null;
 
   // No exterior so se vota para presidente. updateCargoChipsVisibility ja
   // escondeu os outros chips; aqui so alinhamos o estado.
@@ -541,4 +673,6 @@ if (typeof window !== 'undefined') {
   window.showDiasporaOverview = showDiasporaOverview;
   window.leaveDiasporaMapState = leaveDiasporaMapState;
   window.refreshDiasporaViewForTurn = refreshDiasporaViewForTurn;
+  window.diasporaSelectionLabel = diasporaSelectionLabel;
+  window.clearDiasporaSelection = clearDiasporaSelection;
 }

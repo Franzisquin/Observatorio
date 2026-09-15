@@ -159,9 +159,9 @@ async function loadMajoritariaCargo1998(cargo, uf) {
   // Urnas que so existem como SECAO no acervo (chaves ..._S{n}, sem local): na RMSP
   // o CEM as devolve como estacoes com voto proprio. Tem de rodar ANTES do balde
   // sintetico, porque as chaves que ele cobre saem do calculo do resto.
-  const secoesT1 = await applyRmspSecoes1998(geojson, cargo, mergedTurno1, '1T', muniNameMap);
+  const secoesT1 = await applyRmspSecoes1998(geojson, cargo, mergedTurno1, '1T', muniNameMap, ufs);
   const secoesT2 = mergedTurno2
-    ? await applyRmspSecoes1998(geojson, cargo, mergedTurno2, '2T', muniNameMap)
+    ? await applyRmspSecoes1998(geojson, cargo, mergedTurno2, '2T', muniNameMap, ufs)
     : new Set();
 
   // Chaves dos dots cobertas pela base 2006 (por turno).
