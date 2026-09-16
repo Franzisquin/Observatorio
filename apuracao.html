@@ -10,6 +10,27 @@
   <meta name="description"
     content="Central de apuração ao vivo: resultado presidencial em destaque e as disputas de governador e senador nos maiores colégios eleitorais. Dados oficiais do TSE." />
 
+  <!-- CSP: segunda trava sobre o `?dados=`. Ainda que alguém contorne o allowlist
+       de apuracao-dados.js, `connect-src` impede o navegador de buscar snapshot
+       fora destas origens — resultado forjado simplesmente não carrega.
+
+       `script-src` ainda precisa de 'unsafe-inline' por causa do `onerror=` que o
+       placar gera via innerHTML (apuracao-ui.js). Trocar aquele handler por
+       addEventListener permite remover o 'unsafe-inline' e fechar também o XSS.
+
+       `frame-ancestors` não vale em <meta>, só em cabeçalho HTTP: a proteção
+       contra clickjacking tem que vir do Cloudflare (ver NOTAS-SEGURANCA.md). -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    connect-src 'self' https://raw.githubusercontent.com;
+    img-src 'self' data:;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src https://fonts.gstatic.com;
+    script-src 'self' 'unsafe-inline';
+    base-uri 'none';
+    object-src 'none';
+    form-action 'none'" />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link

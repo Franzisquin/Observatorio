@@ -75,19 +75,34 @@ jobs:
       # a janela inteira.
       - name: Reconhecimento do CDN
         continue-on-error: true
+        # As entradas passam por `env`, nao por interpolacao `${{ }}` dentro do
+        # `run`. Interpolado, o valor e colado no script antes de o shell existir:
+        # um `; curl ... | sh ;` no campo vira comando, com o token de escrita do
+        # repositorio a mao. Como variavel de ambiente entre aspas, e so texto.
+        env:
+          AMBIENTE: ${{ inputs.ambiente }}
         run: |
           python scripts/apuracao/coleta.py --descobrir || true
-          python scripts/apuracao/coleta.py --ambiente "${{ inputs.ambiente }}" --listar \
-            || echo "nao foi possivel listar com ambiente=${{ inputs.ambiente }}"
+          python scripts/apuracao/coleta.py --ambiente "$AMBIENTE" --listar \
+            || echo "nao foi possivel listar com ambiente=$AMBIENTE"
 
       - name: Plantao
+        # Mesma razao do passo anterior: entrada de formulario nao entra no corpo
+        # do script, entra pelo ambiente.
+        env:
+          ELEICAO: ${{ inputs.eleicao }}
+          CARGOS: ${{ inputs.cargos }}
+          AMBIENTE: ${{ inputs.ambiente }}
+          MINUTOS: ${{ inputs.minutos }}
+          INTERVALO_ALTO: ${{ inputs.intervalo_alto }}
+          INTERVALO_MUN: ${{ inputs.intervalo_mun }}
         run: |
           python scripts/apuracao/plantao.py \
-            --eleicao "${{ inputs.eleicao }}" \
-            --cargos "${{ inputs.cargos }}" \
-            --ambiente "${{ inputs.ambiente }}" \
-            --minutos "${{ inputs.minutos }}" \
-            --intervalo-alto "${{ inputs.intervalo_alto }}" \
-            --intervalo-mun "${{ inputs.intervalo_mun }}" \
+            --eleicao "$ELEICAO" \
+            --cargos "$CARGOS" \
+            --ambiente "$AMBIENTE" \
+            --minutos "$MINUTOS" \
+            --intervalo-alto "$INTERVALO_ALTO" \
+            --intervalo-mun "$INTERVALO_MUN" \
             --saida publicar \
             --publicar --branch apuracao-data

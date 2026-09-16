@@ -34,8 +34,30 @@ const APU = (function () {
   const PUBLICADO = 'https://raw.githubusercontent.com/Franzisquin/Observatorio/apuracao-data/';
   const P = new URLSearchParams(location.search);
 
+  /* Origens que `?dados=` pode apontar. O parâmetro existe para desenvolvimento
+     e para apontar o simulado, mas aceitar URL arbitrária fazia a página buscar
+     os snapshots de onde o link mandasse: `?dados=https://terceiro/` renderiza
+     números de outra pessoa com a marca, o layout e o domínio do site. Numa
+     noite de apuração isso é resultado forjado publicado como se fosse nosso —
+     não é leitura indevida, é falsificação, e some da barra de endereços.
+
+     Caminho relativo continua livre: serve snapshot local sem sair da origem. */
+  const ORIGENS_OK = [
+    'https://raw.githubusercontent.com/Franzisquin/Observatorio/'
+  ];
+
+  function baseSegura(bruta) {
+    if (!bruta) return PUBLICADO;
+    /* Relativo e dentro da própria origem. Recusa "//host" (protocol-relative,
+       que sai do site) e qualquer coisa com esquema. */
+    if (/^[\w.-]+(\/[\w.-]+)*\/$/.test(bruta) && !bruta.startsWith('//')) return bruta;
+    if (ORIGENS_OK.some((o) => bruta.startsWith(o))) return bruta;
+    console.warn('[apuracao] origem de dados recusada, usando a publicada:', bruta);
+    return PUBLICADO;
+  }
+
   const cfg = {
-    base: P.get('dados') || PUBLICADO,
+    base: baseSegura(P.get('dados')),
     eleicao: P.get('eleicao') || '',
     cargo: P.get('cargo') || '0001',
     uf: (P.get('uf') || '').toLowerCase(),

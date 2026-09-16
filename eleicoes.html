@@ -8,11 +8,50 @@
   <link rel="icon" type="image/png" href="favicon.png?v=2" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
 
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-  <script src="https://unpkg.com/unzipit@1.4.0/dist/unzipit.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <!-- CSP. Mais frouxo que o das páginas de apuração porque esta página carrega
+       maplibre e sql.js, e ambos têm exigências próprias:
+         'wasm-unsafe-eval'  — sql.js instancia WebAssembly; sem isso, o mapa
+                               municipal não abre.
+         blob: em worker-src  — o worker do maplibre nasce de um blob.
+         cdnjs em connect-src — sql-wasm.wasm é buscado em runtime pelo
+                               locateFile de js/data-zip.js, e SRI não cobre isso.
+       'unsafe-inline' em script-src ainda é necessário pelos handlers inline.
+       Mesmo assim `object-src 'none'` e `base-uri 'none'` já fecham dois vetores
+       clássicos, e connect-src/img-src limitam para onde a página pode falar. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    connect-src 'self' https://tiles.openfreemap.org https://cdnjs.cloudflare.com;
+    img-src 'self' data: blob: https://tiles.openfreemap.org https://*.basemaps.cartocdn.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+    font-src https://fonts.gstatic.com data:;
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://unpkg.com https://cdnjs.cloudflare.com;
+    worker-src 'self' blob:;
+    base-uri 'none';
+    object-src 'none'" />
+
+  <!-- Dependencias de terceiros com SRI: o navegador recusa o arquivo se o byte
+       nao bater com o hash. Sem isso, um comprometimento do CDN executa script
+       arbitrario na pagina de resultados. Ao trocar de versao, recalcule:
+       curl -sSL <url> | openssl dgst -sha384 -binary | openssl base64 -A
+       O d3 esta fixado em 7.9.0 porque a URL antiga (d3js.org/d3.v7.min.js)
+       acompanha a ultima 7.x: com SRI ela quebraria sozinha no proximo release. -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+        integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V"
+        crossorigin="anonymous" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"
+          integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj"
+          crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/unzipit@1.4.0/dist/unzipit.min.js"
+          integrity="sha384-wBrCvwvmMrFsG5Xv0IVxUYVhxbsZVWx25PVBDMmU0ssHMu+gnX2ciBjrvzWe2Ytv"
+          crossorigin="anonymous"></script>
+  <!-- Ressalva: o SRI cobre este .js, nao o sql-wasm.wasm que ele busca em tempo
+       de execucao. Para fechar isso de vez, hospede o par junto do site. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"
+          integrity="sha384-8D3Rsfo535FqoC1pHCCQMrNf75UgzyoG/HQm9zOzITRrz3QKzecc2E7JXKGCXoWu"
+          crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"
+          integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
+          crossorigin="anonymous"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

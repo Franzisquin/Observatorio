@@ -89,3 +89,11 @@ scripts/validar_ponderacao_2022.py
 campanha-2026-mapa.html
 campanha-2026-mapa.png
 scripts/gerar_png_campanha_2026.py
+
+# Residuos de trabalho que o Pages estava publicando junto do site. O scratch/
+# ja constava acima, mas a regra so vale para arquivo ainda nao rastreado: os
+# 1.483 que estavam no indice sairam por `git rm --cached`.
+logs/
+*.bak
+*.log
+missing_cities.txt
