@@ -108,10 +108,53 @@ número de voto é fato — a Lei 9.610/98 não protege fato. O que é nosso e
 protegível: a compilação e organização da base (art. 7º, XIII), o código, os
 mapas, o design e os cálculos derivados (swing, ISE, estimativas EI).
 
+### Precedente: como o redistricter.com resolve isso
+
+Vale registrar, porque é o experimento que naturalmente se cogita. O
+redistricter.com separa os dados num domínio próprio (`data.redistricter.com`,
+S3 atrás de CloudFront) e tem autenticação completa via Clerk. Ainda assim, em
+teste direto de 16/09/2026:
+
+```
+$ curl -I https://data.redistricter.com/OK/v1-2OKBlockGroups.geojson.gz
+HTTP/1.1 200 OK
+Content-Length: 4881698
+```
+
+Sem token, sem referer, sem cookie. Texas idem, 26,4 MB. CORS está configurado
+(`Vary: Origin`, sem `Access-Control-Allow-Origin` para origem estranha), o que
+impede JS de outro site no navegador e **não impede** `curl` — CORS é mecanismo
+de navegador, não de protocolo.
+
+Duas lições: separar os dados em outro domínio não protege nada por si só, e
+autenticar a interface não protege o dado se a URL do dado for anônima. O que a
+separação compra é controle operacional — cache, rate limit e regras de CDN
+próprias —, que é motivo suficiente, mas é outro motivo.
+
+### Metadado de derivação: auditar o que é servido
+
+A curadoria vaza principalmente por campo que a interface não lê. Caso concreto:
+`emancipacoes_pre2014.json` publicava `secoes` (796 seções atribuídas),
+`n_secoes_ambiguas` (36 juízos editoriais), `identidade_ano` e `revisar`. O
+cliente lê apenas `cd_ibge`, `nome`, `por_pai` e `resultados` — conferido em
+`js/emancipacoes-pre2014.js`. A derivação saiu do ar por
+`scripts/preparar_emancipacoes_publico.py`.
+
+Além de entregar a pesquisa de graça, publicar a derivação enfraquecia a prova
+de autoria: com o método público, quem copiasse poderia alegar que chegou aos
+mesmos números sozinho.
+
+Ao acrescentar artefato novo ao site, vale a pergunta: *a interface lê este
+campo?* Candidatos típicos a ficar de fora — contadores de ambiguidade, flags de
+revisão, ano de identidade, notas de proveniência, escores de confiança.
+
 Estratégia viável:
 
 1. **Cloudflare** (seção 1) — resolve capacidade e eleva o custo do raspador.
 2. **Licença e termos** sobre a compilação e os derivados, exigindo atribuição.
+   Feito: a seção 4 da LICENSE reivindica a base de dados pelo art. 7º, XIII e
+   art. 87 da Lei 9.610/98, nomeando os artefatos curados. O `termos.html` já
+   vedava coleta automatizada e não precisou mudar.
 3. **Marca d'água nos dados derivados** para *provar* a cópia, já que impedir não
    é possível: ordenação, precisão decimal insignificante nas estimativas.
    **Nunca nos números de votação.** O cabeçalho de `js/apuracao-dados.js` já

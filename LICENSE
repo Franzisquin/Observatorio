@@ -31,13 +31,56 @@ A disponibilização pública do site não constitui licença sobre a Obra. É
 permitido apenas o acesso e a consulta ao site por meio de navegador, para
 fins pessoais e não comerciais, na forma em que é oferecido.
 
-4. DADOS PÚBLICOS DE TERCEIROS
+4. DADOS PÚBLICOS DE TERCEIROS E BASE DE DADOS ELECTOMAPS
+
+4.1. DADO PÚBLICO ORIGINAL
 
 Os dados eleitorais, geográficos e demográficos originais — obtidos junto ao
-Tribunal Superior Eleitoral (TSE), ao IBGE e a outras fontes públicas — não
-são objeto desta reserva de direitos e permanecem sujeitos aos termos de suas
-respectivas fontes. A reserva alcança o software, o tratamento, a organização,
-a apresentação e os textos autorais desenvolvidos pelo ElectoMaps.
+Tribunal Superior Eleitoral (TSE), ao IBGE e a outras fontes públicas — não são
+objeto desta reserva de direitos e permanecem sujeitos aos termos de suas
+respectivas fontes. Votos, percentuais, totais de seções e demais resultados
+divulgados pela autoridade eleitoral são fatos de domínio público, e nada neste
+documento pretende restringir o acesso a eles ou a sua reprodução a partir da
+fonte oficial.
+
+4.2. BASE DE DADOS E COMPILAÇÃO
+
+Coisa distinta do dado bruto é a base de dados do ElectoMaps, cuja seleção e
+organização constituem criação intelectual protegida pelo art. 7º, inciso XIII,
+e pelo art. 87 da Lei nº 9.610/1998. Essa proteção recai sobre o trabalho de
+curadoria, e não sobre os fatos subjacentes.
+
+Integram essa base, entre outros elementos:
+
+  a) a reconstituição de resultados de municípios criados após a eleição
+     apurada, obtida por agregação de seções eleitorais identificadas na
+     eleição mais antiga em que o município figura, com a consequente
+     reatribuição de votos aos municípios de origem;
+
+  b) as tabelas de equivalência e normalização de nomes de municípios entre
+     grafias, códigos e recortes territoriais de épocas distintas;
+
+  c) a digitalização e a estruturação de resultados anteriores a 1998 a partir
+     de documentos não estruturados;
+
+  d) o georreferenciamento de locais de votação;
+
+  e) os índices, agregações e estimativas derivados, entre eles o Índice
+     Socioeconômico (ISE), as medidas de variação entre eleições e as
+     estimativas por inferência ecológica;
+
+  f) a seleção, o recorte, a nomenclatura, a estrutura de arquivos e a
+     disposição do acervo.
+
+A reserva alcança ainda o software, a apresentação e os textos autorais
+desenvolvidos pelo ElectoMaps.
+
+4.3. EXTRAÇÃO E REUTILIZAÇÃO
+
+É vedada, sem autorização prévia e por escrito, a extração ou a reutilização do
+conteúdo da base referida em 4.2, no todo ou em parte substancial, por qualquer
+meio, inclusive mediante coleta automatizada. A vedação não alcança a obtenção
+dos dados públicos originais junto às suas fontes, na forma de 4.1.
 
 5. COMPONENTES DE TERCEIROS
 
@@ -81,6 +124,30 @@ purposes and in the form offered, is permitted.
 Underlying public electoral, geographic and demographic data obtained from the
 Brazilian Superior Electoral Court (TSE), IBGE and other public sources are not
 covered by this reservation and remain subject to the terms of their sources.
+Votes, percentages, precinct counts and other results released by the electoral
+authority are public facts, and nothing here purports to restrict access to
+them or their reproduction from the official source.
+
+Distinct from the underlying facts is the ElectoMaps database, whose selection
+and organization constitute an intellectual creation protected under article 7,
+item XIII, and article 87 of Brazilian Law No. 9.610/1998. That protection
+covers the curatorial work, not the underlying facts. It includes, among other
+elements: the reconstruction of results for municipalities created after the
+election in question, derived by aggregating electoral precincts identified in
+the earliest election in which the municipality appears, and the corresponding
+reattribution of votes from the originating municipalities; the concordance and
+normalization tables for municipality names across spellings, codes and
+historical territorial divisions; the digitization and structuring of pre-1998
+results from unstructured documents; the geocoding of polling places; derived
+indices, aggregations and estimates, including the Socioeconomic Index (ISE),
+inter-election swing measures and ecological inference estimates; and the
+selection, scope, nomenclature, file structure and arrangement of the
+collection.
+
+Extraction or reuse of that database, in whole or in substantial part, by any
+means, including automated collection, requires prior written permission. This
+does not restrict obtaining the underlying public data from its own sources.
+
 Third-party libraries used by the site (including MapLibre GL JS, D3.js, sql.js
 and unzipit) remain governed by their own licenses.
 

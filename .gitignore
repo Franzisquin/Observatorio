@@ -98,3 +98,13 @@ logs/
 *.bak
 *.log
 missing_cities.txt
+
+# Derivacao da reconstrucao de emancipacoes pre-2014: quais secoes eleitorais
+# foram atribuidas a cada municipio, em que eleicao a identidade foi achada e
+# quais ficaram ambiguas. O site nunca leu nada disso -- ver
+# scripts/preparar_emancipacoes_publico.py, que gera a versao publicavel.
+# Guarde uma copia FORA deste repositorio: perdida, a reconstrucao se refaz do zero.
+resultados_geo/emancipacoes_pre2014.fonte.json
+
+# Sobra de trabalho, nao usada pelo site (listagem de outro repositorio).
+zip_files.txt

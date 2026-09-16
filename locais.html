@@ -10,8 +10,28 @@
   <meta name="description"
     content="Mapa dos locais de votação por estado, com as seções eleitorais de cada local e o eleitorado de cada seção. Dados do TSE." />
 
-  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
-  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <!-- CSP: ver a nota completa em eleicoes.html. Esta pagina nao usa sql.js nem
+       worker proprio, entao dispensa 'wasm-unsafe-eval'; o blob: em worker-src
+       continua para o worker interno do maplibre. `connect-src` inclui o
+       raw.githubusercontent porque a pagina carrega js/apuracao-dados.js. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    connect-src 'self' https://tiles.openfreemap.org https://raw.githubusercontent.com;
+    img-src 'self' data: blob: https://tiles.openfreemap.org https://*.basemaps.cartocdn.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+    font-src https://fonts.gstatic.com data:;
+    script-src 'self' 'unsafe-inline' blob: https://unpkg.com;
+    worker-src 'self' blob:;
+    base-uri 'none';
+    object-src 'none'" />
+
+  <!-- SRI: ver nota em eleicoes.html. Ao trocar de versao, recalcule o hash. -->
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+        integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V"
+        crossorigin="anonymous" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"
+          integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj"
+          crossorigin="anonymous"></script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
