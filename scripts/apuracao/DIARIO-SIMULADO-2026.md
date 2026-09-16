@@ -272,6 +272,53 @@ O painel de saúde deixou de ser só contagem: taxa média contra o teto de 100,
 bloqueios, 404 e quantas repetições a memória evitou — e o quadro inteiro fica
 vermelho se houver punição.
 
+### 14:24 · A tarde recomeça do zero
+
+A janela da tarde não continua a da manhã: o TSE reinicia a apuração e percorre
+de 0 a 100% outra vez. O país voltou para 7,00% às 14h24, chegou a 100% às 16h26,
+e os **seis cargos** alcançaram totalização final — presidente na eleição federal,
+e governador, senador, deputado federal, estadual e distrital na estadual.
+
+Foi aí que os selos tracejados viraram sólidos: com `tf=s` e `st` preenchido, a
+dedução de `md` e `nv` deu lugar à declaração do TSE, e o arquivo de eleitos
+(EA10) passou a existir para todos.
+
+### 16:30 · A segunda falha de rede do dia
+
+```
+! volta 235 falhou (URLError: TLSV1_ALERT_INTERNAL_ERROR); seguindo para a proxima
+```
+
+O servidor derrubou o handshake TLS no meio da passada municipal. Uma ocorrência
+em 273 voltas — e o plantão registrou e seguiu.
+
+É a segunda falha da mesma família: de manhã foi `IncompleteRead`, agora TLS.
+Classes diferentes, o mesmo desfecho evitado pela mesma proteção. Sem ela, a
+cobertura teria encerrado meia hora antes do fim da janela, e o único aviso seria
+a tela parada no último boletim.
+
+A lição que nenhuma inspeção de código daria: **seis horas de rede não são seis
+horas sem incidente**. As duas falhas só apareceram porque o coletor ficou o dia
+inteiro no ar contra dados reais.
+
+---
+
+## Balanço da primeira janela
+
+| | |
+|---|---|
+| duração | 5,5 h, 273 voltas |
+| requisições | 193.482, das quais **452.162 responderam 304** |
+| tráfego | 14,1 GB |
+| taxa média | **9,8 req/s**, contra o teto de 100 |
+| **404** | **0** |
+| **bloqueios** | **0** |
+| falhas de rede | 2, ambas absorvidas |
+| rodadas completas | 2 (manhã e tarde), de 0 a 100% |
+
+O ETag é o que sustenta esses números: mais respostas 304 do que requisições
+novas, porque a maior parte dos 5.755 municípios não muda entre duas passadas.
+
 ---
 
 ## 15/09 — segunda janela, tarde
