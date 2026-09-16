@@ -321,6 +321,184 @@ novas, porque a maior parte dos 5.755 municípios não muda entre duas passadas.
 
 ---
 
+## 15/09 — segunda janela, tarde
+
+### 14:18 · Plantão da tarde, sem novidade de ambiente
+
+Mesmo ambiente e mesmos códigos da manhã — `simulado/simulado2026`, 21270
+(federal) e 21272 (estadual). A descoberta automática achou os dois sozinha, o
+que era o ponto: nenhum código foi chumbado.
+
+Primeira volta com camada municipal em 786 s, 28.178 requisições, **0 respostas
+404** — reproduz a medição da manhã. As duas armadilhas conhecidas continuaram
+cobertas: deputado estadual saiu com 26 abrangências (DF fora, que elege
+distrital) e presidente com 28 (exterior dentro).
+
+### 15:05 → 15:50 · Um platô que não era travamento
+
+A apuração ficou meia hora parada em 62,54 %, com as voltas fechando normalmente
+e o tráfego todo em 304. Parecia plantão travado; não era. O TSE simplesmente não
+republicou naquele intervalo, e às 15:50 já estava em 80,74 %.
+
+Como distinguir um do outro sem esperar: a linha da volta só é impressa **no fim**
+da volta, e uma volta com camada municipal leva de 700 a 790 s. Dez minutos sem
+linha nova é o normal durante a municipal, não um sintoma. A prova de vida é
+olhar se a pasta de saída está recebendo arquivo — durante a municipal ela recebe
+dezenas por minuto.
+
+Cadência medida: a camada municipal cai nas voltas 1, 8, 15, 22, 29, 36 — uma a
+cada sete.
+
+### 16:09 · Totalização final do presidencial
+
+O que a janela existia para exercitar.
+
+| | |
+|---|---|
+| presidente (21270-0001) | `tf=s`, `and=f`, `md` vazio, 528.951 de 528.951 seções |
+| governador (21272-0003) | `tf=n`, `and=p`, **`md=s`** |
+| totalização do TSE | 15/09/2026 16:08:46, geração 16:09:51 |
+
+Os quatro comportamentos que o `SIMULADO.md` manda conferir, conferidos na tela:
+
+- o selo passou a **Encerrada** (`and=f`);
+- o selo **Matematicamente definido** apagou sozinho, porque `md` deixa de existir
+  quando há totalização final — e o governador, ainda em `tf=n`, acendeu o dele
+  como **Segundo turno definido** (`md=s`). Os dois estados na mesma tela;
+- os dois primeiros ganharam selo de **2º turno sólido**, não tracejado. É o certo:
+  o registro do candidato traz `eleito=s` e `situacao=2º turno` vindos do próprio
+  arquivo do TSE, então é declaração, não leitura nossa das vagas;
+- o EA14 de acompanhamento chegou a ficar atrás do EA20 — 0 UFs finalizadas contra
+  um presidencial já em 100 % —, mas alcançou na volta seguinte. É defasagem entre
+  dois arquivos, não divergência: não vale alarme na tela.
+
+Detalhe dos dados simulados: o primeiro colocado é um `Anulado sub judice` e o TSE
+o classificou ao segundo turno assim mesmo. Não é caso a tratar — é dado fictício.
+
+### 16:13 · O EA10 de presidente não existe
+
+`CARGOS_COM_ELEITOS` em `tse.py` é `{0003, 0005, 0006, 0011}` e **não** inclui
+presidente. Com `tf=s` na mão, dava para descobrir se isso era lacuna, com uma
+requisição só — pedir EA10 antes da totalização é que daria 404 em série:
+
+```
+br-c0001-e021270-e.json   ausente
+```
+
+A exclusão está certa. E é coerente: `eleito` e `situacao` do presidente já vêm
+dentro do próprio EA20, que é de onde o selo sólido saiu. O EA10 serve aos cargos
+em que falta informação que o resultado não traz — coligação e suplentes.
+
+### 16:20 · 100 % das seções não é totalização final
+
+O melhor par de prova da janela, porque os dois estados coexistiram:
+
+| | presidente (21270) | governador (21272) |
+|---|---|---|
+| seções | 528.951 de 528.951 | 106.580 de 106.580 (SP) |
+| `and` | `f` | `p` |
+| `tf` | `s` | `n` |
+| `md` | vazio | `s` |
+| selo de estado na tela | **Encerrada** | **Ao vivo** |
+| marca no candidato | `is-segundo` — **sólida** | `is-segundo is-previsto` — **tracejada** |
+
+Ou seja: contar todas as seções e totalizar são coisas diferentes, e o TSE
+publica uma antes da outra. Quem tratar 100 % como fim da apuração vai declarar
+resultado antes do tribunal.
+
+A marca tracejada do governador é a leitura do `md=s`; a sólida do presidente vem
+do `situacao` que o TSE preencheu. É a legenda embaixo da grade se pagando: com o
+mesmo percentual na tela, o leitor distingue declaração de dedução.
+
+### 16:56 · A estadual totalizou no fim da janela, e o EA10 veio
+
+A estadual passou 43 minutos sem republicar (última geração 16:01:52) e parecia
+que fecharia a janela em `tf=n`. Voltou às 16:44 com os quatro cargos totalizados
+de uma vez, e o plantão pegou na volta 64.
+
+Os três arquivos de eleitos apareceram sozinhos, como o desenho previa:
+
+```
+21272-0003-eleitos.json    17 KB    governador
+21272-0005-eleitos.json    19 KB    senador
+21272-0006-eleitos.json    81 KB    deputado federal
+```
+
+Deputado estadual (0007) totalizou junto e **não** tem EA10 — coerente com
+`CARGOS_COM_ELEITOS`.
+
+**O EA10 não traz `situacao`.** O registro é `sq, n, nome, urna, partido, com,
+votos, seq, vice` — o que ele acrescenta é a coligação (`com`) e a ordem (`seq`),
+não o rótulo. `Eleito`, `Não eleito` e `2º turno` vêm do EA20, no dicionário de
+candidatos do arquivo de UF. Vale anotar porque a expectativa natural é a
+inversa: o arquivo chamado "de eleitos" não é quem diz que alguém se elegeu.
+
+### 16:57 · O bug que só aparece depois da totalização
+
+O mais grave da janela, e não daria erro nenhum: **a página de estado perdia o
+selo oficial no instante em que o TSE o declarava.**
+
+`apuracao-uf.js` montava o ranking com o dicionário do arquivo **municipal**, e
+os dois dicionários não são iguais:
+
+| | municipal (`…-sp.json`) | UF (`…-uf.json`) |
+|---|---|---|
+| `situacao` | ausente | `2º turno` |
+| `eleito` dos dois classificados | `n` | `s` |
+
+Enquanto havia `md=s`, o selo saía do palpite — tracejado, e ninguém notava a
+falta do dado. Quando veio `tf=s`, o `md` esvaziou, o `situacao` não estava ali e
+o `eleito` do arquivo municipal dizia `n`: o selo simplesmente sumiu, justo quando
+passou a ser oficial. Em outubro, páginas de estado nunca mostrariam quem venceu.
+
+Corrigido sobrepondo o dicionário da UF ao municipal nos dois pontos que montam
+ranking. O arquivo de UF já era buscado a cada ciclo — só não se guardava o
+`cand` dele.
+
+### 17:05 · Senado: vaga não é eleito, e o TSE avisa por quê
+
+`nv=2` nas 27 unidades, e mesmo assim o TSE declarou **45 eleitos, não 54**: 19
+estados com dois, 7 com um, e o Amapá com nenhum.
+
+O motivo vem no arquivo, em `esae=s` com `mnae`, em 8 unidades:
+
+> Candidata ou candidato concorrente a uma das vagas com maior votação nominal
+> anulada ou anulada sub judice.
+
+e, no Amapá, também que os anulados passam de 50 % da votação nominal.
+
+Isto exercita a defesa mais importante do `marcar()`: há um ramo que, para cargo
+de várias vagas com apuração encerrada, marcaria os `nv` primeiros. Se ele
+tivesse precedência, o site declararia dois senadores no Amapá — onde o tribunal
+declarou zero. O ramo oficial vem antes e venceu: conferido na tela, o Amapá
+mostra o aviso de totalização sem atribuição de eleito, com os dois motivos, e
+nenhum selo em candidato nenhum.
+
+### Dois bugs de tela achados durante a janela
+
+A limpeza de interface feita na tarde esbarrou em dois defeitos que não vinham de
+dado do TSE, e que valem registro porque nenhum dos dois dava erro no console.
+
+**O globo do exterior vinha com um "O" dentro.** `.apu-map path` tem uma classe e
+um tipo — especificidade (0,1,1) — e vencia `.apu-exterior-grade`, que tinha só a
+classe (0,1,0). A grade do globo recebia então o `fill` do mapa em vez do `none`
+que a regra dela pedia: os meridianos elípticos eram desenhados como **área
+preenchida de escuro sobre o disco já pintado**, e o de dentro virava um oval
+sólido. O `stroke` vinha da cor do fundo pelo mesmo motivo, o que deixava o resto
+da grade invisível. A regra irmã do disco já estava escrita como
+`.apu-map .apu-exterior-disco`; só a da grade ficou sem o escopo.
+
+Vale como alerta geral: qualquer regra de uma classe só, para elemento dentro de
+`.apu-map`, perde para `.apu-map path` sem avisar.
+
+**Uma referência a elemento removido.** `apuracao-nacional.js` ainda fazia
+`$('legenda').innerHTML = ''` depois que o contêiner saiu do HTML. Como está no
+ramo "sem dados", só lançaria antes do primeiro boletim — isto é, exatamente na
+hora em que ninguém estaria olhando o console, e justamente o trecho que a
+proteção de laço da manhã existe para salvar.
+
+---
+
 ## Medições da janela
 
 | | |
@@ -331,6 +509,23 @@ novas, porque a maior parte dos 5.755 municípios não muda entre duas passadas.
 
 O TSE reproduz o fluxo de 0 % a 100 %, e não publica direto o resultado final —
 o que é melhor para teste do que a apresentação de julho dava a entender.
+
+Da janela da tarde, com o plantão inteiro rodando de 14:18 até a totalização:
+
+| | |
+|---|---|
+| ritmo | 19,45 % às 14:16 → 62,54 % às 15:05 → 80,74 % às 15:50 → **100 % às 16:08** |
+| totalização final | presidente 16:08, estadual (4 cargos) 16:44 |
+| custo total | 118.576 requisições com conteúdo, 257.662 em 304, 7,8 GB |
+| 404 e bloqueios | **0 e 0**, em 85 voltas e 200 minutos |
+
+Depois das 17h o CDN congela e o custo cai a zero: as 22 últimas voltas, inclusive
+uma passada municipal inteira de 614 s, não trouxeram **um byte novo** — tudo 304.
+Quem quiser cobrir só a janela pode parar às 17h sem perder nada; deixar rodando
+também não custa, que é o que se fez aqui.
+
+O 304 passando o número de respostas com conteúdo é o ETag fazendo efeito: da
+segunda volta em diante, a maior parte do que se pede não mudou.
 
 ---
 
@@ -362,3 +557,14 @@ ar, cai sozinho no oficial.
 - **Cargo `25`** da eleição 21274 (municipal ordinária) não foi investigado.
 - **EA16/EA18** (boletim de urna, hashes, horário de recebimento) não foram
   exercitados nesta janela.
+- **Situações do voto proporcional.** `Eleito por QP`, `Eleito por média` e
+  `Suplente` continuam sem aparecer. O EA20 de deputado federal é por partido —
+  não tem dicionário de candidato —, e o EA10 lista os eleitos sem rótulo de
+  situação, só com `seq`. Então nenhum dos dois arquivos, neste simulado,
+  entregou o que a legenda do site promete para cargo proporcional. Falta
+  descobrir se isso é característica do dado simulado ou do leiaute.
+- **Segundo turno.** O simulado fechou o presidencial com dois classificados, e
+  existem os códigos 21271 e 21273 para os segundos turnos. Se alguma janela
+  publicar neles, é a chance de exercitar a virada de `cdt2` pelo `indice.json`
+  sem editar configuração — que é justamente o que a correção das 09:24 previu e
+  nunca foi testado com dado real.
