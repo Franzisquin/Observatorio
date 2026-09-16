@@ -67,20 +67,21 @@ resultados_geo/presidente_por_estado_index.json
 # analise avulsa, nao entram no site: os PDFs sao os brutos dos institutos (65 MB
 # somados), os .md sao a leitura de cada um e os scripts fazem a reponderacao por
 # perfil do eleitorado. Nada disso e lido por pagina nenhuma.
-Nexus_14 2.pdf
-QUAEST3PRESIDENCIAL0709.pdf
-datafolha_MG_agosto_2026.pdf
-datafolha_set_2026.pdf
-intencao_de_voto_presidente_2_turno-27_10-22.pdf
+# Todo PDF de pesquisa vai em pesquisas/ (os anexos baixados do PesqEle/TSE em
+# pesquisas/tse/) -- a pasta inteira fica fora do git.
+pesquisas/
+analise_cnt_set2026_ponderado.md
 analise_datafolha_2t2022_validacao.md
 analise_datafolha_mg_ago2026_ponderado.md
 analise_datafolha_set2026_ponderado.md
 analise_nexus_set2026_ponderado.md
 analise_quaest_set2026_ponderado.md
+scripts/ponderar_cnt_set2026.py
 scripts/ponderar_datafolha_2026.py
 scripts/ponderar_datafolha_mg_2026.py
 scripts/ponderar_nexus_set2026.py
 scripts/ponderar_quaest_set2026.py
+scripts/ponderar_voto2022.py
 scripts/validar_ponderacao_2022.py
 
 # Mapa da campanha de 2026, com o PNG que ele exporta e o script que o gera.
