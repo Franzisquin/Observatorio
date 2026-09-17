@@ -1,0 +1,86 @@
+# Arquivos que o wrangler NAO deve subir como asset do site.
+#
+# ATENCAO: o wrangler nao le .gitignore. Este arquivo e o unico que governa o
+# upload. Sem ele, o deploy sobe o diretorio inteiro -- inclusive os zips de
+# 107 MB e 101 MB em "Resultados 1998", que estouram o limite de 25 MiB por
+# arquivo e fazem o deploy falhar.
+#
+# Formato identico ao .gitignore.
+
+# --- controle de versao e ferramentas ---
+.git/
+.github/
+.vscode/
+.claude/
+.gitignore
+.assetsignore
+
+# --- geracao de dados: insumo e script, nada disso o navegador busca ---
+scripts/
+external_scripts/
+*.py
+*.ps1
+__pycache__/
+
+# --- dados brutos do TSE: insumo dos gerar_*.py ---
+Resultados 1998/
+Resultados 2000-2004/
+Resultados 2002/
+Polling-Stations-Results-Brazil-2006-2024-main/
+temp_mt_zip/
+
+# --- backup e residuo de trabalho ---
+resultados_geo_backup/
+logs/
+scratch/
+*.bak
+*.log
+zip_files.txt
+missing_cities.txt
+
+# --- dentro do resultados_geo: insumo e saida orfa ---
+resultados_geo/Setores 2022/
+resultados_geo/*.gpkg
+resultados_geo/tse_demographics_locais.json
+resultados_geo/emancipacoes_pre2014.fonte.json
+
+# --- documentacao e textos legais de referencia (0,6 MB, nao servidos) ---
+*.md
+apuração 2026/
+
+# --- testes e patches avulsos ---
+test_*.js
+check_*.js
+patch.js
+final_patch.js
+
+# --- fora do escopo deste lancamento (17/09/2026) ---
+#
+# Entram no ar: index.html (home), brasil.html (portal), eleicoes.html
+# (visualizador) e simulador.html, mais sobre/termos/privacidade.
+#
+# A apuracao ao vivo fica para depois. Um site eleitoral com pagina de apuracao
+# acessivel mostrando "0,00% apurado" antes da eleicao e risco de print
+# circulando fora de contexto -- por isso sai do ar inteira, e nao apenas
+# sem link. Locais de votacao idem, por nao estar no escopo.
+#
+# Nenhuma pagina do lancamento carrega estes arquivos (conferido um a um).
+# Para republicar, basta remover as linhas abaixo.
+apuracao.html
+apuracao-presidente.html
+apuracao-uf.html
+locais.html
+apuracao.css
+locais.css
+js/apuracao-central.js
+js/apuracao-dados.js
+js/apuracao-nacional.js
+js/apuracao-uf.js
+js/apuracao-ui.js
+js/locais-view.js
+
+# Fotos de candidatos de 2026: so a apuracao usa (533 arquivos, 4,2 MB).
+# ATENCAO: resultados_geo/locais_votacao/ NAO sai -- apesar do nome, o
+# visualizador depende dela (data-geral-2006/2010/2014/2018/2022.js,
+# data-municipal*.js e data-zip.js).
+resultados_geo/candidatos_2026/

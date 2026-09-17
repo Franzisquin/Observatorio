@@ -1,0 +1,17 @@
+# Cabecalhos de resposta para os assets estaticos.
+#
+# Estes quatro nao funcionam em <meta> -- so como cabecalho HTTP. Enquanto o
+# site esteve no GitHub Pages nao havia como defini-los, porque o Pages nao
+# permite cabecalho proprio. Aqui passam a existir, e o `frame-ancestors` e o
+# que de fato impede clickjacking.
+#
+# O CSP completo continua na <meta> de cada pagina, porque varia entre elas:
+# as de apuracao tem politica apertada, eleicoes.html e simulador.html precisam
+# de 'wasm-unsafe-eval' e blob: por causa do sql.js e do maplibre. Este arquivo
+# acrescenta so a diretiva que e igual em todas e que a <meta> nao consegue dar.
+
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: frame-ancestors 'none'

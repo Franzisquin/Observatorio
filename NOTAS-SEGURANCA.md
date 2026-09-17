@@ -3,11 +3,33 @@
 Configuração que vive fora do código — o que precisa ser feito no Cloudflare, e o
 que ficou pendente no próprio repositório. Escrito na auditoria de pré-lançamento.
 
-## 1. Cloudflare na frente (pendente — é configuração de conta)
+## 1. Hospedagem: Workers + Static Assets
 
-Duas razões, e a primeira é de capacidade, não de segurança.
+**Decisão de 17/09/2026: o site é hospedado inteiramente na Cloudflare, em
+Workers com Static Assets. Sem GitHub Pages.**
 
-### O problema de capacidade
+O GitHub Pages foi descartado por limite de tamanho: publica no máximo 1 GB por
+site, e o repositório, mesmo depois da faxina, tem 1,90 GB. A Cloudflare
+recomenda Workers em vez de Pages para projetos novos, e os números medidos
+cabem no plano Free:
+
+| | medido | limite (Free) |
+|---|---|---|
+| Arquivos | 4.429 | 20.000 |
+| Maior arquivo | 14,8 MB | 25 MiB |
+| Total | 1,90 GB | sem limite documentado |
+
+E **requisições a asset estático são gratuitas e ilimitadas** — o que resolve a
+capacidade da noite de apuração para tudo que é arquivo do site.
+
+Configuração em `wrangler.jsonc`. O que sobe é governado por `.assetsignore`, e
+não pelo `.gitignore`: **o wrangler não lê o `.gitignore`**. Sem aquele arquivo o
+deploy tenta subir os 5,2 GB do diretório e falha nos zips de 107 MB de
+`Resultados 1998`, que estouram o limite de 25 MiB por arquivo.
+
+Deploy: `npx wrangler deploy`. Para publicar a cada push, ver Workers Builds.
+
+### O problema de capacidade que permanece
 
 Cada visitante com a aba visível consulta `raw.githubusercontent.com` a cada 20s
 (`APU.cfg.intervalo`, em `js/apuracao-dados.js`), com `cache: 'no-store'` **e**
@@ -18,36 +40,40 @@ Com 10 mil simultâneos são mais de 1.000 req/s contra um endpoint que o GitHub
 não oferece para tráfego de produção e que estrangula por IP. Quem está atrás de
 NAT de operadora começa a tomar 429 exatamente no pico da noite.
 
-### Regra de cache
+### Por que hospedar na Cloudflare não resolve isso sozinho
 
-Ponha o domínio no Cloudflare e crie uma Cache Rule para os snapshots:
+Cuidado com a armadilha: os snapshots **não são assets do site**. O navegador os
+busca direto em `raw.githubusercontent.com`, tráfego que nunca passa pelo domínio
+e portanto nunca toca o cache da Cloudflare. Uma Cache Rule no domínio não teria
+efeito nenhum sobre eles.
 
-| Campo | Valor |
-|---|---|
-| Quando | `http.host eq "<seu-dominio>"` e `http.request.uri.path` começa com o caminho dos snapshots |
-| Cache eligibility | Eligible for cache |
-| Edge TTL | 10 segundos |
-| Browser TTL | Respect origin (ou 0) |
+A solução é uma rota de Worker que busca no GitHub e guarda em cache de borda por
+~10s, colapsando N visitantes em 1 requisição de origem. Isso exige, além do
+Worker, três mudanças de código:
 
-Dez segundos de TTL de borda colapsam N visitantes em 1 hit de origem, sem que a
-tela fique mais velha que a cadência de 20s que ela já pratica. Se o fetch mantiver
-o cache-buster na querystring, configure **Cache Key** para ignorar a query — senão
-cada visitante gera uma chave distinta e o cache não serve para nada.
+1. `PUBLICADO`, em `js/apuracao-dados.js`, aponta para a rota nova;
+2. a origem nova entra em `ORIGENS_OK`, na mesma função `baseSegura`;
+3. e entra no `connect-src` do CSP das quatro páginas que carregam
+   `apuracao-dados.js` (`apuracao.html`, `apuracao-presidente.html`,
+   `apuracao-uf.html`, `locais.html`).
 
-### Cabeçalhos que só o Cloudflare pode dar
+Se o fetch mantiver o cache-buster na querystring, a chave de cache precisa
+ignorá-la — senão cada visitante gera uma chave distinta e o cache não serve para
+nada.
 
-O GitHub Pages não deixa definir cabeçalho HTTP. Estes não funcionam em `<meta>` e
-precisam vir de uma Transform Rule (Modify Response Header):
+### Cabeçalhos de resposta
+
+Ficam em `_headers`, na raiz dos assets. São os quatro que não funcionam em
+`<meta>` e que no GitHub Pages seriam impossíveis, porque o Pages não permite
+cabeçalho próprio:
 
 ```
+Strict-Transport-Security, Referrer-Policy, X-Content-Type-Options,
 Content-Security-Policy: frame-ancestors 'none'
-Strict-Transport-Security: max-age=31536000; includeSubDomains
-Referrer-Policy: strict-origin-when-cross-origin
-X-Content-Type-Options: nosniff
 ```
 
-O `frame-ancestors` é o que impede clickjacking — a diretiva é ignorada quando vem
-por `<meta>`, então hoje ela não existe em lugar nenhum.
+O `frame-ancestors` é o que impede clickjacking. O CSP completo continua na
+`<meta>` de cada página, porque varia entre elas.
 
 ### Bot Fight Mode
 

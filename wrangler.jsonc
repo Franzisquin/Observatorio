@@ -1,0 +1,28 @@
+{
+  // Hospedagem do ElectoMaps em Workers + Static Assets.
+  //
+  // Sem `main`: nao ha codigo de Worker, so arquivos estaticos. A Cloudflare
+  // recomenda Workers em vez de Pages para projetos novos, e requisicoes a
+  // asset estatico sao gratuitas e ilimitadas -- o que importa na noite da
+  // apuracao.
+  //
+  // Medido em 17/09/2026: 4.429 arquivos, 1,90 GB, nenhum acima de 25 MiB.
+  // Limites do plano Free: 20.000 arquivos por versao, 25 MiB por arquivo.
+  //
+  // O que sobe e governado por .assetsignore, NAO por .gitignore -- o wrangler
+  // ignora o .gitignore. Sem aquele arquivo o deploy tenta subir 5,2 GB e falha
+  // nos zips de 107 MB de "Resultados 1998".
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "electomaps",
+  "compatibility_date": "2026-09-17",
+
+  "assets": {
+    // O site e servido da raiz do repositorio: os .html ficam ao lado do
+    // resultados_geo/ que eles buscam.
+    "directory": "./",
+
+    // "none" = 404 simples. Nao ha 404.html no projeto; quando houver um, com a
+    // identidade do site, troque para "404-page" e ele passa a ser servido.
+    "not_found_handling": "none"
+  }
+}
