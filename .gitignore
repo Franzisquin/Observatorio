@@ -74,14 +74,18 @@ analise_cnt_set2026_ponderado.md
 analise_datafolha_2t2022_validacao.md
 analise_datafolha_mg_ago2026_ponderado.md
 analise_datafolha_set2026_ponderado.md
+analise_datafolha_set2_2026_ponderado.md
+analise_erro_amostral_pesquisas.md
 analise_nexus_set2026_ponderado.md
 analise_quaest_set2026_ponderado.md
 scripts/ponderar_cnt_set2026.py
 scripts/ponderar_datafolha_2026.py
 scripts/ponderar_datafolha_mg_2026.py
+scripts/ponderar_datafolha_set2_2026.py
 scripts/ponderar_nexus_set2026.py
 scripts/ponderar_quaest_set2026.py
 scripts/ponderar_voto2022.py
+scripts/simular_amostragem_pesquisas.py
 scripts/validar_ponderacao_2022.py
 
 # Mapa da campanha de 2026, com o PNG que ele exporta e o script que o gera.
