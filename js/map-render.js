@@ -3776,7 +3776,9 @@ function clearSelection(updateMap = true) {
     dom.inputBairro.disabled = true;
     dom.inputBairro.value = 'all';
   }
-  if (dom.resultsContent) dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);"><p style="margin-bottom:8px">&#x1F446;</p>Clique no mapa ou use filtros para ver resultados.</div>';
+  /* So texto: aqui havia um emoji de mao apontando, que mudava de desenho e de
+     cor conforme o sistema. */
+  if (dom.resultsContent) dom.resultsContent.innerHTML = '<div style="text-align:center; padding: 20px; color:var(--muted);">Clique no mapa ou use filtros para ver resultados.</div>';
   if (dom.resultsMetrics) dom.resultsMetrics.innerHTML = '';
   if (dom.summaryGrid) dom.summaryGrid.innerHTML = '';
   if (dom.resultsTitle) dom.resultsTitle.textContent = 'Resultados da Seleção';
