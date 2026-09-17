@@ -3,6 +3,58 @@
 Configuração que vive fora do código — o que precisa ser feito no Cloudflare, e o
 que ficou pendente no próprio repositório. Escrito na auditoria de pré-lançamento.
 
+## 0. Estado do lançamento (17/09/2026)
+
+**Escopo desta publicação:** `index.html` (home), `brasil.html` (portal),
+`eleicoes.html` (visualizador) e `simulador.html`, mais sobre/termos/privacidade.
+As três páginas de apuração e a de locais de votação **ficam fora** — excluídas
+pelo `.assetsignore`, não apagadas. Para publicá-las depois, remover as linhas
+correspondentes daquele arquivo.
+
+**Feito:**
+
+- Faxina: 4,01 GB -> 1,91 GB versionados; peso morto e insumo de build saíram da
+  publicação (continuam em disco, fora do git).
+- Hospedagem configurada: `wrangler.jsonc`, `.assetsignore`, `_headers`.
+  Medido: 3.886 arquivos, 1,89 GB, nenhum acima de 25 MiB — cabe no plano Free.
+- Segurança: allowlist do `?dados=`, SRI nas quatro dependências de CDN, CSP em
+  cinco páginas, entradas do workflow por `env:`.
+- Zona `electomaps.com.br` criada na Cloudflare e **no ar**: `amos.ns.cloudflare.com`
+  e `bingo.ns.cloudflare.com` respondem com SOA autoritativo.
+
+**Em andamento:** o Registro.br está com a delegação em transição. Os dois
+nameservers da Cloudflare já constam no painel; o registro ainda publica
+`a.auto.dns.br` / `b.auto.dns.br`. Conferir com:
+
+```
+nslookup -type=ns -norecurse electomaps.com.br a.dns.br
+```
+
+Quando devolver os `ns.cloudflare.com`, propagou.
+
+**Próximos passos:**
+
+1. `npx wrangler login` — uma vez, no terminal, fluxo por loopback.
+2. `npx wrangler deploy` — sobe os 3.886 arquivos. Pode ser feito **antes** da
+   propagação: o Worker nasce com URL em `workers.dev` e o domínio se conecta
+   depois.
+3. Testar as quatro páginas do lançamento na URL `workers.dev`.
+4. Conectar `electomaps.com.br` ao Worker quando o DNS estiver ativo.
+
+**Armadilhas conhecidas:**
+
+- O wrangler **não lê `.gitignore`**. Quem governa o upload é o `.assetsignore`.
+  Sem ele o deploy tenta subir 5,2 GB e falha nos zips de 107 MB de
+  `Resultados 1998`.
+- As pastas `Resultados 1998/2000-2004/2002` e o
+  `resultados_geo/emancipacoes_pre2014.fonte.json` existem **só localmente**. São
+  a origem da reconstrução dos 58 municípios emancipados. Guardar cópia fora do
+  repositório.
+- O MCP da Cloudflare só conecta em sessão iniciada **depois** da autorização;
+  `/reload-plugins` não basta. O deploy não depende dele — é trabalho do wrangler.
+- Há dois *accounts* sob o mesmo login da Cloudflare: usar o **`electomaps`**, não
+  o pessoal. Confirmar o account antes de qualquer operação.
+
 ## 1. Hospedagem: Workers + Static Assets
 
 **Decisão de 17/09/2026: o site é hospedado inteiramente na Cloudflare, em
