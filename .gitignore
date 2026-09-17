@@ -108,3 +108,34 @@ resultados_geo/emancipacoes_pre2014.fonte.json
 
 # Sobra de trabalho, nao usada pelo site (listagem de outro repositorio).
 zip_files.txt
+
+# ---------------------------------------------------------------------------
+# Faxina de publicacao: nada abaixo e buscado pelo site (conferido por grep no
+# js/, nos .html e no simulador.js). Estavam sendo publicados pelo Pages a toa,
+# somando ~2,0 GB dos 4,0 GB do repositorio.
+
+# Peso morto: nenhum script e nenhuma pagina dependem.
+resultados_geo_backup/
+Polling-Stations-Results-Brazil-2006-2024-main/
+temp_mt_zip/
+
+# INSUMO DE BUILD, nao asset do site. Os scripts gerar_*.py leem estas pastas
+# -- inclusive o gerar_emancipacoes_pre2014.py, que reconstroi a tabela de
+# emancipacoes. Elas continuam no disco, mas saem do versionamento.
+#
+# ATENCAO: guarde copia FORA deste repositorio. Perdidas estas pastas e mais o
+# emancipacoes_pre2014.fonte.json, a reconstrucao dos 58 municipios nao tem como
+# ser refeita -- os dados brutos de 1998/2000/2002/2004 sao a origem dela.
+Resultados 1998/
+Resultados 2000-2004/
+Resultados 2002/
+
+# Mais insumo e saida morta dentro do resultados_geo (~85 MB):
+#  - Setores 2022/      so o scripts/gerar_setores_presidencial_2022_sc.py usa,
+#                       e apenas para SC. O site carrega "Censo <ano>/", nao isto.
+#  - *.gpkg             GeoPackage cru; o site le as versoes .zip.
+#  - tse_demographics_locais.json  escrito pelo processamento_tse.py e lido por
+#                       ninguem -- saida orfa.
+resultados_geo/Setores 2022/
+resultados_geo/locais_votacao_2006.gpkg
+resultados_geo/tse_demographics_locais.json
