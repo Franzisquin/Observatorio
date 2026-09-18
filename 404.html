@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Página não encontrada — ElectoMaps</title>
+  <link rel="icon" type="image/png" href="favicon.png?v=2" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
+  <meta name="description" content="A página que você procurou não existe neste endereço." />
+  <meta name="robots" content="noindex" />
+
+  <script>
+    var de = document.documentElement;
+    de.classList.add('i18n-boot');
+    de.classList.add('js');
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+    rel="stylesheet" />
+
+  <link rel="stylesheet" href="portal.css" />
+  <link rel="stylesheet" href="consent.css" />
+  <script src="js/i18n.js" defer></script>
+  <script src="js/motion.js" defer></script>
+  <script src="js/consent.js" defer></script>
+</head>
+
+<body data-i18n-page="404">
+
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <a class="brand" href="index.html">
+        <img class="brand-mark" src="logo.png?v=2" alt="" width="128" height="128" />
+        ElectoMaps
+      </a>
+
+      <nav class="topnav">
+        <a href="index.html#portais" data-i18n="nav.portals">Portais</a>
+        <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+      </nav>
+
+      <div class="lang" role="group" aria-label="Idioma" data-i18n-attr="aria-label:lang.label">
+        <button type="button" data-lang="pt" title="Português" data-i18n-attr="title:lang.pt">PT</button>
+        <button type="button" data-lang="en" title="Inglês" data-i18n-attr="title:lang.en">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ------------------------------------------------------------- abertura -->
+    <section class="page-head">
+      <div class="wrap">
+        <p class="eyebrow reveal" data-reveal="now" data-i18n="e404.code">Erro 404</p>
+
+        <h1 class="page-title reveal" data-reveal="now" style="--d:80ms" data-i18n="e404.title">
+          Esta página não existe.
+        </h1>
+
+        <p class="page-lede reveal" data-reveal="now" style="--d:170ms" data-i18n="e404.lead">
+          O endereço pode ter mudado, ou o link que trouxe você até aqui está errado.
+          O ElectoMaps continua no ar — comece pelo portal.
+        </p>
+
+        <div class="hero-actions reveal" data-reveal="now" style="--d:260ms">
+          <a class="btn btn-solid" href="brasil.html" data-i18n="e404.portal">Ir para o portal Brasil</a>
+          <a class="btn btn-line" href="index.html" data-i18n="e404.home">Voltar à home</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-foot">
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <p class="foot-logo"><img class="brand-mark" src="logo.png?v=2" alt="" width="128" height="128" /> ElectoMaps</p>
+          <p class="foot-tagline" data-i18n="foot.tagline">Cartografia eleitoral independente</p>
+        </div>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.portals">Portais</h4>
+          <a href="brasil.html" data-i18n="nav.brazil">Brasil</a>
+        </div>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.project">Projeto</h4>
+          <a href="sobre.html" data-i18n="nav.about">Sobre</a>
+          <a href="termos.html" data-i18n="legal.terms">Termos de Uso</a>
+          <a href="privacidade.html" data-i18n="legal.privacy">Política de Privacidade</a>
+          <button type="button" data-consent-open data-i18n="legal.manage">Gerenciar cookies</button>
+        </div>
+
+        <div class="foot-col">
+          <h4 data-i18n="foot.contact">Contato</h4>
+          <a href="https://x.com/ElectoMaps" target="_blank" rel="noopener noreferrer">X</a>
+          <a href="mailto:electomaps@gmail.com" data-i18n="foot.email">E-mail</a>
+        </div>
+      </div>
+
+      <div class="foot-bottom">
+        <span data-i18n="foot.rights">© 2026 ElectoMaps. Todos os direitos reservados.</span>
+        <span data-i18n="foot.sources">Fontes oficiais, análise independente.</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+
+</html>

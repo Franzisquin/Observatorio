@@ -45,6 +45,12 @@ primeira vez.
   lançamento resolvem, e nenhuma aponta para arquivo que o `.assetsignore` tira
   do ar. `tse_demographics_locais.json`, excluído, não é referenciado por
   ninguém no código publicado.
+- Página 404 com a identidade do site (`404.html`), e
+  `not_found_handling: "404-page"` no `wrangler.jsonc`. Antes, quem errasse a
+  URL recebia o 404 pelado da Cloudflare. As chaves de tradução dela estão em
+  `js/i18n.js` (`meta.404.*` e `e404.*`), nos dois idiomas.
+- `sql-wasm.wasm` passou a ser servido pelo próprio site (`js/vendor/`), o que
+  fecha a lacuna de SRI e tirou o `cdnjs` do `connect-src` — ver a seção 2.
 
 **Em andamento:** o Registro.br está com a delegação em transição. Os dois
 nameservers da Cloudflare já constam no painel; o registro ainda publica
@@ -88,6 +94,16 @@ Quando devolver os `ns.cloudflare.com`, propagou.
   diretório de assets na hora do deploy; excluí-lo provavelmente faz os quatro
   cabeçalhos pararem de ser aplicados. Ele não aparece no ar porque é consumido,
   não porque está ignorado.
+- **`.wrangler/` também não pode ir ao ar.** O `wrangler dev` cria essa pasta na
+  raiz do projeto, e ela não estava em nenhum dos dois arquivos de exclusão:
+  entraria no commit *e* subiria como asset. Acrescentada ao `.gitignore` e ao
+  `.assetsignore` em 17/09/2026.
+- O `wrangler dev` **não funciona com `directory: "./"`**: ele vigia o diretório
+  de assets, escreve dentro de `.wrangler/`, que está nesse diretório, e entra
+  em laço infinito de reload sem nunca servir. Para testar localmente, use um
+  servidor estático que imite o roteamento (`/foo` -> `foo.html`, ausente ->
+  `404.html` com status 404). Atenção: servidor local não aplica o
+  `.assetsignore`, então páginas excluídas respondem 200 ali e 404 no ar.
 - **O token do `npx wrangler login` não configura zona.** Ele tem `zone (read)`,
   que serve para listar zonas: `GET /zones/{id}/settings`, `/bot_management` e
   `/dns_records` respondem **403**. Refazer o login não adianta — o escopo é fixo
@@ -187,12 +203,36 @@ Trocar aquele handler por `addEventListener` depois de inserir o nó permite tir
 o `'unsafe-inline'` e transformar o CSP numa defesa real contra XSS, em vez de só
 uma trava de origem de dados.
 
-### Hospedar o `sql-wasm.wasm`
+### Hospedar o `sql-wasm.wasm` — feito em 17/09/2026
 
-O SRI cobre o `sql-wasm.js`, mas não o `.wasm` que ele busca em runtime pelo
-`locateFile` em `js/data-zip.js:162`. Baixar o par e servir do próprio site fecha
-a lacuna e ainda tira `cdnjs` do `connect-src`.
+O SRI cobre o `sql-wasm.js`, mas não o `.wasm` que ele busca em runtime. O par
+da versão 1.10.3 passou a ser servido do próprio site, em
+`js/vendor/sql-wasm.wasm`, e o `locateFile` de `js/data-zip.js` aponta para lá.
+Com isso o `cdnjs` saiu do `connect-src` do `eleicoes.html` — ele permanece em
+`script-src`, porque o `sql-wasm.js` e o `d3` continuam vindo de lá com SRI.
 
+Verificado em servidor local pelo caminho real da interface (municipal, AC,
+2020, Rio Branco): o `.wasm` é buscado em `/js/vendor/`, responde 200 e o sql.js
+instancia. Ao trocar de versão do sql.js, **baixe o `.wasm` junto** — o par tem
+de casar, ou o banco municipal para de abrir.
+
+### CSP falta em cinco páginas do lançamento
+
+Só `eleicoes.html` e `simulador.html` têm CSP em `<meta>`. A `index.html`, a
+`brasil.html`, a `sobre.html`, a `termos.html` e a `privacidade.html` não têm —
+as cinco com CSP citadas na seção 0 são as de apuração, que saíram do ar. Essas
+páginas são de conteúdo estático, e o `_headers` já lhes dá `frame-ancestors`,
+HSTS e `nosniff`; ainda assim, um `default-src 'self'` nelas é barato e fecha o
+vão. Exige teste próprio: a `index` e a `brasil` carregam fontes do Google e
+têm estilo inline.
+
+### 404 previsível no municipal de 2020
+
+O `data-municipal.js` pede `prefeito_2020_sup_t1_<UF>.zip` para toda UF, mas o
+arquivo só existe nas 21 que tiveram eleição suplementar. Nas outras o
+visitante toma um 404 no console e uma requisição é desperdiçada. A página se
+recupera e renderiza normalmente — é ruído, não falha. Conferido no AC em
+17/09/2026. Consultar a lista de UFs que têm o arquivo antes de pedir resolve.
 ### Recalcular hashes de SRI ao trocar versão
 
 ```bash

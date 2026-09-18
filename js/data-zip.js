@@ -159,7 +159,13 @@ async function ensureSqlJsReady() {
   }
 
   SQL_JS_PROMISE = initSqlJs({
-    locateFile: (file) => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${file}`
+    // O .wasm e servido pelo proprio site. O SRI do sql-wasm.js nao cobre o
+    // binario que ele busca aqui: um cdnjs comprometido entregaria wasm
+    // arbitrario sem o navegador reclamar. Par da versao 1.10.3 -- ao trocar
+    // de versao, baixe o .wasm junto, ou o sql.js quebra.
+    // sha384 do arquivo local, conferido em 17/09/2026:
+    //   kSm0AH9ho89napVfNFf/kCRTH6xBoCS3qf/ATGJeYFQFKiegBMLhQ3aUIZBlYLpa
+    locateFile: (file) => `js/vendor/${file}`
   });
   return SQL_JS_PROMISE;
 }

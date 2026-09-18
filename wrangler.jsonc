@@ -34,8 +34,9 @@
     // resultados_geo/ que eles buscam.
     "directory": "./",
 
-    // "none" = 404 simples. Nao ha 404.html no projeto; quando houver um, com a
-    // identidade do site, troque para "404-page" e ele passa a ser servido.
-    "not_found_handling": "none"
+    // "404-page" = serve o 404.html da raiz, com a identidade do site, em vez
+    // do 404 pelado da Cloudflare. A pagina foi criada em 17/09/2026; as
+    // chaves de traducao dela vivem em js/i18n.js (meta.404.*, e404.*).
+    "not_found_handling": "404-page"
   }
 }

@@ -12,6 +12,7 @@
 .github/
 .vscode/
 .claude/
+.wrangler/
 .gitignore
 .assetsignore
 # O wrangler.jsonc e servido como asset se nao estiver aqui -- conferido no ar

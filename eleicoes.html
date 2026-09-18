@@ -13,14 +13,16 @@
          'wasm-unsafe-eval'  — sql.js instancia WebAssembly; sem isso, o mapa
                                municipal não abre.
          blob: em worker-src  — o worker do maplibre nasce de um blob.
-         cdnjs em connect-src — sql-wasm.wasm é buscado em runtime pelo
-                               locateFile de js/data-zip.js, e SRI não cobre isso.
+       cdnjs saiu do connect-src em 17/09/2026: o sql-wasm.wasm passou a ser
+       servido pelo proprio site (js/vendor/), entao a pagina nao precisa mais
+       falar com o cdnjs em runtime. Ele segue em script-src por causa do
+       sql-wasm.js e do d3, que continuam vindo de la com SRI.
        'unsafe-inline' em script-src ainda é necessário pelos handlers inline.
        Mesmo assim `object-src 'none'` e `base-uri 'none'` já fecham dois vetores
        clássicos, e connect-src/img-src limitam para onde a página pode falar. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
-    connect-src 'self' https://tiles.openfreemap.org https://cdnjs.cloudflare.com;
+    connect-src 'self' https://tiles.openfreemap.org;
     img-src 'self' data: blob: https://tiles.openfreemap.org https://*.basemaps.cartocdn.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
     font-src https://fonts.gstatic.com data:;
@@ -44,8 +46,10 @@
   <script src="https://unpkg.com/unzipit@1.4.0/dist/unzipit.min.js"
           integrity="sha384-wBrCvwvmMrFsG5Xv0IVxUYVhxbsZVWx25PVBDMmU0ssHMu+gnX2ciBjrvzWe2Ytv"
           crossorigin="anonymous"></script>
-  <!-- Ressalva: o SRI cobre este .js, nao o sql-wasm.wasm que ele busca em tempo
-       de execucao. Para fechar isso de vez, hospede o par junto do site. -->
+  <!-- O SRI cobre este .js. O sql-wasm.wasm que ele busca em tempo de execucao
+       nao e coberto por SRI -- por isso deixou de vir do cdnjs e passou a ser
+       servido pelo proprio site, em js/vendor/sql-wasm.wasm. Ver o locateFile
+       em js/data-zip.js. -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"
           integrity="sha384-8D3Rsfo535FqoC1pHCCQMrNf75UgzyoG/HQm9zOzITRrz3QKzecc2E7JXKGCXoWu"
           crossorigin="anonymous"></script>

@@ -107,6 +107,13 @@
 
       'meta.sobre.title': 'Sobre — ElectoMaps',
       'meta.sobre.desc': 'O ElectoMaps é uma organização de mídia política apartidária dedicada a resultados eleitorais, opinião pública agregada e análise de dados.',
+      'meta.404.title': 'Página não encontrada — ElectoMaps',
+      'meta.404.desc': 'A página que você procurou não existe neste endereço.',
+      'e404.code': 'Erro 404',
+      'e404.title': 'Esta página não existe.',
+      'e404.lead': 'O endereço pode ter mudado, ou o link que trouxe você até aqui está errado. O ElectoMaps continua no ar — comece pelo portal.',
+      'e404.portal': 'Ir para o portal Brasil',
+      'e404.home': 'Voltar à home',
 
       'sobre.title': 'Sobre',
       'sobre.lede': 'O ElectoMaps é uma organização de mídia política apartidária. Nasceu da vontade de um grupo de jovens fascinados por política e eleições, com a missão de trazer e popularizar no Brasil um nível a mais de sofisticação analítica no tratamento de resultados eleitorais, opinião pública agregada e análise de dados.',
@@ -197,6 +204,13 @@
 
       'meta.sobre.title': 'About — ElectoMaps',
       'meta.sobre.desc': 'ElectoMaps is a non-partisan political media organisation devoted to election results, aggregated public opinion and data analysis.',
+      'meta.404.title': 'Page not found — ElectoMaps',
+      'meta.404.desc': 'The page you were looking for does not exist at this address.',
+      'e404.code': 'Error 404',
+      'e404.title': 'This page does not exist.',
+      'e404.lead': 'The address may have changed, or the link that brought you here is wrong. ElectoMaps is still up — start from the portal.',
+      'e404.portal': 'Go to the Brazil portal',
+      'e404.home': 'Back to the home page',
 
       'sobre.title': 'About',
       'sobre.lede': 'ElectoMaps is a non-partisan political media organisation. It grew out of a group of young people fascinated by politics and elections, with the mission of bringing to Brazil — and making widely available there — a further degree of analytical sophistication in how election results, aggregated public opinion and data are treated.',
