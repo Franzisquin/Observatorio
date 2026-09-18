@@ -868,7 +868,26 @@ const REGION_LEVEL_LABEL = {
 // Em 2018 a malha e um recorte retrospectivo — as areas nao existiam la —, do
 // mesmo jeito que o site ja usa as regioes do IBGE de hoje sobre os municipios
 // de 1989/1994.
-const AP_ANOS_GERAL = new Set(['2022', '2018', '2014', '2010', '2006']);
+const AP_ANOS_GERAL = new Set(['2022', '2018', '2014', '2010', '2006', '2002', '1998']);
+
+// 1998 e 2002 nao tem indice proprio e nao precisam de um: os pontos desses dois
+// anos SAO a malha de 2006. Os dois arquivos de dados carregam a base do GPKG de
+// 2006 (loadGeneralStateBaseFromGpkg2006 / loadGeneralScopeBase2006) e as features
+// saem de la com local_key = {zona}_{cdMuni}_{local} -- exatamente a chave do
+// indice de 2006. Herdar o indice nao e misturar anos: e reconhecer que o predio
+// e o mesmo, porque a geometria veio dele.
+//
+// 1989 e 1994 ficam de fora e nao ha o que fazer: aqueles anos nao tem resultado
+// por local de votacao, so por municipio (ver js/data-geral-1989-1994.js). Area de
+// ponderacao e SUB-municipal e quem a atribui e o local -- sem local, nao existe
+// atribuicao possivel.
+const AP_INDICE_HERDADO = new Map([["2002", "2006"], ["1998", "2006"]]);
+
+// O ano cujo indice local -> area atende este ano.
+function apIndiceAno(ano) {
+  const a = String(ano || "");
+  return AP_INDICE_HERDADO.get(a) || a;
+}
 // Municipal e outra maquina: o escopo e UM municipio, escolhido em
 // dom.selectMunicipio, e nao ha UF inteira para percorrer. O indice, porem, e o
 // mesmo — a chave do local (zona_municipioTSE_local) nao muda de uma eleicao
@@ -894,6 +913,8 @@ const AP_MESH = new Map();
 async function ensureApIndexLoaded(uf, ano = STATE.currentElectionYear) {
   const ufNorm = String(uf || '').toUpperCase();
   const anoNorm = String(ano || '');
+  // 1998 e 2002 herdam o indice de 2006 -- ver AP_INDICE_HERDADO.
+  const anoIdx = apIndiceAno(anoNorm);
   if (!ufNorm || !AP_ANOS.has(anoNorm)) return null;
   const cacheKey = `${anoNorm}|${ufNorm}`;
   if (AP_INDEX_PROMISES.has(cacheKey)) return AP_INDEX_PROMISES.get(cacheKey);
@@ -905,13 +926,13 @@ async function ensureApIndexLoaded(uf, ano = STATE.currentElectionYear) {
     // novo so para este nivel. O fetch e cacheado, entao a malha nao vem duas
     // vezes nem se repete de um ano para o outro.
     const [res, geo] = await Promise.all([
-      fetch(`${DATA_BASE_URL}regioes_ap/locais_ap_${anoNorm}_${ufNorm}.json`),
+      fetch(`${DATA_BASE_URL}regioes_ap/locais_ap_${anoIdx}_${ufNorm}.json`),
       fetchRegionPolygonGeoJSON('ap', ufNorm)
     ]);
-    if (!res.ok) throw new Error(`Índice de áreas de ponderação não encontrado: ${anoNorm}/${ufNorm}`);
+    if (!res.ok) throw new Error(`Índice de áreas de ponderação não encontrado: ${anoIdx}/${ufNorm}`);
     const indice = await res.json();
-    let doAno = AP_BY_LOCAL.get(anoNorm);
-    if (!doAno) { doAno = new Map(); AP_BY_LOCAL.set(anoNorm, doAno); }
+    let doAno = AP_BY_LOCAL.get(anoIdx);
+    if (!doAno) { doAno = new Map(); AP_BY_LOCAL.set(anoIdx, doAno); }
     Object.entries(indice || {}).forEach(([local, area]) => doAno.set(local, area));
 
     const nomes = {};
@@ -950,7 +971,7 @@ function getApMeshFeatures(uf) {
 function getApCodeForFeature(props) {
   const chave = String(props?.id_unico || props?.local_key || '');
   if (!chave) return '';
-  const doAno = AP_BY_LOCAL.get(String(STATE.currentElectionYear));
+  const doAno = AP_BY_LOCAL.get(apIndiceAno(STATE.currentElectionYear));
   return doAno ? (doAno.get(chave) || '') : '';
 }
 
@@ -1172,6 +1193,29 @@ function matchesRegionalScope(props) {
   if (!code) return true;
   const muni = getFeatureMunicipioIdentity(props).code;
   return !!muni && REGION_INDEX.muni?.[muni]?.[level] === code;
+}
+
+/* Ha algum filtro que estreita o conjunto de LOCAIS de votacao?
+
+   Existe para uma decisao so: os totais oficiais do TSE por municipio somam
+   todos os locais e nao sabem nada de filtro. Enquanto nenhum filtro estreita
+   locais eles sao a melhor fonte -- fecham com o resultado oficial, inclusive
+   os votos que nao geolocalizaram. Com filtro ligado passam a mentir: um
+   municipio em que so parte dos locais casa aparecia com o total cheio.
+
+   O filtro de CIDADE fica de fora de proposito: ele escolhe o municipio
+   inteiro, e o total oficial daquele municipio continua correto.
+
+   Nao inclui as exclusoes fixas de filterFeature (presidio, 2T vazio), que
+   valem sempre: se entrassem aqui, o atalho nunca seria usado. */
+function hasActivePollingPlaceFilter() {
+  if (typeof hasActiveCensusFilter === "function" && hasActiveCensusFilter()) return true;
+  if (currentBairroFilter !== "all") return true;
+  if (String(currentLocalFilter || "").trim().length > 2) return true;
+  if (performanceFilterMinPct > 0) return true;
+  const regiao = typeof activeRegionFilter === "function" ? activeRegionFilter() : null;
+  if (regiao && regiao.code) return true;
+  return false;
 }
 
 function matchesLocationFilters(props, options = {}) {

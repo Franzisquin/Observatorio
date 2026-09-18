@@ -1927,7 +1927,14 @@ function buildGeneralMunicipalityOverviewSummaryRaw(cargoKey = currentCargo) {
     return buildDeputyMunicipalSummaryFromResults(cargoKey, turnoKey);
   }
 
-  const officialCityTotals = getOfficialCityTotalsForCargo(cargoKey, turnoKey);
+  // Com filtro de local ligado o atalho abaixo nao pode ser usado: os totais
+  // oficiais por municipio somam TODOS os locais, inclusive os que o filtro
+  // exclui, e a tooltip do municipio saia com o numero cheio enquanto o mapa e
+  // a barra lateral ja mostravam o recorte. Sem filtro eles continuam sendo a
+  // melhor fonte, porque fecham com o oficial. Ver hasActivePollingPlaceFilter.
+  const officialCityTotals = hasActivePollingPlaceFilter()
+    ? null
+    : getOfficialCityTotalsForCargo(cargoKey, turnoKey);
   if (officialCityTotals && Object.keys(officialCityTotals).length > 0) {
     return buildMunicipalSummaryFromOfficialTotals(officialCityTotals, turnoKey);
   }
