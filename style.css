@@ -5476,11 +5476,30 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   font-variant-numeric: tabular-nums;
 }
 
+/* Ganhos e perdas EMPILHADOS, nao lado a lado.
+
+   Eram duas colunas, e a media query de 520px nao resolvia: ela mede a
+   VIEWPORT, e o painel vive numa barra lateral estreita mesmo em monitor
+   largo. O resultado era a coluna da direita cortada -- nome truncado cedo
+   demais e o valor em p.p. saindo da area visivel.
+
+   Empilhado, cada linha usa a largura inteira do painel e os nomes longos de
+   local de votacao cabem sem reticencia precoce. */
 .swing-ranking {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   margin-top: 14px;
+}
+
+/* min-width: 0 e o que permite ao nome encolher.
+
+   Sem ele o item do grid nunca fica menor que o proprio conteudo minimo: a
+   coluna ficava ~10px mais larga que o painel e o valor em p.p. era cortado na
+   borda direita -- medido no navegador, os dez valores extrapolavam. Empilhar
+   sozinho nao resolvia isso, so mudava qual lista sofria. */
+.swing-ranking-col {
+  min-width: 0;
 }
 
 .swing-ranking h4 {
@@ -5521,9 +5540,6 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 520px) {
-  .swing-ranking { grid-template-columns: 1fr; }
-}
 
 /* --- Swing: modo Virada --- */
 

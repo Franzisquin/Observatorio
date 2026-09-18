@@ -75,6 +75,7 @@ const SWING_LEVEL_LABEL = {
   rgi: 'Regiões Imediatas',
   meso: 'Mesorregiões',
   micro: 'Microrregiões',
+  ap: 'Áreas de Ponderação',
   locais: 'Locais de Votação'
 };
 
@@ -85,6 +86,7 @@ const SWING_LEVEL_SHORT = {
   rgi: 'Imediatas',
   meso: 'Meso',
   micro: 'Micro',
+  ap: 'Áreas',
   locais: 'Locais'
 };
 
@@ -363,6 +365,45 @@ function swingIbgeToTse() {
 }
 
 // Rollup de municipio -> regiao, usando a ponte TSE->IBGE e o indice do IBGE.
+/* Agrega os LOCAIS de votacao por area de ponderacao.
+
+   Nao da para reusar rollupSwingByRegion: aquele soma municipios inteiros, e a
+   area de ponderacao e SUB-municipal -- um municipio se reparte entre varias.
+   Quem decide a area e o local de votacao, e a chave do byStation e a mesma do
+   indice (zona_municipioTSE_local).
+
+   Cada lado usa o indice do SEU ano. E o que dispensa o remapeamento de predios
+   renumerados que o nivel de locais precisa: aqui os dois lados caem na area
+   pelo indice do proprio ano, sem ter de casar chave com chave. */
+function rollupSwingByAp(byStation, ano) {
+  const out = new Map();
+  const indice = (typeof AP_BY_LOCAL !== "undefined" && typeof apIndiceAno === "function")
+    ? AP_BY_LOCAL.get(apIndiceAno(ano))
+    : null;
+  if (!indice) return out;
+  byStation.forEach((entry, chave) => {
+    const area = indice.get(String(chave));
+    if (!area) return;
+    let acc = out.get(area);
+    if (!acc) { acc = { votes: {}, total: 0 }; out.set(area, acc); }
+    Object.entries(entry.votes).forEach(([id, votos]) => {
+      acc.votes[id] = (acc.votes[id] || 0) + votos;
+    });
+    acc.total += entry.total;
+  });
+  return out;
+}
+
+// Garante os indices local -> area dos DOIS anos antes do rollup, que e sincrono.
+async function ensureSwingApIndexes() {
+  const uf = String(SWING.scope || "").toUpperCase();
+  if (!uf || uf === "BR") return;
+  await Promise.all([SWING.A.year, SWING.B.year].map(async (ano) => {
+    try { await ensureApIndexLoaded(uf, String(ano)); }
+    catch (erro) { console.warn("[Swing] Índice de áreas indisponível:", ano, uf, erro); }
+  }));
+}
+
 function rollupSwingByRegion(byMuni, level) {
   const out = new Map();
   byMuni.forEach((entry, muniTse) => {
@@ -557,6 +598,12 @@ function swingRowsForLevel(level) {
       : dataset[side].byStation);
     return joinSwingSides(byStation('A'), byStation('B'));
   }
+  if (level === 'ap') {
+    return joinSwingSides(
+      rollupSwingByAp(dataset.A.byStation, SWING.A.year),
+      rollupSwingByAp(dataset.B.byStation, SWING.B.year)
+    );
+  }
   if (level === 'municipios') return joinSwingSides(dataset.A.byMuni, dataset.B.byMuni);
   return joinSwingSides(
     rollupSwingByRegion(dataset.A.byMuni, level),
@@ -620,7 +667,7 @@ function swingScopeUfs() {
 // Niveis que precisam da quebra por MUNICIPIO nos dados (o resumo por UF nao
 // serve). No escopo nacional isso decide entre baixar 27 resumos de ~3 KB ou os
 // 27 arquivos completos (~1,6 MB comprimidos por eleicao).
-const SWING_MUNI_DETAIL_LEVELS = new Set(['municipios', 'rgint', 'rgi', 'meso', 'micro', 'locais']);
+const SWING_MUNI_DETAIL_LEVELS = new Set(['municipios', 'rgint', 'rgi', 'meso', 'micro', 'locais', 'ap']);
 
 function swingLevelNeedsMuniDetail(level = SWING.level) {
   return SWING_MUNI_DETAIL_LEVELS.has(level);
@@ -1375,6 +1422,12 @@ async function renderSwingMap() {
     if (generation !== SWING.generation) return;
   }
 
+  // O rollup por area e sincrono: os dois indices tem de estar em memoria antes.
+  if (level === 'ap') {
+    await ensureSwingApIndexes();
+    if (generation !== SWING.generation) return;
+  }
+
   SWING.rows = swingRowsForLevel(level);
 
   let features = [];
@@ -1840,12 +1893,27 @@ function swingAvailableLevels() {
   if (SWING.scope === 'BR') return ['uf', 'rgint', 'rgi', 'meso', 'micro'];
 
   const levels = ['municipios', 'rgint', 'rgi', 'meso', 'micro'];
+  if (swingSupportsApLevel()) levels.push('ap');
   if (swingSupportsStationLevel()) levels.push('locais');
   return levels;
 }
 
 // Locais so existem se as DUAS eleicoes tiverem resultado por local e ao menos
 // uma delas tiver GPKG com as coordenadas.
+/* Area de ponderacao exige: escopo de UF (a malha nacional teria dezenas de
+   milhares de poligonos), resultado por LOCAL nos dois anos -- 1989 e 1994 so
+   tem municipio -- e indice local -> area para ambos. Nao depende de GPKG: o
+   indice casa por chave, nao por coordenada, e por isso 1998 e 2002 entram
+   aqui mesmo sem geometria propria (herdam o indice de 2006). */
+function swingSupportsApLevel() {
+  if (SWING.scope === "BR") return false;
+  const a = String(SWING.A.year);
+  const b = String(SWING.B.year);
+  if (SWING_MUNI_ONLY_YEARS.has(a) || SWING_MUNI_ONLY_YEARS.has(b)) return false;
+  if (typeof AP_ANOS === "undefined") return false;
+  return AP_ANOS.has(a) && AP_ANOS.has(b);
+}
+
 function swingSupportsStationLevel() {
   if (SWING.scope === 'BR') return false;
   const a = String(SWING.A.year);
