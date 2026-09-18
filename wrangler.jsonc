@@ -29,6 +29,16 @@
   // um hostname workers.dev. Voltar para true republica a URL de teste.
   "workers_dev": false,
 
+  // Dominio proprio, conectado em 18/09/2026. Custom Domain cria o registro
+  // de DNS na zona e aponta o hostname para este Worker -- e o que faz o site
+  // existir publicamente. O www serve o mesmo site em vez de redirecionar para
+  // o apex: redirecionamento e regra de zona, que o token do wrangler nao
+  // alcanca (403). Trocar por um redirect no painel quando houver calma.
+  "routes": [
+    { "pattern": "electomaps.com.br", "custom_domain": true },
+    { "pattern": "www.electomaps.com.br", "custom_domain": true }
+  ],
+
   "assets": {
     // O site e servido da raiz do repositorio: os .html ficam ao lado do
     // resultados_geo/ que eles buscam.
