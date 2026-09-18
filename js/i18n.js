@@ -49,7 +49,6 @@
       'lang.en': 'Inglês',
 
       'nav.portals': 'Portais',
-      'nav.inside': 'Ferramentas',
       'nav.about': 'Sobre',
 
       'legal.terms': 'Termos de Uso',
@@ -60,26 +59,15 @@
       'nav.coverage': 'Cobertura',
 
       'home.motto': 'Eleições detalhadas como você nunca viu.',
-      'home.title': 'Cartografia eleitoral, país por país.',
-      'home.lede': 'Cada país tem o seu portal: resultados oficiais mapeados até o local de votação, simulação de cenários e leitura demográfica do eleitorado.',
       'home.cta': 'Ver portais',
 
       'home.s1.title': 'Portais nacionais',
-      'home.s1.desc': 'Um portal por país, com os dados e as ferramentas daquele sistema eleitoral.',
       'home.br.name': 'Brasil',
       'home.br.desc': 'Resultados de eleições gerais e municipais mapeados do país inteiro até a urna, com camadas demográficas do Censo.',
       'home.br.cta': 'Abrir portal',
       'home.soon.title': 'Novos portais',
       'home.soon.desc': 'Outros portais nacionais estão em desenvolvimento. A estrutura do ElectoMaps é a mesma para qualquer país: fonte oficial, reprocessamento e leitura geográfica fina.',
 
-      'home.s2.title': 'O que há em cada portal',
-      'home.s2.desc': 'A disponibilidade de cada ferramenta varia conforme os dados públicos de cada país.',
-      'home.f1.title': 'Mapa eleitoral',
-      'home.f1.desc': 'Resultados oficiais em mapas interativos, do país inteiro até o local de votação individual.',
-      'home.f2.title': 'Simulador de cenários',
-      'home.f2.desc': 'Você monta os seus próprios cenários: define quem disputa, move o eleitorado e vê a corrida se recalcular sobre dados reais.',
-      'home.f4.title': 'Nowcast',
-      'home.f4.desc': 'Projeções do cenário eleitoral a partir de modelos estatísticos.',
 
 
       'br.back': 'Portais',
@@ -146,7 +134,6 @@
       'lang.en': 'English',
 
       'nav.portals': 'Portals',
-      'nav.inside': 'Tools',
       'nav.about': 'About',
 
       'legal.terms': 'Terms of Use',
@@ -157,26 +144,15 @@
       'nav.coverage': 'Coverage',
 
       'home.motto': 'Elections in detail like you have never seen.',
-      'home.title': 'Electoral cartography, country by country.',
-      'home.lede': 'Every country gets its own portal: official results mapped down to the polling place, scenario simulation and a demographic reading of the electorate.',
       'home.cta': 'See portals',
 
       'home.s1.title': 'National portals',
-      'home.s1.desc': 'One portal per country, carrying the data and the tools of that electoral system.',
       'home.br.name': 'Brazil',
       'home.br.desc': 'General and municipal election results mapped from the whole country down to the ballot box, with demographic layers from the Census.',
       'home.br.cta': 'Open portal',
       'home.soon.title': 'New portals',
       'home.soon.desc': 'Further national portals are in development. The structure of ElectoMaps is the same for any country: official source, reprocessing, and fine geographic reading.',
 
-      'home.s2.title': 'What each portal holds',
-      'home.s2.desc': 'Tool availability varies with the public data each country releases.',
-      'home.f1.title': 'Electoral map',
-      'home.f1.desc': 'Official results on interactive maps, from the whole country down to the individual polling place.',
-      'home.f2.title': 'Scenario simulator',
-      'home.f2.desc': 'You build your own scenarios: set who is running, move the electorate, and watch the race recalculate on real data.',
-      'home.f4.title': 'Nowcast',
-      'home.f4.desc': 'Projections of the electoral landscape from statistical models.',
 
 
       'br.back': 'Portals',
