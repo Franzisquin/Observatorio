@@ -64,7 +64,15 @@ Quando devolver os `ns.cloudflare.com`, propagou.
 
 **Próximos passos:**
 
-1. Conectar `electomaps.com.br` ao Worker quando o DNS estiver ativo.
+1. Conectar `electomaps.com.br` ao Worker. **Conectar é lançar**: no minuto em
+   que a rota passa a existir, o site fica público. Decisão de 17/09/2026: não
+   conectar antes da hora escolhida. As duas formas de conectar mantendo o site
+   privado foram avaliadas e descartadas — o Cloudflare Access exige o painel
+   (o token do wrangler dá 403 nele), e um porteiro em código de Worker custaria
+   a gratuidade das requisições de asset, porque exige `run_worker_first` e
+   passa a cobrar invocação em toda requisição; além disso teria de ser removido
+   no lançamento, sob pena de o site estrear trancado sem ninguém perceber.
+   Os arquivos já estão no Worker, então conectar é um deploy de segundos.
 2. Só então configurar a segurança de zona: SSL/TLS **Full (strict)**, Always Use
    HTTPS, TLS mínimo 1.2, Bot Fight Mode e Browser Integrity Check; Security
    Level no padrão **Medium**, porque mexer nele sem tráfego medido é chute.
@@ -107,8 +115,12 @@ Quando devolver os `ns.cloudflare.com`, propagou.
 - **O token do `npx wrangler login` não configura zona.** Ele tem `zone (read)`,
   que serve para listar zonas: `GET /zones/{id}/settings`, `/bot_management` e
   `/dns_records` respondem **403**. Refazer o login não adianta — o escopo é fixo
-  na ferramenta, não depende do seu papel na conta. Configuração de zona sai pelo
-  painel, por API token escopado, ou pelo MCP.
+  na ferramenta, não depende do seu papel na conta. O mesmo vale para o
+  Cloudflare Access: `/access/apps`, `/access/identity_providers` e
+  `/access/organizations` também dão 403. O que o token alcança de fato é
+  Workers — `workers/scripts` e os secrets do script respondem 200.
+  Configuração de zona e de Access sai pelo painel, por API token escopado,
+  ou pelo MCP.
 - **Regra de segurança de zona não alcança `workers.dev`.** Bot Fight Mode,
   Security Level e WAF governam o tráfego da zona `electomaps.com.br`. Um
   hostname `*.workers.dev` não pertence à zona: ligar aquilo enquanto o site só
