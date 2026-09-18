@@ -13,8 +13,21 @@
   // ignora o .gitignore. Sem aquele arquivo o deploy tenta subir 5,2 GB e falha
   // nos zips de 107 MB de "Resultados 1998".
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Account: ha dois accounts sob o mesmo login -- o "electomaps" e o
+  // pessoal. Fixado aqui para o wrangler nao ter o que perguntar, e para
+  // nao existir a chance de publicar no account errado por engano.
+  // ID de conta nao e credencial: sozinho nao da acesso a nada.
+  "account_id": "fb3deb1186d822071fe34aabf61f6672",
+
   "name": "electomaps",
   "compatibility_date": "2026-09-17",
+
+  // URL de teste em workers.dev desligada em 17/09/2026, ate o dominio
+  // entrar no ar. Enquanto o site so existia em
+  // electomaps.electomaps.workers.dev, ele estava publico e indexavel
+  // antes do lancamento -- e nenhuma regra de seguranca da zona alcanca
+  // um hostname workers.dev. Voltar para true republica a URL de teste.
+  "workers_dev": false,
 
   "assets": {
     // O site e servido da raiz do repositorio: os .html ficam ao lado do

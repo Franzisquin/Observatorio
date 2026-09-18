@@ -14,6 +14,10 @@
 .claude/
 .gitignore
 .assetsignore
+# O wrangler.jsonc e servido como asset se nao estiver aqui -- conferido no ar
+# em 17/09/2026, respondia 200 com o account_id dentro. Nao e credencial, mas
+# e a configuracao do deploy: nao tem por que estar publica.
+wrangler.jsonc
 
 # --- geracao de dados: insumo e script, nada disso o navegador busca ---
 scripts/

@@ -11,20 +11,44 @@ As três páginas de apuração e a de locais de votação **ficam fora** — ex
 pelo `.assetsignore`, não apagadas. Para publicá-las depois, remover as linhas
 correspondentes daquele arquivo.
 
+**O site está publicado e fora do ar de propósito.** O Worker `electomaps` existe
+no account com 3.886 arquivos carregados, e as quatro páginas do lançamento foram
+testadas no ar. Terminado o teste, a URL `workers.dev` foi desligada: até o
+domínio entrar, não há endereço público. Religar é `workers_dev: true` mais um
+deploy — os arquivos já estão lá, então volta em segundos, não nos 4 minutos da
+primeira vez.
+
 **Feito:**
 
 - Faxina: 4,01 GB -> 1,91 GB versionados; peso morto e insumo de build saíram da
   publicação (continuam em disco, fora do git).
 - Hospedagem configurada: `wrangler.jsonc`, `.assetsignore`, `_headers`.
-  Medido: 3.886 arquivos, 1,89 GB, nenhum acima de 25 MiB — cabe no plano Free.
 - Segurança: allowlist do `?dados=`, SRI nas quatro dependências de CDN, CSP em
   cinco páginas, entradas do workflow por `env:`.
 - Zona `electomaps.com.br` criada na Cloudflare e **no ar**: `amos.ns.cloudflare.com`
-  e `bingo.ns.cloudflare.com` respondem com SOA autoritativo.
+  e `bingo.ns.cloudflare.com` respondem com SOA autoritativo. A zona está no
+  account `electomaps`, o mesmo do Worker — conferido, e é o que faz a conexão
+  do domínio ser trivial depois.
+- `npx wrangler login` feito. Account `electomaps`
+  (`fb3deb1186d822071fe34aabf61f6672`) fixado no `wrangler.jsonc`.
+- Subdomínio `workers.dev` do account criado (`electomaps`). Ele não existia, e
+  sem ele o deploy para e pergunta.
+- Deploy feito. Versões: `4bc89753` (inicial, 3.859 arquivos em 4 min),
+  `f8e32758` (correção do `wrangler.jsonc` exposto), `6bbff327`
+  (`workers.dev` desligada).
+- Teste no ar das quatro páginas: **zero 4xx/5xx e console limpo em todas**.
+  `eleicoes` carregou 206 recursos, com mapa desenhado e o presidencial de 2022
+  correto; `simulador` montou o cenário base com 95.096 locais de votação.
+  As páginas de apuração e `locais.html` confirmadas em 404, e os quatro
+  cabeçalhos do `_headers` confirmados no ar.
+- Auditoria de referências: as 66 referências relativas das sete páginas do
+  lançamento resolvem, e nenhuma aponta para arquivo que o `.assetsignore` tira
+  do ar. `tse_demographics_locais.json`, excluído, não é referenciado por
+  ninguém no código publicado.
 
 **Em andamento:** o Registro.br está com a delegação em transição. Os dois
 nameservers da Cloudflare já constam no painel; o registro ainda publica
-`a.auto.dns.br` / `b.auto.dns.br`. Conferir com:
+`a.auto.dns.br` / `b.auto.dns.br`, e a zona segue `pending`. Conferir com:
 
 ```
 nslookup -type=ns -norecurse electomaps.com.br a.dns.br
@@ -34,12 +58,12 @@ Quando devolver os `ns.cloudflare.com`, propagou.
 
 **Próximos passos:**
 
-1. `npx wrangler login` — uma vez, no terminal, fluxo por loopback.
-2. `npx wrangler deploy` — sobe os 3.886 arquivos. Pode ser feito **antes** da
-   propagação: o Worker nasce com URL em `workers.dev` e o domínio se conecta
-   depois.
-3. Testar as quatro páginas do lançamento na URL `workers.dev`.
-4. Conectar `electomaps.com.br` ao Worker quando o DNS estiver ativo.
+1. Conectar `electomaps.com.br` ao Worker quando o DNS estiver ativo.
+2. Só então configurar a segurança de zona: SSL/TLS **Full (strict)**, Always Use
+   HTTPS, TLS mínimo 1.2, Bot Fight Mode e Browser Integrity Check; Security
+   Level no padrão **Medium**, porque mexer nele sem tráfego medido é chute.
+   Antes do domínio isso não tem efeito nenhum — ver a armadilha abaixo.
+3. Decidir se `workers_dev` volta a `true` ou fica desligada em definitivo.
 
 **Armadilhas conhecidas:**
 
@@ -51,9 +75,28 @@ Quando devolver os `ns.cloudflare.com`, propagou.
   a origem da reconstrução dos 58 municípios emancipados. Guardar cópia fora do
   repositório.
 - O MCP da Cloudflare só conecta em sessão iniciada **depois** da autorização;
-  `/reload-plugins` não basta. O deploy não depende dele — é trabalho do wrangler.
+  `/reload-plugins` não basta, e `/mcp reconnect` pode nem estar disponível. O
+  deploy não depende dele — é trabalho do wrangler.
 - Há dois *accounts* sob o mesmo login da Cloudflare: usar o **`electomaps`**, não
-  o pessoal. Confirmar o account antes de qualquer operação.
+  o pessoal. Sem `account_id` no `wrangler.jsonc`, o deploy falha com
+  "More than one account available but unable to select one".
+- **O `wrangler.jsonc` é servido como asset** se não estiver no `.assetsignore`.
+  Conferido no ar: respondia 200, com o `account_id` legível. Corrigido. ID de
+  conta não é credencial, mas configuração de deploy não tem por que ser pública
+  — e a regra vale para qualquer arquivo de configuração que caia na raiz.
+- O `_headers` **não** pode ir para o `.assetsignore`. A Cloudflare o lê do
+  diretório de assets na hora do deploy; excluí-lo provavelmente faz os quatro
+  cabeçalhos pararem de ser aplicados. Ele não aparece no ar porque é consumido,
+  não porque está ignorado.
+- **O token do `npx wrangler login` não configura zona.** Ele tem `zone (read)`,
+  que serve para listar zonas: `GET /zones/{id}/settings`, `/bot_management` e
+  `/dns_records` respondem **403**. Refazer o login não adianta — o escopo é fixo
+  na ferramenta, não depende do seu papel na conta. Configuração de zona sai pelo
+  painel, por API token escopado, ou pelo MCP.
+- **Regra de segurança de zona não alcança `workers.dev`.** Bot Fight Mode,
+  Security Level e WAF governam o tráfego da zona `electomaps.com.br`. Um
+  hostname `*.workers.dev` não pertence à zona: ligar aquilo enquanto o site só
+  existe ali protege exatamente nada, e deixa a impressão contrária.
 
 ## 1. Hospedagem: Workers + Static Assets
 
