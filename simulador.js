@@ -2738,6 +2738,20 @@ function renderAbaDemografia() {
 // MAPA
 // ============================================================================
 
+/* Contorno dos poligonos do mapa.
+
+   Era #ffffff fixo. Branco sobre o basemap escuro funciona; sobre o claro
+   (positron) o contorno some, e com o preenchimento cinza a 25% das UFs sem
+   dado o mapa inteiro desaparecia ao trocar de tema -- nao por falta de
+   camada, mas por falta de contraste.
+
+   Mesma convencao de js/national-view.js. O styleFn e reexecutado a cada
+   troca de estilo, porque reattachToStyle() chama _computeProps() antes de
+   recriar as camadas -- entao basta ler o tema aqui. */
+function corDeContorno() {
+  return document.body.dataset.theme === 'light' ? '#1a1a24' : '#ffffff';
+}
+
 function corDoResultado(res) {
   const v = vencedorDe(res);
   if (!v || !res || !res.aptos || v.votos === 0) return '#888888';
@@ -2792,7 +2806,12 @@ function simRenderMapa() {
      mesmos do assistente (RG intermediaria e imediata) mais o municipal. */
   if (ehGov()) {
     if (!SIM.ufGov) return;
-    if (SIM.selectedMuni) return simRenderMapaLocais(SIM.ufGov, SIM.selectedMuni);
+    /* Clicar num municipio NAO desce para os locais de votacao: o governador
+       segue o mesmo protocolo do presidencial, que permanece no recorte ativo.
+       Antes, so aqui, a selecao de um municipio trocava o mapa pela camada de
+       locais -- comportamento que nao existia no presidencial e destoava dele.
+       Esta era a unica chamada de simRenderMapaLocais(): a funcao continua no
+       arquivo, sem referencia, caso a visao de locais volte a ser desejada. */
     if (modo === 'ri' || modo === 'rgi') return simRenderMapaRegioes(SIM.ufGov, modo);
     return simRenderMapaMunicipios(SIM.ufGov);
   }
@@ -2867,7 +2886,7 @@ async function simRenderMapaRegioes(uf, nivel) {
       return {
         fillColor: corDoResultado(res),
         fillOpacity: sel ? 0.88 : (res && res.aptos > 0 ? 0.78 : 0.25),
-        color: '#ffffff',
+        color: corDeContorno(),
         weight: sel ? 1.2 : 0.4,
         opacity: sel ? 1.0 : 0.85
       };
@@ -2936,7 +2955,7 @@ async function simRenderMapaTodosMunicipios() {
       return {
         fillColor: corDoResultado(res),
         fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
-        color: '#ffffff',
+        color: corDeContorno(),
         weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
         opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
       };
@@ -2980,7 +2999,7 @@ function simRenderMapaEstados() {
       return {
         fillColor: corDoResultado(res),
         fillOpacity: hasData ? 0.78 : 0.25,
-        color: '#ffffff',
+        color: corDeContorno(),
         weight: 0.12,
         opacity: 0.8
       };
@@ -3029,7 +3048,7 @@ async function simRenderMapaMunicipios(uf) {
       return {
         fillColor: corDoResultado(res),
         fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
-        color: '#ffffff',
+        color: corDeContorno(),
         weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
         opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
       };
