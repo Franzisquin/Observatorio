@@ -89,3 +89,20 @@ js/locais-view.js
 # visualizador depende dela (data-geral-2006/2010/2014/2018/2022.js,
 # data-municipal*.js e data-zip.js).
 resultados_geo/candidatos_2026/
+
+# --- fora do git (.gitignore), mas nao do upload ---
+# Existem so no disco de quem os gerou. Sem estas linhas, o deploy feito dessa
+# maquina publica o que a outra nao tem -- e o proximo deploy da outra apaga.
+# O site no ar deve ser o que esta no git. version_15_geocode/ tem um csv de
+# 182 MiB que, sozinho, faz o deploy falhar.
+version_15_geocode/
+malhas/
+pesquisas/
+ex_94_89/
+1994/**/*.csv
+1994/*.zip
+comparecimento.html
+js/comparecimento.js
+campanha-2026-mapa.html
+campanha-2026-mapa.png
+resultados_geo/presidente_por_estado_index.json
