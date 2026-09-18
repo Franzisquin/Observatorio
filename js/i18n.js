@@ -115,6 +115,7 @@
       'sobre.p2.bio': 'Estudante de Administração baseado em Florianópolis. É responsável pelos modelos de nowcast, pela agregação de pesquisas e pelos simuladores interativos, além de todo o polimento e o web design do projeto.',
 
       'foot.project': 'Projeto',
+      'foot.support': 'Apoiar o projeto',
       'foot.tagline': 'Cartografia eleitoral independente',
       'foot.portals': 'Portais',
       'foot.contact': 'Contato',
@@ -200,6 +201,7 @@
       'sobre.p2.bio': 'Business Administration student based in Florianópolis. Responsible for the nowcast models, the poll aggregation and the interactive simulators, as well as all the polish and web design of the project.',
 
       'foot.project': 'Project',
+      'foot.support': 'Support the project',
       'foot.tagline': 'Independent electoral cartography',
       'foot.portals': 'Portals',
       'foot.contact': 'Contact',
