@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Simulador Eleitoral - ElectoMaps Portugal</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+
+  <!-- Mesmo CSP e mesmo SRI do index.html deste portal; a explicação está lá. -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    connect-src 'self' https://tiles.openfreemap.org;
+    img-src 'self' data: blob: https://tiles.openfreemap.org;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com;
+    font-src https://fonts.gstatic.com data:;
+    script-src 'self' 'unsafe-inline' https://unpkg.com;
+    worker-src 'self' blob:;
+    base-uri 'none';
+    object-src 'none'" />
+
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+        integrity="sha384-MinO0mNliZ3vwppuPOUnGa+iq619pfMhLVUXfC4LHwSCvF9H+6P/KO4Q7qBOYV5V"
+        crossorigin="anonymous" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"
+          integrity="sha384-SYKAG6cglRMN0RVvhNeBY0r3FYKNOJtznwA0v7B5Vp9tr31xAHsZC0DqkQ/pZDmj"
+          crossorigin="anonymous"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Spectral:ital,wght@0,500;0,600;0,700;1,500&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css?v=20260907a" />
+</head>
+
+<body data-theme="dark">
+  <!-- TOP TOOLBAR -->
+  <div class="app-toolbar">
+
+    <div class="toolbar-center">
+      <a href="../index.html" class="toolbar-logo" title="Voltar ao ElectoMaps">ElectoMaps Portugal</a>
+      <span class="toolbar-sub">
+        <span class="toolbar-page">Simulador Eleitoral</span>
+        <span class="toolbar-badge" title="Os resultados desta página são um cenário inventado">Simulação</span>
+      </span>
+    </div>
+    <div class="toolbar-right">
+      <a href="index.html" class="toolbar-link" title="Voltar ao visualizador de resultados reais">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon>
+          <line x1="9" y1="3" x2="9" y2="18"></line>
+          <line x1="15" y1="6" x2="15" y2="21"></line>
+        </svg>
+        <span>Visualizador</span>
+      </a>
+      <a href="https://docs.google.com/forms/d/e/1FAIpQLSfE3CCKFG4sWUr_CMR4iRhG3Q8TETlBSRAU4C9RA80o_Qt4-A/viewform?usp=publish-editor"
+        target="_blank" rel="noopener noreferrer" class="toolbar-link" title="Erros e Sugestões">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Erros e Sugestões</span>
+      </a>
+      <button id="themeToggle" class="toolbar-link" title="Mudar tema">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" class="theme-icon">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- BARRA COMPACTA DE FILTROS (MOBILE) -->
+  <div class="m-filter-bar">
+    <button id="mFilterSummary" title="Abrir o simulador">Simulador · 2025</button>
+    <button id="mFilterBtn" title="Abrir o simulador e os filtros">
+      <svg width="12" height="12" aria-hidden="true"><use href="#svg-sliders"></use></svg>
+      <span>Simular</span>
+    </button>
+  </div>
+
+  <div class="app">
+    <!-- PAINEL ESQUERDO: cenário nacional + visualização -->
+    <div class="panel side side-left">
+      <div class="m-sheet-header">
+        <span>Simulador</span>
+        <button id="mFilterClose" aria-label="Fechar filtros"><svg width="13" height="13" aria-hidden="true"><use href="#svg-x"></use></svg></button>
+      </div>
+      <div class="body">
+
+        <div class="section" id="simBox">
+
+          <div class="sim-notice">
+            <strong>Cenário fictício.</strong> Define a percentagem nacional de cada partido: o mapa
+            recalcula-se por <em>swing proporcional</em> sobre as legislativas de
+            <span class="sim-base-year">2025</span> e os mandatos por d&rsquo;Hondt em cada círculo.
+            Os partidos que já definiste ficam fixos — clica no ponto de cor para libertar.
+            A afluência mantém-se a de <span class="sim-base-year">2025</span>.
+          </div>
+
+          <div class="ctrl">
+            <div class="sim-header">
+              <label style="margin: 0;">Cenário nacional</label>
+              <span class="sim-total-wrap">Total <strong id="simTotal">100,00%</strong></span>
+            </div>
+            <div id="simPartyList" class="sim-list"></div>
+          </div>
+
+          <div class="ctrl" style="margin-top: 6px;">
+            <button id="btnSimReset" class="btn-toggle-inaptos" title="Voltar ao resultado real do ano-base">
+              Repor resultado real
+            </button>
+          </div>
+
+        </div>
+
+        <div class="section" id="loaderBox">
+
+          <div class="ctrl" id="territorySearchCtrl" style="position: relative;">
+            <label for="territorySearch">Pesquisar território</label>
+            <input id="territorySearch" class="search-input" type="search"
+              placeholder="Concelho ou freguesia — ex.: Loures, Benfica…" autocomplete="off" spellcheck="false" />
+            <div id="territorySearchResults" class="search-results hidden" role="listbox"></div>
+          </div>
+
+          <div class="ctrl" style="margin-top: 4px;">
+            <label for="selectCirculo">Círculo Eleitoral</label>
+            <select id="selectCirculo" class="select">
+              <option value="" selected>Portugal (todos os círculos)</option>
+            </select>
+          </div>
+
+          <div class="ctrl" id="nutsFilterCtrl" style="margin-top: 4px;">
+            <label for="selectNuts">Região / NUTS / Áreas Met.</label>
+            <select id="selectNuts" class="select">
+              <option value="" selected>Sem filtro regional</option>
+              <optgroup label="NUTS 1">
+                <option value="n1:Continente">Continente</option>
+                <option value="n1:Região Autónoma dos Açores">Açores</option>
+                <option value="n1:Região Autónoma da Madeira">Madeira</option>
+              </optgroup>
+              <optgroup label="NUTS 2">
+                <option value="n2:Norte">Norte</option>
+                <option value="n2:Centro">Centro</option>
+                <option value="n2:Área Metropolitana de Lisboa">Área Metropolitana de Lisboa</option>
+                <option value="n2:Alentejo">Alentejo</option>
+                <option value="n2:Algarve">Algarve</option>
+                <option value="n2:Região Autónoma dos Açores">Região Autónoma dos Açores</option>
+                <option value="n2:Região Autónoma da Madeira">Região Autónoma da Madeira</option>
+              </optgroup>
+              <optgroup label="Áreas Metropolitanas">
+                <option value="am:AML">Área Metropolitana de Lisboa (AML)</option>
+                <option value="am:AMP">Área Metropolitana do Porto (AMP)</option>
+              </optgroup>
+              <optgroup label="NUTS 3">
+                <option value="n3:Alto Minho">Alto Minho</option>
+                <option value="n3:Cávado">Cávado</option>
+                <option value="n3:Ave">Ave</option>
+                <option value="n3:Alto Tâmega e Barroso">Alto Tâmega e Barroso</option>
+                <option value="n3:Terras de Trás-os-Montes">Terras de Trás-os-Montes</option>
+                <option value="n3:Douro">Douro</option>
+                <option value="n3:Tâmega e Sousa">Tâmega e Sousa</option>
+                <option value="n3:Região de Aveiro">Região de Aveiro</option>
+                <option value="n3:Região de Coimbra">Região de Coimbra</option>
+                <option value="n3:Região de Leiria">Região de Leiria</option>
+                <option value="n3:Oeste">Oeste</option>
+                <option value="n3:Beiras e Serra da Estrela">Beiras e Serra da Estrela</option>
+                <option value="n3:Beira Baixa">Beira Baixa</option>
+                <option value="n3:Médio Tejo">Médio Tejo</option>
+                <option value="n3:Lezíria do Tejo">Lezíria do Tejo</option>
+                <option value="n3:Grande Lisboa">Grande Lisboa</option>
+                <option value="n3:Península de Setúbal">Península de Setúbal</option>
+                <option value="n3:Alentejo Litoral">Alentejo Litoral</option>
+                <option value="n3:Alentejo Central">Alentejo Central</option>
+                <option value="n3:Alto Alentejo">Alto Alentejo</option>
+                <option value="n3:Baixo Alentejo">Baixo Alentejo</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+
+        <div class="section" id="vizBox">
+
+          <div class="ctrl">
+            <label>Modo</label>
+            <div class="chip-group" id="vizModeChips">
+              <button class="chip-button active" data-value="vencedor" title="Colorir cada território pelo partido vencedor">Vencedor</button>
+              <button class="chip-button" data-value="desempenho" title="Ver o desempenho de um partido específico">Desempenho</button>
+            </div>
+          </div>
+
+          <div class="ctrl section-hidden" id="vizCandidatoBox">
+            <label for="selectVizCandidato">Partido</label>
+            <select id="selectVizCandidato" class="select" disabled></select>
+          </div>
+
+          <div class="ctrl" id="vizGradientModeCtrl">
+            <label>Modo de Cor</label>
+            <div class="chip-group" id="vizGradientModeChips">
+              <button class="chip-button active" data-value="margin" title="Intensidade da cor pela margem de vitória">Margem</button>
+              <button class="chip-button" data-value="winnerPct" title="Intensidade da cor pela percentagem do vencedor">% do Vencedor</button>
+            </div>
+          </div>
+
+          <div class="ctrl" id="seatDonutsToggleCtrl" style="margin-top: 6px;">
+            <label>Visualização no Mapa</label>
+            <div class="chip-group">
+              <button class="chip-button" id="btnToggleSeatDonuts" title="Mostrar círculos com a distribuição de deputados por partido no mapa">Mostrar Mandatos</button>
+            </div>
+          </div>
+          <div class="ctrl" style="margin-top: 6px;">
+            <button id="btnExplainRules" class="btn-toggle-inaptos" title="Como são distribuídos os mandatos"
+              onclick="openProportionalRulesModal()">
+              Como funciona (método d'Hondt)
+            </button>
+          </div>
+        </div>
+
+          <div class="sidebar-credit">
+            <span>Desenvolvido por</span>
+            <a href="https://x.com/luizdaniel__" target="_blank" rel="noopener">Luiz Daniel Medeiros</a>
+          </div>
+
+      </div>
+    </div>
+
+    <!-- CENTRO: Mapa -->
+    <div class="panel side side-res">
+      <div id="map"></div>
+      <button id="btnClearSelection" class="btn-clear-selection hidden"
+        title="Voltar para visualização geral" aria-label="Voltar para visualização geral"><svg width="14" height="14" aria-hidden="true"><use href="#svg-x"></use></svg></button>
+
+      <!-- CONTROLOS SOBRE O MAPA -->
+      <div class="map-overlay-controls">
+        <div class="layer-toggle-group" style="display: flex; gap: 4px; align-items: center;">
+          <button id="btnBackLevel" class="btn-back-level" style="display: none;" title="Voltar um nível">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            <span id="btnBackLevelLabel">Voltar</span>
+          </button>
+          <div class="chip-group" id="mapLevelChips" style="display: flex; border: none; background: transparent; padding: 0; margin: 0; box-shadow: none; gap: 2px;">
+            <button class="chip-button active toggle-btn" data-value="distrito" title="Ver o mapa por distritos / círculos">Distritos</button>
+            <button class="chip-button toggle-btn" data-value="concelho" title="Ver o mapa por concelhos">Concelhos</button>
+            <button class="chip-button toggle-btn" data-value="freguesia" title="Ver o mapa por freguesias">Freguesias</button>
+          </div>
+          <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.15); margin: 0 4px;"></div>
+          <button id="btnToggle3D" class="toggle-btn" title="Alternar Modo 3D (Perspetiva)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <span>Modo 3D</span>
+          </button>
+
+          <button id="btnToggleExtrusion" class="toggle-btn" title="Alternar Extrusão de Altura (votos por freguesia)"
+            style="display: none;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+              <polyline points="17 2 22 7 17 12"></polyline>
+              <polyline points="2 17 7 22 12 17"></polyline>
+            </svg>
+            <span>Altura (3D)</span>
+          </button>
+        </div>
+      </div>
+      
+      <div class="loader-overlay" id="mapLoader">
+        A carregar dados...
+      </div>
+    </div>
+
+    <!-- PAINEL DIREITO: Resultados -->
+    <div class="panel side side-right">
+      <div class="sheet-handle" id="sheetHandle" title="Arrastar para ver mais ou menos resultados">
+        <div class="sheet-grip"></div>
+        <span id="sheetTitle">Resultados</span>
+      </div>
+      <div class="body">
+
+        <div class="section section-hidden" id="resultsBox">
+          <div class="results-header-container">
+            <div class="results-header-text">
+              <h3 id="resultsTitle" style="margin:0; font-size: 1.15rem; line-height: 1.3;">Resultados</h3>
+              <small id="resultsSubtitle"
+                style="color:var(--muted); font-size:0.8rem; display:block; margin-top:2px;"></small>
+            </div>
+            <div class="chip-group" id="prRoundChips" style="display:none;">
+              <button class="chip-button" data-round="1" title="1.ª volta">1.ª volta</button>
+              <button class="chip-button" data-round="2" title="2.ª volta">2.ª volta</button>
+            </div>
+          </div>
+
+          <div id="unifiedResultsContainer" class="animation-fade">
+            <div id="resultsContent">
+              <div style="text-align:center; padding: 20px; color:var(--muted);">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"
+                  style="opacity: 0.5; margin: 0 auto 8px auto; display: block;">
+                  <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+                  <path d="M13 13l6 6" />
+                </svg>
+                Clique no mapa para ver resultados de uma freguesia.
+              </div>
+            </div>
+            <div class="footer" id="resultsMetrics" style="margin-bottom: 20px;"></div>
+            <div id="territoryProfile"></div>
+          </div>
+
+        </div>
+
+        <!-- Estado vazio antes de os dados carregarem -->
+        <div class="results-empty" id="resultsEmpty">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4; margin-bottom:12px;">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+            <circle cx="12" cy="10" r="3" />
+          </svg>
+          <p>A carregar a eleição mais recente...</p>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- BACKDROP DO SHEET DE FILTROS (MOBILE) -->
+  <div id="mBackdrop" class="m-backdrop"></div>
+
+  <svg width="0" height="0" style="display:none;">
+    <symbol id="svg-check" viewBox="0 0 16 16">
+      <polyline points="3 8 6 11 13 4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="svg-arrow" viewBox="0 0 16 16">
+      <polyline points="6 4 10 8 6 12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="svg-x" viewBox="0 0 16 16">
+      <line x1="4" y1="4" x2="12" y2="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+      <line x1="12" y1="4" x2="4" y2="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+    </symbol>
+    <symbol id="svg-blocks" viewBox="0 0 16 16">
+      <rect x="2" y="2" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linejoin="round" />
+      <rect x="7" y="7" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linejoin="round" />
+    </symbol>
+    <symbol id="svg-info" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" />
+      <line x1="12" y1="16" x2="12" y2="12" stroke="currentColor" stroke-width="2" />
+      <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor" stroke-width="2" />
+    </symbol>
+    <symbol id="svg-map" viewBox="0 0 24 24">
+      <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" />
+      <line x1="9" y1="3" x2="9" y2="18" stroke="currentColor" stroke-width="2" />
+      <line x1="15" y1="6" x2="15" y2="21" stroke="currentColor" stroke-width="2" />
+    </symbol>
+    <symbol id="svg-sliders" viewBox="0 0 24 24">
+      <line x1="4" y1="21" x2="4" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="4" y1="10" x2="4" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="21" x2="12" y2="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="8" x2="12" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="20" y1="21" x2="20" y2="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="20" y1="12" x2="20" y2="3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="1" y1="14" x2="7" y2="14" stroke="currentColor" stroke-width="2" />
+      <line x1="9" y1="8" x2="15" y2="8" stroke="currentColor" stroke-width="2" />
+      <line x1="17" y1="16" x2="23" y2="16" stroke="currentColor" stroke-width="2" />
+    </symbol>
+    <symbol id="svg-bar-chart" viewBox="0 0 24 24">
+      <line x1="18" y1="20" x2="18" y2="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="12" y1="20" x2="12" y2="4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+      <line x1="6" y1="20" x2="6" y2="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round" />
+    </symbol>
+  </svg>
+
+  <!-- MÉTODO D'HONDT -->
+  <div class="info-overlay" id="rulesExplainOverlay" onclick="if(event.target === this) closeProportionalRulesModal()">
+    <div class="info-modal wide-modal" style="max-height: 90vh; overflow-y: auto;">
+      <button class="info-close" id="btnCloseRulesExplain" onclick="closeProportionalRulesModal()" aria-label="Fechar"><svg width="12" height="12" aria-hidden="true"><use href="#svg-x"></use></svg></button>
+      <h3>Como são distribuídos os mandatos: método d'Hondt</h3>
+      <p>
+        Nas eleições para a Assembleia da República, os 230 deputados são eleitos por
+        <strong>22 círculos eleitorais</strong>: os 18 distritos do continente, as regiões autónomas da
+        Madeira e dos Açores, e dois círculos da emigração (Europa e Fora da Europa, com 2 mandatos cada).
+        O número de mandatos de cada círculo territorial é proporcional ao número de eleitores inscritos.
+      </p>
+      <p>
+        Dentro de cada círculo, os mandatos são distribuídos pelo <strong>método de Hondt</strong>:
+      </p>
+      <ol style="line-height: 1.6;">
+        <li>Os votos de cada lista são divididos sucessivamente por 1, 2, 3, 4, ...</li>
+        <li>Todos os quocientes resultantes são ordenados do maior para o menor.</li>
+        <li>Os mandatos do círculo são atribuídos, um a um, às listas com os maiores quocientes.</li>
+      </ol>
+      <p>
+        <em>Exemplo</em> — círculo com 4 mandatos; A = 12.000 votos, B = 7.500, C = 4.500:
+      </p>
+      <table class="cand-table" style="max-width: 420px;">
+        <thead>
+          <tr>
+            <th class="align-left">Divisor</th>
+            <th class="align-center">A</th>
+            <th class="align-center">B</th>
+            <th class="align-center">C</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>÷1</td><td class="align-center"><strong>12.000 ①</strong></td><td class="align-center"><strong>7.500 ②</strong></td><td class="align-center"><strong>4.500 ④</strong></td></tr>
+          <tr><td>÷2</td><td class="align-center"><strong>6.000 ③</strong></td><td class="align-center">3.750</td><td class="align-center">2.250</td></tr>
+          <tr><td>÷3</td><td class="align-center">4.000</td><td class="align-center">2.500</td><td class="align-center">1.500</td></tr>
+        </tbody>
+      </table>
+      <p>Resultado: A elege 2 deputados, B elege 1 e C elege 1.</p>
+      <p style="color: var(--muted); font-size: 0.85rem;">
+        Notas: não há limiar mínimo nacional de votos em Portugal; a única barreira é implícita, dada pela
+        dimensão do círculo. Votos em branco e nulos não entram na distribuição. Nas eleições de 1979 e 1980 a
+        AD (PSD+CDS+PPM) concorreu como coligação única; o mesmo acontece com a CDU (PCP-PEV) desde 1987 e com
+        a AD novamente em 2024/2025.
+      </p>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/globals.js?v=20260706a"></script>
+  <script src="js/pt/nuts-data.js?v=20260708a"></script>
+  <script src="js/cache.js?v=20260704a"></script>
+  <script src="js/maplibre-compat.js?v=20260704a"></script>
+  <script src="js/utils.js?v=20260715c"></script>
+  <script src="js/pt/data-portugal.js?v=20260716a"></script>
+  <script src="js/pt/map-render-pt.js?v=20260715e"></script>
+  <script src="js/pt/results-panel-pt.js?v=20260718a"></script>
+  <!-- block-definer entra apenas pelo calculateDhondt; o botão não existe nesta página.
+       eleitos-portugal.js fica de fora de propósito: com mandatos simulados, os nomes
+       dos deputados realmente eleitos seriam enganadores. -->
+  <script src="js/pt/block-definer-pt.js?v=20260715a"></script>
+  <script src="js/pt/simulador-pt.js?v=20260907a"></script>
+  <script src="js/pt/ui-controls-pt.js?v=20260907a"></script>
+  <script src="js/ui-helpers.js?v=20260715d"></script>
+
+  <script>
+    // Modal do método d'Hondt (mesmo padrão do index.html)
+    function openProportionalRulesModal() {
+      document.getElementById('rulesExplainOverlay')?.classList.add('visible');
+    }
+    function closeProportionalRulesModal() {
+      document.getElementById('rulesExplainOverlay')?.classList.remove('visible');
+    }
+  </script>
+</body>
+
+</html>

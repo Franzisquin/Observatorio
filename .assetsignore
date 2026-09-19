@@ -106,3 +106,11 @@ js/comparecimento.js
 campanha-2026-mapa.html
 campanha-2026-mapa.png
 resultados_geo/presidente_por_estado_index.json
+
+# --- portugal: simulador fora do ar (19/09/2026) ---
+# O portal entrou sem o simulador, que ainda esta cru. Os arquivos continuam no
+# repositorio e o link para eles saiu da barra do portugal/index.html, entao ele
+# nao fica alcancavel nem por URL direta. Para republicar, apague estas duas
+# linhas e devolva o bloco do link no portal.
+portugal/simulador.html
+portugal/js/pt/simulador-pt.js
