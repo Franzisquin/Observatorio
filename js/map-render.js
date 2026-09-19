@@ -4128,12 +4128,22 @@ function getMunicipalPolygonStyle(feature, summary) {
 
      Continuam clicaveis: o maplibre testa acerto pela geometria da feicao,
      nao pela transparencia. So `visibility: none` tiraria do alcance do
-     clique, e nao e' o que se faz aqui. */
-  const esmaecer = (estilo) => ({
+     clique, e nao e' o que se faz aqui.
+
+     SO A MALHA MUNICIPAL esmaece. Esta funcao e compartilhada por cinco
+     camadas: a municipal, as de regiao, a de areas de ponderacao, a nacional
+     por UF e a da diaspora. Todas as outras passam um summary carimbado com
+     _regionLevel; a municipal e a unica sem.
+
+     Sem este corte, clicar num municipio esmaecia tambem as AREAS DE
+     PONDERACAO dele -- que sao exatamente o detalhe que se quer enxergar ao
+     descer a esse nivel -- e ainda as regioes, os estados e a diaspora. */
+  const ehMalhaMunicipal = !summary?._regionLevel;
+  const esmaecer = (estilo) => (ehMalhaMunicipal ? {
     ...estilo,
     fillOpacity: (estilo.fillOpacity || 0) * 0.5,
     opacity: (estilo.opacity == null ? 1 : estilo.opacity) * 0.5
-  });
+  } : estilo);
 
   if (STATE.currentMapMode === 'locais') {
     const isSelectionActive = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
