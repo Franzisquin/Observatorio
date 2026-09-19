@@ -82,10 +82,7 @@
       'br.t1.desc': 'Resultados de 1989 a 2024 em mapas interativos, por local de votação, município, bairro e região, com comparação entre eleições.',
       'br.t2.title': 'Simulador Eleitoral',
       'br.t2.desc': 'Crie as suas próprias disputas presidenciais e estaduais sobre o eleitorado do TSE: edite o perfil demográfico de cada recorte, ajuste como cada grupo vota e simule o segundo turno.',
-      'br.t4.title': 'Nowcast',
-      'br.t4.desc': 'Projeções do cenário eleitoral brasileiro a partir de modelos estatísticos.',
       'br.open': 'Acessar',
-      'br.soon': 'Em breve',
 
       'br.s2.title': 'Cobertura',
       'br.cov1.title': 'Eleições gerais',
@@ -119,6 +116,7 @@
       'sobre.p2.bio': 'Estudante de Administração baseado em Florianópolis. É responsável pelos modelos de nowcast, pela agregação de pesquisas e pelos simuladores interativos, além de todo o polimento e o web design do projeto.',
 
       'foot.project': 'Projeto',
+      'foot.support': 'Apoiar o projeto',
       'foot.tagline': 'Cartografia eleitoral independente',
       'foot.portals': 'Portais',
       'foot.contact': 'Contato',
@@ -171,10 +169,7 @@
       'br.t1.desc': 'Results from 1989 to 2024 on interactive maps, by polling place, municipality, neighbourhood and region, with comparison between elections.',
       'br.t2.title': 'Election Simulator',
       'br.t2.desc': 'Create your own presidential and state races on top of the TSE electorate: edit the demographic profile of each segment, adjust how each group votes, and simulate the runoff.',
-      'br.t4.title': 'Nowcast',
-      'br.t4.desc': 'Projections of the Brazilian electoral landscape from statistical models.',
       'br.open': 'Open',
-      'br.soon': 'Coming soon',
 
       'br.s2.title': 'Coverage',
       'br.cov1.title': 'General elections',
@@ -208,6 +203,7 @@
       'sobre.p2.bio': 'Business Administration student based in Florianópolis. Responsible for the nowcast models, the poll aggregation and the interactive simulators, as well as all the polish and web design of the project.',
 
       'foot.project': 'Project',
+      'foot.support': 'Support the project',
       'foot.tagline': 'Independent electoral cartography',
       'foot.portals': 'Portals',
       'foot.contact': 'Contact',

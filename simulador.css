@@ -1847,3 +1847,63 @@
 .sim-pane-head .sim-note {
   margin-top: 8px;
 }
+
+/* ------------------------------------------------------- celular: as sidebars
+
+   O style.css esconde `.panel.side` abaixo de 768px e as transforma em
+   sobreposicao de tela cheia (position:absolute, 100%x100%, z-index 5). Aquilo
+   e' o desenho do VISUALIZADOR, que tem uma barra de navegacao movel para
+   alternar entre mapa e paineis.
+
+   O simulador reusa as mesmas classes e nao tem essa barra. Resultado medido em
+   375x812: #simControlPanel e .panel.side-right com display:none, mapa sozinho
+   ocupando 375x700 e uma faixa preta embaixo -- sem percentuais, sem barras,
+   sem metricas, sem demografia e sem como ajustar a simulacao.
+
+   Aqui os paineis voltam, empilhados abaixo do mapa, e a pagina rola. Precisa
+   de !important porque as regras do style.css tambem usam. */
+@media (max-width: 768px) {
+  .app.sim-app {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .app.sim-app .panel.side {
+    display: flex !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: none !important;
+    z-index: auto !important;
+    border: none !important;
+    border-top: 1px solid var(--border-color) !important;
+  }
+
+  /* O mapa deixa de ocupar a tela toda para sobrar espaco aos paineis. */
+  .app.sim-app #mapPanel {
+    height: 58vh !important;
+    min-height: 300px !important;
+    order: 1;
+  }
+
+  /* O #map e' o container do MapLibre e tem altura propria: sem isto ele ficava
+     16px mais alto que o painel e o rodape do mapa saia cortado pelo
+     overflow:hidden do pai. */
+  .app.sim-app #mapPanel > #map {
+    height: 100% !important;
+  }
+
+  /* Resultados antes dos controles: no celular o que se quer ver primeiro e' o
+     numero, nao o ajuste. */
+  .app.sim-app .side-right { order: 2; }
+  .app.sim-app .side-left  { order: 3; }
+
+  /* Sem isto a pagina nao rola e os paineis empilhados ficam inalcancaveis. */
+  html:has(.sim-app), body:has(.sim-app) {
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+}

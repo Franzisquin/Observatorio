@@ -2748,6 +2748,25 @@ function renderAbaDemografia() {
    Mesma convencao de js/national-view.js. O styleFn e reexecutado a cada
    troca de estilo, porque reattachToStyle() chama _computeProps() antes de
    recriar as camadas -- entao basta ler o tema aqui. */
+/* Fator de esmaecimento das cidades NAO selecionadas.
+
+   Com um municipio escolhido, os demais vao a metade da opacidade: a
+   selecionada salta sem que o entorno suma. E o entorno importa -- e dele
+   que sai a leitura de contexto, se a cidade e um ponto fora da curva ou a
+   continuacao de um bloco.
+
+   Metade, e nao um valor fixo, porque os niveis de partida ja significam
+   coisas diferentes: 0,78 e municipio com dado e 0,25 e ausencia de dado.
+
+   A MARGEM nao e afetada: ela esta na COR, via corDoResultado() ->
+   getUniversalGradientColor/getWinnerPctGradientColor, nunca na opacidade.
+
+   Seguem clicaveis: o maplibre testa acerto pela geometria, nao pela
+   transparencia -- so `visibility: none` tiraria do alcance do clique. */
+function atenuaNaoSelecionado(selecionado) {
+  return (SIM.selectedMuni && !selecionado) ? 0.5 : 1;
+}
+
 function corDeContorno() {
   return document.body.dataset.theme === 'light' ? '#1a1a24' : '#ffffff';
 }
@@ -2952,12 +2971,13 @@ async function simRenderMapaTodosMunicipios() {
       const sel = SIM.selectedMuni === cod;
       const hasData = res && res.aptos > 0;
       const exibirContorno = SIM.exibirContornoMuni !== false;
+      const atenua = atenuaNaoSelecionado(sel);
       return {
         fillColor: corDoResultado(res),
-        fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
+        fillOpacity: (sel ? 0.85 : (hasData ? 0.78 : 0.25)) * atenua,
         color: corDeContorno(),
         weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
-        opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
+        opacity: (sel ? 1.0 : (exibirContorno ? 0.8 : 0)) * atenua
       };
     },
     tooltipFn: f => {
@@ -3045,12 +3065,13 @@ async function simRenderMapaMunicipios(uf) {
       const sel = SIM.selectedMuni === cod;
       const hasData = res && res.aptos > 0;
       const exibirContorno = SIM.exibirContornoMuni !== false;
+      const atenua = atenuaNaoSelecionado(sel);
       return {
         fillColor: corDoResultado(res),
-        fillOpacity: sel ? 0.85 : (hasData ? 0.78 : 0.25),
+        fillOpacity: (sel ? 0.85 : (hasData ? 0.78 : 0.25)) * atenua,
         color: corDeContorno(),
         weight: sel ? 0.8 : (exibirContorno ? 0.12 : 0),
-        opacity: sel ? 1.0 : (exibirContorno ? 0.8 : 0)
+        opacity: (sel ? 1.0 : (exibirContorno ? 0.8 : 0)) * atenua
       };
     },
     tooltipFn: f => tooltipResultado(nomeDe(f.properties),
