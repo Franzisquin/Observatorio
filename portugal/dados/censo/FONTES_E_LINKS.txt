@@ -1,0 +1,103 @@
+================================================================================
+CENSO PORTUGAL — FONTES, LINKS DE DOWNLOAD E COMO REGENERAR
+================================================================================
+Estado: o "Perfil do território" está DESATIVADO no site por agora.
+Para reativar: descomentar a chamada renderTerritoryProfile(STATE.scope)
+em js/pt/results-panel-pt.js (procurar por "Perfil do território (censo INE)
+desativado"). Todo o código de render (buildTerritoryProfileHtml etc.) e os
+loaders (loadCensoVintage/loadRenda em js/pt/data-portugal.js) estão intactos.
+
+Os JSON desta pasta já estão processados e prontos:
+  censo_2021.json  - população, sexo, faixas etárias decenais, agregados,
+                     habitação, desemprego, atividade, escolaridade (freguesia+concelho)
+  censo_2011.json  - idem (faixas de 4 grupos; emprego/escolaridade do BGRI;
+                     códigos de freguesia PRÉ-reforma 2013, casam com mapas antigos)
+  censo_2001.json  - só população/famílias/alojamentos/edifícios
+  renda.json       - rendimento mediano IRS por agregado fiscal, 2018-2023
+  censo_index.json - vintages e metadados
+
+--------------------------------------------------------------------------------
+1. DOWNLOADS BRUTOS (mapas.ine.pt — BGRI / ficheiros síntese dos Censos)
+--------------------------------------------------------------------------------
+Censos 2021 (ficheiro síntese, dados por subsecção estatística; XLSX no zip):
+  https://mapas.ine.pt/download/2021FicheiroSintese/FS2021SubSeccaoTot.zip
+  https://mapas.ine.pt/download/2021FicheiroSintese/FS2021SeccaoTot.zip   (por secção, menor)
+  Lista de variáveis: https://mapas.ine.pt/download/C2021_FSINTESE_VARIAVEIS.csv
+
+Censos 2011 (geopackage nacional com atributos por subsecção; 232 MB zip / 515 MB gpkg):
+  https://mapas.ine.pt/download/filesGPG/2011/portugal2011.zip
+  Lista de variáveis: https://mapas.ine.pt/download/C2011_FSINTESE_VARIAVEIS.csv
+  (também há zips por NUTS2/NUTS3/município em filesGPG/2011/...)
+
+Censos 2001 (geopackage nacional; atributos limitados: edifícios, alojamentos,
+famílias, residentes):
+  https://mapas.ine.pt/download/filesGPG/2001/portugal2001.zip
+
+Censos 1991: https://mapas.ine.pt/download/index1991.phtml (não usado; ainda mais limitado)
+Página índice geral: https://mapas.ine.pt/download/index2021.phtml (e index2011/index2001)
+
+--------------------------------------------------------------------------------
+2. API INE (json_indicador) — indicadores por freguesia
+--------------------------------------------------------------------------------
+Formato: https://www.ine.pt/ine/json_indicador/pindica.jsp?op=2&varcd=<VARCD>&Dim1=S7A<ANO>&lang=PT
+Metadados: https://www.ine.pt/ine/json_indicador/pindicaMeta.jsp?varcd=<VARCD>&lang=PT
+Nota: a API tem rate limit agressivo (o ETL faz retry com backoff).
+Nota: o geocod pode vir com prefixo NUTS3 (9 chars = freguesia, 7 = concelho)
+ou como dicofre puro (6 = freguesia, 4 = concelho) — varia por indicador.
+
+Censos 2021 (usados no site):
+  0012328  Taxa de desemprego (%) — Dim3=Sexo (T=total)
+  0012317  Taxa de atividade (%)
+  0012316  Proporção com ensino superior completo (%)
+  0012327  Proporção com pelo menos o ensino secundário completo (%)
+  0012315  Proporção com pelo menos o 3º ciclo do básico completo (%)
+  0012323  Proporção 15+ sem nenhum nível de escolaridade completo (%)
+  0012355  População residente por grupo etário DECENAL — Dim3=T, Dim4=01..11
+           (01=0-9 ... 08=70-79; 09/10/11 = 80-89/90-99/100+)
+
+Outros indicadores Censos 2021 úteis (descobertos, não usados ainda):
+  0012338  População por grupo etário QUINQUENAL e grupo socioeconómico
+  0012318  Proporção 65+ (%)         0012319  Proporção 0-14 (%)
+  0012313  Índice de renovação idade ativa    0012320  Índice de longevidade
+  0012314  Proporção de nacionalidade estrangeira (%)
+  0012312  Proporção que 1 ano antes residia fora (%)
+  0012321/0012322  Movimentos pendulares (entra/sai) (%)
+  0012331  Duração média movimentos pendulares (min)
+  0012332  Taxa desemprego 15-24 anos (%)
+  0012326  % 30-34 anos com ensino superior
+  0012303  População 15+ por condição perante o trabalho e fonte de rendimento
+  0012302  População 15+ por grupo etário e fonte de rendimento
+  0012344/0012354  População empregada por atividade/setor
+  0012345  Risco de pobreza ou exclusão social (Eurostat) (%)
+
+Rendimento (Estatísticas do Rendimento ao Nível Local, IRS/AT):
+  0012741  Valor MEDIANO do rendimento bruto declarado deduzido do IRS liquidado
+           por agregado fiscal (€) — anual, 2018..2023 (Dim1=S7A2018 etc.)
+           Só divulgado para territórios com 2000+ sujeitos passivos.
+  Página INE: https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_doc_municipios_rnl&xlang=pt
+
+--------------------------------------------------------------------------------
+3. COMO REGENERAR OS JSON
+--------------------------------------------------------------------------------
+1) Baixar os brutos para uma pasta <RAW>:
+     <RAW>/fs2021/FS2021_subseccao.xlsx   (extraído do FS2021SubSeccaoTot.zip,
+                                           renomear o xlsx de nome estranho)
+     <RAW>/portugal2011.gpkg              (extraído do portugal2011.zip)
+     <RAW>/portugal2001.gpkg              (extraído do portugal2001.zip)
+2) Rodar (requer python + openpyxl; rede para a API INE):
+     python etl/build_censo.py --raw <RAW>
+   (--skip-api para pular indicadores/renda; --out para outra pasta de saída)
+3) Saídas escritas nesta pasta (dados/censo/).
+
+--------------------------------------------------------------------------------
+4. PORTAIS DE REFERÊNCIA
+--------------------------------------------------------------------------------
+  https://censos.ine.pt                       (plataforma Censos, export até freguesia)
+  https://mapas.ine.pt/download/              (BGRI / cartografia + síntese)
+  https://www.ine.pt  ->  API: https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_api_catalogo&INST=719283150
+  https://dados.gov.pt                        (espelhos de datasets INE)
+  Quadros de apuramento: https://www.ine.pt/xportal/xmain?xpid=INE&xpgid=ine_qa_resumo
+    (XLSX por NUTS2 com desagregação até freguesia — inclui "População residente
+     segundo o nível de escolaridade completo", útil para contagens absolutas)
+
+Gerado em 2026-07-17 durante a implementação do perfil do território.

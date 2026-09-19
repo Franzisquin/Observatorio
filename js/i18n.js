@@ -55,6 +55,7 @@
       'legal.privacy': 'Política de Privacidade',
       'legal.manage': 'Gerenciar cookies',
       'nav.brazil': 'Brasil',
+      'nav.portugal': 'Portugal',
       'nav.tools': 'Ferramentas',
       'nav.coverage': 'Cobertura',
 
@@ -65,6 +66,9 @@
       'home.br.name': 'Brasil',
       'home.br.desc': 'Resultados de eleições gerais e municipais mapeados do país inteiro até a urna, com camadas demográficas do Censo.',
       'home.br.cta': 'Abrir portal',
+      'home.pt.name': 'Portugal',
+      'home.pt.desc': 'Legislativas, presidenciais, europeias e autárquicas desde 1975, mapeadas do país inteiro até a freguesia, com simulador de cenários.',
+      'home.pt.cta': 'Abrir portal',
       'home.soon.title': 'Novos portais',
       'home.soon.desc': 'Outros portais nacionais estão em desenvolvimento. A estrutura do ElectoMaps é a mesma para qualquer país: fonte oficial, reprocessamento e leitura geográfica fina.',
 
@@ -140,6 +144,7 @@
       'legal.privacy': 'Privacy Policy',
       'legal.manage': 'Manage cookies',
       'nav.brazil': 'Brazil',
+      'nav.portugal': 'Portugal',
       'nav.tools': 'Tools',
       'nav.coverage': 'Coverage',
 
@@ -150,6 +155,9 @@
       'home.br.name': 'Brazil',
       'home.br.desc': 'General and municipal election results mapped from the whole country down to the ballot box, with demographic layers from the Census.',
       'home.br.cta': 'Open portal',
+      'home.pt.name': 'Portugal',
+      'home.pt.desc': 'Legislative, presidential, European and local elections since 1975, mapped from the whole country down to the parish, with a scenario simulator.',
+      'home.pt.cta': 'Open portal',
       'home.soon.title': 'New portals',
       'home.soon.desc': 'Further national portals are in development. The structure of ElectoMaps is the same for any country: official source, reprocessing, and fine geographic reading.',
 
