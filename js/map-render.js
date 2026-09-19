@@ -4112,14 +4112,37 @@ function getMunicipalPolygonStyle(feature, summary) {
     };
   }
 
+  /* Daqui para baixo a feicao NAO e' a selecionada.
+
+     Com uma cidade escolhida, as outras ficam esmaecidas -- metade da
+     opacidade -- para a selecionada saltar sem que o entorno desapareca: e'
+     o entorno que da a leitura de contexto (quem venceu em volta, se a cidade
+     e' ilha ou continuacao de um bloco).
+
+     Metade da opacidade, e nao um valor fixo, porque os niveis de partida
+     ja significam coisas diferentes: 0,78 e' municipio com dado e 0,15/0,25
+     e' ausencia de dado. Um valor fixo apagaria essa distincao.
+
+     A MARGEM nao e' afetada: ela vive na COR (getUniversalGradientColor e
+     getRelativeGradientColor), nao na opacidade.
+
+     Continuam clicaveis: o maplibre testa acerto pela geometria da feicao,
+     nao pela transparencia. So `visibility: none` tiraria do alcance do
+     clique, e nao e' o que se faz aqui. */
+  const esmaecer = (estilo) => ({
+    ...estilo,
+    fillOpacity: (estilo.fillOpacity || 0) * 0.5,
+    opacity: (estilo.opacity == null ? 1 : estilo.opacity) * 0.5
+  });
+
   if (STATE.currentMapMode === 'locais') {
     const isSelectionActive = (STATE.currentElectionType === 'geral' && currentCidadeFilter !== 'all')
       || (STATE.currentElectionType === 'municipal' && !!selectedMunicipality);
     if (isSelectionActive) {
-      return {
+      return esmaecer({
         ...baseStyle,
         height: 0
-      };
+      });
     }
     return {
       ...baseStyle,
@@ -4131,7 +4154,7 @@ function getMunicipalPolygonStyle(feature, summary) {
     };
   }
 
-  return baseStyle;
+  return esmaecer(baseStyle);
 }
 
 function getMunicipalOverviewSummaryForTurn(summaryByTurn, turnoKey = getActiveTurnoKeyForCurrentCargo()) {
