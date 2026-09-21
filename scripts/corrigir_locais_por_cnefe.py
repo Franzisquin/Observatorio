@@ -152,6 +152,18 @@ MUNICIPIOS = [
     5107800,                                               # MT
 ]
 
+# Litigio territorial reconhecido. O TSE lota eleitor de um municipio em area
+# que a malha do IBGE atribui ao vizinho: nao e coordenada errada, e limite
+# divergente. Nestes pares o ponto NAO e considerado fora do lugar, e puxa-lo
+# para dentro da malha destruiria a posicao real.
+#
+# Vitoria da Conquista x Anage: 14 locais, 11 deles do MESMO distrito (Jose
+# Goncalves), formando um continuo ao norte, de 0,7 a 12,4 km alem da divisa.
+# Erro de geocodificacao nao se organiza assim, por distrito e em faixa.
+LITIGIO = {
+    2933307: {2901205},   # Vitoria da Conquista (BA) x Anage (BA)
+}
+
 MARCA = {"estabelecimento": "CNEFE 2022 (estabelecimento)",
          "escola_inep": "Catalogo de Escolas INEP",
          "localidade": "CNEFE 2022 (localidade)",
@@ -688,13 +700,21 @@ def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=(), ocupados=()
 # deteccao
 # --------------------------------------------------------------------------- #
 
-def quebrados(linhas, poligonos, cnefe=None):
+def quebrados(linhas, poligonos, cnefe=None, em_litigio=None):
     """{nr_locvot: motivo} dos locais comprovadamente errados de um municipio.
 
     `linhas`: (fid, zona, local, nome, bairro, endereco, lon, lat, tipo).
     """
     ruins = {}
+    litigioso = set()
     for r in linhas:
+        if em_litigio and em_litigio(r[6], r[7]):
+            # Area em litigio: o ponto esta no vizinho de propria conta, nao por
+            # erro. Fica de fora tanto da regra "fora do municipio" quanto da
+            # regra da distancia ao distrito -- ali o CNEFE nao tem endereco
+            # nenhum, porque a malha do IBGE da a faixa ao vizinho.
+            litigioso.add(r[2])
+            continue
         if poligonos and not dentro_do_poligono(r[6], r[7], poligonos):
             d = dist_fronteira_km(r[6], r[7], poligonos)
             if d > FORA_MIN_KM:
@@ -729,6 +749,8 @@ def quebrados(linhas, poligonos, cnefe=None):
     # Conquista e 1 de 9 em Mascote, e ZERO em Belo Campo e Feira de Santana.
     if cnefe:
         for r in linhas:
+            if r[2] in litigioso:
+                continue
             d = distrito_do_tse(r[4], cnefe)
             if not d:
                 continue
@@ -890,7 +912,7 @@ def main():
     print("simulacao (nada e escrito)\n" if simular else "")
 
     malhas, nomes = {}, {}
-    for cod in MUNICIPIOS:
+    for cod in list(MUNICIPIOS) + [v for c in MUNICIPIOS for v in LITIGIO.get(c, ())]:
         uf = UF_POR_COD[cod // 100000]
         if uf not in malhas:
             malhas[uf] = carregar_malha(uf)
@@ -939,7 +961,20 @@ def main():
                 if cod not in cnefes:
                     print(f"  CNEFE {cod} {nomes.get(cod, '')}...", flush=True)
                     cnefes[cod] = carregar_cnefe(cod)
-                ruins = quebrados(linhas, poligonos, cnefes[cod])
+
+                # Poligonos dos vizinhos em litigio com este municipio. Precisam
+                # existir ANTES da deteccao: e ela que consulta em_litigio.
+                litigio_polys = []
+                for viz in LITIGIO.get(cod, ()):
+                    pv = malhas.get(UF_POR_COD[viz // 100000], {}).get(viz)
+                    if pv:
+                        litigio_polys.append(pv)
+
+                def em_litigio(x, y, _ls=litigio_polys):
+                    return any(dentro_do_poligono(x, y, p) for p in _ls)
+
+                ruins = quebrados(linhas, poligonos, cnefes[cod],
+                                  em_litigio if litigio_polys else None)
                 if not ruins:
                     continue
                 uf_cod = UF_POR_COD[cod // 100000]
@@ -947,8 +982,14 @@ def main():
                     ineps[uf_cod] = carregar_inep(uf_cod)
                 escolas_inep = ineps[uf_cod].get(nz(nomes.get(cod, "")), [])
 
-                def dentro(x, y, _p=poligonos):
-                    return dentro_do_poligono(x, y, _p) if _p else True
+                def dentro(x, y, _p=poligonos, _ls=litigio_polys):
+                    # A area em litigio conta como territorio valido: e la que a
+                    # coordenada original do TSE cai, e ela e a boa.
+                    if _p and dentro_do_poligono(x, y, _p):
+                        return True
+                    if any(dentro_do_poligono(x, y, p) for p in _ls):
+                        return True
+                    return not _p
 
                 # Ja corrigidos neste ano/municipio: nenhuma correcao pode cair
                 # em cima de outro local -- senao trocamos uma pilha por outra.
@@ -969,7 +1010,11 @@ def main():
                         # e o centroide a levaria 9 km para longe dela.
                         orig = reposicionados.get(chave)
                         if orig and dentro(*orig) and (res is None or res[2] == "distrito"):
-                            if perto_do_distrito(cnefes[cod], r[4], *orig) is not False:
+                            # Na faixa em litigio o CNEFE nao tem endereco algum,
+                            # entao a checagem de distancia ao distrito sempre
+                            # reprovaria -- ali ela nao se aplica.
+                            if (em_litigio(*orig)
+                                    or perto_do_distrito(cnefes[cod], r[4], *orig) is not False):
                                 res = (orig[0], orig[1], "revertido", "media",
                                        "coordenada original do TSE, anterior ao "
                                        "reposicionamento por bairro")
