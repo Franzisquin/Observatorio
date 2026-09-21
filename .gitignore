@@ -145,3 +145,8 @@ resultados_geo/locais_votacao_2006.gpkg
 resultados_geo/tse_demographics_locais.json
 
 .wrangler/
+
+# CNEFE 2022 do IBGE, baixado sob demanda por scripts/corrigir_locais_por_cnefe.py
+# (um zip por municipio, grande e regeneravel). So as coordenadas corrigidas nos
+# GeoPackages e o CSV de conferencia entram no repo.
+scratch/cnefe/

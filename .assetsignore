@@ -83,6 +83,10 @@ js/apuracao-nacional.js
 js/apuracao-uf.js
 js/apuracao-ui.js
 js/locais-view.js
+# Sprite das bandeiras dos estados: so apuracao.css e js/apuracao-central.js o
+# usam, e os dois estao acima. Esta fora do git tambem, entao publicar daqui
+# poria no ar um arquivo que a outra maquina nao tem.
+bandeiras-estados.png
 
 # Fotos de candidatos de 2026: so a apuracao usa (533 arquivos, 4,2 MB).
 # ATENCAO: resultados_geo/locais_votacao/ NAO sai -- apesar do nome, o
@@ -114,3 +118,13 @@ resultados_geo/presidente_por_estado_index.json
 # linhas e devolva o bloco do link no portal.
 portugal/simulador.html
 portugal/js/pt/simulador-pt.js
+
+# --- conferencia da auditoria de locais de votacao (20/09/2026) ---
+# Saida de scripts/corrigir_locais_por_cnefe.py e de
+# scripts/corrigir_perfil_censo_dos_locais_movidos.py: o antes/depois de cada
+# coordenada e de cada perfil censitario trocado, mais um mapa de revisao.
+# Ficam no repositorio para conferencia, mas nao sao pagina do site -- e o mapa
+# expoe nome e endereco de local de votacao com a marca de erro ao lado.
+revisao_locais_cnefe.html
+resultados_geo/locais_corrigidos_cnefe.csv
+resultados_geo/perfil_censo_corrigido.csv
