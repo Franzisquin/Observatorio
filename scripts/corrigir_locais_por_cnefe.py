@@ -43,7 +43,10 @@ Um ponto so e movido quando ele esta comprovadamente quebrado:
      povoados no mesmo pixel e impossivel; ou
   3. Leva a marca de scripts/reposicionar_locais_fora_do_bairro.py, que moveu o
      ponto para o medoide dos "irmaos" de bairro -- e nestes municipios os irmaos
-     eram a propria pilha.
+     eram a propria pilha; ou
+  4. Esta a mais de 5 km de qualquer endereco do DISTRITO que o proprio ds_bairro
+     declara. E o que pega o residuo: quando a maioria da pilha ja saiu, sobram
+     dois ou tres pontos que nao formam mais pilha e continuam no bairro errado.
 
 E a coordenada nova sai, em ordem de preferencia:
 
@@ -51,19 +54,32 @@ E a coordenada nova sai, em ordem de preferencia:
                    CNEFE DENTRO DO MESMO DISTRITO do TSE. O distrito e o que
                    desempata homonimos: "POVOADO BARREIRO" existe duas vezes em
                    Vitoria da Conquista, a 90 km um do outro.
+  ESCOLA INEP      o nome casa com o Catalogo de Escolas do INEP, que traz o nome
+                   oficial. Vale menos: so 68,7% das escolas tem coordenada la.
   LOCALIDADE       o nome nao casa, mas a localidade do ENDERECO existe no CNEFE
-                   e e um aglomerado coeso (raio <= 2 km): vai para o centro dela.
-                   ds_bairro NAO serve aqui de proposito -- em zona rural ele
-                   nomeia o distrito inteiro, e o centroide de um distrito so
-                   recriaria a pilha que estamos desfazendo.
-  REVERTIDO        nada casa, mas scripts/reposicionar_locais_fora_do_bairro.py
-                   havia movido este ponto: volta para a coordenada original
-                   registrada em resultados_geo/locais_reposicionados.csv.
+                   e e um aglomerado coeso: vai para o centro dela. ds_bairro so
+                   entra aqui quando NAO nomeia um distrito -- o centroide de um
+                   distrito inteiro recriaria a pilha que estamos desfazendo.
+  REVERTIDO        reposicionar_locais_fora_do_bairro.py havia movido o ponto:
+                   volta para a coordenada original do TSE, registrada em
+                   resultados_geo/locais_reposicionados.csv. Ela vem ANTES do
+                   centro do distrito, quando cai dentro dele: e um ponto
+                   especifico, nao uma media.
+  DISTRITO         ultimo recurso. A coordenada exata nao existe em fonte alguma
+                   -- Fazenda Queimadas e Fazenda Lixa nao estao no CNEFE, nem no
+                   INEP, nem no OpenStreetMap --, mas o distrito e certo. Fica no
+                   meio dele, marcado como aproximado.
   (nenhum)         nao se mexe. Entra no CSV de revisao com o motivo.
+
+Uma vaga ocupada nao encerra a busca: o candidato e descartado e a proxima pista
+entra. Foi o que faltava para a Escola Sao Domingos I, que casava com a MESMA
+escola do CNEFE que a Sao Domingos II ja tinha levado.
 
 Toda coordenada nova e validada dentro do poligono do municipio antes de entrar,
 e nenhuma correcao pode deixar dois locais a menos de 50 m -- senao trocariamos
-uma pilha por outra.
+uma pilha por outra. Nos metodos aproximados (localidade e distrito), em vez de
+descartar, o ponto e afastado ~350 m em direcao deduzida da chave do local: duas
+escolas do mesmo povoado lado a lado e o retrato honesto, empilhadas nao e.
 
 SAIDAS
 ------
@@ -85,6 +101,7 @@ Desfazer:               git checkout -- resultados_geo/
 import collections
 import csv
 import gzip
+import hashlib
 import io
 import json
 import math
@@ -138,6 +155,7 @@ MUNICIPIOS = [
 MARCA = {"estabelecimento": "CNEFE 2022 (estabelecimento)",
          "escola_inep": "Catalogo de Escolas INEP",
          "localidade": "CNEFE 2022 (localidade)",
+         "distrito": "Centro do distrito (aproximado)",
          "revertido": "Revertido (coordenada original do TSE)"}
 # Marca deixada por scripts/reposicionar_locais_fora_do_bairro.py.
 MARCA_REPOSICIONADO = "Reposicionado no bairro (aproximado)"
@@ -145,8 +163,15 @@ MARCA_REPOSICIONADO = "Reposicionado no bairro (aproximado)"
 FORA_MIN_KM = 1.0      # abaixo disso e imprecisao de malha, nao erro de dado
 PILHA_M = 50.0         # raio que caracteriza empilhamento
 PILHA_MIN = 3          # ... com ao menos este tanto de locais
-ESPALHAMENTO_MAX_KM = 2.0  # aglomerado maior que isso e distrito, nao povoado
+# Raio maximo de um aglomerado que ainda conta como "localidade". Serve para
+# recusar o centroide de um DISTRITO inteiro, que tem dezenas de km. Povoado
+# rural de 2,5 km e normal: o Sao Domingos, com 283 enderecos e raio 2,54 km,
+# estava sendo recusado a toa e caindo no centro do distrito, 4 km adiante.
+# Os bairros urbanos de Vitoria da Conquista ficam todos abaixo de 1,4 km.
+ESPALHAMENTO_MAX_KM = 3.0
 MIN_ENDERECOS = 8      # localidade com menos enderecos nao define um centro
+ESPALHAR_KM = 0.35     # afastamento entre dois pontos aproximados na mesma area
+DISTRITO_FORA_KM = 5.0  # longe assim do proprio distrito nao e imprecisao, e erro
 
 STOP = {"ESCOLA", "ESCOLAR", "MUNICIPAL", "ESTADUAL", "COLEGIO", "CENTRO", "EDUCACIONAL",
         "GRUPO", "DE", "DA", "DO", "DOS", "DAS", "E", "ENSINO", "FUNDAMENTAL", "INFANTIL",
@@ -362,7 +387,8 @@ def carregar_cnefe(cod_municipio):
                           "_l": toks(row["DSC_LOCALIDADE"]),
                           "_lz": nz(row["DSC_LOCALIDADE"])})
     dists = distritos_ibge(cod_municipio)
-    return {"estab": estab, "loc": dict(loc), "_centro": {}, "dists": dists,
+    return {"estab": estab, "loc": dict(loc), "_centro": {}, "_centro_dist": {},
+            "dists": dists,
             "_dnome": {nz(v): k for k, v in dists.items()}}
 
 
@@ -438,6 +464,71 @@ def ponto_do_blob(blob):
     return x, y
 
 
+def livre(x, y, ocupados):
+    return all(dist_km((x, y), o) * 1000 >= PILHA_M for o in ocupados)
+
+
+def espalhar(x, y, chave, ocupados, tentativas=14):
+    """Afasta o ponto ate achar vaga, em direcao deduzida da chave do local.
+
+    So vale para metodo APROXIMADO (localidade e distrito), onde a coordenada ja
+    significa "algum ponto desta area": duas escolas do mesmo povoado a 300 m uma
+    da outra e o retrato honesto; empilhadas nao e. Para o casamento exato nao
+    se usa -- ali, colidir significa que o candidato e o mesmo estabelecimento
+    que outro local ja levou, e o certo e tentar a proxima pista.
+
+    Deterministico: rodar duas vezes da o mesmo lugar. O passo angular e o
+    angulo aureo, para os pontos se distribuirem em vez de enfileirar."""
+    h = hashlib.md5(str(chave).encode("utf-8")).digest()
+    ang0 = 2 * math.pi * (h[0] * 256 + h[1]) / 65536.0
+    for i in range(tentativas):
+        raio = ESPALHAR_KM * (1 + i * 0.5)
+        ang = ang0 + i * 2.39996323
+        nx = x + raio * math.cos(ang) / (111.32 * math.cos(math.radians(y)))
+        ny = y + raio * math.sin(ang) / 111.32
+        if livre(nx, ny, ocupados):
+            return round(nx, 7), round(ny, 7)
+    return None
+
+
+def perto_do_distrito(cnefe, ds_bairro, x, y):
+    """A coordenada e compativel com o distrito que o ds_bairro declara?
+
+    None quando nao ha distrito declarado -- nada a afirmar."""
+    d = distrito_do_tse(ds_bairro, cnefe)
+    if not d:
+        return None
+    pts = nuvem_do_distrito(cnefe, d)
+    if not pts:
+        return None
+    return min(dist_km((x, y), p) for p in pts) <= DISTRITO_FORA_KM
+
+
+def nuvem_do_distrito(cnefe, dist):
+    """Amostra dos enderecos do CNEFE no distrito, para medir distancia ate ele."""
+    ch = ("_nuvem", dist)
+    if ch in cnefe["_centro_dist"]:
+        return cnefe["_centro_dist"][ch]
+    pts = [p for (d, _), v in cnefe["loc"].items() if d == dist for p in v]
+    am = pts[::max(1, len(pts) // 400)] if len(pts) >= MIN_ENDERECOS else []
+    cnefe["_centro_dist"][ch] = am
+    return am
+
+
+def centro_distrito(cnefe, dist):
+    """(x, y, n) do centro do distrito: medoide dos enderecos do CNEFE nele."""
+    if dist in cnefe["_centro_dist"]:
+        return cnefe["_centro_dist"][dist]
+    pts = [p for (d, _), v in cnefe["loc"].items() if d == dist for p in v]
+    res = None
+    if len(pts) >= MIN_ENDERECOS:
+        amostra = pts[::max(1, len(pts) // 300)]
+        m = min(amostra, key=lambda p: sum(dist_km(p, q) for q in amostra))
+        res = (m[0], m[1], len(pts))
+    cnefe["_centro_dist"][dist] = res
+    return res
+
+
 def centro_localidade(cnefe, chave):
     """(x, y, n, raio_km) da localidade, ou None se ela nao for um aglomerado."""
     if chave in cnefe["_centro"]:
@@ -455,8 +546,28 @@ def centro_localidade(cnefe, chave):
     return res
 
 
-def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=()):
-    """-> (x, y, metodo, confianca, evidencia) ou None."""
+def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=(), ocupados=(), chave=""):
+    """-> (x, y, metodo, confianca, evidencia) ou None.
+
+    As pistas sao tentadas em ordem de precisao, e uma vaga ocupada nao encerra a
+    busca: o candidato e descartado e a proxima pista entra. Foi o que faltava
+    para a Escola Sao Domingos I, que casava com a MESMA escola do CNEFE que a
+    Sao Domingos II ja tinha levado e por isso ficava sem nada -- agora ela cai
+    no povoado Sao Domingos, ao lado da irma."""
+
+    def colocar(x, y, metodo, conf, desc, aproximado=False):
+        """Confere municipio e vaga. Metodo aproximado pode ser afastado."""
+        if not dentro(x, y):
+            return None
+        if livre(x, y, ocupados):
+            return x, y, metodo, conf, desc
+        if not aproximado:
+            return None
+        p = espalhar(x, y, chave, ocupados)
+        if p:
+            return p[0], p[1], metodo, conf, desc + " | afastado do vizinho"
+        return None
+
     nt, nzv = toks(nm_locvot), nz(nm_locvot)
     l_end, l_bai = limpa_loc(ds_endereco), limpa_loc(ds_bairro)
     t_end, t_bai = toks(l_end), toks(l_bai)
@@ -495,7 +606,10 @@ def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=()):
                     or (restrito and ns >= 0.66 and margem >= 0.2)):
                 conf = "alta" if (ls >= 0.6 or (restrito and ns >= 0.95)) else "media"
                 onde = sufixo if restrito else ""
-                return e["x"], e["y"], "estabelecimento", conf, f"{e['nome']} [{e['loc']}]{onde}"
+                r = colocar(e["x"], e["y"], "estabelecimento", conf,
+                            f"{e['nome']} [{e['loc']}]{onde}")
+                if r:
+                    return r
 
     # Catalogo do INEP: o nome oficial da escola. Vale menos que o CNEFE porque
     # nao traz distrito e o ano e 2020, entao o limiar e o cheio.
@@ -512,8 +626,10 @@ def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=()):
             s, ns, ls, e = rank[0]
             margem = s - (rank[1][0] if len(rank) > 1 else 0.0)
             if (ns >= 0.95 and ls >= 0.5) or (ns >= 0.95 and margem >= 0.3):
-                return (e["x"], e["y"], "escola_inep", "alta" if ls >= 0.5 else "media",
-                        f"INEP: {e['nome']} [{e['endereco'][:44]}]")
+                r = colocar(e["x"], e["y"], "escola_inep", "alta" if ls >= 0.5 else "media",
+                            f"INEP: {e['nome']} [{e['endereco'][:44]}]")
+                if r:
+                    return r
 
     # Fallback posicional: centro da localidade, e so se ela for um aglomerado
     # coeso. O distrito continua sendo filtro duro aqui -- e ele que impede o
@@ -542,10 +658,29 @@ def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=()):
         for ch in (sorted(exatas, key=lambda k: -len(cnefe["loc"][k]))
                    + sorted(proximas, key=lambda k: -len(cnefe["loc"][k]))):
             c = centro_localidade(cnefe, ch)
-            if c and dentro(c[0], c[1]):
-                aprox = "" if ch in exatas else " ~"
-                return (c[0], c[1], "localidade", "media",
-                        f"localidade {ch[1]}{aprox} ({c[2]} enderecos, raio {c[3]:.1f} km){sufixo}")
+            if not c:
+                continue
+            aprox = "" if ch in exatas else " ~"
+            r = colocar(c[0], c[1], "localidade", "media",
+                        f"localidade {ch[1]}{aprox} ({c[2]} enderecos, raio {c[3]:.1f} km){sufixo}",
+                        aproximado=True)
+            if r:
+                return r
+
+    # Ultimo recurso: o centro do distrito. A coordenada exata nao existe em
+    # fonte nenhuma -- Fazenda Queimadas e Fazenda Lixa nao aparecem no CNEFE
+    # nem no INEP nem no OpenStreetMap --, mas o DISTRITO e certo: vem do
+    # ds_bairro do TSE cruzado com os distritos do IBGE. No meio do distrito
+    # certo e uma aproximacao assumida; dentro de um bairro urbano a 30 km dele
+    # e um erro que contamina o perfil censitario e a area de ponderacao.
+    if dist:
+        c = centro_distrito(cnefe, dist)
+        if c:
+            r = colocar(c[0], c[1], "distrito", "baixa",
+                        f"centro do distrito {nome_dist} ({c[2]} enderecos)",
+                        aproximado=True)
+            if r:
+                return r
     return None
 
 
@@ -553,7 +688,7 @@ def casar(nm_locvot, ds_endereco, ds_bairro, cnefe, dentro, inep=()):
 # deteccao
 # --------------------------------------------------------------------------- #
 
-def quebrados(linhas, poligonos):
+def quebrados(linhas, poligonos, cnefe=None):
     """{nr_locvot: motivo} dos locais comprovadamente errados de um municipio.
 
     `linhas`: (fid, zona, local, nome, bairro, endereco, lon, lat, tipo).
@@ -581,6 +716,29 @@ def quebrados(linhas, poligonos):
         if len(rurais) >= PILHA_MIN and len(locs) >= PILHA_MIN:
             ruins.setdefault(r[2], f"pilha de {len(perto)} locais em {PILHA_M:.0f} m "
                                    f"({len(locs)} localidades rurais distintas)")
+
+    # Local que declara um distrito no ds_bairro mas esta longe de qualquer
+    # endereco dele. E o que pega o RESIDUO da pilha: quando a maioria ja saiu,
+    # sobram dois ou tres pontos que nao formam mais "pilha" pelo criterio de
+    # cima, e continuam no bairro errado. Foi o caso das escolas Fazenda
+    # Queimadas e Fazenda Lixa (Inhobim) e Sao Domingos I (Sao Sebastiao), que
+    # ficaram em Candeias a 33 km do proprio distrito.
+    #
+    # "DISTRITO SEDE" nao entra: distrito_do_tse o trata como rotulo de recuo,
+    # sem afirmacao de lugar. Medido: pega 11 de 142 locais em Vitoria da
+    # Conquista e 1 de 9 em Mascote, e ZERO em Belo Campo e Feira de Santana.
+    if cnefe:
+        for r in linhas:
+            d = distrito_do_tse(r[4], cnefe)
+            if not d:
+                continue
+            pts = nuvem_do_distrito(cnefe, d)
+            if not pts:
+                continue
+            longe = min(dist_km((r[6], r[7]), p) for p in pts)
+            if longe > DISTRITO_FORA_KM:
+                ruins.setdefault(r[2], f"a {longe:.0f} km do distrito "
+                                       f"{cnefe['dists'].get(d, d)}, que o endereco declara")
     return ruins
 
 
@@ -776,12 +934,14 @@ def main():
                     (cod,)) if r[6] is not None]
                 if not linhas:
                     continue
-                ruins = quebrados(linhas, poligonos)
-                if not ruins:
-                    continue
+                # O CNEFE entra ANTES da deteccao: um dos criterios e a
+                # distancia ate o proprio distrito, e o distrito vem dele.
                 if cod not in cnefes:
                     print(f"  CNEFE {cod} {nomes.get(cod, '')}...", flush=True)
                     cnefes[cod] = carregar_cnefe(cod)
+                ruins = quebrados(linhas, poligonos, cnefes[cod])
+                if not ruins:
+                    continue
                 uf_cod = UF_POR_COD[cod // 100000]
                 if uf_cod not in ineps:
                     ineps[uf_cod] = carregar_inep(uf_cod)
@@ -799,10 +959,17 @@ def main():
                         continue
                     chave = chave_local(cod, r[1], r[2])
                     if chave not in decidido:
-                        res = casar(r[3], r[5], r[4], cnefes[cod], dentro, escolas_inep)
-                        if res is None:
-                            orig = reposicionados.get(chave)
-                            if orig and dentro(*orig):
+                        res = casar(r[3], r[5], r[4], cnefes[cod], dentro, escolas_inep,
+                                    ocupados, chave)
+                        # A coordenada original do TSE, quando existe e cai dentro
+                        # do distrito declarado, vale MAIS que o centro do
+                        # distrito: e um ponto especifico, nao uma media. Por
+                        # isso ela tambem desbanca o metodo "distrito" -- a
+                        # Escola Genny Fernandes tem original a 0 km do Inhobim,
+                        # e o centroide a levaria 9 km para longe dela.
+                        orig = reposicionados.get(chave)
+                        if orig and dentro(*orig) and (res is None or res[2] == "distrito"):
+                            if perto_do_distrito(cnefes[cod], r[4], *orig) is not False:
                                 res = (orig[0], orig[1], "revertido", "media",
                                        "coordenada original do TSE, anterior ao "
                                        "reposicionamento por bairro")
