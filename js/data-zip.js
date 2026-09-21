@@ -773,21 +773,25 @@ function aggregateVotesFromResults(resultsByLocation) {
   return totals;
 }
 
+const MUNICIPAL_OFFICIAL_TOTALS_YEARS = new Set(
+  ['2024', '2020', '2016', '2012', '2008', '2004', '2000']);
+
+/* Os totais OFICIAIS do TSE por municipio sao a melhor fonte enquanto a selecao
+   for o municipio inteiro: fecham com o oficial, inclusive os votos de locais
+   que nao geolocalizaram. Com qualquer filtro que ESTREITE os locais eles
+   passam a mentir -- o painel mostraria o total cheio enquanto o mapa ja mostra
+   o recorte.
+
+   Quem responde "algum filtro estreita os locais?" e hasActivePollingPlaceFilter,
+   e e ele que tem de mandar aqui. A lista de checagens que existia neste lugar
+   era uma copia incompleta: faltavam o filtro de REGIAO e o de desempenho.
+   Faltando a regiao, entrar numa area de ponderacao na eleicao municipal ligava
+   isFilterAggregationActive, nao batia em nenhuma das checagens e caia nos
+   totais do municipio -- o mapa e o subtitulo mostravam a area, o numero era da
+   cidade inteira. Valia para prefeito e vereador, em todos os anos. */
 function shouldUseMunicipalOfficialTotals() {
-  const censusFilters = STATE.censusFilters || {};
-  const hasActiveCensusFilters = [
-    censusFilters.rendaMin,
-    censusFilters.rendaMax,
-    censusFilters.racaVal,
-    censusFilters.idadeVal,
-    censusFilters.escolaridadeVal,
-    censusFilters.saneamentoVal
-  ].some((value) => value !== null && value !== undefined && Number(value) > 0);
-  const year = String(STATE.currentElectionYear);
-  return (year === '2024' || year === '2020' || year === '2016' || year === '2012' || year === '2008' || year === '2004' || year === '2000')
+  return MUNICIPAL_OFFICIAL_TOTALS_YEARS.has(String(STATE.currentElectionYear))
     && STATE.currentElectionType === 'municipal'
     && STATE.isFilterAggregationActive
-    && !hasActiveCensusFilters
-    && currentBairroFilter === 'all'
-    && !currentLocalFilter;
+    && !hasActivePollingPlaceFilter();
 }

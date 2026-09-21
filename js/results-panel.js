@@ -33,7 +33,12 @@ function updateSelectionUI(isFilterAggregation = false) {
         dom.resultsTitle.textContent = `Filtro • ${censusLabel}`;
         dom.resultsSubtitle.textContent = `${count} locais encontrados neste perfil`;
       } else {
-        let title = dom.selectMunicipio.value;
+        // Dentro de uma area de ponderacao quem nomeia a selecao e a AREA, nao
+        // o municipio -- igual ao ramo geral logo abaixo. Sem isto o painel
+        // dizia "VITORIA DA CONQUISTA" com os numeros de uma area dela.
+        const regionalLabel = (typeof getRegionalFilterSummaryLabel === 'function')
+          ? getRegionalFilterSummaryLabel() : '';
+        let title = regionalLabel || dom.selectMunicipio.value;
         if (currentBairroFilter !== 'all') title += ` • ${currentBairroFilter}`;
         dom.resultsTitle.textContent = title;
         dom.resultsSubtitle.textContent = `${count} locais agregados`;
