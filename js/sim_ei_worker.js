@@ -536,6 +536,24 @@ function apoioDemografico(idx, cur, np, alvoDims) {
    ancorada no apoio OBSERVADO (reestimado agora, pos-geral), nao num baseline
    estatico. A versao multiplicativa (alvo/base) explodia grupos concentrados e
    roubava votos das outras dimensoes. */
+/* Replay determinista, do recorte mais amplo para o mais especifico:
+     nacional -> macrorregiao -> UF -> RG intermediaria -> RG imediata ->
+     municipio. O mais especifico sempre vence, porque e aplicado depois.
+     No modo governador so os tres ultimos niveis aparecem.
+
+   Estava dentro do handler de compute; subiu para o escopo do modulo quando o
+   2o turno passou a aplicar ops tambem -- os dois turnos tem de usar a MESMA
+   ordem, ou o mesmo conjunto de ajustes daria resultados diferentes. */
+const RANK_ESCOPO = { nacional: 0, mr: 1, uf: 2, ri: 3, rgi: 4, municipio: 5 };
+function rankDe(o) {
+  const s = o.scope || {};
+  if (s.level === 'regiao') return RANK_ESCOPO[s.nivel] != null ? RANK_ESCOPO[s.nivel] : RANK_ESCOPO.mr;
+  return RANK_ESCOPO[s.level] != null ? RANK_ESCOPO[s.level] : 9;
+}
+function ordenarOps(lista) {
+  return (lista || []).slice().sort((a, b) => rankDe(a) - rankDe(b));
+}
+
 function aplicarOp(cur, op, np, iNulo, iAbst) {
   const idx = afetados(op.scope);
   if (idx !== null && !idx.length) return;
@@ -980,23 +998,17 @@ function turno2(msg) {
     }
   }
 
-  const brasil = new Float64Array(np);
-  const porUf = {}, porMuni = {};
-  for (const uf in fatiaUf) {
-    if (gov && uf !== gov.uf) continue;
-    porUf[uf] = { aptos: 0, votos: new Float64Array(np) };
-  }
-
+  // As acumuladoras manuais sairam daqui: quem agrega agora e agregar(), e ele
+  // roda depois dos ops do 2o turno.
   const saida = new Float64Array(np);
   const linha = new Float64Array(4);
-  let aptosBR = 0;
   // Guarda a superficie do 2o turno por local, para o mapa de locais poder
   // mostrar o 2o turno com a mesma transferencia diferenciada por grupo.
   ultimoCur2T = new Float64Array(N * np);
 
   const [ini2, fim2] = faixa();
   for (let i = ini2; i < fim2; i++) {
-    const vb = i * np, fb = i * NB, tot = aptosArr[i];
+    const vb = i * np, fb = i * NB;
     saida.fill(0);
     saida[iA] = ultimoCur[vb + iA];
     saida[iB] = ultimoCur[vb + iB];
@@ -1035,27 +1047,22 @@ function turno2(msg) {
       saida[iAbst] += v * g[3];
     }
 
-    const uf = ufDeIdx[i], cod = codIbge[i];
-    const u = porUf[uf];
-    u.aptos += tot;
-    aptosBR += tot;
-    let m = porMuni[cod];
-    if (!m) m = porMuni[cod] = { uf, aptos: 0, votos: new Float64Array(np) };
-    m.aptos += tot;
-    for (let p = 0; p < np; p++) {
-      brasil[p] += saida[p];
-      u.votos[p] += saida[p];
-      m.votos[p] += saida[p];
-      ultimoCur2T[vb + p] = saida[p];
-    }
+    // So preenche a superficie transferida. A agregacao vem depois dos ops:
+    // agregar antes faria o ajuste do 2o turno nao aparecer no resultado.
+    for (let p = 0; p < np; p++) ultimoCur2T[vb + p] = saida[p];
   }
 
-  const arr = o => ({ aptos: o.aptos, votos: Array.from(o.votos, v => Math.round(v)) });
-  return {
-    brasil: { aptos: aptosBR, votos: Array.from(brasil, v => Math.round(v)) },
-    ufs: Object.fromEntries(Object.entries(porUf).map(([k, v]) => [k, arr(v)])),
-    municipios: Object.fromEntries(Object.entries(porMuni).map(([k, v]) => [k, arr(v)]))
-  };
+  /* Ajustes de escopo DO 2o TURNO, sobre a superficie ja transferida.
+     Mesmo aplicarOp do 1o turno, mesma ordem de rank -- o que muda e a base:
+     la e a votacao do 1o turno, aqui e a que sobrou depois da transferencia. */
+  const ops2T = ordenarOps(msg.ops2T);
+  for (let o = 0; o < ops2T.length; o++) {
+    aplicarOp(ultimoCur2T, ops2T[o], np, iNulo, iAbst);
+  }
+
+  // agregar() produz a mesma forma que a agregacao manual que estava aqui, e ja
+  // trata o recorte do modo governador.
+  return agregar(ultimoCur2T, np, msg.detailUfs);
 }
 
 // --------------------------------------------------------------- mensagens
@@ -1073,13 +1080,7 @@ function calcular(msg) {
         nacional -> macrorregiao -> UF -> RG intermediaria -> RG imediata ->
         municipio. O mais especifico sempre vence, porque e aplicado depois.
         No modo governador so os tres ultimos niveis aparecem. */
-  const rank = { nacional: 0, mr: 1, uf: 2, ri: 3, rgi: 4, municipio: 5 };
-  const rankDe = (o) => {
-    const s = o.scope || {};
-    if (s.level === 'regiao') return rank[s.nivel] != null ? rank[s.nivel] : rank.mr;
-    return rank[s.level] != null ? rank[s.level] : 9;
-  };
-  const ops = (msg.ops || []).slice().sort((a, b) => rankDe(a) - rankDe(b));
+  const ops = ordenarOps(msg.ops);
   for (let o = 0; o < ops.length; o++) {
     aplicarOp(cur, ops[o], np, iNulo, iAbst);
     progresso(0.2 + 0.6 * (o + 1) / ops.length, 'Aplicando ajustes');

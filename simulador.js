@@ -114,6 +114,14 @@ const SIM = {
   transfer: {},            // origem -> { colKey: pct 0..100 }
 
   ops: new Map(),          // chaveEscopo -> { scope, validos, abstencao, nuloBranco, demo }
+  /* Ajustes de escopo do 2o TURNO, separados dos do 1o.
+
+     Mapa proprio, e nao turno na chave de SIM.ops, porque os dois seguem
+     caminhos diferentes: os do 1o turno vao ao worker no "compute" e sao a
+     base da simulacao; os do 2o vao no "turno2" e sao aplicados depois da
+     transferencia, sobre o que sobrou dela. Misturar os dois num mapa so
+     obrigaria a filtrar em todo lugar que le ops. */
+  ops2T: new Map(),
   escopo: { level: 'nacional' },
 
   // Assistente: a projecao base so existe depois que migracao e macrorregioes
@@ -532,10 +540,34 @@ function rotuloEscopo(e) {
   if (e.level === 'regiao') return e.nome || 'Região';
   return SIM.nomesMuni[e.ibges && e.ibges[0]] || 'Município';
 }
+/* O mapa de ops do turno em tela. */
+function opsDoTurno() {
+  return SIM.turno === 2 ? SIM.ops2T : SIM.ops;
+}
+
+/* Colunas que o painel "Ajustar escopo" deixa editar.
+
+   No 2o turno so os dois finalistas disputam os validos -- os demais ja
+   foram transferidos. Mostrar todos ali daria a impressao de que se pode
+   devolver voto a quem nao passou. */
+function colunasAjustaveis() {
+  if (SIM.turno !== 2) return simColunasValidas();
+  const fin = SIM.t2.finalistasAtivos || simFinalistas();
+  return simColunasValidas().filter(c => fin.includes(c.key));
+}
+
+/* Ops manuais do 2o turno, no formato do worker. Sem os regionais: aqueles
+   sao a estrutura da projecao base, que e do 1o turno. */
+function ops2TArray() {
+  return Array.from(SIM.ops2T.values()).filter(
+    o => o.validos || o.abstencao != null || o.nuloBranco != null);
+}
+
 function opDoEscopo(e, criar = false) {
+  const mapa = opsDoTurno();
   const k = chaveEscopo(e);
-  let op = SIM.ops.get(k);
-  if (!op && criar) { op = { scope: e, general: null, demo: {} }; SIM.ops.set(k, op); }
+  let op = mapa.get(k);
+  if (!op && criar) { op = { scope: e, general: null, demo: {} }; mapa.set(k, op); }
   return op;
 }
 /* Ordem de construcao da simulacao:
@@ -988,7 +1020,8 @@ async function simCalcular2T() {
   }
 
   const r = await simEnviar({
-    type: 'turno2', finalistas: [iA, iB], iNulo, iAbst, matriz, porGrupo
+    type: 'turno2', finalistas: [iA, iB], iNulo, iAbst, matriz, porGrupo,
+    ops2T: ops2TArray()
   });
   SIM.agregado2T = (r && r.agregado) || null;
   SIM._selo2T = (SIM._selo2T || 0) + 1;
@@ -2586,9 +2619,9 @@ function renderAbaAjustar(res) {
     document.getElementById('btnAjNacional').addEventListener('click', () => abrirModal(paneBase()));
     return;
   }
-  const validas = simColunasValidas();
+  const validas = colunasAjustaveis();
   const ent = entradasDe(res);
-  const op = SIM.ops.get(chaveEscopo(SIM.escopo));
+  const op = opsDoTurno().get(chaveEscopo(SIM.escopo));
   const temOp = !!(op && (op.validos || op.abstencao != null || op.nuloBranco != null));
 
   const validosTot = validas.reduce((s, c) => {
@@ -2606,7 +2639,7 @@ function renderAbaAjustar(res) {
     : (ent.find(x => x.key === 'nuloBranco') || {}).pctAptos || 0;
 
   el.innerHTML = `
-    <p class="sim-hint">Meta para <strong>${escapeHtml(rotuloEscopo(SIM.escopo))}</strong>.
+    <p class="sim-hint">Meta para <strong>${escapeHtml(rotuloEscopo(SIM.escopo))}</strong>${SIM.turno === 2 ? ', no 2º turno' : ''}.
        Os candidatos dividem 100% dos votos válidos; abstenção e nulos são
        definidos à parte, sobre o eleitorado apto. Dentro do recorte, os locais
        de votação são reescalonados proporcionalmente — as diferenças entre eles
@@ -2688,11 +2721,19 @@ function renderAbaAjustar(res) {
     o.validos = vet;
     o.abstencao = (parseFloat(el.querySelector('.sim-slider-val[data-tn="abstencao"]').value) || 0) / 100;
     o.nuloBranco = (parseFloat(el.querySelector('.sim-slider-val[data-tn="nuloBranco"]').value) || 0) / 100;
-    await simCalcular();
+    if (SIM.turno === 2) {
+      // O 1o turno nao muda: refazer a transferencia basta, e e muito mais barato
+      // que recalcular a simulacao inteira.
+      await simCalcular2T();
+      salvarLocal();
+      simRenderTudo();
+    } else {
+      await simCalcular();
+    }
   });
   const lb = document.getElementById('btnLimparAjuste');
   if (lb) lb.addEventListener('click', async () => {
-    SIM.ops.delete(chaveEscopo(SIM.escopo));
+    opsDoTurno().delete(chaveEscopo(SIM.escopo));
     await simCalcular();
   });
 }
@@ -2840,6 +2881,15 @@ function simRenderMapa() {
     return simRenderMapaTodosMunicipios();
   }
 
+  // Macrorregiao usa a malha estadual: as 5 sao unioes de estados.
+  if (modo === 'mr') return simRenderMapaMacro();
+
+  // RG intermediaria e imediata: a UF aberta, ou o pais inteiro.
+  if (modo === 'ri' || modo === 'rgi') {
+    if (SIM.selectedUF) return simRenderMapaRegioes(SIM.selectedUF, modo);
+    return simRenderMapaRegioesNacional(modo);
+  }
+
   if (SIM.selectedUF) return simRenderMapaMunicipios(SIM.selectedUF);
   return simRenderMapaEstados();
 }
@@ -2852,7 +2902,8 @@ function simRenderModoMapa() {
   if (!box) return;
   const opcoes = ehGov()
     ? [['ri', 'RG interm.'], ['rgi', 'RG imediatas'], ['municipio', 'Municípios']]
-    : [['estado', 'Estado'], ['municipio', 'Município']];
+    : [['estado', 'Estado'], ['mr', 'Região'], ['ri', 'RG interm.'],
+       ['rgi', 'RG imediatas'], ['municipio', 'Município']];
   if (!opcoes.some(([v]) => v === SIM.modoMapa)) SIM.modoMapa = opcoes[0][0];
   box.innerHTML = opcoes.map(([v, rot]) =>
     `<button class="sim-mode-btn ${v === SIM.modoMapa ? 'active' : ''}" data-mode="${v}"
@@ -3002,6 +3053,123 @@ function limparCamadas(exceto) {
   ['estadosLayer', 'municipiosLayer', 'locaisLayer', 'regioesLayer'].forEach(k => {
     if (k !== exceto && SIM[k]) { simMap.removeLayer(SIM[k]); SIM[k] = null; }
   });
+}
+
+/* Macrorregiao: a malha ESTADUAL pintada com o resultado da macrorregiao de
+   cada estado. Nao ha malha de macrorregiao no acervo e nao precisa haver --
+   toda fronteira de macrorregiao e fronteira de estado.
+
+   O vinculo estado -> macrorregiao sai do proprio codigo do IBGE: o primeiro
+   digito de CD_UF e o codigo da macrorregiao (RS=43 -> 4 Sul; SP=35 -> 3
+   Sudeste). Conferido contra regioes_ibge.json: a regra vale para os 5.570
+   municipios. Assim nao e preciso nem tabela estatica nem indice novo. */
+function simRenderMapaMacro() {
+  limparCamadas('estadosLayer');
+  if (!SIM.estadosGeoJSON) return;
+  const ag = agregadoAtivo();
+  if (SIM.estadosLayer) { simMap.removeLayer(SIM.estadosLayer); SIM.estadosLayer = null; }
+
+  const porCodigo = new Map(listaRegioes('mr').map(r => [String(r.codigo), r]));
+  const macroDe = (props) => String(props.CD_UF || "")[0] || "";
+
+  // Uma macrorregiao soma milhares de municipios: cacheia por codigo, senao
+  // cada uma das 27 feicoes refaz a mesma conta.
+  const cache = new Map();
+  const resDe = (cd) => {
+    if (cache.has(cd)) return cache.get(cd);
+    const reg = porCodigo.get(cd);
+    const res = (reg && ag) ? resultadoDoEscopo({ level: 'regiao', ibges: reg.munis }, ag) : null;
+    cache.set(cd, res);
+    return res;
+  };
+
+  SIM.estadosLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-macro', type: 'polygon', tooltipClass: 'district-nyt-tooltip',
+    styleFn: f => {
+      const res = resDe(macroDe(f.properties));
+      return {
+        fillColor: corDoResultado(res),
+        fillOpacity: res && res.aptos > 0 ? 0.78 : 0.25,
+        color: corDeContorno(),
+        weight: 0.12,
+        opacity: 0.8
+      };
+    },
+    tooltipFn: f => {
+      const cd = macroDe(f.properties);
+      const reg = porCodigo.get(cd);
+      return tooltipResultado((reg && reg.nome) || 'Região', resDe(cd));
+    },
+    onClick: f => simSelecionarUF(f.properties.SIGLA_UF)
+  });
+  SIM.estadosLayer.setFeatures(SIM.estadosGeoJSON.features || []);
+  SIM.estadosLayer.addTo(simMap);
+  const b = SIM.estadosLayer.getBounds();
+  if (b.isValid()) MLCompat.fitMapToBounds(simMap, b, { animate: false });
+  simRenderLegenda();
+  scheduleSimMapRefresh();
+}
+
+/* RG intermediaria ou imediata no pais inteiro: as 27 malhas por UF buscadas
+   e concatenadas. Os codigos de regiao do IBGE nao colidem entre estados,
+   entao as feicoes entram todas na mesma camada. Somadas dao 2,5 MB (ri) ou
+   4,2 MB (rgi), buscadas uma vez e guardadas em SIM.regiaoGeoCache. */
+async function simRenderMapaRegioesNacional(nivel) {
+  const ag = agregadoAtivo();
+  const pasta = nivel === 'rgi' ? 'regioes_rgi' : 'regioes_rgint';
+  const selo = nivel + ":BR";
+  SIM.regiaoGeoCache = SIM.regiaoGeoCache || {};
+  if (!SIM.regiaoGeoCache[selo]) {
+    const partes = await Promise.all(ALL_UFS.map(uf =>
+      fetchJSON(DATA_BASE_URL + pasta + "/" + pasta + "_" + uf + ".geojson").catch(() => null)));
+    const feats = partes.flatMap(p => (p && p.features) || []);
+    SIM.regiaoGeoCache[selo] = feats.length ? { type: 'FeatureCollection', features: feats } : null;
+  }
+  const geo = SIM.regiaoGeoCache[selo];
+  // Sem malha nenhuma o mapa nao pode ficar vazio: volta para os estados.
+  if (!geo) return simRenderMapaEstados();
+
+  const porCodigo = new Map(listaRegioes(nivel).map(r => [String(r.codigo), r]));
+  const cache = new Map();
+  const resDe = (cd) => {
+    if (cache.has(cd)) return cache.get(cd);
+    const reg = porCodigo.get(String(cd));
+    const res = (reg && ag) ? resultadoDoEscopo({ level: 'regiao', ibges: reg.munis }, ag) : null;
+    cache.set(cd, res);
+    return res;
+  };
+
+  limparCamadas('regioesLayer');
+  if (SIM.regioesLayer) { simMap.removeLayer(SIM.regioesLayer); SIM.regioesLayer = null; }
+
+  SIM.regioesLayer = new MLCompat.GeoLayer(simMap, {
+    id: 'sim-regioes', type: 'polygon', tooltipClass: 'district-nyt-tooltip',
+    styleFn: f => {
+      const res = resDe(String(f.properties.CD_REG));
+      return {
+        fillColor: corDoResultado(res),
+        fillOpacity: res && res.aptos > 0 ? 0.78 : 0.25,
+        color: corDeContorno(),
+        weight: 0.25,
+        opacity: 0.8
+      };
+    },
+    tooltipFn: f => {
+      const reg = porCodigo.get(String(f.properties.CD_REG));
+      return tooltipResultado((reg && reg.nome) || f.properties.NM_REG || 'Região',
+        resDe(String(f.properties.CD_REG)));
+    },
+    onClick: f => {
+      const reg = porCodigo.get(String(f.properties.CD_REG));
+      if (reg) simSelecionarRegiao(nivel, reg.codigo);
+    }
+  });
+  SIM.regioesLayer.setFeatures(geo.features || []);
+  SIM.regioesLayer.addTo(simMap);
+  const b = SIM.regioesLayer.getBounds();
+  if (b.isValid()) MLCompat.fitMapToBounds(simMap, b, { animate: false });
+  simRenderLegenda();
+  scheduleSimMapRefresh();
 }
 
 function simRenderMapaEstados() {
@@ -3325,6 +3493,8 @@ function cenarioSerializado() {
     proxId: SIM.proxId,
     transfer: SIM.transfer,
     ops: Array.from(SIM.ops.values()),
+    ops2T: Array.from(SIM.ops2T.values()),
+    turno: SIM.turno,
     pesosRegiao: SIM.pesosRegiao,
     regiaoTocada: SIM.regiaoTocada,
     baseGerada: SIM.baseGerada,
@@ -3380,6 +3550,7 @@ function restaurarLocal() {
   if (!origens.every(o => SIM.transfer[o])) SIM.transfer = simTransferPadrao();
 
   SIM.ops = new Map((c.ops || []).map(o => [chaveEscopo(o.scope), o]));
+  SIM.ops2T = new Map((c.ops2T || []).map(o => [chaveEscopo(o.scope), o]));
   SIM.pesosRegiao = c.pesosRegiao || {};
   SIM.regiaoTocada = c.regiaoTocada || {};
   SIM.baseGerada = !!c.baseGerada;
@@ -3390,6 +3561,10 @@ function restaurarLocal() {
     SIM.t2.chaveMatriz = c.t2.chaveMatriz || null;
     SIM.t2.porGrupo = c.t2.porGrupo || null;
   }
+  /* O turno em tela tambem e' parte do cenario: quem salvou olhando o 2o
+     turno espera voltar nele. Sem isto SIM.turno ficava no 1, e os ajustes do
+     2o turno pareciam nao ter sido salvos -- estavam la, so nao apareciam. */
+  if (c.turno === 2) SIM.turno = 2;
   return true;
 }
 function carregarCenarioJSON(file) {
