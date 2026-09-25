@@ -295,7 +295,6 @@ async function init() {
 
   dom.selectUFMunicipal = document.getElementById('selectUFMunicipal');
   dom.selectMunicipio = document.getElementById('selectMunicipio');
-  dom.searchMunicipio = document.getElementById('searchMunicipio');
   dom.cargoBoxMunicipal = document.getElementById('cargoBoxMunicipal'); // Ord/Sup
   dom.cargoChipsMunicipal = document.getElementById('cargoChipsMunicipal');
   dom.officeBoxMunicipal = document.getElementById('officeBoxMunicipal'); // Prefeito/Vereador

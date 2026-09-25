@@ -471,10 +471,6 @@ function setupControls() {
 
     const hasMunis = municipios.length > 0;
     dom.selectMunicipio.disabled = !hasMunis;
-    if (dom.searchMunicipio) {
-      dom.searchMunicipio.disabled = !hasMunis;
-      dom.searchMunicipio.value = '';
-    }
     if (!hasMunis && uf) {
       dom.selectMunicipio.innerHTML = '<option value="" disabled selected>Dados não indexados</option>';
     }
@@ -852,22 +848,6 @@ function setupControls() {
     debouncedAutoApplyFilters();
   });
 
-  const addSearchFilter = (inputEl, selectEl) => {
-    if (!inputEl || !selectEl) return;
-    inputEl.addEventListener('keyup', () => {
-      const searchTerm = norm(inputEl.value);
-      const options = selectEl.querySelectorAll('option');
-      options.forEach(opt => {
-        if (opt.value === 'all' || opt.value === '') {
-          opt.style.display = '';
-          return;
-        }
-        const optText = norm(opt.textContent);
-        opt.style.display = optText.includes(searchTerm) ? '' : 'none';
-      });
-    });
-  };
-  
   if (dom.inputBairro) {
     dom.inputBairro.addEventListener('change', (e) => {
       currentBairroFilter = e.target.value;
@@ -875,9 +855,6 @@ function setupControls() {
       if (typeof applyFiltersAndRedraw === 'function') applyFiltersAndRedraw();
     });
   }
-  // Removed old calls for Cidade/Bairro
-  addSearchFilter(dom.searchMunicipio, dom.selectMunicipio);
-
 
   if (dom.btnToggleInaptos) {
     dom.btnToggleInaptos.addEventListener('click', () => {
