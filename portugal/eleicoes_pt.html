@@ -39,7 +39,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Spectral:ital,wght@0,500;0,600;0,700;1,500&display=swap"
     rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=20260907a" />
+  <link rel="stylesheet" href="style.css?v=20260929c" />
 </head>
 
 <body data-theme="dark">
@@ -148,12 +148,17 @@
                 <option value="n1:Região Autónoma dos Açores">Açores</option>
                 <option value="n1:Região Autónoma da Madeira">Madeira</option>
               </optgroup>
+              <!-- NUTS 2024, na ordem dos códigos oficiais; uma opção por região de
+                   js/pt/nuts-data.js e de dados/mapas/regioes.geojson (o modo Regiões
+                   do mapa escolhe por aqui). scripts/testar_regioes_pt.mjs confere. -->
               <optgroup label="NUTS 2">
                 <option value="n2:Norte">Norte</option>
-                <option value="n2:Centro">Centro</option>
-                <option value="n2:Área Metropolitana de Lisboa">Área Metropolitana de Lisboa</option>
-                <option value="n2:Alentejo">Alentejo</option>
                 <option value="n2:Algarve">Algarve</option>
+                <option value="n2:Centro">Centro</option>
+                <option value="n2:Grande Lisboa">Grande Lisboa</option>
+                <option value="n2:Península de Setúbal">Península de Setúbal</option>
+                <option value="n2:Alentejo">Alentejo</option>
+                <option value="n2:Oeste e Vale do Tejo">Oeste e Vale do Tejo</option>
                 <option value="n2:Região Autónoma dos Açores">Região Autónoma dos Açores</option>
                 <option value="n2:Região Autónoma da Madeira">Região Autónoma da Madeira</option>
               </optgroup>
@@ -165,24 +170,29 @@
                 <option value="n3:Alto Minho">Alto Minho</option>
                 <option value="n3:Cávado">Cávado</option>
                 <option value="n3:Ave">Ave</option>
+                <option value="n3:Área Metropolitana do Porto">Área Metropolitana do Porto</option>
                 <option value="n3:Alto Tâmega e Barroso">Alto Tâmega e Barroso</option>
-                <option value="n3:Terras de Trás-os-Montes">Terras de Trás-os-Montes</option>
-                <option value="n3:Douro">Douro</option>
                 <option value="n3:Tâmega e Sousa">Tâmega e Sousa</option>
+                <option value="n3:Douro">Douro</option>
+                <option value="n3:Terras de Trás-os-Montes">Terras de Trás-os-Montes</option>
+                <option value="n3:Algarve">Algarve</option>
                 <option value="n3:Região de Aveiro">Região de Aveiro</option>
                 <option value="n3:Região de Coimbra">Região de Coimbra</option>
                 <option value="n3:Região de Leiria">Região de Leiria</option>
-                <option value="n3:Oeste">Oeste</option>
-                <option value="n3:Beiras e Serra da Estrela">Beiras e Serra da Estrela</option>
+                <option value="n3:Viseu Dão Lafões">Viseu Dão Lafões</option>
                 <option value="n3:Beira Baixa">Beira Baixa</option>
-                <option value="n3:Médio Tejo">Médio Tejo</option>
-                <option value="n3:Lezíria do Tejo">Lezíria do Tejo</option>
+                <option value="n3:Beiras e Serra da Estrela">Beiras e Serra da Estrela</option>
                 <option value="n3:Grande Lisboa">Grande Lisboa</option>
                 <option value="n3:Península de Setúbal">Península de Setúbal</option>
                 <option value="n3:Alentejo Litoral">Alentejo Litoral</option>
-                <option value="n3:Alentejo Central">Alentejo Central</option>
-                <option value="n3:Alto Alentejo">Alto Alentejo</option>
                 <option value="n3:Baixo Alentejo">Baixo Alentejo</option>
+                <option value="n3:Alto Alentejo">Alto Alentejo</option>
+                <option value="n3:Alentejo Central">Alentejo Central</option>
+                <option value="n3:Oeste">Oeste</option>
+                <option value="n3:Médio Tejo">Médio Tejo</option>
+                <option value="n3:Lezíria do Tejo">Lezíria do Tejo</option>
+                <option value="n3:Região Autónoma dos Açores">Região Autónoma dos Açores</option>
+                <option value="n3:Região Autónoma da Madeira">Região Autónoma da Madeira</option>
               </optgroup>
             </select>
           </div>
@@ -318,6 +328,7 @@
             <button class="chip-button active toggle-btn" data-value="distrito" title="Ver o mapa por distritos / círculos">Distritos</button>
             <button class="chip-button toggle-btn" data-value="concelho" title="Ver o mapa por concelhos">Concelhos</button>
             <button class="chip-button toggle-btn" data-value="freguesia" title="Ver o mapa por freguesias">Freguesias</button>
+            <button class="chip-button toggle-btn" data-value="regiao" title="Ver o mapa por regiões (NUTS e áreas metropolitanas) e escolher uma no mapa">Regiões</button>
           </div>
           <div style="width: 1px; height: 16px; background: rgba(255,255,255,0.15); margin: 0 4px;"></div>
           <button id="btnToggle3D" class="toggle-btn" title="Alternar Modo 3D (Perspetiva)">
@@ -340,6 +351,17 @@
             </svg>
             <span>Altura (3D)</span>
           </button>
+        </div>
+
+        <!-- Segunda linha, só no modo Regiões: o nível das regiões no mapa
+             (map-render-pt.js, syncMapLevelChips). -->
+        <div class="layer-toggle-group" id="regionLevelBar" style="display: none;">
+          <div class="chip-group" id="regionLevelChips" style="display: flex; border: none; background: transparent; padding: 0; margin: 0; box-shadow: none; gap: 2px;">
+            <button class="chip-button toggle-btn" data-value="n1" title="NUTS I: Continente, Açores e Madeira">NUTS I</button>
+            <button class="chip-button toggle-btn" data-value="n2" title="NUTS II: as 9 regiões">NUTS II</button>
+            <button class="chip-button toggle-btn active" data-value="n3" title="NUTS III: as 26 sub-regiões (comunidades intermunicipais, áreas metropolitanas e regiões autónomas)">NUTS III</button>
+            <button class="chip-button toggle-btn" data-value="am" title="Áreas metropolitanas de Lisboa e do Porto">Áreas Met.</button>
+          </div>
         </div>
       </div>
       
@@ -488,6 +510,9 @@
           <li><strong>Clique numa freguesia</strong> para ver os resultados detalhados; use o rasto de navegação
             no painel de resultados para subir para concelho, círculo ou país.</li>
           <li><strong>Shift + arrasto</strong> (ou Shift + clique) soma os votos de várias freguesias.</li>
+          <li><strong>Regiões:</strong> no botão <em>Regiões</em> do mapa, escolha NUTS I, II, III ou Áreas
+            Metropolitanas e clique numa região para ver os resultados dela; é o mesmo filtro da lista
+            "Região / NUTS / Áreas Met.", pelas NUTS 2024.</li>
         </ul>
 
         <h4>Modos de visualização</h4>
@@ -576,6 +601,19 @@
         AD (PSD+CDS+PPM) concorreu como coligação única; o mesmo acontece com a CDU (PCP-PEV) desde 1987 e com
         a AD novamente em 2024/2025.
       </p>
+      <h4>Última cadeira</h4>
+      <p>
+        Ao abrir um círculo, o painel refaz esta conta com os votos apurados: mostra a ordem em que os mandatos
+        foram atribuídos, quem levou o último e quantos votos faltaram a cada partido para eleger mais um
+        deputado, com os votos dos outros inalterados. Na vista de Portugal, lista os círculos mais disputados e,
+        para cada partido, o círculo onde esteve mais perto de mais um deputado. Nas europeias, o círculo é o país.
+      </p>
+      <p style="color: var(--muted); font-size: 0.85rem;">
+        Os votos são os do escrutínio provisório. Onde a conta refeita não reproduz os mandatos oficiais (Fora da
+        Europa em 2005), o círculo fica sem análise. Em 1975 e 1976 os Açores votavam em três círculos (Angra do
+        Heroísmo, Horta e Ponta Delgada): a conta é feita em cada um, com os votos das freguesias das suas ilhas e
+        os mandatos do mapa oficial do Diário da República.
+      </p>
     </div>
   </div>
 
@@ -604,17 +642,18 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="js/globals.js?v=20260706a"></script>
-  <script src="js/pt/nuts-data.js?v=20260708a"></script>
+  <script src="js/globals.js?v=20260929a"></script>
+  <script src="js/pt/nuts-data.js?v=20260929a"></script>
   <script src="js/cache.js?v=20260704a"></script>
   <script src="js/maplibre-compat.js?v=20260704a"></script>
   <script src="js/utils.js?v=20260715c"></script>
-  <script src="js/pt/data-portugal.js?v=20260716a"></script>
+  <script src="js/pt/data-portugal.js?v=20260929a"></script>
   <script src="js/pt/eleitos-portugal.js?v=20260715a"></script>
-  <script src="js/pt/map-render-pt.js?v=20260715e"></script>
-  <script src="js/pt/results-panel-pt.js?v=20260718a"></script>
+  <script src="js/pt/map-render-pt.js?v=20260929a"></script>
+  <script src="js/pt/results-panel-pt.js?v=20260929a"></script>
   <script src="js/pt/block-definer-pt.js?v=20260715a"></script>
-  <script src="js/pt/ui-controls-pt.js?v=20260907a"></script>
+  <script src="js/pt/ultima-cadeira-pt.js?v=20260929b"></script>
+  <script src="js/pt/ui-controls-pt.js?v=20260929a"></script>
   <script src="js/ui-helpers.js?v=20260715d"></script>
 
   <script>

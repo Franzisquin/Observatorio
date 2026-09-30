@@ -451,6 +451,15 @@ async function init() {
   // Initialize Mobile Tabbed Navigation & Routing
   setupMobileNavigation();
 
+  /* Depois de setupControls(): os listeners das favoritas leem `currentOffice`
+     e precisam rodar DEPOIS dos handlers que o atualizam, e para o mesmo
+     elemento o navegador chama na ordem de registro. */
+  try {
+    window.setupFavoritos?.();
+  } catch (e) {
+    console.error('Error in setupFavoritos:', e);
+  }
+
   // Carregar o mapa do Brasil (Nacional) automaticamente ao abrir o site
   if (typeof window.showNationalOverview === 'function') {
     void window.showNationalOverview();

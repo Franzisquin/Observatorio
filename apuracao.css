@@ -1255,7 +1255,32 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 .apu-estado:hover { background: var(--paper-2); border-color: var(--line-strong); }
 
-.apu-estado-head { margin-bottom: 8px; }
+.apu-estado-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* A bandeira do estado, tirada do sprite de 27 células que
+   scripts/gerar_bandeiras_estados.py monta. A célula tem 56x40 e aparece a
+   28x20: o dobro é o que a mantém nítida em tela 2x. `--bandeira` é o índice
+   da UF na ordem alfabética, e quem o escreve é cartao(), em
+   js/apuracao-central.js. */
+.apu-estado-bandeira {
+  flex: none;
+  width: 28px;
+  height: 20px;
+  border-radius: 2px;
+  background-image: url(bandeiras-estados.png);
+  background-size: 756px 20px;
+  background-repeat: no-repeat;
+  background-position: calc(var(--bandeira, 0) * -28px) 0;
+  /* Contorno próprio: Minas, Distrito Federal e Paraná têm campo branco e, sem
+     o fio, encostariam no cartão claro sem borda visível. Cinza a 35% em vez de
+     var(--line) porque precisa funcionar contra a bandeira nos dois temas. */
+  box-shadow: inset 0 0 0 1px rgb(127 127 127 / 0.35);
+}
 
 .apu-estado-uf {
   font-family: var(--display);

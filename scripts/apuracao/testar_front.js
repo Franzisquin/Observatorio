@@ -377,5 +377,57 @@ ok(varridos > 0, 'ha snapshot para varrer', String(varridos));
 ok(sujos.length === 0, varridos + ' snapshots sem entidade HTML crua',
   sujos.slice(0, 3).join(' | '));
 
+/* --------------------------------------- quem sai da lista antes da 1ª urna */
+
+/* A distinção que custa caro errar: "Indeferido" é registro negado com decisão
+   firme e sai da tela, mas "Indeferido em prazo recursal ou com recurso"
+   concorre sub judice, vai estar na urna e pode receber voto. Um `^Indeferido`
+   sem âncora no fim apagaria os dois — o eleitor abriria a página e não
+   acharia candidato que o TSE mostra na hora de votar. */
+
+console.log('\ncandidaturas que não entram no ranking zerado');
+const registro = {
+  a: { urna: 'DEFERIDA', partido: 'X', uf: 'MG', situacao: 'Deferido' },
+  b: { urna: 'COM RECURSO', partido: 'X', uf: 'MG', situacao: 'Deferido com recurso' },
+  c: { urna: 'PENDENTE', partido: 'X', uf: 'MG', situacao: 'Pendente de julgamento' },
+  d: { urna: 'SUB JUDICE', partido: 'X', uf: 'MG', situacao: 'Indeferido em prazo recursal ou com recurso' },
+  e: { urna: 'NEGADA', partido: 'X', uf: 'MG', situacao: 'Indeferido' },
+  f: { urna: 'DESISTIU', partido: 'X', uf: 'MG', situacao: 'Renúncia' },
+  g: { urna: 'SEM SITUACAO', partido: 'X', uf: 'MG', situacao: '' },
+  h: { urna: 'DE OUTRA UF', partido: 'X', uf: 'SP', situacao: 'Deferido' }
+};
+const naTela = new Set(APU.rankingZerado(registro, 'mg').map((c) => c.chave));
+ok(naTela.has('d'), 'indeferido sub judice CONTINUA na lista — está na urna');
+ok(!naTela.has('e'), 'indeferido com decisão firme sai da lista');
+ok(!naTela.has('f'), 'renúncia sai da lista');
+ok(naTela.has('a') && naTela.has('b') && naTela.has('c'), 'deferido e pendente ficam');
+ok(naTela.has('g'), 'situação vazia não é motivo para sumir com o candidato');
+ok(!naTela.has('h'), 'o filtro de UF segue valendo');
+ok(naTela.size === 5, 'nada além disso entrou', [...naTela].join(','));
+
+/* ------------------------------------------- ids que o script pede da página */
+
+/* `$('legenda')` sobreviveu à remoção da legenda do mapa e ficou apontando para
+   um id que não existe mais em apuracao-uf.html. Como a linha estava dentro do
+   ramo "ainda não há boletim", só quebrava antes da primeira urna: a página do
+   estado parava no subtítulo, sem mapa e sem placar, e o TypeError morria no
+   catch da volta. Este check fecha a classe inteira — todo $('id') tem de
+   existir na página que carrega aquele script. */
+
+console.log('\nids de getElementById presentes na página');
+const PARES = [
+  ['js/apuracao-uf.js', 'apuracao-uf.html'],
+  ['js/apuracao-central.js', 'apuracao.html'],
+  ['js/apuracao-nacional.js', 'apuracao-presidente.html']
+];
+for (const [js, pagina] of PARES) {
+  const fonte = fs.readFileSync(path.join(RAIZ, js), 'utf8');
+  const html = fs.readFileSync(path.join(RAIZ, pagina), 'utf8');
+  const existentes = new Set([...html.matchAll(/id="([^"]+)"/g)].map((m) => m[1]));
+  const pedidos = new Set([...fonte.matchAll(/\$\('([^']+)'\)/g)].map((m) => m[1]));
+  const faltam = [...pedidos].filter((id) => !existentes.has(id));
+  ok(faltam.length === 0, `${js} não pede id que ${pagina} não tem`, faltam.join(', '));
+}
+
 console.log('\n' + (falhas ? falhas + ' FALHA(S)' : 'tudo certo'));
 process.exit(falhas ? 1 : 0);

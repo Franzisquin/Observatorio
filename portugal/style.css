@@ -1605,6 +1605,17 @@ body {
   letter-spacing: -0.2px;
 }
 
+/* No painel direito, título centrado com o botão ao lado, como no visualizador
+   brasileiro (lá vem de .side-right .profile-header, no style.css da raiz). */
+.side-right .profile-header {
+  justify-content: center;
+  gap: 8px;
+}
+
+.side-right .profile-header .info-button {
+  position: static;
+}
+
 .info-button {
   display: inline-flex;
   align-items: center;
@@ -2527,7 +2538,8 @@ input:disabled {
 }
 
 /* Chips de nível sobre o mapa nunca quebram linha */
-#mapLevelChips {
+#mapLevelChips,
+#regionLevelChips {
   flex-wrap: nowrap;
 }
 
@@ -4939,6 +4951,166 @@ span.eleitos-seats-btn:hover {
   overflow-y: auto;
   text-align: left;
   padding-right: 4px;
+}
+
+/* ---------- última cadeira: d'Hondt do círculo (ultima-cadeira-pt.js) ---------- */
+.uc-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 0;
+  border: none;
+  border-top: 1px solid rgba(125, 125, 125, 0.1);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+.uc h4 + .uc-row {
+  border-top: none;
+}
+button.uc-row {
+  cursor: pointer;
+}
+button.uc-row:hover .uc-name strong {
+  color: var(--accent-2);
+}
+.uc-bar {
+  width: 3px;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+.uc-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 3px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+.uc-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.uc-name strong {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  transition: color 0.15s;
+}
+.uc-name small,
+.uc-num small {
+  font-size: 0.66rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.uc-num {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.uc-num strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-sec);
+}
+/* ordem de atribuição: linhas compactas, sem divisória */
+.uc-q {
+  padding: 3px 0;
+  border-top: none;
+}
+.uc-q .uc-name strong,
+.uc-q .uc-num strong {
+  font-size: 0.76rem;
+}
+.uc-pos,
+.uc-div {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.uc-pos {
+  width: 2.4em;
+  flex-shrink: 0;
+  text-align: right;
+}
+.uc-fora {
+  opacity: 0.55;
+}
+.uc-corte {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--err);
+}
+.uc-corte::before,
+.uc-corte::after {
+  content: '';
+  flex: 1;
+  border-top: 1px dashed var(--err);
+  opacity: 0.6;
+}
+.uc-extra {
+  display: none;
+}
+.is-open > .uc-extra {
+  display: flex;
+}
+.uc-toggle {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.uc-toggle:hover {
+  color: var(--text);
+}
+.uc-nota {
+  margin-top: 6px;
+  font-size: 0.62rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.uc-aviso {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-sec);
+  line-height: 1.45;
+}
+/* Açores até 1976: texto e chips dos três círculos antigos, no molde de #turnoChips */
+.uc-intro {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.uc-subs {
+  display: flex;
+  width: 100%;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.uc-subs .chip-button {
+  flex: 1 1 auto;
+  justify-content: center;
+  text-align: center;
 }
 
 /* ---------- seat-donut-marker for proportional seat cartogram ---------- */

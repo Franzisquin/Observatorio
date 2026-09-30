@@ -78,13 +78,24 @@ const MAP_LEVELS = {
         nulos: offVal[3]
       } : null;
     }
+  },
+  // Modo Regiões: NUTS e áreas metropolitanas. O id da feição é o valor do
+  // filtro regional ("n3:Cávado"), então clicar é o mesmo que escolher no seletor.
+  regiao: {
+    idProp: 'id',
+    getVotes: (id) => getRegiaoVotes(id),
+    getName: (id) => String(id).split(':')[1] || id,
+    getOfficial: () => null
   }
 };
+
+const REGIAO_NIVEL_LABEL = { n1: 'NUTS I', n2: 'NUTS II', n3: 'NUTS III', am: 'Área metropolitana' };
 
 const EXTRUSION_SCALE = {
   freguesia: 260,
   concelho: 110,
-  distrito: 45
+  distrito: 45,
+  regiao: 25
 };
 
 function registerStripePattern(color1, color2) {
@@ -276,6 +287,12 @@ function getFeatureStyle(level, feature) {
     }
   }
 
+  // Regiões são uma vista do país: a escolhida no filtro fica em destaque.
+  if (level === 'regiao') {
+    isSelected = id === STATE.currentNuts;
+    inFocus = !STATE.currentNuts || isSelected;
+  }
+
   const fillInfo = getFeatureFill(level, feature);
   const style = {
     fillColor: typeof fillInfo === 'string' ? fillInfo : fillInfo.fillColor,
@@ -414,7 +431,8 @@ function buildFeatureTooltip(level, feature) {
     rowsHtml = `<div style="color:var(--muted); margin-top:3px;">${noElection ? 'Votação não realizada' : 'Sem dados'}</div>`;
   }
 
-  const parentName = (level === 'distrito' && (STATE.currentCirculo === 'E1' || STATE.currentCirculo === 'E2'))
+  const parentName = level === 'regiao' ? (REGIAO_NIVEL_LABEL[p.nivel] || '')
+    : (level === 'distrito' && (STATE.currentCirculo === 'E1' || STATE.currentCirculo === 'E2'))
     ? CIRCULOS.get(STATE.currentCirculo)
     : (level === 'freguesia'
        ? `${escapeHtml(p.concelho || '')}${p.concelho ? ' · ' : ''}${escapeHtml(CIRCULOS.get(p.circulo) || '')}`
@@ -435,6 +453,11 @@ function onFeatureClick(level, feature, e) {
   const idProp = (level === 'distrito' && (STATE.currentCirculo === 'E1' || STATE.currentCirculo === 'E2')) ? 'nome' : cfg.idProp;
   const id = feature.properties?.[idProp];
   if (!id) return;
+
+  if (level === 'regiao') {
+    selectRegiao(id);
+    return;
+  }
 
   if (typeof window.isFeatureDisabled === 'function' && window.isFeatureDisabled(level === 'freguesia' ? 'freguesias' : (level === 'concelho' ? 'concelhos' : 'distritos'), feature)) {
     return;
@@ -588,6 +611,37 @@ async function navigateToFreguesia(dicofre) {
   applyFiltersAndRedraw();
 }
 
+// Modo Regiões do mapa: as NUTS ou as áreas metropolitanas do país inteiro,
+// clicáveis. Sai de um círculo aberto; o filtro regional escolhido fica.
+async function mostrarRegioes(nivel = STATE.regionLevel) {
+  if (!STATE.regioesGeo) {
+    showMapLoading('A carregar regiões...', 30);
+    try {
+      STATE.regioesGeo = await loadStaticRegioes();
+    } catch (e) {
+      console.error('Erro ao carregar as regiões:', e);
+      return;
+    } finally {
+      hideMapLoading();
+    }
+  }
+  STATE.regionLevel = nivel;
+  STATE.granularity = 'regiao';
+  await navigateToNational({ focus: false });
+  // margem de cima para as duas linhas de botões sobre o mapa não taparem o Minho
+  focusCountryOnMap(true, { top: 104, bottom: 24, left: 24, right: 24 });
+}
+
+// Clique numa região: aplica o filtro regional pelo seletor (o mesmo caminho da
+// escolha na lista) e desce aos concelhos dela, como o clique num distrito.
+function selectRegiao(id) {
+  if (!dom.selectNuts) return;
+  STATE.granularity = 'concelho';
+  STATE.mapLevel = 'concelho';
+  dom.selectNuts.value = id;
+  dom.selectNuts.dispatchEvent(new Event('change'));
+}
+
 function clearSelection(redraw = true) {
   selectedLocationIDs.clear();
   STATE.selectedCountry = null;
@@ -617,6 +671,7 @@ function buildMapLayers() {
   if (STATE.freguesiasLayer) { STATE.freguesiasLayer.remove(); STATE.freguesiasLayer = null; }
   if (STATE.concelhosLayer) { STATE.concelhosLayer.remove(); STATE.concelhosLayer = null; }
   if (STATE.distritosLayer) { STATE.distritosLayer.remove(); STATE.distritosLayer = null; }
+  if (STATE.regioesLayer) { STATE.regioesLayer.remove(); STATE.regioesLayer = null; }
   if (STATE.concelhosOutlineLayer) { STATE.concelhosOutlineLayer.remove(); STATE.concelhosOutlineLayer = null; }
   if (STATE.distritosOutlineLayer) { STATE.distritosOutlineLayer.remove(); STATE.distritosOutlineLayer = null; }
 
@@ -650,6 +705,16 @@ function buildMapLayers() {
     hover: true
   }).setFeatures(geo.distritos.features).addTo(map);
 
+  // 3b. Regiões (NUTS e áreas metropolitanas), só no modo Regiões
+  STATE.regioesLayer = new MLCompat.GeoLayer(map, {
+    id: 'regioes',
+    type: 'polygon',
+    styleFn: (feat) => getFeatureStyle('regiao', feat),
+    tooltipFn: (feat) => buildFeatureTooltip('regiao', feat),
+    onClick: (feat, e) => onFeatureClick('regiao', feat, e),
+    hover: true
+  }).setFeatures([]).addTo(map);
+
   // 4. Concelhos Outline
   STATE.concelhosOutlineLayer = new MLCompat.GeoLayer(map, {
     id: 'concelhos-outline',
@@ -680,6 +745,14 @@ function syncMapLevelChips() {
       b.classList.toggle('active', b.dataset.value === STATE.mapLevel);
     });
   }
+  // segunda linha, com o nível das regiões, só no modo Regiões
+  const niveis = document.getElementById('regionLevelBar');
+  if (niveis) {
+    niveis.style.display = STATE.mapLevel === 'regiao' ? '' : 'none';
+    niveis.querySelectorAll('.chip-button').forEach((b) => {
+      b.classList.toggle('active', b.dataset.value === STATE.regionLevel);
+    });
+  }
   updateBackLevelButton();
 }
 
@@ -702,6 +775,13 @@ function getBackLevelTarget() {
   }
   if (scope.level === 'distrito') {
     return { label: 'Portugal', action: 'national' };
+  }
+  // Com filtro regional no país: dos concelhos volta ao mapa de regiões, e do
+  // mapa de regiões tira o filtro. As autárquicas ignoram o filtro.
+  if (STATE.currentNuts && STATE.currentElectionType !== 'au') {
+    return STATE.mapLevel === 'regiao'
+      ? { label: 'Portugal', action: 'sem-regiao' }
+      : { label: 'Regiões', action: 'regioes' };
   }
   return null;
 }
@@ -771,9 +851,21 @@ function syncMapLevel() {
   // Sincronizar os botões do topo do mapa
   syncMapLevelChips();
 
+  // Modo Regiões: só na vista do país, com as regiões do nível escolhido
+  const regioes = (!STATE.currentCirculo && STATE.granularity === 'regiao')
+    ? (STATE.regioesGeo?.features || []).filter((f) => f.properties?.nivel === STATE.regionLevel)
+    : [];
+  STATE.regioesLayer?.setData(regioes);
+
   // Se estivermos na visão nacional (nenhum distrito selecionado)
   if (!STATE.currentCirculo) {
-    if (STATE.granularity === 'distrito') {
+    if (STATE.granularity === 'regiao') {
+      STATE.distritosLayer?.setData([]);
+      STATE.concelhosLayer?.setData([]);
+      STATE.freguesiasLayer?.setData([]);
+      STATE.distritosOutlineLayer?.setData([]);
+      STATE.concelhosOutlineLayer?.setData([]);
+    } else if (STATE.granularity === 'distrito') {
       STATE.distritosLayer?.setData(filterFeaturesForNuts(geo.distritos.features, 'distrito'));
       STATE.concelhosLayer?.setData([]);
       STATE.freguesiasLayer?.setData([]);
@@ -887,6 +979,10 @@ function applyFiltersAndRedraw() {
     STATE.freguesiasLayer.setExtrusionEnabled(STATE.extrusionEnabled && STATE.mapLevel === 'freguesia');
     STATE.freguesiasLayer.refresh();
   }
+  if (STATE.regioesLayer) {
+    STATE.regioesLayer.setExtrusionEnabled(STATE.extrusionEnabled && STATE.mapLevel === 'regiao');
+    STATE.regioesLayer.refresh();
+  }
   if (typeof renderResultsPanel === 'function') renderResultsPanel();
   updateClearSelectionButtonVisibility();
   if (typeof window.syncShortcutButtons === 'function') {
@@ -933,7 +1029,7 @@ function focusNutsOnMap(nutsSelector = STATE.currentNuts, animate = true) {
       if (!dicofre) return false;
       return window.isConcelhoInNuts && window.isConcelhoInNuts(dicofre.slice(0, 4), nutsSelector);
     });
-  } else if (level === 'concelho') {
+  } else if (level === 'concelho' || level === 'regiao') {
     matchingFeatures = (STATE.geo.concelhos?.features || []).filter(f => {
       const dico = f.properties?.dico;
       if (!dico) return false;
@@ -961,11 +1057,11 @@ function focusNutsOnMap(nutsSelector = STATE.currentNuts, animate = true) {
   }
 }
 
-function focusCountryOnMap(animate = false) {
+function focusCountryOnMap(animate = false, padding = [24, 24]) {
   if (!STATE.geo) return;
   const level = STATE.mapLevel;
   const list = (level === 'freguesia') ? (STATE.geo.freguesias?.features || [])
-             : (level === 'concelho' ? STATE.geo.concelhos.features
+             : ((level === 'concelho' || level === 'regiao') ? STATE.geo.concelhos.features
              : STATE.geo.distritos.features);
              
   const cont = list.filter(f => {
@@ -979,7 +1075,7 @@ function focusCountryOnMap(animate = false) {
        : (level === 'concelho' && STATE.concelhosLayer ? STATE.concelhosLayer.getBounds()
        : STATE.distritosLayer?.getBounds()));
        
-  if (bounds) MLCompat.fitMapToBounds(map, bounds, { padding: [24, 24], animate });
+  if (bounds) MLCompat.fitMapToBounds(map, bounds, { padding, animate });
 }
 
 // ---------- SELEÇÃO POR ARRASTO (Shift+drag) ----------
@@ -1281,6 +1377,7 @@ window.navigateToNational = navigateToNational;
 window.navigateToDistrito = navigateToDistrito;
 window.navigateToConcelho = navigateToConcelho;
 window.navigateToFreguesia = navigateToFreguesia;
+window.mostrarRegioes = mostrarRegioes;
 window.focusCountryOnMap = focusCountryOnMap;
 window.focusCirculoOnMap = focusCirculoOnMap;
 window.focusNutsOnMap = focusNutsOnMap;

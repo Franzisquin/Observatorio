@@ -61,7 +61,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="style.css?v=20260829a" />
+  <link rel="stylesheet" href="style.css?v=20260929c" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -115,6 +115,15 @@
         </div>
 
         <div class="section" id="loaderBox">
+
+          <!-- Favoritas. Fica acima dos seletores de propósito: é o atalho, e
+               quem já guardou a eleição que quer não precisa descer para a
+               cascata de tipo/UF/ano. Nasce escondido e só aparece quando há
+               alguma salva (js/favoritos.js). -->
+          <div class="ctrl" id="favoritosBox" hidden>
+            <label>Favoritas</label>
+            <div class="chip-group" id="favoritosChips"></div>
+          </div>
 
           <div class="ctrl">
             <label for="selectElectionLevel">Tipo de Eleição</label>
@@ -173,6 +182,9 @@
               </select>
             </div>
           </div>
+
+          <button id="btnFavoritar" class="button" type="button" aria-pressed="false"
+            title="Guardar esta eleição para abrir depois num clique">☆ Favoritar esta eleição</button>
 
           <!-- Hidden button preserved for JS compatibility, but not shown -->
           <button id="btnLoadData" class="button primary" style="display:none;" disabled>Carregar
@@ -1371,13 +1383,14 @@
   <script src="js/data-router.js?v=20260826a"></script>
   <script src="js/map-render.js?v=20260916a"></script>
   <script src="js/ui-helpers.js?v=20260905l"></script>
-  <script src="js/ui-results.js?v=20260905l"></script>
+  <script src="js/ui-results.js?v=20260929b"></script>
   <script src="js/historico-presidente.js?v=20260619c"></script>
   <script src="js/results-panel.js?v=20260822a"></script>
   <script src="js/national-view.js?v=20260829a"></script>
   <script src="js/diaspora-view.js?v=20260829a"></script>
   <script src="js/swing-view.js?v=20260805a"></script>
   <script src="js/ui-controls.js?v=20260905l"></script>
+  <script src="js/favoritos.js?v=20260921a"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

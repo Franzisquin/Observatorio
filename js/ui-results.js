@@ -41,6 +41,17 @@ function updateNeighborhoodProfileUI() {
     { key: '60+', min: 60, max: 200 }
   ];
   const ageBuckets = Object.fromEntries(ageBucketDefs.map(def => [def.key, 0]));
+  // Cruzamentos por genero (scripts/mesclar_genero_censo.py): IDADE_GENERO ja vem
+  // nas mesmas faixas; ESCOLARIDADE_GENERO nos 8 niveis de getEscolaridadeGroupedTotals.
+  const ageGender = {
+    M: Object.fromEntries(ageBucketDefs.map(def => [def.key, 0])),
+    F: Object.fromEntries(ageBucketDefs.map(def => [def.key, 0]))
+  };
+  const eduKeys = ['ana', 'le', 'fi', 'fc', 'mi', 'mc', 'si', 'sc'];
+  const eduGender = {
+    M: Object.fromEntries(eduKeys.map(k => [k, 0])),
+    F: Object.fromEntries(eduKeys.map(k => [k, 0]))
+  };
 
   // Pct Media (Raça/Saneamento)
   const pctSum = {
@@ -114,6 +125,22 @@ function updateNeighborhoodProfileUI() {
         for (const [bucket, value] of Object.entries(ageAggregate.buckets)) {
           ageBuckets[bucket] += value;
         }
+
+        const ig = p.IDADE_GENERO;
+        if (ig) {
+          ageBucketDefs.forEach(def => {
+            ageGender.M[def.key] += ensureNumber(ig.M?.[def.key]);
+            ageGender.F[def.key] += ensureNumber(ig.F?.[def.key]);
+          });
+        }
+
+        const eg = p.ESCOLARIDADE_GENERO;
+        if (eg) {
+          eduKeys.forEach(k => {
+            eduGender.M[k] += ensureNumber(eg.M?.[k]);
+            eduGender.F[k] += ensureNumber(eg.F?.[k]);
+          });
+        }
       }
     }
   });
@@ -123,7 +150,7 @@ function updateNeighborhoodProfileUI() {
     return;
   }
 
-  renderDemographicProfile({ count, sumRenda, countRenda, pctSum, abs, ageBuckets }, isLegacy);
+  renderDemographicProfile({ count, sumRenda, countRenda, pctSum, abs, ageBuckets, ageGender, eduGender }, isLegacy);
 }
 
 function clearNeighborhoodProfileCharts() {
@@ -144,7 +171,11 @@ function clearNeighborhoodProfileCharts() {
 // pre-calculado (ver scripts/gerar_perfil_nacional.py), que nao tem locais
 // carregados para somar.
 function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) {
-  const { count, sumRenda, countRenda, pctSum, abs, ageBuckets } = totals;
+  const { count, sumRenda, countRenda, pctSum, abs, ageBuckets, ageGender, eduGender } = totals;
+  const sumValues = obj => Object.values(obj || {}).reduce((s, v) => s + v, 0);
+  const pyramidTotal = ageGender ? sumValues(ageGender.M) + sumValues(ageGender.F) : 0;
+  const hasPyramid = !isLegacy && pyramidTotal > 0;
+  const hasEduGender = !isLegacy && sumValues(eduGender?.M) > 0 && sumValues(eduGender?.F) > 0;
 
   // 2006 so tem raca, renda e saneamento: as demais secoes ficam escondidas em
   // vez de aparecerem zeradas. Vive aqui (e nao na acumulacao) porque vale
@@ -158,7 +189,8 @@ function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) 
 
   toggleProfileSection('profileRacaChart', true);
   toggleProfileSection('profileSaneamentoChart', true);
-  toggleProfileSection('profileGeneroChart', !isLegacy);
+  // Com a piramide, Mulheres/Homens vao no cabecalho dela; a secao Genero sairia repetida.
+  toggleProfileSection('profileGeneroChart', !isLegacy && !hasPyramid);
   toggleProfileSection('profileIdadeChart', !isLegacy);
   toggleProfileSection('profileEscolaridadeChart', !isLegacy);
   toggleProfileSection('profileEstadoCivilChart', !isLegacy);
@@ -219,7 +251,7 @@ function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) 
       'Solteiro': abs.Solteiro, 'Casado': abs.Casado, 'Divorciado': abs.Divorciado,
       'Separado': abs.Separado, 'Viúvo': abs.Viuvo
     }, true);
-    render('profileEscolaridadeChart', getEscolaridadeGroupedTotals({
+    const eduTotals = getEscolaridadeGroupedTotals({
       ana: abs.Analfabeto,
       le: abs.LeEscreve,
       fi: abs.FundIncomp,
@@ -228,8 +260,11 @@ function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) 
       mc: abs.MedComp,
       si: abs.SupIncomp,
       sc: abs.SupComp
-    }), true);
-    render('profileIdadeChart', ageBuckets, true);
+    });
+    if (hasEduGender) renderEducationByGender(document.getElementById('profileEscolaridadeChart'), eduTotals, eduGender);
+    else render('profileEscolaridadeChart', eduTotals, true);
+    if (hasPyramid) renderAgePyramid(document.getElementById('profileIdadeChart'), ageGender, pyramidTotal);
+    else render('profileIdadeChart', ageBuckets, true);
   }
 
   render('profileSaneamentoChart', {
@@ -242,6 +277,68 @@ function renderDemographicProfile(totals, isLegacy = isLimitedCensusYear2006()) 
   if (typeof triggerMobileResultsNotification === 'function') {
     triggerMobileResultsNotification();
   }
+}
+
+// Mulheres a esquerda, homens a direita, faixa mais velha no topo. Cada % e a
+// fatia do eleitorado total (as oito somam 100); a largura e relativa a maior
+// barra, para a piramide usar a trilha inteira.
+function renderAgePyramid(el, ageGender, total) {
+  if (!el) return;
+  const keys = Object.keys(ageGender.M).reverse();
+  const maxCell = Math.max(...keys.flatMap(k => [ageGender.M[k], ageGender.F[k]])) || 1;
+  const pct = v => (v / total * 100).toFixed(1) + '%';
+  const sum = side => Object.values(side).reduce((s, v) => s + v, 0);
+
+  const bar = (v, left) => `
+    <div class="bar-track${left ? ' age-pyramid-left' : ''}">
+      <div class="bar-fill${left ? ' gender-fill-f' : ''}" style="width: ${(v / maxCell * 100).toFixed(1)}%;"></div>
+    </div>`;
+
+  el.innerHTML = `
+    <div class="age-pyramid-head">
+      <span class="gender-key gender-key-f">Mulheres <b>${pct(sum(ageGender.F))}</b></span>
+      <span class="gender-key gender-key-m">Homens <b>${pct(sum(ageGender.M))}</b></span>
+    </div>
+    ${keys.map(k => {
+      const f = ageGender.F[k];
+      const m = ageGender.M[k];
+      return `
+    <div class="age-pyramid-row" title="${k} anos: ${fmtInt(Math.round(f))} mulheres, ${fmtInt(Math.round(m))} homens">
+      <span class="bar-value">${pct(f)}</span>
+      ${bar(f, true)}
+      <span class="age-pyramid-age">${k}</span>
+      ${bar(m, false)}
+      <span class="bar-value">${pct(m)}</span>
+    </div>`;
+    }).join('')}`;
+}
+
+// Escolaridade: em cada nivel, a barra do total (a mesma do grafico sem genero)
+// e embaixo mulheres e homens. Nas linhas de genero o % e dentro do proprio
+// genero (cada um soma 100), para comparar os dois direto.
+function renderEducationByGender(el, totals, eduGender) {
+  if (!el) return;
+  const F = getEscolaridadeGroupedTotals(eduGender.F);
+  const M = getEscolaridadeGroupedTotals(eduGender.M);
+  const sum = side => Object.values(side).reduce((s, v) => s + v, 0);
+  const tot = sum(totals);
+  const totF = sum(F);
+  const totM = sum(M);
+  const pct = (v, t) => (t > 0 ? v / t * 100 : 0).toFixed(1) + '%';
+
+  const row = (label, v, t, sub = '') => `
+    <div class="bar-chart-row${sub ? ' edu-gender-sub' : ''}">
+      <div class="bar-chart-label" title="${label}">${label}</div>
+      <div class="bar-track"><div class="bar-fill${sub === 'f' ? ' gender-fill-f' : ''}" style="width: ${pct(v, t)};"></div></div>
+      <div class="bar-value">${pct(v, t)}</div>
+    </div>`;
+
+  el.innerHTML = Object.keys(totals).map(k => `
+    <div class="edu-gender-group">
+      ${row(k, totals[k], tot)}
+      ${row('Mulheres', F[k], totF, 'f')}
+      ${row('Homens', M[k], totM, 'm')}
+    </div>`).join('');
 }
 
 function processAgeLegacy(p, buckets) {

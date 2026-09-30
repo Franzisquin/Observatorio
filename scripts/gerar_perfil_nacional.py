@@ -15,7 +15,10 @@ A agregacao replica exatamente updateNeighborhoodProfileUI (js/ui-results.js):
                   locais (inclusive os sem o dado), como o `pctSum[x] / count`
                   da tela
   * genero, estado civil,
-    escolaridade, idade -> soma absoluta
+    escolaridade, idade,
+    cruzamentos por genero
+    (IDADE_GENERO,
+    ESCOLARIDADE_GENERO) -> soma absoluta
 
 As faixas etarias usam a mesma regra de sobreposicao proporcional de
 aggregateAgeBucketsFromProps (js/utils.js): uma faixa de origem que cruza duas
@@ -154,6 +157,9 @@ def agregar_ano(ano):
         "pctSum": {k: 0.0 for k in CAMPOS_PCT},
         "abs": {k: 0.0 for k in CAMPOS_ABS},
         "ageBuckets": {k: 0.0 for k, _, _ in FAIXAS_ETARIAS},
+        "ageGender": {g: {k: 0.0 for k, _, _ in FAIXAS_ETARIAS} for g in ("M", "F")},
+        "eduGender": {g: {k: 0.0 for k in ("ana", "le", "fi", "fc", "mi", "mc", "si", "sc")}
+                      for g in ("M", "F")},
         "ufs": 0,
     }
 
@@ -195,6 +201,11 @@ def agregar_ano(ano):
                 total["abs"][destino] += pegar(props, chaves)
             for chave, valor in faixas_do_local(props).items():
                 total["ageBuckets"][chave] += valor
+            # Cruzamentos por genero, ja no formato do painel (mesclar_genero_censo.py)
+            for campo, destino in (("IDADE_GENERO", "ageGender"), ("ESCOLARIDADE_GENERO", "eduGender")):
+                for genero, valores in (props.get(campo) or {}).items():
+                    for chave, valor in valores.items():
+                        total[destino][genero][chave] += num(valor)
 
         print(f"  [{ano}] {uf}: {len(locais)} locais")
 
@@ -212,6 +223,9 @@ def main():
 
         total["abs"] = {k: round(v) for k, v in total["abs"].items()}
         total["ageBuckets"] = {k: round(v) for k, v in total["ageBuckets"].items()}
+        for cruzamento in ("ageGender", "eduGender"):
+            total[cruzamento] = {g: {k: round(v) for k, v in valores.items()}
+                                 for g, valores in total[cruzamento].items()}
         total["pctSum"] = {k: round(v, 4) for k, v in total["pctSum"].items()}
         total["sumRenda"] = round(total["sumRenda"], 2)
         total["ano"] = int(ano)

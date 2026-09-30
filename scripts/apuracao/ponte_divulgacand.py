@@ -51,8 +51,7 @@ class Manipulador(BaseHTTPRequestHandler):
 <body><pre id="log">lendo fragmento...</pre>
 <script>
 (async () => {
-  const log = (m) => document.getElementById('log').textContent += '
-' + m;
+  const log = (m) => document.getElementById('log').textContent += '\\n' + m;
   const bruto = location.hash.slice(1);
   if (!bruto) { log('sem fragmento'); return; }
   let pacote;

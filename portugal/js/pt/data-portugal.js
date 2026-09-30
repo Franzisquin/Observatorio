@@ -69,6 +69,17 @@ function loadStaticDistritos() {
   return staticDistritosPromise;
 }
 
+// Malha das regiões NUTS e áreas metropolitanas (scripts/gerar_regioes_pt.py),
+// igual para todos os anos; só se baixa quando o modo Regiões é aberto.
+let staticRegioesPromise = null;
+function loadStaticRegioes() {
+  if (!staticRegioesPromise) {
+    staticRegioesPromise = fetchJson(`${DATA_BASE_URL}mapas/regioes.geojson`)
+      .catch((e) => { staticRegioesPromise = null; throw e; });
+  }
+  return staticRegioesPromise;
+}
+
 function fixSwappedIslandsGeoJSON(geojson) {
   return geojson;
 }
@@ -180,6 +191,30 @@ function sumFreguesias(dicofreSet) {
   const list = [];
   dicofreSet.forEach((code) => { if (results[code]) list.push(results[code]); });
   return sumVotesMaps(list);
+}
+
+// Votos de uma região ("n3:Cávado"), somando as freguesias dos seus concelhos
+// como o filtro regional faz no painel. Calculado de uma vez para todas as
+// regiões e guardado por objeto de dados, que muda com o ano e com os blocos.
+const REGIAO_VOTES_CACHE = new WeakMap();
+function getRegiaoVotes(id) {
+  const d = STATE.data;
+  if (!d || typeof NUTS_DATA === 'undefined') return null;
+  let porRegiao = REGIAO_VOTES_CACHE.get(d);
+  if (!porRegiao) {
+    porRegiao = {};
+    for (const [code, votes] of Object.entries(d.RESULTS || {})) {
+      const info = NUTS_DATA[code.slice(0, 4)];
+      if (!info) continue;
+      for (const nivel of ['n1', 'n2', 'n3', 'am']) {
+        if (!info[nivel]) continue;
+        const soma = porRegiao[`${nivel}:${info[nivel]}`] ||= {};
+        for (const [p, v] of Object.entries(votes)) soma[p] = (soma[p] || 0) + v;
+      }
+    }
+    REGIAO_VOTES_CACHE.set(d, porRegiao);
+  }
+  return porRegiao[id];
 }
 
 function getNationalEntry() {

@@ -630,44 +630,81 @@ function getFeatureComparecimentoCount(props, cargo, turnoKey, options = {}) {
 function getFeatureAptosCount(props, comparecimento = 0, turnoKey = '1T') {
   if (!props) return 0;
 
-  const candidates = [];
-  const pushCandidate = (rawValue) => {
+  // Duas famílias de candidatos, e a diferença entre elas importa.
+  //
+  // Os campos Eleitores_Aptos* são o eleitorado APURADO: vêm do boletim do TSE
+  // ou, nos arquivos do Censo, do eleitorado por local de votação do próprio
+  // TSE. São a resposta certa por definição.
+  //
+  // TOTAL_ELEITORES_PERFIL e a soma MASCULINO+FEMININO são o eleitorado
+  // CADASTRADO naquele local, que é outra coisa: seção agregada continua
+  // cadastrada no local de origem e vota no principal — 3,6 milhões de
+  // eleitores em 2022. Servem de estimativa quando não há apuração, nunca para
+  // sobrepor uma.
+  const oficiais = [];
+  const estimativas = [];
+  const pushEm = (lista) => (rawValue) => {
     const value = ensureNumber(rawValue);
     if (!Number.isFinite(value) || value <= 0) return;
-    if (!candidates.includes(value)) candidates.push(value);
+    if (!lista.includes(value)) lista.push(value);
+  };
+  const pushOficial = pushEm(oficiais);
+  const pushCandidate = pushEm(estimativas);
+
+  pushOficial(getProp(props, `Eleitores_Aptos ${turnoKey}`));
+  pushOficial(getProp(props, `Eleitores_Aptos_Municipal ${turnoKey}`));
+  pushOficial(getProp(props, 'Eleitores_Aptos'));
+  pushOficial(getProp(props, 'Eleitores_Aptos_Municipal'));
+
+  // O Censo marca em TOTAL_ELEITORES_FONTE de onde veio o eleitorado do local.
+  // 'parquet_vizinho' quer dizer que o local nao casou no perfil do eleitorado e
+  // herdou o vetor inteiro do local mais proximo — o que em presidio, Fundacao
+  // CASA, local temporario e voto em transito significa herdar a escola do lado
+  // inteira. Em Balbinos (SP) as duas penitenciarias ficaram com 1.442 eleitores
+  // cada, contra 62 e 50 reais, e o municipio aparecia com 26% de comparecimento
+  // no lugar de 74%. O numero copiado nao serve de denominador — nem por
+  // TOTAL_ELEITORES_PERFIL, nem pela soma de MASCULINO+FEMININO, que vem do
+  // mesmo vetor copiado. Em 2022 esses locais ja foram corrigidos com o
+  // eleitorado oficial do TSE (fonte 'oficial_local_votacao'); nos outros anos o
+  // arquivo oficial nao os cobre, e aqui eles ficam sem denominador em vez de
+  // ficar com um errado.
+  const herdado = getProp(props, 'TOTAL_ELEITORES_FONTE') === 'parquet_vizinho';
+
+  if (!herdado) {
+    pushCandidate(getProp(props, 'TOTAL_ELEITORES_PERFIL'));
+
+    const homens = ensureNumber(
+      getProp(props, 'MASCULINO')
+      || getProp(props, 'HOMENS')
+      || getProp(props, 'Homens')
+    );
+    const mulheres = ensureNumber(
+      getProp(props, 'FEMININO')
+      || getProp(props, 'MULHERES')
+      || getProp(props, 'Mulheres')
+    );
+    if (homens > 0 || mulheres > 0) {
+      pushCandidate(homens + mulheres);
+    }
+  }
+
+  // Um valor apurado só é descartado quando é menor que o próprio
+  // comparecimento — aí ele não pode ser o eleitorado daquele local.
+  const escolher = (lista) => {
+    if (!lista.length) return 0;
+    if (comparecimento <= 0) return lista[0];
+    const adequados = lista.filter((v) => v >= comparecimento).sort((a, b) => a - b);
+    return adequados.length ? adequados[0] : 0;
   };
 
-  pushCandidate(getProp(props, `Eleitores_Aptos ${turnoKey}`));
-  pushCandidate(getProp(props, `Eleitores_Aptos_Municipal ${turnoKey}`));
-  pushCandidate(getProp(props, 'Eleitores_Aptos'));
-  pushCandidate(getProp(props, 'Eleitores_Aptos_Municipal'));
-  pushCandidate(getProp(props, 'TOTAL_ELEITORES_PERFIL'));
+  const apurado = escolher(oficiais);
+  if (apurado) return apurado;
 
-  const homens = ensureNumber(
-    getProp(props, 'MASCULINO')
-    || getProp(props, 'HOMENS')
-    || getProp(props, 'Homens')
-  );
-  const mulheres = ensureNumber(
-    getProp(props, 'FEMININO')
-    || getProp(props, 'MULHERES')
-    || getProp(props, 'Mulheres')
-  );
-  if (homens > 0 || mulheres > 0) {
-    pushCandidate(homens + mulheres);
-  }
+  const estimado = escolher(estimativas);
+  if (estimado) return estimado;
 
-  if (!candidates.length) return 0;
-
-  if (comparecimento > 0) {
-    const adequateCandidates = candidates
-      .filter((value) => value >= comparecimento)
-      .sort((a, b) => a - b);
-    if (adequateCandidates.length) return adequateCandidates[0];
-    return Math.max(...candidates);
-  }
-
-  return candidates[0];
+  const todos = oficiais.concat(estimativas);
+  return todos.length ? Math.max(...todos) : 0;
 }
 
 function getFeatureTurnoutStats(props, cargo = currentCargo, turnoKey = '1T') {
@@ -736,10 +773,20 @@ function getTurnoutStatsForSelection(props, cargo, turnoKey, officialComparecime
     }
   }
 
+  // Local sem denominador fica FORA dos dois somatórios, não só de um. Somar o
+  // voto dele sobre o eleitorado dos outros é o que fazia São Bernardo do Campo
+  // aparecer com 100,4% de comparecimento em 2024: o Censo não tinha 46 dos 166
+  // locais do município, e os votos deles entravam sem eleitorado por baixo.
+  // É o mesmo critério que js/comparecimento.js já usa e documenta.
   let comparecimento = 0;
   let aptos = 0;
+  let semDenominador = 0;
   featurePropsList.forEach((itemProps) => {
     const stats = getFeatureTurnoutStats(itemProps, cargo, turnoKey);
+    if (!(stats.aptos > 0)) {
+      semDenominador += stats.comparecimento;
+      return;
+    }
     comparecimento += stats.comparecimento;
     aptos += stats.aptos;
   });
@@ -754,7 +801,10 @@ function getTurnoutStatsForSelection(props, cargo, turnoKey, officialComparecime
     comparecimento,
     aptos,
     ratio,
-    pct: ratio === null ? null : ratio * 100
+    pct: ratio === null ? null : ratio * 100,
+    // Quanto voto ficou de fora por não ter eleitorado apurado no local. Serve
+    // para saber se a taxa acima cobre o recorte ou só um pedaço dele.
+    comparecimentoSemDenominador: semDenominador
   };
 }
 

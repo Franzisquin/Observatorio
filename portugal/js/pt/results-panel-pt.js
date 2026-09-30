@@ -635,6 +635,9 @@ function renderResultsPanel() {
     }
   }
 
+  // última cadeira do d'Hondt (ultima-cadeira-pt.js; o simulador não o carrega)
+  if (typeof buildUltimaCadeiraHtml === 'function') metricsHtml += buildUltimaCadeiraHtml(scopeData);
+
   dom.resultsMetrics.innerHTML = metricsHtml;
 
   // listagem dos eleitos (Diário da República), injetada assincronamente

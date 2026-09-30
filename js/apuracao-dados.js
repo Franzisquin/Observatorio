@@ -544,6 +544,16 @@ const APU = (function () {
     return !!(_fotos && _fotos.has(String(sq)));
   }
 
+  /* Quem saiu da disputa antes da primeira urna, e por isso não entra na lista
+     em zero: não é candidatura sem voto, é ausência.
+
+     Renúncia é o caso claro. "Indeferido" sozinho é o registro negado com a
+     decisão já firme. O que NÃO entra aqui é "Indeferido em prazo recursal ou
+     com recurso": esse concorre sub judice, aparece na urna e pode receber
+     voto — tirá-lo da tela esconderia candidato que o eleitor vai encontrar na
+     hora de votar. Daí a âncora no fim da expressão. */
+  var FORA_DA_DISPUTA = /^(Ren[úu]ncia|Indeferido)\s*$/i;
+
   /* Ranking de partida: todo mundo em zero. A ordem é alfabética porque, sem
      voto, qualquer outra ordenação sugeriria uma disputa que ainda não houve. */
   function rankingZerado(dicionario, uf) {
@@ -551,9 +561,8 @@ const APU = (function () {
     semearCores(Object.values(dicionario).map((c) => c.partido));
     var alvo = (uf || '').toUpperCase();
     return Object.entries(dicionario)
-      /* Quem renunciou saiu da disputa: não é candidatura em zero, é ausência. */
       .filter(([, c]) => (!alvo || String(c.uf).toUpperCase() === alvo)
-        && !/^Ren[úu]ncia/i.test(String(c.situacao || '')))
+        && !FORA_DA_DISPUTA.test(String(c.situacao || '')))
       .map(([sq, c]) => ({
         chave: sq,
         nome: nomeProprio(c.nome || c.urna),

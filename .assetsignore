@@ -128,3 +128,17 @@ portugal/js/pt/simulador-pt.js
 revisao_locais_cnefe.html
 resultados_geo/locais_corrigidos_cnefe.csv
 resultados_geo/perfil_censo_corrigido.csv
+
+# --- eleitorado oficial do TSE e saidas de conferencia (21/09/2026) ---
+# atualizacoes_eleitorado/ tem 1 GB de CSV bruto do Portal de Dados Abertos: e
+# insumo de scripts/gerar_eleitorado_apto_oficial.py e de
+# scripts/corrigir_aptos_presidente_por_estado.py, e nenhuma pagina o busca.
+# Sem esta linha o deploy sobe 1 GB a mais -- o wrangler ignora o .gitignore.
+atualizações_eleitorado/
+# Tabelas de conferencia da auditoria do denominador. Ficam no repositorio, mas
+# nao sao pagina do site.
+diagnostico_eleitorado_vizinho.csv
+comparecimento_2turno_governador.csv
+amapa_2022_locais.csv
+amapa_comparecimento_municipios.csv
+atualiza*_eleitorado/

@@ -2012,6 +2012,115 @@ body {
   font-size: 0.82rem;
 }
 
+/* Piramide etaria do perfil (renderAgePyramid em js/ui-results.js) */
+.age-pyramid-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+  color: var(--text-sec);
+}
+
+.age-pyramid-head b {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.age-pyramid-row {
+  display: grid;
+  grid-template-columns: 38px 1fr 42px 1fr 38px;
+  align-items: center;
+  column-gap: 6px;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.age-pyramid-row:last-child {
+  margin-bottom: 0;
+}
+
+.age-pyramid-row .bar-value {
+  width: auto;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.age-pyramid-row .bar-value:first-child {
+  text-align: left;
+}
+
+.age-pyramid-age {
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-sec);
+}
+
+.age-pyramid-left {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* Cruzamentos por genero: mulheres no tom claro, homens no --accent das demais barras */
+.bar-fill.gender-fill-f {
+  background: var(--text-sec);
+}
+
+.gender-key {
+  white-space: nowrap;
+}
+
+.gender-key::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: var(--accent);
+  vertical-align: 0;
+}
+
+.gender-key-f::before {
+  background: var(--text-sec);
+}
+
+/* Escolaridade: linha do total e, embaixo, mulheres e homens (renderEducationByGender) */
+.edu-gender-group {
+  margin-bottom: 10px;
+}
+
+.edu-gender-group:last-child {
+  margin-bottom: 0;
+}
+
+.edu-gender-group .bar-chart-row {
+  margin-bottom: 3px;
+}
+
+.edu-gender-group .bar-chart-row:last-child {
+  margin-bottom: 0;
+}
+
+.edu-gender-sub .bar-chart-label {
+  padding-left: 12px;
+  font-size: 0.74rem;
+  font-weight: 400;
+}
+
+.edu-gender-sub .bar-track {
+  height: 4px;
+}
+
+.edu-gender-sub .bar-value {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--text-sec);
+}
+
 .saneamento-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -3421,7 +3530,8 @@ input:disabled {
   box-sizing: border-box !important;
 }
 
-.side-right #profileRendaSection h4 {
+.side-right #profileRendaSection h4,
+.side-right .profile-section:has(.age-pyramid-row) h4 {
   margin-left: 0 !important;
   width: 100% !important;
 }
@@ -5662,4 +5772,60 @@ body:not(.mode-3d) .maplibregl-ctrl-compass {
   flex: 0 0 auto;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------- eleições favoritas
+
+   O chip de uma favorita são dois botões colados: o rótulo, que abre, e o ×,
+   que remove. Dois botões e não um com × dentro porque botão dentro de botão
+   é HTML inválido — e o × precisa ser alcançável pelo teclado, senão só quem
+   usa mouse consegue desfazer. */
+
+.fav-item {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+/* A borda compartilhada é o que faz os dois lerem como um chip só. */
+.fav-item .fav-ir {
+  border-right: 0;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fav-item .fav-remover {
+  padding: 3px 6px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.fav-item .fav-remover:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Teto com rolagem em vez de limite no número de favoritas: quem guarda trinta
+   eleições tem um motivo, e cortar a mais antiga sem avisar perderia dado do
+   usuário. */
+#favoritosChips {
+  max-height: 148px;
+  overflow-y: auto;
+}
+
+#btnFavoritar {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+#btnFavoritar:hover { color: var(--text); border-color: var(--accent); }
+
+/* --accent aqui e cinza (#7a7a7a), quase o mesmo que --muted: pintar o estado
+   salvo com ele nao distinguiria nada. O contraste que sobra e o brilho do
+   texto, mais a estrela cheia contra a vazia. */
+#btnFavoritar.is-salva {
+  color: var(--text);
+  border-color: var(--accent);
 }

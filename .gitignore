@@ -78,6 +78,7 @@ analise_datafolha_set2_2026_ponderado.md
 analise_erro_amostral_pesquisas.md
 analise_nexus_set2026_ponderado.md
 analise_quaest_set2026_ponderado.md
+analise_abstencao_escolaridade_2026.md
 scripts/ponderar_cnt_set2026.py
 scripts/ponderar_datafolha_2026.py
 scripts/ponderar_datafolha_mg_2026.py
@@ -85,6 +86,7 @@ scripts/ponderar_datafolha_set2_2026.py
 scripts/ponderar_nexus_set2026.py
 scripts/ponderar_quaest_set2026.py
 scripts/ponderar_voto2022.py
+scripts/projetar_abstencao_escolaridade_2026.py
 scripts/simular_amostragem_pesquisas.py
 scripts/validar_ponderacao_2022.py
 
@@ -150,3 +152,9 @@ resultados_geo/tse_demographics_locais.json
 # (um zip por municipio, grande e regeneravel). So as coordenadas corrigidas nos
 # GeoPackages e o CSV de conferencia entram no repo.
 scratch/cnefe/
+
+# Eleitorado oficial do TSE (~1 GB, regeneravel pelo Portal de Dados Abertos).
+# E a fonte de scripts/corrigir_eleitorado_censo_2022.py e de
+# scripts/corrigir_aptos_presidente_por_estado.py; so os denominadores ja
+# corrigidos em resultados_geo/ entram no repo. Ver analise_eleitorado_denominador.md.
+atualizações_eleitorado/

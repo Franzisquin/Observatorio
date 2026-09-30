@@ -93,6 +93,21 @@
 
   /* ------------------------------------------------------------- estados */
 
+  /* Ordem das células em bandeiras-estados.png. É a mesma que
+     scripts/gerar_bandeiras_estados.py imprime ao gerar o sprite — se aquele
+     script mudar de ordem, esta linha muda junto, ou cada estado passa a exibir
+     a bandeira do vizinho. Fora da lista (o exterior, `zz`) fica sem chip. */
+  const ORDEM_BANDEIRAS = ('ac al am ap ba ce df es go ma mg ms mt pa pb pe pi '
+    + 'pr rj rn ro rr rs sc se sp to').split(' ');
+
+  /* Decorativa: o nome do estado está ao lado, então o leitor de tela não ganha
+     nada repetindo "bandeira de São Paulo" antes dele. */
+  function bandeira(uf) {
+    const i = ORDEM_BANDEIRAS.indexOf(uf);
+    return i < 0 ? ''
+      : '<span class="apu-estado-bandeira" style="--bandeira:' + i + '" aria-hidden="true"></span>';
+  }
+
   /* Um cartão por estado. Com boletim mostra quem lidera; sem boletim, quantas
      candidaturas estão em disputa ali. */
   function cartao(uf, cargo, pacote, chapa) {
@@ -116,7 +131,8 @@
 
     if (!lista.length) {
       return '<a class="apu-estado is-vazio" href="' + href + '">'
-        + '<div class="apu-estado-head"><span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
+        + '<div class="apu-estado-head">' + bandeira(uf)
+        + '<span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
         + '<p class="apu-estado-vazio">sem lista importada</p></a>';
     }
 
@@ -136,7 +152,8 @@
     }).join('');
 
     return '<a class="apu-estado" href="' + href + '" style="--cor:' + lider + '">'
-      + '<div class="apu-estado-head"><span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
+      + '<div class="apu-estado-head">' + bandeira(uf)
+      + '<span class="apu-estado-uf">' + APUUI.esc(nome) + '</span></div>'
       + linhas
       + '<div class="apu-estado-pe">'
       + '<div class="apu-mini"><span style="width:' + Math.min(100, pst) + '%;background:var(--ink)"></span></div>'

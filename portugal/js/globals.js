@@ -420,8 +420,10 @@ const STATE = {
   currentCirculo: '',                  // '' = Portugal inteiro
   currentNuts: '',                     // '' = sem filtro regional. Ex: 'n2:Norte', 'am:AML'
   scope: { level: 'national', key: null },  // national|distrito|concelho|freguesia
-  mapLevel: 'distrito',                // 'distrito' | 'concelho' | 'freguesia'
-  granularity: 'distrito',             // 'distrito' | 'concelho' | 'freguesia'
+  mapLevel: 'distrito',                // 'distrito' | 'concelho' | 'freguesia' | 'regiao'
+  granularity: 'distrito',             // 'distrito' | 'concelho' | 'freguesia' | 'regiao'
+  regionLevel: 'n3',                   // nível do modo Regiões: 'n1' | 'n2' | 'n3' | 'am'
+  regioesGeo: null,                    // dados/mapas/regioes.geojson, carregado no 1.º uso
   vizParty: null,                      // partido no modo desempenho
   performanceStats: null,              // { minPct, maxPct } do partido no ano
   extrusionEnabled: false,

@@ -2,9 +2,15 @@
 
 O que produz, em resultados_geo/candidatos_2026/:
 
-    candidatos.json            {sqCandidato: {nome, urna, numero, partido, cargo, uf}}
-    por-cargo/{cargo}.json     recorte por cargo, para carga mais leve
+    cargo-000N.json            {sq: {sq, urna, nome, numero, partido, situacao,
+                                     coligacao, uf, cargo, foto}}
     fotos/{sqCandidato}.jpg    foto oficial de urna
+
+E o arquivo que js/apuracao-dados.js le para a pagina existir antes da primeira
+urna. Rode de novo sempre que a Justica Eleitoral mexer no registro: candidatura
+nova entra, renuncia passa a `situacao: "Renuncia"` (e o front tira da tela),
+deferimento e indeferimento aparecem em `situacao`. Cada rodada imprime o que
+mudou desde a anterior.
 
 O front (js/apuracao-ui.js) procura a foto por `fotos/{sq}.jpg`, onde `sq` e a
 chave que o snapshot de apuracao usa. Em 2026 essa chave e o `sqcand` do TSE,
@@ -25,41 +31,54 @@ de https://dadosabertos.tse.jus.br/dataset/candidatos-2026 e rode
 
 que extrai so os candidatos dos cargos exibidos e escreve o manifesto.
 
-ACESSO. O DivulgaCandContas fica atras de Akamai e recusa cliente que nao
-pareca navegador: de varias redes (datacenter, CI, VPN) a resposta e 403
-"Access Denied" independente do cabecalho. Rode da sua maquina, na sua rede.
-O `--probe` diz em segundos se aquele ponto de saida passa, antes de voce
-esperar por uma varredura inteira. Se der BLOQUEADO, use
-`scripts/apuracao/ponte_divulgacand.py`, que colhe pelo proprio navegador —
-foi assim que a lista de 2026 que esta em resultados_geo/candidatos_2026/
-entrou no repositorio.
+ACESSO. O DivulgaCandContas fica atras de Akamai, que barra por impressao
+digital de TLS: `urllib`, `curl` e `requests` levam 403 com endpoint valido e
+cabecalho de navegador. Por isso aqui e curl_cffi com `impersonate="chrome"`,
+que apresenta o handshake de um Chrome de verdade e passa. O `--probe` diz em
+segundos se este ponto de saida funciona, antes de voce esperar a varredura
+inteira. Se ainda der BLOQUEADO (VPN, proxy, CI), o caminho de escape e
+`scripts/apuracao/ponte_divulgacand.py`, que colhe pelo proprio navegador.
 
-Este script nao inventa dado: se a API nao responder, ele falha e diz por que.
+Este script nao inventa dado: se a API nao responder, ele falha e diz por que,
+e um cargo que volta vazio preserva o arquivo que ja estava no repositorio.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import threading
 import time
-import urllib.error
-import urllib.request
 from pathlib import Path
+
+try:
+    from curl_cffi import requests as navegador
+except ImportError:                                  # pragma: no cover
+    print("Falta curl_cffi (pip install curl_cffi). Sem ele o Akamai do TSE "
+          "devolve 403 para qualquer cliente HTTP comum.", file=sys.stderr)
+    raise
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 DESTINO = RAIZ / "resultados_geo" / "candidatos_2026"
 
 BASE = "https://divulgacandcontas.tse.jus.br/divulga/rest/v1"
-# A foto de urna sai do mesmo host, no caminho de arquivo estatico.
-FOTO = "https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/{idEleicao}/{sq}"
+# A foto de urna sai do mesmo host, no caminho de arquivo estatico. O sufixo da
+# unidade eleitoral ('BR' para presidente, a sigla da UF nos demais) e
+# obrigatorio: sem ele o TSE devolve 404 para todo candidato, inclusive os que
+# tem foto. Quem dita o formato e o `fotoUrl` do endpoint de detalhe
+# (/candidatura/buscar/...); no de listagem esse campo vem sempre nulo.
+FOTO = "https://divulgacandcontas.tse.jus.br/divulga/rest/arquivo/img/{idEleicao}/{sq}/{ue}"
 
-# Cabecalhos de navegador. Nao burlam o Akamai quando o bloqueio e por origem
-# da conexao, mas resolvem o caso em que o bloqueio e so pelo user-agent.
+# O TSE nao publica endpoint de listagem de eleicoes (todos os caminhos de
+# /eleicao/ devolvem 404). Este e o id da ordinaria de 2026, o mesmo que o
+# DivulgaCandContas usa na propria pagina. Trocavel por --id-eleicao quando
+# vier o segundo turno ou uma suplementar.
+ID_ELEICAO = "20322002026"
+CICLO = "2026"
+
 CABECALHOS = {
-    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                   "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"),
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "pt-BR,pt;q=0.9",
     "Referer": "https://divulgacandcontas.tse.jus.br/divulga/",
@@ -99,18 +118,20 @@ def buscar(url: str, binario: bool = False, tentativas: int = 3):
     for tentativa in range(1, tentativas + 1):
         LIMITE.esperar()
         try:
-            req = urllib.request.Request(url, headers=CABECALHOS)
-            with urllib.request.urlopen(req, timeout=30) as r:
-                dados = r.read()
-            return dados if binario else json.loads(dados.decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code == 403:
-                raise Bloqueado(url) from e
-            if e.code == 404:
+            r = navegador.get(url, headers=CABECALHOS, impersonate="chrome", timeout=30)
+            if r.status_code == 403:
+                raise Bloqueado(url)
+            if r.status_code == 404:
                 return None
-            if tentativa == tentativas:
-                print(f"  ! HTTP {e.code} em {url}", file=sys.stderr)
-                return None
+            if r.status_code != 200:
+                if tentativa == tentativas:
+                    print(f"  ! HTTP {r.status_code} em {url}", file=sys.stderr)
+                    return None
+                time.sleep(2 ** tentativa)
+                continue
+            return r.content if binario else r.json()
+        except Bloqueado:
+            raise
         except Exception as e:  # noqa: BLE001
             if tentativa == tentativas:
                 print(f"  ! {type(e).__name__} em {url}", file=sys.stderr)
@@ -121,11 +142,6 @@ def buscar(url: str, binario: bool = False, tentativas: int = 3):
 
 class Bloqueado(RuntimeError):
     """403 do Akamai: esta rede nao fala com o DivulgaCandContas."""
-
-
-def eleicoes_de(ano: int) -> list[dict]:
-    dados = buscar(f"{BASE}/eleicao/eleicoes-ano/{ano}")
-    return dados if isinstance(dados, list) else []
 
 
 def candidatos_de(ciclo: str, uf: str, id_eleicao: str, cargo: int) -> list[dict]:
@@ -139,55 +155,68 @@ def candidatos_de(ciclo: str, uf: str, id_eleicao: str, cargo: int) -> list[dict
 
 
 def normalizar(c: dict, cargo: int, uf: str) -> dict:
+    """Mesmos campos que o front le em cargo-000N.json. `situacao` e o que
+    decide se a linha aparece: js/apuracao-dados.js tira da tela quem esta em
+    Renuncia."""
     return {
-        "nome": (c.get("nomeCompleto") or c.get("nomeCandidato") or "").strip(),
+        "sq": str(c.get("id") or c.get("sqCandidato") or ""),
         "urna": (c.get("nomeUrna") or "").strip(),
+        "nome": (c.get("nomeCompleto") or c.get("nomeCandidato") or "").strip(),
         "numero": str(c.get("numero") or ""),
         "partido": ((c.get("partido") or {}).get("sigla") or "").strip(),
-        "cargo": CARGOS.get(cargo, str(cargo)),
+        "situacao": (c.get("descricaoSituacao") or "").strip(),
+        "coligacao": (c.get("nomeColigacao") or "").strip(),
         "uf": uf,
+        "cargo": f"{cargo:04d}",
+        "foto": c.get("fotoUrl") or None,
     }
 
 
 # ------------------------------------------------------------------ execucao
 
-def probe() -> int:
+def probe(id_eleicao: str = ID_ELEICAO) -> int:
     """Diz, em segundos, se esta rede consegue falar com o DivulgaCandContas."""
     print("Testando acesso ao DivulgaCandContas...")
     try:
-        anos = buscar(f"{BASE}/eleicao/eleicoes-anos")
+        lista = candidatos_de(CICLO, "BR", id_eleicao, 1)
     except Bloqueado:
         print("\n  BLOQUEADO (403 do Akamai).")
         print("  Esta rede nao acessa o DivulgaCandContas. Rode da sua maquina,")
-        print("  fora de VPN/proxy. Nada a fazer no codigo.")
+        print("  fora de VPN/proxy, e com curl_cffi instalado.")
         return 2
-    if not anos:
-        print("\n  Sem resposta utilizavel. Servico fora do ar?")
+    if not lista:
+        print(f"\n  Passou o Akamai, mas a eleicao {id_eleicao} nao devolveu")
+        print("  candidato a presidente. Id errado, ou servico fora do ar.")
         return 1
-    print(f"  OK. Anos disponiveis: {anos if isinstance(anos, list) else '(formato inesperado)'}")
-    for e in eleicoes_de(2026):
-        print(f"  eleicao 2026: id={e.get('id')} ciclo={e.get('idProcessoEleitoral')} "
-              f"{e.get('nomeEleicao') or e.get('descricao')}")
+    print(f"  OK. Eleicao {id_eleicao}: {len(lista)} candidatos a presidente.")
     return 0
 
 
-def coletar(ano: int, cargos: list[int], com_fotos: bool, destino: Path) -> int:
-    try:
-        eleicoes = eleicoes_de(ano)
-    except Bloqueado:
-        print("BLOQUEADO (403). Rode `--probe` para o diagnostico.", file=sys.stderr)
-        return 2
+def diferenca(antes: dict, agora: dict) -> None:
+    """O que mudou desde a ultima rodada. E o unico jeito de saber, sem ler o
+    diff do JSON minificado, quem saiu, quem entrou e quem trocou de situacao."""
+    def rotulo(c):
+        return f"{c.get('urna') or c.get('nome')} ({c.get('partido')}/{c.get('uf')})"
 
-    if not eleicoes:
-        print(f"O TSE nao lista eleicao para {ano}. Se o registro de candidaturas\n"
-              f"ainda nao encerrou, nao ha o que importar.", file=sys.stderr)
-        return 1
+    saiu = [antes[k] for k in antes.keys() - agora.keys()]
+    entrou = [agora[k] for k in agora.keys() - antes.keys()]
+    mudou = [(antes[k], agora[k]) for k in antes.keys() & agora.keys()
+             if (antes[k].get("situacao") or "") != (agora[k].get("situacao") or "")]
 
-    ordinaria = next((e for e in eleicoes if str(e.get("tipoEleicao", "")).lower().startswith("ordin")),
-                     eleicoes[0])
-    id_eleicao = str(ordinaria.get("id"))
-    ciclo = str(ordinaria.get("idProcessoEleitoral") or id_eleicao)
-    print(f"Eleicao {id_eleicao} (ciclo {ciclo}): {ordinaria.get('nomeEleicao') or ''}")
+    for c in sorted(saiu, key=rotulo):
+        print(f"    - saiu da lista  {rotulo(c)} [{c.get('situacao')}]")
+    for c in sorted(entrou, key=rotulo):
+        print(f"    + entrou         {rotulo(c)} [{c.get('situacao')}]")
+    for a, b in sorted(mudou, key=lambda p: rotulo(p[1])):
+        print(f"    ~ {rotulo(b)}: {a.get('situacao') or '(vazio)'} -> {b.get('situacao')}")
+    if not (saiu or entrou or mudou):
+        print("    (nada mudou)")
+
+
+def coletar(cargos: list[int], com_fotos: bool, destino: Path,
+            id_eleicao: str = ID_ELEICAO) -> int:
+    print(f"Eleicao {id_eleicao} (ciclo {CICLO}), cargos {cargos}")
+    destino.mkdir(parents=True, exist_ok=True)
 
     todos: dict[str, dict] = {}
     for cargo in cargos:
@@ -196,7 +225,7 @@ def coletar(ano: int, cargos: list[int], com_fotos: bool, destino: Path) -> int:
         do_cargo: dict[str, dict] = {}
         for uf in alvos:
             try:
-                lista = candidatos_de(ciclo, uf, id_eleicao, cargo)
+                lista = candidatos_de(CICLO, uf, id_eleicao, cargo)
             except Bloqueado:
                 print("BLOQUEADO no meio da varredura (403).", file=sys.stderr)
                 return 2
@@ -206,30 +235,42 @@ def coletar(ano: int, cargos: list[int], com_fotos: bool, destino: Path) -> int:
                     continue
                 do_cargo[sq] = normalizar(c, cargo, uf)
             print(f"  {CARGOS.get(cargo, cargo)} {uf}: {len(lista)} candidatos")
-        todos.update(do_cargo)
-        (destino / "por-cargo").mkdir(parents=True, exist_ok=True)
-        (destino / "por-cargo" / f"{cargo:04d}.json").write_text(
-            json.dumps(do_cargo, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
-    destino.mkdir(parents=True, exist_ok=True)
-    (destino / "candidatos.json").write_text(
-        json.dumps(todos, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"\n{len(todos)} candidatos -> {destino / 'candidatos.json'}")
+        if not do_cargo:
+            # Sobrescrever com vazio apagaria a lista boa que ja esta no site.
+            print(f"  ! {CARGOS.get(cargo, cargo)}: nenhum candidato, arquivo "
+                  f"preservado.", file=sys.stderr)
+            continue
+
+        alvo = destino / f"cargo-{cargo:04d}.json"
+        antigo = json.loads(alvo.read_text(encoding="utf-8")) if alvo.exists() else {}
+        alvo.write_text(json.dumps(do_cargo, ensure_ascii=False, separators=(",", ":")),
+                        encoding="utf-8")
+        print(f"  {len(do_cargo)} candidatos -> {alvo.name} (antes: {len(antigo)})")
+        diferenca(antigo, do_cargo)
+        todos.update(do_cargo)
 
     if com_fotos:
         baixar_fotos(todos, id_eleicao, destino / "fotos")
     return 0
 
 
+# Quem o front tira da tela antes da primeira urna, e para quem, portanto, nao
+# vale a pena guardar foto. Espelha FORA_DA_DISPUTA de js/apuracao-dados.js; se
+# a regra de la mudar, o pior que acontece aqui e sobrar um jpg que ninguem pede.
+FORA_DA_DISPUTA = re.compile(r"^(Ren[uú]ncia|Indeferido)\s*$", re.IGNORECASE)
+
+
 def baixar_fotos(candidatos: dict[str, dict], id_eleicao: str, pasta: Path) -> None:
     pasta.mkdir(parents=True, exist_ok=True)
     novas = ausentes = 0
-    for i, sq in enumerate(candidatos, 1):
+    for i, (sq, c) in enumerate(candidatos.items(), 1):
         alvo = pasta / f"{sq}.jpg"
-        if alvo.exists():
+        if alvo.exists() or FORA_DA_DISPUTA.match(c.get("situacao") or ""):
             continue
         try:
-            img = buscar(FOTO.format(idEleicao=id_eleicao, sq=sq), binario=True)
+            img = buscar(FOTO.format(idEleicao=id_eleicao, sq=sq, ue=c.get("uf") or "BR"),
+                         binario=True)
         except Bloqueado:
             print("BLOQUEADO durante as fotos (403).", file=sys.stderr)
             return
@@ -249,20 +290,57 @@ def baixar_fotos(candidatos: dict[str, dict], id_eleicao: str, pasta: Path) -> N
     print(f"manifesto: {len(existentes)} fotos -> {pasta.parent / 'fotos.json'}")
 
 
+def autoteste() -> int:
+    """Sem rede. Cobre o que quebraria em silencio: o formato que o front le, e
+    a recusa a sobrescrever um cargo com lista vazia."""
+    import tempfile
+
+    cru = {"id": 123, "nomeUrna": " FULANO ", "nomeCompleto": "FULANO DE TAL",
+           "numero": 45, "partido": {"sigla": "XPTO"},
+           "descricaoSituacao": "Renuncia", "nomeColigacao": "SO XPTO",
+           "fotoUrl": None}
+    n = normalizar(cru, 3, "MG")
+    assert n["sq"] == "123" and n["cargo"] == "0003" and n["uf"] == "MG"
+    assert n["urna"] == "FULANO" and n["numero"] == "45"
+    assert n["situacao"] == "Renuncia", "situacao e o campo que o front filtra"
+    assert set(n) == {"sq", "urna", "nome", "numero", "partido", "situacao",
+                      "coligacao", "uf", "cargo", "foto"}
+
+    global candidatos_de
+    original = candidatos_de
+    with tempfile.TemporaryDirectory() as tmp:
+        destino = Path(tmp)
+        alvo = destino / "cargo-0001.json"
+        alvo.write_text(json.dumps({"9": {"urna": "JA ESTAVA"}}), encoding="utf-8")
+        try:
+            candidatos_de = lambda *a, **k: []      # TSE fora do ar
+            coletar([1], False, destino)
+        finally:
+            candidatos_de = original
+        assert json.loads(alvo.read_text(encoding="utf-8")) == {"9": {"urna": "JA ESTAVA"}},             "lista vazia do TSE nao pode apagar a lista boa do site"
+
+    print("autoteste ok")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--probe", action="store_true", help="so testa o acesso e sai")
-    ap.add_argument("--ano", type=int, default=2026)
+    ap.add_argument("--autoteste", action="store_true", help="checagem sem rede e sai")
+    ap.add_argument("--id-eleicao", default=ID_ELEICAO,
+                    help="id da eleicao no DivulgaCandContas (outro turno, suplementar)")
     ap.add_argument("--cargos", nargs="*", type=int, default=[1, 3, 5],
                     help="1 presidente, 3 governador, 5 senador, 6/7/8 deputados")
     ap.add_argument("--fotos", action="store_true", help="baixa tambem as fotos de urna")
     ap.add_argument("--destino", type=Path, default=DESTINO)
     args = ap.parse_args()
 
+    if args.autoteste:
+        return autoteste()
     if args.probe:
-        return probe()
-    return coletar(args.ano, args.cargos, args.fotos, args.destino)
+        return probe(args.id_eleicao)
+    return coletar(args.cargos, args.fotos, args.destino, args.id_eleicao)
 
 
 if __name__ == "__main__":

@@ -228,7 +228,6 @@
       }
 
       $('subtitulo').textContent = `${nomeDoCargo()} — candidaturas registradas`;
-      $('legenda').innerHTML = '';
       estado.porChave = {};
 
       const vazio = await montarMapa(uf);

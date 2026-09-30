@@ -212,6 +212,9 @@ function updateElectionUiVisibility() {
 
   const nutsFilterCtrl = document.getElementById('nutsFilterCtrl');
   if (nutsFilterCtrl) nutsFilterCtrl.style.display = isAu ? 'none' : '';
+  // as autárquicas ignoram o filtro regional, então também não há modo Regiões
+  const chipRegioes = document.querySelector('#mapLevelChips [data-value="regiao"]');
+  if (chipRegioes) chipRegioes.style.display = isAu ? 'none' : '';
 }
 
 // Mapa botão -> chave de círculo, para os círculos sem geometria (emigração).
@@ -357,6 +360,10 @@ function setupControls() {
   dom.mapLevelChips?.querySelectorAll('.chip-button').forEach((btn) => {
     btn.addEventListener('click', () => {
       const val = btn.dataset.value;
+      if (val === 'regiao') {
+        window.mostrarRegioes();
+        return;
+      }
       STATE.granularity = val;
       
       if (STATE.currentCirculo) {
@@ -411,6 +418,11 @@ function setupControls() {
     });
   });
 
+  // Nível do modo Regiões (NUTS I, II, III, áreas metropolitanas)
+  document.querySelectorAll('#regionLevelChips .chip-button').forEach((btn) => {
+    btn.addEventListener('click', () => window.mostrarRegioes(btn.dataset.value));
+  });
+
   dom.vizModeChips?.querySelectorAll('.chip-button').forEach((btn) => {
     btn.addEventListener('click', () => {
       currentVizMode = btn.dataset.value;
@@ -458,6 +470,12 @@ function setupControls() {
       navigateToDistrito(btn.dataset.backKey, { focus: true });
     } else if (action === 'national') {
       navigateToNational({ focus: true });
+    } else if (action === 'regioes') {
+      // abre no nível da região escolhida, para ela aparecer em destaque
+      window.mostrarRegioes(STATE.currentNuts.split(':')[0]);
+    } else if (action === 'sem-regiao') {
+      dom.selectNuts.value = '';
+      dom.selectNuts.dispatchEvent(new Event('change'));
     } else {
       clearSelection();
       if (!STATE.currentCirculo) focusCountryOnMap(true);
