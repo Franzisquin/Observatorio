@@ -133,6 +133,9 @@ def noite_de_verdade():
 
     d = carregar_noite()
     ordem = np.argsort(d['t'], kind='stable')
+    # o boletim de urna traz o codigo sem o zero a esquerda; a base e o
+    # snapshot do coletor, com ele — sem isto nenhum municipio achava a base
+    d['muni'] = np.char.zfill(d['muni'], 5)
     cds, idx = np.unique(d['muni'], return_inverse=True)
     uf_de = dict(zip(d['muni'], d['uf']))
     ts = np.bincount(idx)
