@@ -172,7 +172,15 @@ const APUUI = (function () {
        e as que mudam quem está de fato na disputa. */
     const muda = st && !/^(Deferido|Aguardando|N[ãa]o eleit|Eleit|2. turno|Suplente)/i.test(st);
     const chips = [selosDaMarca(c)];
-    if (muda) chips.push(`<span class="apu-cand-sit">${esc(st)}</span>`);
+    if (muda) {
+      const eSubJudice = /indeferido em prazo recursal ou com recurso/i.test(st)
+        || /pendente.*julgamento/i.test(st)
+        || /sub judice/i.test(st)
+        || /em prazo recursal/i.test(st);
+      const rotulo = eSubJudice ? 'SJ' : st;
+      const titulo = eSubJudice ? `Sub judice: ${st}` : '';
+      chips.push(`<span class="apu-cand-sit${eSubJudice ? ' is-sj' : ''}"${titulo ? ` title="${esc(titulo)}"` : ''}>${esc(rotulo)}</span>`);
+    }
     /* dvt: a destinação do voto. Anulado e sub judice mudam a leitura do número
        que está ao lado — é o que o art. 265 §2 manda informar. */
     if (/anulado/i.test(String(c.destino || ''))) {
@@ -187,23 +195,7 @@ const APUUI = (function () {
      cada tipo na tela, para não ocupar espaço explicando o que não está ali. */
   function legendaMarcas(lista, alvo) {
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
-    if (!el) return;
-    const oficial = lista.some((c) => c.marca && firme(c));
-    const previsto = lista.some((c) => c.marca && !firme(c));
-    el.hidden = !(oficial || previsto);
-    if (el.hidden) { el.innerHTML = ''; return; }
-
-    const item = (classe, texto, explica) =>
-      `<span class="apu-legenda-item"><span class="apu-marca ${classe}">`
-      + `${classe.includes('previsto') ? '' : icone('tique', 10)}${texto}</span>`
-      + `<span class="apu-legenda-txt">${explica}</span></span>`;
-
-    el.innerHTML = [
-      oficial ? item('is-eleito', 'Sólido',
-        'declarado pelo TSE, ou matematicamente eleito: o que falta apurar não muda o resultado') : '',
-      previsto ? item('is-segundo is-previsto', 'Tracejado',
-        'leitura das vagas do cargo e do “matematicamente definido”; o TSE ainda não declarou') : ''
-    ].filter(Boolean).join('');
+    if (el) { el.hidden = true; el.innerHTML = ''; }
   }
 
   /* ---------------------------------------------------------------- placar */

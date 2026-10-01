@@ -1890,6 +1890,18 @@ body:has(#mapaUF) .apu-aside .apu-results {
   background: #ecfdf3;
 }
 
+.apu-cand-sit.is-sj {
+  color: #b54708;
+  border-color: #fedf89;
+  background: #fffaeb;
+}
+
+:root[data-theme="dark"] .apu-cand-sit.is-sj {
+  color: #fdb022;
+  border-color: #7a2e0e;
+  background: #331b08;
+}
+
 /* Estágio da totalização de uma UF (campo `and` do EA14). */
 .apu-estagio {
   display: inline-block;

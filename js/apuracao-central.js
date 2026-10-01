@@ -63,7 +63,6 @@
       : APU.rankingZerado(estado.chapaPres);
     APUUI.placar(lista, 'placarPresidente',
       { limite: 4, entrada: nacional, cargo: '0001' });
-    APUUI.legendaMarcas(lista, 'legendaPres');
     APUUI.avisos(nacional, 'avisos');
     resumoProjecao(nacional, dicionario);
 
@@ -258,8 +257,6 @@
       .map((uf) => cartao(uf, CARGO_GOV, estado.gov, estado.chapaGov)).join('');
     $('gradeSen').innerHTML = UFS
       .map((uf) => cartao(uf, CARGO_SEN, estado.sen, estado.chapaSen)).join('');
-    APUUI.legendaMarcas(marcasDe(estado.gov, CARGO_GOV), 'legendaGov');
-    APUUI.legendaMarcas(marcasDe(estado.sen, CARGO_SEN), 'legendaSen');
 
     const comDados = (p) => p && p.abr
       ? UFS.filter((uf) => p.abr[uf] && p.abr[uf].vv > 0).length : 0;
