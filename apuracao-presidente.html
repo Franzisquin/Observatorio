@@ -45,7 +45,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20260930f" />
+  <link rel="stylesheet" href="apuracao.css?v=20260930o" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -60,10 +60,15 @@
         <span class="brand-scope">Presidente</span>
       </a>
 
-      <nav class="topnav">
-        <a href="apuracao.html" id="navCentral">Central de apuração</a>
-        <a href="brasil.html">Brasil</a>
-        <a href="#estados">Estados</a>
+      <!-- Menu de cargos, o mesmo nas quatro páginas da apuração. Os links ganham
+           a fonte de dados (`?dados=`) e o cargo da página fica marcado em
+           APUUI.ligarMenu (js/apuracao-ui.js). -->
+      <nav class="topnav" id="menuCargos">
+        <a href="apuracao-presidente.html?cargo=0001" data-cargo="0001">Presidente</a>
+        <a href="apuracao.html#governador" data-cargo="0003">Governador</a>
+        <a href="apuracao.html#senado" data-cargo="0005">Senado</a>
+        <a href="apuracao-deputados.html?cargo=0006" data-cargo="0006">Deputado federal</a>
+        <a href="apuracao-deputados.html?cargo=0007" data-cargo="0007">Deputado estadual</a>
       </nav>
 
       <button class="apu-tema" id="trocarTema" type="button" aria-label="Mudar tema" title="Mudar tema">
@@ -80,6 +85,39 @@
     <!-- ------------------------------------- palco: mapa + painel encostado -->
     <section class="apu-stage">
 
+      <!-- Painel da projeção, à esquerda do mapa. Só aparece enquanto há o que
+           projetar: da primeira urna até o TSE declarar o resultado. Fica com a
+           projeção nacional também quando um estado está aberto no mapa. -->
+      <aside class="apu-dock apu-dock-proj" id="painelProj" aria-label="Projeção ElectoMaps" hidden>
+        <div class="apu-dock-body">
+          <!-- Projeção do resultado final: estimativa do ElectoMaps, publicada à parte
+               do número do TSE (scripts/apuracao/projecao.py). Some quando o TSE
+               declara o resultado. -->
+          <section class="apu-proj" id="projecao" hidden>
+            <div class="apu-proj-head">
+              <h3 class="apu-dock-rot">Projeção ElectoMaps</h3>
+              <span class="apu-proj-quando" id="projQuando"></span>
+            </div>
+            <p class="apu-proj-frase" id="projFrase"></p>
+            <!-- 1º turno: termina agora ou vai ao 2º, e com quem -->
+            <div class="apu-proj-desfecho" id="projDesfecho" hidden></div>
+            <!-- chances por candidato: mais votado, vai ao 2º turno (ou vence, no 2º) -->
+            <table class="apu-proj-tab" id="projChances" hidden></table>
+            <h4 class="apu-proj-sub" id="projSubVotos" hidden>Votos válidos projetados</h4>
+            <div class="apu-proj-lista" id="projLista"></div>
+            <p class="apu-proj-legenda" id="projLegenda">
+              <span class="apu-proj-leg-ponto"></span> projeção
+              <span class="apu-proj-leg-faixa"></span> faixa com 95% de chance
+              <span class="apu-proj-leg-apurado"></span> apurado agora
+            </p>
+            <p class="apu-proj-aviso">
+              Estimativa estatística do ElectoMaps a partir das urnas já apuradas e da
+              eleição de 2022. Não é resultado oficial: o resultado é o que o TSE totaliza.
+            </p>
+          </section>
+        </div>
+      </aside>
+
       <div class="apu-stage-map">
         <!-- MapLibre sobre a malha do IBGE: estados de saída, os municípios de um
              estado ao clicar nele, e o país inteiro na camada "Municípios". Desenho
@@ -93,6 +131,9 @@
         </div>
 
         <p class="apu-gl-carga" id="mapaCarga" role="status" hidden></p>
+
+        <!-- Legenda das faixas de cor: o tom diz o percentual do mais votado. -->
+        <div class="apu-faixas" id="legendaFaixas" hidden></div>
 
         <!-- O globo do voto no exterior, que ficava no oceano do SVG. Entra no
              mapa como marcador preso a uma coordenada a oeste do continente, e é
@@ -154,31 +195,6 @@
                que controla. -->
           <div id="maisResultado"></div>
 
-          <!-- Projeção do resultado final: estimativa do ElectoMaps, publicada à parte
-               do número do TSE (scripts/apuracao/projecao.py). Some quando o TSE
-               declara o resultado. -->
-          <section class="apu-proj" id="projecao" hidden>
-            <div class="apu-proj-head">
-              <h3 class="apu-dock-rot">Projeção ElectoMaps</h3>
-              <span class="apu-proj-quando" id="projQuando"></span>
-            </div>
-            <p class="apu-proj-frase" id="projFrase"></p>
-            <!-- 1º turno: termina agora ou vai ao 2º, e com quem -->
-            <div class="apu-proj-desfecho" id="projDesfecho" hidden></div>
-            <!-- chances por candidato: mais votado, vai ao 2º turno (ou vence, no 2º) -->
-            <table class="apu-proj-tab" id="projChances" hidden></table>
-            <h4 class="apu-proj-sub" id="projSubVotos" hidden>Votos válidos projetados</h4>
-            <div class="apu-proj-lista" id="projLista"></div>
-            <p class="apu-proj-legenda" id="projLegenda">
-              <span class="apu-proj-leg-ponto"></span> projeção
-              <span class="apu-proj-leg-faixa"></span> faixa com 95% de chance
-              <span class="apu-proj-leg-apurado"></span> apurado agora
-            </p>
-            <p class="apu-proj-aviso">
-              Estimativa estatística do ElectoMaps a partir das urnas já apuradas e da
-              eleição de 2022. Não é resultado oficial: o resultado é o que o TSE totaliza.
-            </p>
-          </section>
 
           <p class="apu-progress-lab" id="mapaNota" style="margin-top:14px"></p>
 
@@ -221,9 +237,9 @@
 
   <div class="apu-tip" id="tip" role="status" aria-live="polite"></div>
 
-  <script src="js/apuracao-dados.js?v=20260920a"></script>
-  <script src="js/apuracao-ui.js?v=20260930b"></script>
-  <script src="js/apuracao-nacional.js?v=20260930g"></script>
+  <script src="js/apuracao-dados.js?v=20260930c"></script>
+  <script src="js/apuracao-ui.js?v=20260930h"></script>
+  <script src="js/apuracao-nacional.js?v=20260930j"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

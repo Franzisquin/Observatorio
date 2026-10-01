@@ -74,6 +74,7 @@ final_patch.js
 apuracao.html
 apuracao-presidente.html
 apuracao-uf.html
+apuracao-deputados.html
 locais.html
 apuracao.css
 locais.css
@@ -82,6 +83,7 @@ js/apuracao-dados.js
 js/apuracao-nacional.js
 js/apuracao-uf.js
 js/apuracao-ui.js
+js/apuracao-deputados.js
 js/locais-view.js
 # Sprite das bandeiras dos estados: so apuracao.css e js/apuracao-central.js o
 # usam, e os dois estao acima. Esta fora do git tambem, entao publicar daqui

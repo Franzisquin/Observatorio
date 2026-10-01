@@ -82,6 +82,12 @@ FATIA_MINIMA = 0.05
 
 R = 6378137.0
 
+# Ilhas que saem do mapa: Trindade e Martim Vaz, de Vitoria (ES), a 1.100 km da
+# costa e sem eleitor. Todo poligono inteiro a leste desta longitude sai — o
+# mesmo corte de scripts/gerar_malhas_apuracao.py (SEM_ILHAS). Noronha fica: no
+# mapa que se aproxima, o lugar real dela serve.
+SEM_ILHAS = {'es': -38.0}
+
 
 def mercator(xy):
     lon = np.radians(xy[:, 0])
@@ -101,13 +107,22 @@ def valida(g):
     return g if g.is_valid else shapely.make_valid(g, method='structure', keep_collapsed=False)
 
 
+def sem_ilhas(uf, g):
+    corte = SEM_ILHAS.get(uf)
+    if corte is None:
+        return g
+    partes = [p for p in getattr(g, 'geoms', [g]) if p.bounds[0] <= corte]
+    return shapely.union_all(partes) if len(partes) != len(getattr(g, 'geoms', [g])) else g
+
+
 def municipios():
     """[cd, uf, geometria lon/lat] de todos os municipios, com o novo recortado."""
     lista = []
     for nome in sorted(os.listdir(HD_DIR)):
         uf = nome[11:13].lower()
         for f in ler(os.path.join(HD_DIR, nome))['features']:
-            lista.append([int(f['properties']['CD_MUN']), uf, valida(shape(f['geometry']))])
+            g = sem_ilhas(uf, valida(shape(f['geometry'])))
+            lista.append([int(f['properties']['CD_MUN']), uf, g])
 
     # Novo: esta na malha simplificada e na ponte do TSE, mas nao na HD. As
     # "areas operacionais" das lagoas gauchas tambem so estao na simplificada, e

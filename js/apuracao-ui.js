@@ -139,18 +139,28 @@ const APUUI = (function () {
     }
   }
 
-  /* Selo de eleito / segundo turno. `is-previsto` é a leitura deduzida de `md`
-     e `nv`; sem ele, dado oficial e dedução ficariam com a mesma cara. */
+  /* Selo de eleito / segundo turno. Sólido, com o check verde, quando é certo:
+     declarado pelo TSE, ou matematicamente eleito — o que falta apurar não muda
+     mais o resultado (APU.marcar). Tracejado (`is-previsto`) só para a leitura
+     que ainda pode mudar. */
+  const TITULO_MARCA = {
+    oficial: 'Declarado pelo TSE no arquivo de resultado',
+    matematico: 'Matematicamente eleito: nem todo o eleitorado que falta apurar mudaria o resultado',
+    previsto: 'Leitura das vagas do cargo e do campo "matematicamente definido" do TSE; '
+      + 'ainda não há declaração oficial'
+  };
+
+  const firme = (c) => !!(c.oficial || c.matematico);
+  const tituloDaMarca = (c) => (c.matematico && !c.oficial && c.marca === 'segundo'
+    ? 'Matematicamente definido pelo TSE: vai ao 2º turno'
+    : TITULO_MARCA[c.oficial ? 'oficial' : (c.matematico ? 'matematico' : 'previsto')]);
+
   function selosDaMarca(c) {
     if (!c.marca) return '';
     const rotulo = APU.ROTULO_MARCA[c.marca] || '';
     if (!rotulo) return '';
-    const titulo = c.oficial
-      ? 'Declarado pelo TSE no arquivo de resultado'
-      : 'Leitura das vagas do cargo e do campo "matematicamente definido" do TSE; '
-        + 'ainda não há declaração oficial';
-    return `<span class="apu-marca is-${c.marca}${c.oficial ? '' : ' is-previsto'}"`
-      + ` title="${esc(titulo)}">${c.oficial ? icone('tique', 11) : ''}${rotulo}</span>`;
+    return `<span class="apu-marca is-${c.marca}${firme(c) ? '' : ' is-previsto'}"`
+      + ` title="${esc(tituloDaMarca(c))}">${firme(c) ? icone('tique', 11) : ''}${rotulo}</span>`;
   }
 
   function rotuloSituacao(c) {
@@ -178,8 +188,8 @@ const APUUI = (function () {
   function legendaMarcas(lista, alvo) {
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return;
-    const oficial = lista.some((c) => c.marca && c.oficial);
-    const previsto = lista.some((c) => c.marca && !c.oficial);
+    const oficial = lista.some((c) => c.marca && firme(c));
+    const previsto = lista.some((c) => c.marca && !firme(c));
     el.hidden = !(oficial || previsto);
     if (el.hidden) { el.innerHTML = ''; return; }
 
@@ -189,7 +199,8 @@ const APUUI = (function () {
       + `<span class="apu-legenda-txt">${explica}</span></span>`;
 
     el.innerHTML = [
-      oficial ? item('is-eleito', 'Sólido', 'declarado pelo TSE na totalização final') : '',
+      oficial ? item('is-eleito', 'Sólido',
+        'declarado pelo TSE, ou matematicamente eleito: o que falta apurar não muda o resultado') : '',
       previsto ? item('is-segundo is-previsto', 'Tracejado',
         'leitura das vagas do cargo e do “matematicamente definido”; o TSE ainda não declarou') : ''
     ].filter(Boolean).join('');
@@ -355,56 +366,6 @@ const APUUI = (function () {
     el.appendChild(botao);
   }
 
-  /* ----------------------------------------------------- saúde do plantão */
-
-  /* O gargalo de uma cobertura ao vivo não é a ideia, é o coletor aguentar seis
-     horas sem ser bloqueado. Última geração lida, requisições, 404 e atraso em
-     relação à hora da totalização — o teto é 100 requisições por IP por segundo,
-     e um 404 repetido bloqueia igual a excesso, por dez minutos renováveis. */
-  function saude(estado, alvo) {
-    const el = typeof alvo === 'string' ? $(alvo) : alvo;
-    if (!el) return;
-    if (!estado) { el.hidden = true; return; }
-    el.hidden = false;
-
-    const req = estado.req || {};
-    const br = estado.abrangencia || {};
-    const minutos = Math.round((estado.segundos || 0) / 60);
-    const cel = (v, l, alarme) => `<div${alarme ? ' class="is-alarme"' : ''}>`
-      + `<div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;
-
-    /* As três regras do TSE, cada uma com o seu número na tela: teto de 100
-       requisições por IP por segundo, bloqueio de 10 minutos renovável, e 404
-       que pune igual a excesso. Número sem alarme não serve de nada numa noite
-       de seis horas, então cada um acende quando sai da faixa segura. */
-    const taxa = estado.taxa_medida != null
-      ? estado.taxa_medida
-      : (req.get || 0) / Math.max(1, estado.segundos || 1);
-    const bloqueios = req.bloqueios || 0;
-    const pausado = estado.bloqueado_por || 0;
-
-    el.classList.toggle('is-alarme', bloqueios > 0 || pausado > 0);
-
-    el.innerHTML = '<div class="apu-stats">' + [
-      cel(esc(estado.ambiente || '—'),
-        'Ambiente' + (estado.fase === 's' ? '<br>fase simulada' : '')),
-      cel(APU.fmt.int(estado.volta), `Voltas<br>${minutos} min de plantão`),
-      cel(APU.fmt.int(req.get), `Requisições<br>${APU.fmt.int(req['304'])} não modificadas`),
-      cel(taxa.toFixed(1) + '/s', 'Taxa média<br>teto do TSE: 100/s', taxa > 80),
-      cel(APU.fmt.int(bloqueios),
-        pausado > 0
-          ? `<strong>Pausado por ${Math.ceil(pausado / 60)} min</strong><br>bloqueio do TSE`
-          : 'Bloqueios<br>' + (bloqueios ? 'já houve punição' : 'nenhuma punição'),
-        bloqueios > 0),
-      cel(APU.fmt.int(req['404']),
-        `404 recebidos<br>${APU.fmt.int(req.evitados)} repetições evitadas`,
-        (req['404'] || 0) > 0),
-      cel(((req.bytes || 0) / 1e6).toFixed(1) + ' MB', 'Tráfego lido'),
-      cel(br.pst != null ? APU.fmt.pct(br.pst) : '—',
-        br.ht ? `Totalizado às ${esc(br.ht)}` : 'Apurado no país')
-    ].join('') + '</div>';
-  }
-
   /* A legenda de cores do mapa (quem lidera, e em quantas unidades) saiu: o
      mapa já é clicável e o balão diz o mesmo com mais precisão, e a lista
      logo abaixo repete nome, cor e contagem. */
@@ -481,17 +442,98 @@ const APUUI = (function () {
 
   /* ----------------------------------------------------------------- mapa */
 
-  /* Cor do líder e opacidade proporcional à margem; null quando ainda não há
-     voto. Margem baixa = cor mais lavada: dá a leitura de disputa sem inventar
-     uma escala que o dado não tem. Serve ao SVG e ao mapa em MapLibre da
-     presidencial, para que os dois pintem igual. */
+  /* --------------------------------------------- faixas de cor do vencedor */
+
+  /* O mapa pinta cada território com a cor do partido de quem lidera, num de
+     oito tons sólidos escolhidos pelo percentual do líder ali, em faixas de 10
+     pontos: abaixo de 20% o mais claro, 80% ou mais o mais escuro — o padrão dos
+     mapas do NYT. Antes era a mesma cor com opacidade pela margem, que no tema
+     escuro virava um tom sujo, misturado ao fundo, e não dizia quanto o líder
+     tinha.
+
+     Os tons saem da cor-base do partido: clareando em direção a um quase-branco
+     nas faixas baixas, a própria cor entre 60% e 70%, e escurecendo em direção
+     ao preto nas duas de cima. Sólidos, e não transparentes, para lerem igual
+     nos dois temas. */
+  const FAIXAS = [20, 30, 40, 50, 60, 70, 80];
+  const ROTULO_FAIXAS = ['<20', '20', '30', '40', '50', '60', '70', '80+'];
+  /* Fração de cor-base em cada faixa; acima de 1, quanto escurece. */
+  const RAMPA = [0.2, 0.32, 0.46, 0.62, 0.8, 1, 1.18, 1.36];
+  const CLARO = [244, 244, 242];
+
+  function faixa(pct) {
+    let i = 0;
+    while (i < FAIXAS.length && pct >= FAIXAS[i]) i += 1;
+    return i;
+  }
+
+  /* #rrggbb, #rgb, rgb() e o hsl() das cores derivadas de APU.cor. */
+  function rgbDe(cor) {
+    const s = String(cor || '').trim();
+    let m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(s);
+    if (m) {
+      const h = m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1];
+      const n = parseInt(h, 16);
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    m = /^rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/i.exec(s);
+    if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
+    m = /^hsl\(\s*([\d.]+)(?:deg)?[ ,]+([\d.]+)%[ ,]+([\d.]+)%/i.exec(s);
+    if (m) {
+      const h = Number(m[1]) / 360; const sat = Number(m[2]) / 100; const l = Number(m[3]) / 100;
+      const q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat;
+      const p = 2 * l - q;
+      const canal = (t0) => {
+        let t = t0;
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+      return [canal(h + 1 / 3) * 255, canal(h) * 255, canal(h - 1 / 3) * 255];
+    }
+    return [148, 163, 184];
+  }
+
+  function tom(cor, i) {
+    const base = rgbDe(cor);
+    const k = RAMPA[Math.max(0, Math.min(RAMPA.length - 1, i))];
+    const rgb = k <= 1
+      ? base.map((c, j) => CLARO[j] + (c - CLARO[j]) * k)
+      : base.map((c) => c * (1 - (k - 1)));
+    return '#' + rgb.map((c) => Math.round(Math.max(0, Math.min(255, c)))
+      .toString(16).padStart(2, '0')).join('');
+  }
+
+  /* Cor do líder no tom da faixa dele; null quando ainda não há voto. Serve ao
+     SVG e ao mapa em MapLibre da presidencial, para que os dois pintem igual.
+     `op` fica em 1: quem distingue as faixas é o tom, não a transparência. */
   function tinta(entrada, dicionario) {
     if (!entrada || !entrada.vv) return null;
-    const lista = APU.ranking(entrada, dicionario);
-    const l = lista[0];
+    const l = APU.ranking(entrada, dicionario)[0];
     if (!l) return null;
-    const margem = lista[1] ? l.pct - lista[1].pct : l.pct;
-    return { cor: APU.cor(l.partido), op: 0.42 + Math.min(0.58, margem / 55) };
+    const i = faixa(l.pct);
+    return { cor: tom(APU.cor(l.partido), i), op: 1, faixa: i };
+  }
+
+  /* Legenda das faixas: uma régua de oito tons por candidato que lidera em
+     algum lugar do mapa, com os limites embaixo. `lideres`: [{nome, cor}]. */
+  function legendaFaixas(alvo, lideres) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    el.hidden = !lideres.length;
+    if (!lideres.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<p class="apu-faixas-tit">% do mais votado</p>'
+      + lideres.map((c) => '<div class="apu-faixas-linha">'
+        + `<span class="apu-faixas-nome">${esc(c.nome)}</span>`
+        + '<span class="apu-faixas-regua">'
+        + RAMPA.map((_, i) => `<span style="background:${tom(c.cor, i)}"></span>`).join('')
+        + '</span></div>').join('')
+      + '<div class="apu-faixas-linha"><span class="apu-faixas-nome"></span>'
+      + '<span class="apu-faixas-regua is-rotulos">'
+      + ROTULO_FAIXAS.map((r) => `<span>${r}</span>`).join('') + '</span></div>';
   }
 
   /* Pinta um <svg> já montado: cada <path data-chave> recebe a cor do líder da
@@ -532,6 +574,362 @@ const APUUI = (function () {
     });
   }
 
+  /* ------------------------------------------------------------ hemiciclo */
+
+  /* Assentos em semicírculo, na geometria de buildSemicircleSeatPaths do
+     visualizador (js/national-view.js): K anéis conforme o tamanho da casa,
+     cadeiras por anel proporcionais ao raio, e a ordem final por ângulo — da
+     esquerda para a direita, atravessando os anéis. Quem enche essa ordem são
+     os blocos já postos na régua do espectro, então a esquerda fica à esquerda.
+
+     Lá o arco sai do d3.arc; aqui a página não carrega o d3, então o setor é
+     desenhado à mão, e o canto arredondado vem de um traço da mesma cor com
+     junção redonda sobre o setor recuado — o mesmo desenho, sem a biblioteca. */
+  function geometriaDoHemiciclo(total) {
+    if (!(total > 0)) return [];
+
+    let K = 7;
+    if (total <= 10) K = 1; else if (total <= 30) K = 2; else if (total <= 60) K = 3;
+    else if (total <= 120) K = 4; else if (total <= 200) K = 5; else if (total <= 350) K = 6;
+
+    let Rmin = 180;
+    let Rmax = 260;
+    if (total <= 10) { Rmin = 235; Rmax = 250; }
+    else if (total <= 30) { Rmin = 212; Rmax = 250; }
+    else if (total <= 60) { Rmin = 205; Rmax = 255; }
+    else if (total <= 120) { Rmin = 195; Rmax = 258; }
+    else if (total <= 200) { Rmin = 190; Rmax = 260; }
+    else if (total <= 350) { Rmin = 185; Rmax = 260; }
+
+    const raios = [];
+    if (K === 1) raios.push((Rmin + Rmax) / 2);
+    else for (let r = 0; r < K; r++) raios.push(Rmin + r * (Rmax - Rmin) / (K - 1));
+
+    const somaRaios = raios.reduce((s, r) => s + r, 0);
+    const porAnel = raios.map((r) => Math.round(total * r / somaRaios));
+    let diferenca = total - porAnel.reduce((s, v) => s + v, 0);
+    let i = K - 1;
+    while (diferenca !== 0) {
+      if (diferenca > 0) { porAnel[i] += 1; diferenca -= 1; }
+      else if (porAnel[i] > 1) { porAnel[i] -= 1; diferenca += 1; }
+      i = (i - 1 + K) % K;
+    }
+
+    const margem = 0.06;
+    const abertura = Math.PI - 2 * margem;
+    const passo = K === 1 ? (Rmax - Rmin) : (Rmax - Rmin) / (K - 1);
+    const espessura = passo * 0.88;
+    const canto = Math.max(1.2, Math.min(3.5, espessura * 0.2));
+    const assentos = [];
+
+    for (let anel = 0; anel < K; anel++) {
+      const n = porAnel[anel];
+      const raio = raios[anel];
+      const entre = n > 1 ? abertura / (n - 1) : 0;
+      const largura = (abertura / n) * 0.93;
+      /* Recuo do canto: o traço de `2 * canto` devolve exatamente o que sai aqui. */
+      const r1 = raio - espessura / 2 + canto;
+      const r2 = raio + espessura / 2 - canto;
+      for (let s = 0; s < n; s++) {
+        const theta = n === 1 ? Math.PI / 2 : (Math.PI - margem - s * entre);
+        const meia = Math.max(0.0001, largura / 2 - canto / raio);
+        assentos.push({ d: setor(r1, r2, theta - meia, theta + meia), theta, canto,
+          x: raio * Math.cos(theta), y: -raio * Math.sin(theta) });
+      }
+    }
+
+    assentos.sort((a, b) => b.theta - a.theta);
+    /* Onde o semicírculo começa e acaba, para a linha da maioria cruzá-lo. */
+    assentos.limites = [Rmin - espessura / 2, Rmax + espessura / 2];
+    return assentos;
+  }
+
+  /* Geometria do desenho de bancada: um ponto por deputado, numa grade de
+     linhas e colunas. A grade se enche coluna a coluna, de cima para baixo e
+     da esquerda para a direita: como cada bloco recebe uma sequência contínua
+     de lugares, os deputados de um partido ficam juntos, e dentro do partido
+     o mais votado fica no alto da primeira coluna dele.
+
+     Poucas linhas e muitas colunas, para a grade ser larga como o espaço do
+     semicírculo (600 x 200 do viewBox), com o ponto no maior tamanho que cabe. */
+  function geometriaDeGrade(total) {
+    if (!(total > 0)) return [];
+    const linhas = Math.max(1, Math.min(10, Math.round(Math.sqrt(total / 2.4))));
+    const colunas = Math.ceil(total / linhas);
+    const passo = Math.min(46, 560 / colunas, 200 / linhas);
+    const x0 = 300 - (colunas * passo) / 2;
+    const base = 296;
+    const topo = base - linhas * passo;
+    const assentos = [];
+    for (let i = 0; i < total; i++) {
+      const col = Math.floor(i / linhas);
+      const lin = i % linhas;
+      assentos.push({ x: x0 + (col + 0.5) * passo, y: topo + (lin + 0.5) * passo,
+        rp: passo * 0.42, col });
+    }
+    assentos.grade = { linhas, colunas, passo, x0, topo, base };
+    return assentos;
+  }
+
+  /* Setor anular entre os ângulos a0 < a1 (radianos, 0 à direita, pi à
+     esquerda), com o centro na origem e o y da tela para baixo. */
+  function setor(r1, r2, a0, a1) {
+    const p = (r, a) => (r * Math.cos(a)).toFixed(2) + ' ' + (-r * Math.sin(a)).toFixed(2);
+    return 'M' + p(r2, a0) + 'A' + r2.toFixed(2) + ' ' + r2.toFixed(2) + ' 0 0 0 ' + p(r2, a1)
+      + 'L' + p(r1, a1) + 'A' + r1.toFixed(2) + ' ' + r1.toFixed(2) + ' 0 0 1 ' + p(r1, a0) + 'Z';
+  }
+
+  const NS = 'http://www.w3.org/2000/svg';
+
+  function noSvg(tag, attrs, texto) {
+    const el = document.createElementNS(NS, tag);
+    Object.entries(attrs || {}).forEach(([k, v]) => el.setAttribute(k, v));
+    if (texto != null) el.textContent = texto;
+    return el;
+  }
+
+  /* Desenha (ou só repinta) o hemiciclo num <svg viewBox="0 65 600 305">.
+
+     Dois desenhos. Na casa inteira (a Câmara, as Assembleias somadas) cada
+     cadeira é um setor, como no visualizador. Na bancada de um estado
+     (`pontos`), cada cadeira é um ponto numa grade de linhas, e cada ponto é um
+     deputado: os partidos lado a lado, cada um inteiro, e dentro dele os mais
+     votados em cima — o primeiro da lista no alto da primeira coluna.
+
+     Cadeira que o TSE ainda não declarou sai com meia opacidade: na casa
+     inteira, as `declaradas` de cada bloco (UF com totalização final); na
+     bancada, o candidato com situação oficial (APU.marcarLista).
+
+     Os elementos ficam: a cada boletim só muda a cor de cada cadeira, e a
+     transição do CSS a faz mudar no lugar. Só se reconstrói quando muda o
+     tamanho da casa ou o desenho. */
+  function hemiciclo(svg, blocos, total, opcoes) {
+    if (!svg) return;
+    const o = opcoes || {};
+    const pontos = !!o.pontos;
+    const ordem = (blocos || []).filter((b) => b.vagas > 0).slice().sort(APU.porEspectro);
+
+    /* Quem ocupa cada cadeira, na ordem do espectro e, dentro do bloco, do
+       mais ao menos votado. */
+    const donos = [];
+    ordem.forEach((b) => {
+      const dentro = (b.cand || []).filter((c) => c.dentro);
+      for (let i = 0; i < b.vagas && donos.length < total; i++) {
+        const cand = dentro[i] || null;
+        donos.push({ b, cand, oficial: cand ? !!cand.oficial : i < (b.declaradas || 0) });
+      }
+    });
+
+    const desenho = total + '|' + (pontos ? 'pontos' : 'arcos');
+    if (svg.dataset.desenho !== desenho) {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.dataset.desenho = desenho;
+      const geometria = pontos ? geometriaDeGrade(total) : geometriaDoHemiciclo(total);
+      const grupo = noSvg('g', pontos ? { class: 'apu-hemi-assentos' }
+        : { transform: 'translate(300,360)', class: 'apu-hemi-assentos' });
+      const [dentro, fora] = geometria.limites || [180, 266];
+      geometria.forEach((a, i) => {
+        grupo.appendChild(pontos
+          ? noSvg('circle', { cx: a.x.toFixed(2), cy: a.y.toFixed(2), r: a.rp.toFixed(2),
+            class: 'apu-hemi-assento is-ponto', 'data-i': i })
+          : noSvg('path', { d: a.d, class: 'apu-hemi-assento', 'data-i': i,
+            'stroke-width': (a.canto * 2).toFixed(2) }));
+      });
+      svg.appendChild(grupo);
+      svg._apuGeo = geometria;
+      if (pontos) {
+        /* Na grade, a maioria é a coluna onde cai a cadeira que dá metade mais
+           um: a linha passa logo depois dela. */
+        const g = geometria.grade;
+        const colMaioria = geometria[Math.min(total, Math.floor(total / 2) + 1) - 1].col;
+        const xm = g.x0 + (colMaioria + 1) * g.passo;
+        svg.appendChild(noSvg('line', {
+          class: 'apu-hemi-maioria', x1: xm.toFixed(1), x2: xm.toFixed(1),
+          y1: (g.topo - 6).toFixed(1), y2: (g.base + 6).toFixed(1)
+        }));
+        svg.appendChild(noSvg('text', { class: 'apu-hemi-total', x: 300, y: 340, 'text-anchor': 'middle' }));
+        svg.appendChild(noSvg('text', { class: 'apu-hemi-rot', x: 300, y: 362, 'text-anchor': 'middle' }));
+        svg.appendChild(noSvg('text', {
+          class: 'apu-hemi-maioria-rot', x: xm.toFixed(1), y: (g.topo - 10).toFixed(1),
+          'text-anchor': 'middle'
+        }));
+      } else {
+        /* Linha da maioria: o meio do semicírculo. Cadeiras dos dois lados dela
+           somam metade da casa cada um. */
+        svg.appendChild(noSvg('line', {
+          class: 'apu-hemi-maioria', x1: 300, x2: 300,
+          y1: (360 - fora - 7).toFixed(1), y2: (360 - dentro + 7).toFixed(1)
+        }));
+        svg.appendChild(noSvg('text', { class: 'apu-hemi-total', x: 300, y: 332, 'text-anchor': 'middle' }));
+        svg.appendChild(noSvg('text', { class: 'apu-hemi-rot', x: 300, y: 354, 'text-anchor': 'middle' }));
+        svg.appendChild(noSvg('text', {
+          class: 'apu-hemi-maioria-rot', x: 306, y: (360 - fora - 10).toFixed(1)
+        }));
+      }
+    }
+
+    /* A geometria vem na ordem de preencher — no semicírculo, por ângulo, da
+       esquerda para a direita; na grade, coluna a coluna, de cima para baixo —,
+       e cada bloco fica com uma faixa contínua dela, recebendo os deputados na
+       ordem de voto. */
+    const geo = svg._apuGeo || [];
+    const porLugar = new Array(geo.length).fill(null);
+    let inicio = 0;
+    while (inicio < donos.length) {
+      let fim = inicio;
+      while (fim < donos.length && donos[fim].b === donos[inicio].b) fim += 1;
+      const lugares = [];
+      for (let i = inicio; i < fim; i++) lugares.push(i);
+      lugares.forEach((lugar, k) => { porLugar[lugar] = donos[inicio + k]; });
+      inicio = fim;
+    }
+
+    svg.querySelectorAll('.apu-hemi-assento').forEach((el) => {
+      const d = porLugar[Number(el.dataset.i)];
+      el.style.fill = d ? d.b.cor : '';
+      el.style.stroke = d && !pontos ? d.b.cor : '';
+      el.classList.toggle('is-vazio', !d);
+      el.classList.toggle('is-provisorio', !!d && !d.oficial);
+      el.dataset.chave = d ? d.b.chave : '';
+    });
+
+    const maioria = Math.floor(total / 2) + 1;
+    svg.querySelector('.apu-hemi-total').textContent = APU.fmt.int(total);
+    svg.querySelector('.apu-hemi-rot').textContent = o.rotulo || 'CADEIRAS';
+    svg.querySelector('.apu-hemi-maioria-rot').textContent = 'Maioria: ' + APU.fmt.int(maioria);
+
+    /* Balão e destaque do bloco sob o cursor. Ligados por delegação, uma vez
+       por <svg>: o redesenho de cada boletim não acumula ouvintes. */
+    svg._apuLugares = porLugar;
+    svg._apuTotal = total;
+    svg._apuOpcoes = o;
+    if (!svg._apuLigado) {
+      svg._apuLigado = true;
+      const tip = balao();
+      const sob = (ev) => {
+        const alvo = ev.target.closest && ev.target.closest('.apu-hemi-assento');
+        return alvo ? svg._apuLugares[Number(alvo.dataset.i)] : null;
+      };
+      svg.addEventListener('mousemove', (ev) => {
+        const d = sob(ev);
+        if (!d) { destacarBloco(svg, null); tip.esconder(); return; }
+        destacarBloco(svg, d.b.chave);
+        tip.mostrar(d.cand ? balaoDoAssento(d) : balaoDoBloco(d.b, svg._apuTotal), ev);
+      });
+      svg.addEventListener('mouseleave', () => { destacarBloco(svg, null); tip.esconder(); });
+      svg.addEventListener('click', (ev) => {
+        const d = sob(ev);
+        if (d && typeof svg._apuOpcoes.aoClicar === 'function') {
+          tip.esconder();
+          svg._apuOpcoes.aoClicar(d.b);
+        }
+      });
+    }
+  }
+
+  /* Balão de um ponto da bancada: o deputado, e se o TSE já o declarou. */
+  function balaoDoAssento(d) {
+    const c = d.cand;
+    const sub = c.partido + (d.b.federacao ? ' · ' + d.b.rotulo : '');
+    const situacao = d.oficial
+      ? (c.situacao || 'Eleito') + ', declarado pelo TSE'
+      : 'Dentro das vagas do partido neste boletim; o TSE ainda não declarou';
+    return '<div class="nyt-tooltip-container">'
+      + '<div class="district-nyt-title"><span class="apu-swatch" style="background:' + d.b.cor
+      + ';margin-right:7px"></span>' + esc(c.urna || c.numero) + '</div>'
+      + '<div class="district-nyt-sub">' + esc(sub) + '</div>'
+      + '<table class="district-nyt-table"><tbody>'
+      + '<tr><td>Votos</td><td class="votes-cell winner">' + APU.fmt.int(c.votos) + '</td>'
+      + '<td class="pct-cell">' + c.pos + 'º da lista</td></tr>'
+      + '</tbody></table>'
+      + '<div class="district-nyt-nota">' + esc(situacao) + '</div></div>';
+  }
+
+  /* Acende as cadeiras de um bloco e apaga as outras; `null` devolve todas. */
+  function destacarBloco(svg, chave) {
+    if (!svg) return;
+    svg.classList.toggle('is-foco', !!chave);
+    svg.querySelectorAll('.apu-hemi-assento').forEach((p) => {
+      p.classList.toggle('is-foco', !!chave && p.dataset.chave === chave);
+    });
+  }
+
+  function balaoDoBloco(b, total) {
+    const sub = b.federacao ? b.siglas.join(' · ') : '';
+    return '<div class="nyt-tooltip-container">'
+      + '<div class="district-nyt-title"><span class="apu-swatch" style="background:' + b.cor
+      + ';margin-right:7px"></span>' + esc(b.rotulo) + '</div>'
+      + (sub ? '<div class="district-nyt-sub">' + esc(sub) + '</div>' : '')
+      + '<table class="district-nyt-table"><tbody>'
+      + '<tr><td>Cadeiras</td><td class="votes-cell winner">' + APU.fmt.int(b.vagas)
+      + '</td><td class="pct-cell">' + (total ? (100 * b.vagas / total).toFixed(1) : '0,0') + '%</td></tr>'
+      + '<tr><td>Votos</td><td class="votes-cell">' + APU.fmt.int(b.votos)
+      + '</td><td class="pct-cell">' + b.pct.toFixed(1) + '%</td></tr>'
+      + '</tbody></table></div>';
+  }
+
+  /* Mosaico de cadeiras de uma casa pequena: pontos em grade, na ordem do
+     espectro, com o mesmo número de colunas por faixa que os aglomerados do
+     visualizador (createStateCircleDotsHTML). Serve ao cartão de cada estado. */
+  function mosaico(blocos, total) {
+    if (!(total > 0)) return '';
+    const ordem = (blocos || []).filter((b) => b.vagas > 0).slice().sort(APU.porEspectro);
+    const cores = [];
+    ordem.forEach((b) => {
+      for (let i = 0; i < b.vagas && cores.length < total; i++) {
+        cores.push({ cor: b.cor, provisoria: i >= (b.declaradas || 0) });
+      }
+    });
+
+    let colunas = 10;
+    if (total <= 4) colunas = 2; else if (total <= 9) colunas = 3; else if (total <= 16) colunas = 4;
+    else if (total <= 25) colunas = 5; else if (total <= 42) colunas = 6; else if (total <= 63) colunas = 8;
+    const linhas = Math.ceil(total / colunas);
+    const r = 4.2;
+    const passo = r * 2 + 2;
+    const w = colunas * passo - 2;
+    const h = linhas * passo - 2;
+    let pontos = '';
+    for (let i = 0; i < total; i++) {
+      const linha = Math.floor(i / colunas);
+      const col = i % colunas;
+      const naLinha = linha === linhas - 1 ? total - linha * colunas : colunas;
+      const recuo = naLinha < colunas ? ((colunas - naLinha) * passo) / 2 : 0;
+      pontos += '<circle cx="' + (r + recuo + col * passo).toFixed(1) + '" cy="' + (r + linha * passo).toFixed(1)
+        + '" r="' + r + '"' + (cores[i]
+          ? ' style="fill:' + cores[i].cor + '"' + (cores[i].provisoria ? ' class="is-provisorio"' : '')
+          : ' class="is-vazio"') + '/>';
+    }
+    return '<svg class="apu-mosaico" viewBox="0 0 ' + w.toFixed(1) + ' ' + h.toFixed(1) + '" width="' + Math.ceil(w)
+      + '" height="' + Math.ceil(h) + '" aria-hidden="true">' + pontos + '</svg>';
+  }
+
+  /* ------------------------------------------------------- menu de cargos */
+
+  /* O menu do topo é o mesmo nas quatro páginas (#menuCargos): só cargos. Os
+     links ganham a fonte de dados da página (`eleicao` e `dados`), senão quem
+     abre o ensaio ou o simulado cairia nos dados publicados ao trocar de
+     página; e o cargo da página fica marcado. `cargo` vazio: nenhum (central).
+     Deputado distrital (0008) marca Deputado estadual, que é onde ele mora. */
+  function ligarMenu(cargo) {
+    const menu = $('menuCargos');
+    if (!menu) return;
+    const atual = new URLSearchParams(location.search);
+    const ativo = cargo === '0008' ? '0007' : (cargo || '');
+    menu.querySelectorAll('a[data-cargo]').forEach((a) => {
+      if (!a.dataset.base) a.dataset.base = a.getAttribute('href');
+      const [caminho, ancora] = a.dataset.base.split('#');
+      const [pagina, busca] = caminho.split('?');
+      const q = new URLSearchParams(busca || '');
+      ['eleicao', 'dados'].forEach((k) => { if (atual.get(k)) q.set(k, atual.get(k)); });
+      const s = q.toString();
+      a.href = pagina + (s ? '?' + s : '') + (ancora ? '#' + ancora : '');
+      const eh = a.dataset.cargo === ativo;
+      a.classList.toggle('is-ativo', eh);
+      if (eh) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+  }
+
   /* ------------------------------------------------------------- projeção */
 
   /* Chance como fração dos cenários da projeção. Nunca 0% nem 100%: nos dois
@@ -549,6 +947,8 @@ const APUUI = (function () {
     return `${Math.round(p * 100)}%`;
   }
 
-  return { selo, avisos, progresso, placar, participacao, saude, chance, chancePct,
-    legendaMarcas, balao, conteudoDoBalao, tinta, pintarMapa, foto, esc, icone };
+  return { selo, avisos, progresso, placar, participacao, chance, chancePct,
+    legendaMarcas, firme, tituloDaMarca, balao, conteudoDoBalao, tinta, tom, faixa, legendaFaixas, pintarMapa,
+    foto, esc, icone,
+    hemiciclo, destacarBloco, mosaico, ligarMenu };
 })();

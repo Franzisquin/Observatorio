@@ -48,7 +48,30 @@ Ele imprime, logo no começo, três endereços prontos. Abra o primeiro:
   tela da apuracao   http://127.0.0.1:8777/apuracao.html?dados=scratch/apuracao/plantao/
   mapa presidencial  http://127.0.0.1:8777/apuracao-presidente.html?cargo=0001&dados=...
   um estado          http://127.0.0.1:8777/apuracao-uf.html?uf=sp&cargo=0003&dados=...
+  deputados          http://127.0.0.1:8777/apuracao-deputados.html?cargo=0006&dados=...
 ```
+
+A pagina de deputados (federal e estadual; no DF, a Camara Legislativa, cargo
+0008) le as listas abertas que o coletor grava por UF em
+`{eleicao}-{cargo}-lista-{uf}.json`.
+
+### Ensaio com 2022, todos os cargos, sem o TSE no ar
+
+Para testar as paginas sem simulado do TSE, `ensaio_2022.py` toca a apuracao
+real de 2022 — presidente, governador, senador e deputados federal, estadual e
+distrital — a partir do acervo local do site, e escreve os mesmos arquivos que
+o plantao escreve (inclusive a projecao e o andamento por UF):
+
+```bash
+python scripts/apuracao/ensaio_2022.py --tocar --duracao 10 --passo 8
+python scripts/apuracao/ensaio_2022.py --turno 2 --tocar
+python scripts/apuracao/ensaio_2022.py --instante 0.4
+```
+
+`--instante` congela a noite numa fracao (0 a 1) e sai; `--ufs sp rj` limita as
+UFs; `--cargos 0006,0007` limita os cargos. As paginas leem de
+`dados=scratch/apuracao/ensaio2022-t1/` (ou `-t2/`). Os nomes, votos, vagas e a
+situacao final sao os de 2022; a ordem em que as urnas chegam e de ensaio.
 
 Deixe o terminal aberto. Fechar o terminal para a coleta, e a tela congela no
 último boletim.
@@ -76,9 +99,10 @@ Passar código na mão é a forma mais fácil de chegar às 14h com a tela vazia
   pedido onde não existe — pare e avise, porque 404 repetido bloqueia o acesso.
 - `304` alto é bom: é o servidor confirmando "não mudou", quase sem tráfego.
 
-**Na tela**, no fim da página inicial, a seção **Saúde do plantão** mostra taxa
-média contra o teto de 100 requisições por segundo, bloqueios, e 404. O quadro
-fica **vermelho** se houver punição do TSE.
+**No `status.json`** da pasta de saída (`scratch/apuracao/plantao/status.json`)
+ficam a taxa média contra o teto de 100 requisições por segundo, os bloqueios e
+os 404 da sessão. A página pública não mostra mais esse quadro: é instrumento de
+quem opera, não notícia.
 
 **O selo amarelo "SIMULADO"** no topo tem de estar aceso. Ele vem do campo `f`
 dentro do próprio arquivo do TSE, não de configuração nossa. Se você está numa

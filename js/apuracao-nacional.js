@@ -89,11 +89,15 @@
     sel: null              // IBGE com o contorno aceso
   };
 
-  /* Os tons do mapa são os do palco, e mudam com o botão de tema. */
+  /* Os tons do mapa são os do palco, e mudam com o botão de tema. O contorno é
+     o `--map-contorno` de apuracao.css: cinza-escuro no claro e, no escuro, vazio
+     — aí a divisa é o próprio fundo, como no SVG. */
   function cores() {
     const cs = getComputedStyle(document.documentElement);
     const v = (n) => cs.getPropertyValue(n).trim();
-    return { fundo: v('--paper-2'), vazio: v('--paper-3'), tinta: v('--ink') };
+    const fundo = v('--paper-2');
+    return { fundo, contorno: v('--map-contorno') || fundo,
+      vazio: v('--map-vazio') || v('--paper-3'), tinta: v('--ink') };
   }
 
   const noEstado = (sigla) => ({ source: 'malha', sourceLayer: 'estados', id: mapa.meta[sigla].cd });
@@ -187,10 +191,10 @@
         paint: { 'fill-color': corDe(c), 'fill-opacity': OPACIDADE_MUN,
           'fill-outline-color': 'rgba(0,0,0,0)' } });
       gl.addLayer({ id: 'mun-line', type: 'line', ...mun, layout: redondo,
-        paint: { 'line-color': c.fundo, 'line-width': LARGURA_MUN,
+        paint: { 'line-color': c.contorno, 'line-width': LARGURA_MUN,
           'line-opacity': liga('mostra', 1, 0) } });
       gl.addLayer({ id: 'uf-line', type: 'line', ...est, layout: redondo,
-        paint: { 'line-color': c.fundo, 'line-width': LARGURA_UF } });
+        paint: { 'line-color': c.contorno, 'line-width': LARGURA_UF } });
       gl.addLayer({ id: 'mun-sel', type: 'line', ...mun, layout: redondo,
         paint: { 'line-color': c.tinta, 'line-width': 2, 'line-opacity': liga('sel', 1, 0) } });
 
@@ -211,8 +215,8 @@
     gl.setPaintProperty('fundo', 'background-color', c.fundo);
     gl.setPaintProperty('uf-fill', 'fill-color', corDe(c));
     gl.setPaintProperty('mun-fill', 'fill-color', corDe(c));
-    gl.setPaintProperty('mun-line', 'line-color', c.fundo);
-    gl.setPaintProperty('uf-line', 'line-color', c.fundo);
+    gl.setPaintProperty('mun-line', 'line-color', c.contorno);
+    gl.setPaintProperty('uf-line', 'line-color', c.contorno);
     gl.setPaintProperty('mun-sel', 'line-color', c.tinta);
   }
 
@@ -259,6 +263,39 @@
     });
     /* O globo é SVG: o mesmo pintor das páginas estaduais e da central. */
     APUUI.pintarMapa($('exterior').querySelector('svg'), entradaDe, dic, (chave) => abrir(chave));
+    legenda();
+  }
+
+  /* Legenda das faixas: uma régua de tons para cada candidato que lidera em
+     algum território à mostra — estados e, onde estão desenhados, municípios.
+     Na ordem do placar nacional, para não trocar de lugar a cada boletim. */
+  function legenda() {
+    const lideres = new Map();
+    const anotar = (e, dic) => {
+      const t = e && e.vv ? APU.ranking(e, dic)[0] : null;
+      if (t && !lideres.has(t.chave)) lideres.set(t.chave, t);
+    };
+    const dic = dicionario();
+    Object.values((estado.uf && estado.uf.abr) || {}).forEach((e) => anotar(e, dic));
+    ufsDesenhadas().forEach((uf) => {
+      const d = dicionarioMun(uf);
+      Object.values(estado.porIbge[uf] || {}).forEach((e) => anotar(e, d));
+    });
+    const nacional = entradaNacional();
+    const ordem = nacional ? APU.ranking(nacional, dic).map((c) => c.chave) : [];
+    const lista = Array.from(lideres.values())
+      .sort((a, b) => (ordem.indexOf(a.chave) + 1 || 99) - (ordem.indexOf(b.chave) + 1 || 99))
+      .slice(0, 4)
+      .map((c) => ({ nome: c.urna || c.nome, cor: APU.cor(c.partido) }));
+    APUUI.legendaFaixas('legendaFaixas', lista);
+  }
+
+  /* O Brasil, qualquer que seja o recorte aberto no mapa: é o que a projeção
+     projeta. Arquivo br quando existe; senão a soma das UFs. */
+  function entradaNacional() {
+    if (estado.br && estado.br.abr && estado.br.abr.br) return estado.br.abr.br;
+    const entradas = estado.uf ? Object.values(estado.uf.abr) : [];
+    return entradas.length ? APU.agregar(entradas) : null;
   }
 
   /* O feature-state fica guardado na fonte e vale para o tile quando ele
@@ -271,6 +308,7 @@
       const t = APUUI.tinta(e, dic);
       mapa.gl.setFeatureState(noMun(Number(id)), { cor: t ? t.cor : null, op: t ? t.op : 1 });
     });
+    legenda();
   }
 
   /* ------------------------------------------------------ cursor e clique */
@@ -479,12 +517,24 @@
     APUUI.placar(lista.length ? lista : APU.rankingZerado(estado.chapa), 'placar',
       { entrada, cargo: APU.cfg.cargo, botao: 'maisResultado', aoAlternar: verParticipacao });
     verParticipacao();
-    projecao(estado.sel || estado.foco ? null : entrada);
+    /* A projeção é nacional e tem painel próprio: continua à mostra com um
+       estado aberto no mapa. */
+    projecao(entradaNacional());
 
     $('mapaNota').textContent = nota();
   }
 
   /* ------------------------------------------------------------ projeção */
+
+  /* Abre ou fecha a coluna da projeção, à esquerda do mapa. O mapa muda de
+     largura junto, e o MapLibre só redesenha no tamanho novo se for avisado. */
+  function mostrarPainelProj(sim) {
+    const painel = $('painelProj');
+    if (painel.hidden === !sim) return;
+    painel.hidden = !sim;
+    painel.closest('.apu-stage').classList.toggle('com-proj', sim);
+    if (mapa.gl) requestAnimationFrame(() => mapa.gl.resize());
+  }
 
   const pct1 = (v) => (100 * v).toFixed(1).replace('.', ',');
 
@@ -499,6 +549,7 @@
     const pr = estado.proj;
     const decidido = !!(nacional && (APU.definicao(nacional) || nacional.tf === 's'));
     $('projecao').hidden = !nacional || !(nacional.st > 0) || decidido;
+    mostrarPainelProj(!$('projecao').hidden);
     if ($('projecao').hidden) return;
 
     const pronta = !!(pr && pr.suficiente && pr.cand);
@@ -746,8 +797,7 @@
 
   (async function iniciar() {
     document.title = `${nomeDoCargo()} — Apuração ao vivo — ElectoMaps`;
-    const central = $('navCentral');
-    if (central) central.href = 'apuracao.html' + (sufixoParams() ? '?' + sufixoParams().slice(1) : '');
+    APUUI.ligarMenu('0001');
 
     $('voltar').onclick = voltar;
     $('camadas').onclick = (ev) => {

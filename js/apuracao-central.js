@@ -26,7 +26,7 @@
     br: null, ufPres: null,
     gov: null, sen: null,
     chapaPres: null, chapaGov: null, chapaSen: null,
-    ab: null, saude: null,
+    ab: null,
     /* Projeção do resultado presidencial ({ele}-0001-proj.json). */
     proj: null,
     timer: null
@@ -171,12 +171,13 @@
 
     const lider = comVotos ? APU.cor(lista[0].partido) : 'var(--line-strong)';
     const linhas = lista.map((c, i) => {
+      /* Check sólido quando é certo — declarado pelo TSE ou matematicamente
+         definido: verde para eleito, azul para quem vai ao 2º turno.
+         Tracejado quando ainda é leitura. */
       const marca = c.marca
-        ? '<span class="apu-tique is-' + c.marca + (c.oficial ? '' : ' is-previsto')
-          + '" title="' + APUUI.esc(c.oficial
-            ? 'Declarado pelo TSE'
-            : 'Leitura das vagas do cargo e do "matematicamente definido" do TSE')
-          + '">' + (c.marca === 'segundo' ? '2º' : APUUI.icone('tique', 11)) + '</span>'
+        ? '<span class="apu-tique is-' + c.marca + (APUUI.firme(c) ? '' : ' is-previsto')
+          + '" title="' + APUUI.esc(APUUI.tituloDaMarca(c))
+          + '">' + APUUI.icone('tique', 11) + '</span>'
         : '';
       return '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
         + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
@@ -280,10 +281,10 @@
       await APU.fotosDisponiveis();
     }
 
-    const [br, ufPres, gov, sen, ab, saudeDoPlantao, proj] = await Promise.all([
+    const [br, ufPres, gov, sen, ab, proj] = await Promise.all([
       snapshotDe('0001', 'br'), snapshotDe('0001', 'uf'),
       snapshotDe(CARGO_GOV, 'uf'), snapshotDe(CARGO_SEN, 'uf'),
-      APU.acompanhamento('0001'), APU.saude(), snapshotDe('0001', 'proj')
+      APU.acompanhamento('0001'), snapshotDe('0001', 'proj')
     ]);
     /* Boletim antigo vale mais que painel vazio: só substitui o que chegou. */
     if (br) estado.br = br;
@@ -291,14 +292,13 @@
     if (gov) estado.gov = gov;
     if (sen) estado.sen = sen;
     if (ab) estado.ab = ab;
-    if (saudeDoPlantao) estado.saude = saudeDoPlantao;
     if (proj) estado.proj = proj;
 
     $('linkPresidente').href = 'apuracao-presidente.html' + params({ cargo: '0001' });
+    APUUI.ligarMenu('');
     pintarPresidente();
     pintarEstados();
     pintarAndamento();
-    APUUI.saude(estado.saude, 'saude');
   }
 
   function agendar() {

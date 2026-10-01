@@ -93,7 +93,7 @@ vm.createContext(contexto);
 /* Os dois arquivos num só script: `const APU` é ligação lexical do script, não
    propriedade do contexto, então rodá-los separados deixaria o segundo sem ver o
    primeiro. A última linha é o que traz as duas fachadas para cá. */
-const fontes = ['apuracao-dados.js', 'apuracao-ui.js']
+const fontes = ['espectro-partidos.js', 'apuracao-dados.js', 'apuracao-ui.js']
   .map((a) => fs.readFileSync(path.join(RAIZ, 'js', a), 'utf8'))
   .join('\n;\n');
 const { APU, APUUI } = vm.runInContext(
@@ -105,7 +105,6 @@ const ler = (n) => JSON.parse(fs.readFileSync(path.join(DADOS, n), 'utf8'));
 const uf = ler('6278-0003-uf.json');
 const mun = ler('6278-0003-rr.json');
 const ab = ler('619-ab.json');
-const status = ler('status.json');
 
 const rr = uf.abr.rr;
 const dicionario = uf.cand;
@@ -129,12 +128,17 @@ ok(rr.tv === rr.vvc + rr.vb + rr.tvn + rr.vscv, 'hierarquia tv = vvc + vb + tvn 
 
 /* A mesma regra pinta o SVG das páginas estaduais e o MapLibre da presidencial:
    se ela quebrar, os dois mapas saem plausíveis e errados juntos. */
-console.log('\ncor do mapa — a tinta do líder, lavada pela margem');
+console.log('\ncor do mapa — o tom do líder, pela faixa do percentual dele');
 const tinta = APUUI.tinta(rr, dicionario);
-ok(!!tinta && tinta.cor === APU.cor(primeiro.partido), 'a cor é a do partido do líder',
-  tinta && tinta.cor);
-ok(!!tinta && tinta.op >= 0.42 && tinta.op <= 1, 'opacidade dentro da faixa 0,42–1',
-  tinta && String(tinta.op));
+ok(!!tinta && tinta.cor === APUUI.tom(APU.cor(primeiro.partido), APUUI.faixa(primeiro.pct)),
+  'a cor é o tom da faixa do líder, na cor do partido dele', tinta && tinta.cor);
+ok(!!tinta && tinta.op === 1, 'tom sólido, sem transparência', tinta && String(tinta.op));
+ok(APUUI.faixa(19.99) === 0 && APUUI.faixa(20) === 1 && APUUI.faixa(55) === 4
+  && APUUI.faixa(79.9) === 6 && APUUI.faixa(80) === 7 && APUUI.faixa(100) === 7,
+  'faixas de 10 pontos: <20, 20–30, …, 70–80, 80+');
+ok(APUUI.tom('#304091', 5) === '#304091', 'entre 60% e 70% o tom é a própria cor do partido');
+ok(APUUI.tom('#304091', 0) !== APUUI.tom('#304091', 7), 'o mais claro e o mais escuro diferem');
+ok(/^#[0-9a-f]{6}$/.test(APUUI.tom('hsl(210 58% 56%)', 3)), 'cor derivada (hsl) também ganha tom');
 ok(APUUI.tinta(null, dicionario) === null, 'sem boletim não há tinta');
 ok(APUUI.tinta({ ...rr, vv: 0 }, dicionario) === null, 'sem voto válido não há tinta');
 
@@ -155,6 +159,8 @@ ok(!chip.includes('155,58%'), 'placar não mostra o percentual sobre válidos');
 
 console.log('\nestados que o leiaute do EA20 descreve');
 ok(APU.bloqueado({ dv: 'n' }) === true, 'dv=n é divulgação bloqueada');
+ok(APU.lider({ vv: 0, cand: { a: 0, b: 0 } }, {}) === null,
+  'sem voto apurado não há líder — nada de candidato qualquer em 0,00%');
 ok(APU.bloqueado({ dv: 's' }) === false, 'dv=s não é bloqueio');
 ok(APU.definicao({ md: 'e', tf: 'n' }) === 'e', 'md=e com tf=n é eleito definido');
 ok(APU.definicao({ md: 'e', tf: 's' }) === '', 'md some quando há totalização final');
@@ -267,21 +273,13 @@ ok(!pm.includes('Anulados sub judice'),
   'município sem o campo não ganha célula de anulados');
 ok(pm.includes('Eleitorado'), 'município mantém as células que a camada traz');
 
-/* ------------------------------------------------- acompanhamento e saúde */
+/* ---------------------------------------------------------- acompanhamento */
 
-console.log('\nacompanhamento (EA14) e saúde do plantão');
+console.log('\nacompanhamento (EA14)');
 ok(ab.br && ab.br.tp === 'br', 'EA14 tem a entrada do Brasil');
 ok(Object.keys(ab.uf).length >= 26, 'EA14 tem as unidades federativas',
   String(Object.keys(ab.uf).length));
 ok(ab.br.uff + ab.br.ufpt + ab.br.ufnr > 0, 'contadores de estágio das UFs vêm preenchidos');
-
-APUUI.saude(status, 'saude');
-const sa = nos.saude.innerHTML;
-ok(sa.includes('Ambiente'), 'saúde mostra o ambiente lido');
-ok(sa.includes('404'), 'saúde mostra os 404, que bloqueiam como excesso');
-ok(nos.saude.hidden === false, 'painel de saúde aparece com status');
-APUUI.saude(null, 'saude');
-ok(nos.saude.hidden === true, 'sem status.json, o painel se esconde');
 
 /* --------------------------------------------------------------- agregação */
 
@@ -347,6 +345,24 @@ l = APU.marcar(chapa(3).map((c) => ({ ...c, eleito: true })),
   { nv: 1, md: 's' }, '0001');
 ok(l[0].marca === 'segundo' && l[0].oficial === true,
   'e=s com md=s é classificação ao segundo turno, não eleição');
+
+// Matematicamente eleito, pela conta com o eleitorado que falta (esnt)
+const votos3 = (a, b, c) => [{ votos: a }, { votos: b }, { votos: c }];
+l = APU.marcar(votos3(600, 300, 100), { nv: 1, vv: 1000, esnt: 150, snt: 50 }, '0003');
+ok(l[0].marca === 'eleito' && l[0].matematico && !l[0].oficial,
+  'governador: 600 de 1.000 válidos com 150 eleitores faltando é matematicamente eleito');
+l = APU.marcar(votos3(600, 300, 100), { nv: 1, vv: 1000, esnt: 250, snt: 50 }, '0003');
+ok(!l[0].marca, 'com 250 faltando ainda não: 600 não passa de (1.000 + 250) / 2');
+l = APU.marcar(votos3(500, 300, 100), { nv: 1, vv: 900, esnt: 150, snt: 50 }, '0005');
+ok(l[0].marca === 'eleito' && l[0].matematico && !l[1].marca,
+  'Senado: à frente do primeiro de fora por mais que o eleitorado restante');
+l = APU.marcar(votos3(600, 300, 100), { nv: 1, vv: 1000, snt: 50 }, '0003');
+ok(!l[0].marca, 'sem esnt (camada municipal) não há conta, e não há marca');
+l = APU.marcar(votos3(600, 300, 100), { nv: 1, vv: 1000, md: 'e' }, '0003');
+ok(l[0].matematico, 'md=e do TSE também é matematicamente eleito');
+l = APU.marcar(votos3(450, 350, 200), { nv: 1, vv: 1000, md: 's' }, '0003');
+ok(l[0].marca === 'segundo' && l[0].matematico && l[1].matematico && !l[2].marca,
+  'md=s do TSE: os dois primeiros vão ao 2º turno, com marca firme');
 
 // Proporcional não recebe marca: a lista ali é de partidos
 const antes = chapa(3);
@@ -418,6 +434,93 @@ ok(naTela.has('g'), 'situação vazia não é motivo para sumir com o candidato'
 ok(!naTela.has('h'), 'o filtro de UF segue valendo');
 ok(naTela.size === 5, 'nada além disso entrou', [...naTela].join(','));
 
+/* ------------------------------------------------------ deputados: vagas */
+
+/* A página de deputados diz quem está dentro das vagas de cada bloco. O que
+   ela pode deduzir e o que só o TSE pode declarar valem um check próprio,
+   como a marca de eleito majoritário acima. */
+
+console.log('\ndeputados: quem ocupa as vagas do bloco');
+
+const lista3 = (extra) => [
+  { sq: 'a', urna: 'ANA', partido: 'AA', v: 900 },
+  { sq: 'b', urna: 'BETO', partido: 'AA', v: 800, dvt: 'Anulado sub judice' },
+  { sq: 'c', urna: 'CAIO', partido: 'BB', v: 700 },
+  { sq: 'd', urna: 'DIDI', partido: 'BB', v: 600 },
+  ...(extra || [])
+];
+
+let ml = APU.marcarLista(lista3(), 2);
+ok(ml.map((c) => c.sq).join('') === 'abcd', 'lista ordenada por voto');
+ok(ml[0].dentro && !ml[1].dentro && ml[2].dentro && !ml[3].dentro,
+  'duas vagas vão aos dois mais votados que disputam vaga — o sub judice é pulado',
+  ml.map((c) => c.sq + (c.dentro ? '*' : '')).join(','));
+ok(ml.every((c) => !c.oficial), 'sem st nem e, a leitura das vagas é dedução');
+
+ml = APU.marcarLista(lista3(), 0);
+ok(ml.every((c) => !c.dentro), 'bloco sem vaga não põe ninguém dentro');
+
+ml = APU.marcarLista(lista3().map((c) => (c.sq === 'd' ? { ...c, e: 's' } : c)), 2);
+ok(ml[3].dentro && ml[3].oficial, 'e=s do TSE vale como declarado');
+ok(ml[0].dentro && !ml[0].oficial && !ml[2].dentro,
+  'e a vaga que sobra vai ao mais votado, sem passar do total do bloco',
+  ml.map((c) => c.sq + (c.dentro ? '*' : '')).join(','));
+
+ml = APU.marcarLista(lista3().map((c) => ({
+  ...c, st: c.sq === 'c' ? 'Eleito por média' : (c.sq === 'a' ? 'Suplente' : 'Não eleito')
+})), 2);
+ok(ml.filter((c) => c.dentro).map((c) => c.sq).join('') === 'c',
+  'na totalização final só o st manda — nenhuma vaga é deduzida por cima dele');
+ok(ml[0].marca === 'suplente' && ml[3].marca === 'fora', 'suplente e não eleito reconhecidos');
+
+console.log('\ndeputados: blocos, nome e espectro');
+
+const agremTeste = [
+  { nm: 'Federação Brasil da Esperança - FE BRASIL', com: 'PT/PC do B/PV', tp: 'f', fed: 'FE BRASIL',
+    vag: 3, v: 300, par: [{ sg: 'PT', vtn: 250, vtl: 10 }, { sg: 'PC do B', vtn: 20 }, { sg: 'PV', vtn: 20 }] },
+  { nm: 'FEDERAÇÃO PSOL REDE', com: 'PSOL/REDE', tp: 'f', fed: 'PSOL REDE',
+    vag: 1, v: 100, par: [{ sg: 'PSOL', vtn: 90 }, { sg: 'REDE', vtn: 10 }] },
+  { nm: 'PARTIDO LIBERAL', com: 'PARTIDO LIBERAL', tp: 'i', vag: 3, v: 300,
+    par: [{ sg: 'PL', nm: 'PARTIDO LIBERAL', vtn: 300 }] },
+  { nm: 'FEDERAÇÃO 9995', com: 'P 9984 / P 9992', tp: 'f', fed: 'F 9995', vag: 0, v: 50,
+    par: [{ sg: 'P 9984', vtn: 25 }, { sg: 'P 9992', vtn: 25 }] }
+];
+const bl = APU.blocos(agremTeste, { vv: 750 });
+const porChaveBl = Object.fromEntries(bl.map((b) => [b.chave, b]));
+ok(porChaveBl['F:FE BRASIL'].rotulo === 'Brasil da Esperança',
+  'federação perde o "Federação" e a sigla do fim', porChaveBl['F:FE BRASIL'].rotulo);
+ok(porChaveBl['F:PSOL REDE'].rotulo === 'PSOL REDE',
+  'sigla curta de partido não vira nome próprio', porChaveBl['F:PSOL REDE'].rotulo);
+ok(porChaveBl['F:F 9995'].rotulo === 'F 9995', 'nome só com número cai na sigla da federação');
+ok(porChaveBl['P:PL'].rotulo === 'PL', 'partido isolado aparece pela sigla');
+ok(porChaveBl['F:FE BRASIL'].cor === APU.cor('PT'), 'a cor da federação é a do partido cabeça');
+ok(porChaveBl['F:F 9995'].siglas.join('/') === 'P 9984/P 9992',
+  'composição com espaço em volta da barra é lida igual');
+ok(bl.slice().sort(APU.porEspectro).map((b) => b.rotulo).join(' < ')
+  === 'PSOL REDE < Brasil da Esperança < PL < F 9995',
+  'hemiciclo: esquerda para a direita, e sigla fora da régua no fim',
+  bl.slice().sort(APU.porEspectro).map((b) => b.rotulo).join(' < '));
+ok(bl.slice().sort(APU.porCadeiras).map((b) => b.rotulo).join(',')
+  === 'Brasil da Esperança,PL,PSOL REDE,F 9995',
+  'listas: cadeiras primeiro e voto no desempate (3 x 3, mesmo voto: alfabética)',
+  bl.slice().sort(APU.porCadeiras).map((b) => b.rotulo).join(','));
+
+const somados = APU.somarBlocos({ sp: bl, rj: APU.blocos(agremTeste.slice(0, 1), { vv: 300 }) });
+const feNacional = somados.find((b) => b.chave === 'F:FE BRASIL');
+ok(feNacional.vagas === 6 && feNacional.porUF.length === 2,
+  'a federação soma as bancadas das UFs pela mesma chave');
+
+/* Snapshot de verdade do simulado do TSE, quando houver: as vagas somam as do
+   cargo e todo bloco sai com nome e cor. */
+const SIMULADO_DEP = path.join(RAIZ, 'scratch', 'apuracao', 'plantao', '21272-0006-uf.json');
+if (fs.existsSync(SIMULADO_DEP)) {
+  const dep = JSON.parse(fs.readFileSync(SIMULADO_DEP, 'utf8'));
+  const blSp = APU.blocos(dep.agrem.sp, dep.abr.sp);
+  ok(blSp.reduce((s, b) => s + b.vagas, 0) === dep.abr.sp.nv,
+    'simulado de SP: as vagas dos blocos somam o nv do cargo');
+  ok(blSp.every((b) => b.rotulo && b.cor), 'simulado de SP: todo bloco tem nome e cor');
+}
+
 /* ------------------------------------------- ids que o script pede da página */
 
 /* `$('legenda')` sobreviveu à remoção da legenda do mapa e ficou apontando para
@@ -431,7 +534,8 @@ console.log('\nids de getElementById presentes na página');
 const PARES = [
   ['js/apuracao-uf.js', 'apuracao-uf.html'],
   ['js/apuracao-central.js', 'apuracao.html'],
-  ['js/apuracao-nacional.js', 'apuracao-presidente.html']
+  ['js/apuracao-nacional.js', 'apuracao-presidente.html'],
+  ['js/apuracao-deputados.js', 'apuracao-deputados.html']
 ];
 for (const [js, pagina] of PARES) {
   const fonte = fs.readFileSync(path.join(RAIZ, js), 'utf8');

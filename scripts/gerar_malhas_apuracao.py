@@ -55,6 +55,25 @@ NIVEIS = ['rgint', 'rgi']
 # aparecer um caso novo, a conferencia no fim deste script avisa.
 ORFAOS = {'5101837': '5106240'}   # Boa Esperanca do Norte <- Nova Ubirata (MT)
 
+# Ilhas oceanicas, ajustadas em graus ANTES da projecao — o enquadramento da UF
+# sai do que sobra, entao o estado volta a ocupar o mapa.
+#
+# Trindade e Martim Vaz sao de Vitoria (ES), a 1.100 km da costa e sem eleitor:
+# esticavam o enquadramento ate o meio do Atlantico. Saem por completo; o
+# municipio fica, so sem as ilhas. Todo poligono inteiro a leste da longitude
+# dada sai, em todas as camadas daquela UF.
+SEM_ILHAS = {'ES': -38.0}
+
+# Fernando de Noronha (PE) fica a 350 km da costa: no lugar real, o estado
+# virava uma faixa no pe de um quadro vazio. Vai para um quadro logo abaixo do
+# continente, no canto sudeste, ampliado `escala` vezes. O nome fica so no balao
+# da pagina: o rotulo segue no arquivo (`q`), mas nao e desenhado.
+# `canto` e o canto inferior direito do quadro, em graus (longitude, latitude).
+QUADROS = {
+    'PE': {'leste_de': -34.0, 'escala': 3.0, 'folga': 0.05,
+           'canto': (-34.86, -9.30), 'rotulo': 'Fernando de Noronha'},
+}
+
 LARGURA = 1000
 # Tolerancia do Douglas-Peucker, em unidades do viewBox. O mapa ocupa no maximo
 # ~1400px de tela, entao 0.15 unidade fica abaixo de um terco de pixel: e o
@@ -63,6 +82,13 @@ TOLERANCIA = 0.15
 # Uma casa decimal em 1000 unidades da uma grade de ~0.1 unidade — na maior UF
 # (MG, ~1160 km de largura) isso e pouco mais de 100 m.
 CASAS = 1
+
+# A camada municipal sai em 2000 unidades e coordenada inteira: a mesma grade de
+# 0,5 unidade-de-1000, sem o ponto decimal, que e o que mais pesa num arquivo de
+# 850 municipios. As regionais ficam em 1000 com uma casa. As duas tem a mesma
+# proporcao, e a pagina troca o viewBox junto com a camada — o desenho nao salta.
+LARGURA_MUN = 2000
+CASAS_MUN = 0
 
 
 def aneis(geom):
@@ -109,11 +135,76 @@ def douglas_peucker(pts, tol2):
     return [p for p, m in zip(pts, manter) if m]
 
 
-def projecao(feicoes):
+def caixa_de(poligonos):
+    xs = [x for poly in poligonos for x, _ in poly[0]]
+    ys = [y for poly in poligonos for _, y in poly[0]]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def ajuste_da_uf(uf, feicoes):
+    """O que fazer com as ilhas daquela UF: (corte, quadro). `quadro` leva a
+    transformacao ja resolvida — origem e escala tiradas da malha MUNICIPAL —,
+    para que as camadas regionais recebam exatamente o mesmo deslocamento."""
+    corte = SEM_ILHAS.get(uf)
+    cfg = QUADROS.get(uf)
+    if not cfg:
+        return corte, None
+    ilhas = [poly for f in feicoes for poly in aneis(f.get('geometry'))
+             if min(x for x, _ in poly[0]) > cfg['leste_de']]
+    if not ilhas:
+        return corte, None
+    o, s, l, n = caixa_de(ilhas)
+    e, f = cfg['escala'], cfg['folga']
+    largura, altura = (l - o) * e, (n - s) * e
+    dx, dy = cfg['canto']
+    # Canto inferior direito do quadro em `canto`; a ilha fica centrada nele.
+    q_l, q_s = dx, dy
+    q_o, q_n = q_l - largura - 2 * f, q_s + altura + 2 * f
+    return corte, {**cfg, 'origem': (o, s), 'destino': (q_o + f, q_s + f),
+                   'caixa': (q_o, q_s, q_l, q_n)}
+
+
+def ajustar(geom, corte, quadro):
+    """Aplica corte e quadro a uma geometria (em graus). Devolve None se nao
+    sobrar nada."""
+    if not geom or (corte is None and quadro is None):
+        return geom
+    novos = []
+    for poly in aneis(geom):
+        menor = min(x for x, _ in poly[0])
+        if corte is not None and menor > corte:
+            continue
+        if quadro and menor > quadro['leste_de']:
+            (ox, oy), (tx, ty), e = quadro['origem'], quadro['destino'], quadro['escala']
+            poly = [[[tx + (x - ox) * e, ty + (y - oy) * e] for x, y in anel] for anel in poly]
+        novos.append(poly)
+    if not novos:
+        return None
+    return {'type': 'MultiPolygon', 'coordinates': novos}
+
+
+def quadros_projetados(quadro, proj, largura=LARGURA):
+    """O retangulo e o rotulo do quadro, ja no viewBox: [x, y, w, h, rotulo]."""
+    if not quadro:
+        return []
+    o, s, l, n = quadro['caixa']
+    escala = largura / LARGURA
+    x = ((o - proj['mnx']) * proj['k']) / proj['lg'] * largura
+    y = (proj['mxy'] - n) / proj['ag'] * proj['h'] * escala
+    w = ((l - o) * proj['k']) / proj['lg'] * largura
+    h = (n - s) / proj['ag'] * proj['h'] * escala
+    return [[round(x, 1), round(y, 1), round(w, 1), round(h, 1), quadro['rotulo']]]
+
+
+def projecao(feicoes, extras=()):
     """Enquadramento da UF: mesma origem, mesma escala e mesmo viewBox para
     todas as camadas dela — municipio e regiao precisam se sobrepor pixel a
-    pixel, senao trocar de camada faz o mapa saltar."""
+    pixel, senao trocar de camada faz o mapa saltar. `extras` sao pontos que
+    tambem precisam caber: o quadro de uma ilha e o rotulo embaixo dele."""
     mnx, mxx, mny, mxy = 180.0, -180.0, 90.0, -90.0
+    for x, y in extras:
+        mnx = min(mnx, x); mxx = max(mxx, x)
+        mny = min(mny, y); mxy = max(mxy, y)
     for feat in feicoes:
         for poly in aneis(feat.get('geometry')):
             for anel in poly:
@@ -130,22 +221,29 @@ def projecao(feicoes):
             'h': max(1, round(LARGURA * altura_geo / largura_geo))}
 
 
-def path(geom, proj):
-    tol2 = TOLERANCIA * TOLERANCIA
+def path(geom, proj, largura=LARGURA, casas=CASAS):
+    escala = largura / LARGURA
+    # Estado mais alto que largo aparece limitado pela altura, e cada unidade
+    # do viewBox vale menos tela: a tolerancia acompanha o lado maior. Sem isso
+    # o Espirito Santo, sem Trindade, saia com quatro vezes os vertices de antes.
+    tol = TOLERANCIA * escala * max(1.0, proj['h'] / LARGURA)
+    tol2 = tol * tol
     partes = []
     for poly in aneis(geom):
         for anel in poly:
             if len(anel) < 4:
                 continue
-            pts = [(((x - proj['mnx']) * proj['k']) / proj['lg'] * LARGURA,
-                    (proj['mxy'] - y) / proj['ag'] * proj['h']) for x, y in anel]
+            pts = [(((x - proj['mnx']) * proj['k']) / proj['lg'] * largura,
+                    (proj['mxy'] - y) / proj['ag'] * proj['h'] * escala) for x, y in anel]
             pts = douglas_peucker(pts, tol2)
             # O arredondamento cola vertices vizinhos; sem tirar as repeticoes o
             # path fica cheio de segmentos de comprimento zero.
             limpo = []
             ultimo = None
             for x, y in pts:
-                c = (round(x, CASAS), round(y, CASAS))
+                c = (round(x, casas), round(y, casas))
+                if casas == 0:
+                    c = (int(c[0]), int(c[1]))
                 if c != ultimo:
                     limpo.append(c)
                     ultimo = c
@@ -186,18 +284,29 @@ def gerar(uf):
     feicoes = feicoes + [f for f in simples
                          if codigo(f) not in tem_hd and codigo(f) in do_tse]
 
-    proj = projecao(feicoes)
+    corte, quadro = ajuste_da_uf(uf, feicoes)
+    feicoes = [{**f, 'geometry': ajustar(f.get('geometry'), corte, quadro)} for f in feicoes]
+    extras = []
+    if quadro:
+        o, s, l, n = quadro['caixa']
+        extras = [(o, s), (l, n)]
+    proj = projecao(feicoes, extras)
     if not proj:
         return None, None
+    proj['corte'], proj['quadro'] = corte, quadro
 
     saida = []
     for feat in feicoes:
         cd = codigo(feat)
-        d = path(feat.get('geometry'), proj)
+        d = path(feat.get('geometry'), proj, LARGURA_MUN, CASAS_MUN)
         if d:
             saida.append([cd, nomes.get(cd, ''), d])
 
-    return {'w': LARGURA, 'h': proj['h'], 'p': saida}, proj
+    escala = LARGURA_MUN / LARGURA
+    malha = {'w': LARGURA_MUN, 'h': round(proj['h'] * escala), 'p': saida}
+    if quadro:
+        malha['q'] = quadros_projetados(quadro, proj, LARGURA_MUN)
+    return malha, proj
 
 
 def membros(nivel):
@@ -230,11 +339,17 @@ def gerar_regiao(uf, nivel, proj, por_regiao):
     for feat in feicoes:
         p = feat.get('properties', {})
         cd = str(p.get('CD_REG', '')).strip()
-        d = path(feat.get('geometry'), proj)
+        geom = ajustar(feat.get('geometry'), proj.get('corte'), proj.get('quadro'))
+        d = path(geom, proj)
         if cd and d:
             saida.append([cd, p.get('NM_REG', ''), d, sorted(por_regiao.get(cd, []))])
 
-    return {'w': LARGURA, 'h': proj['h'], 'p': saida} if saida else None
+    if not saida:
+        return None
+    reg = {'w': LARGURA, 'h': proj['h'], 'p': saida}
+    if proj.get('quadro'):
+        reg['q'] = quadros_projetados(proj['quadro'], proj)
+    return reg
 
 
 def conferir(malha, reg):

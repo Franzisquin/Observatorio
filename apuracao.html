@@ -41,7 +41,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20260930f" />
+  <link rel="stylesheet" href="apuracao.css?v=20260930o" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -56,11 +56,15 @@
         <span class="brand-scope">Apuração</span>
       </a>
 
-      <nav class="topnav">
-        <a href="#presidente">Presidente</a>
-        <a href="#governador">Governador</a>
-        <a href="#senado">Senado</a>
-        <a href="brasil.html">Brasil</a>
+      <!-- Menu de cargos, o mesmo nas quatro páginas da apuração. Os links ganham
+           a fonte de dados (`?dados=`) e o cargo da página fica marcado em
+           APUUI.ligarMenu (js/apuracao-ui.js). -->
+      <nav class="topnav" id="menuCargos">
+        <a href="apuracao-presidente.html?cargo=0001" data-cargo="0001">Presidente</a>
+        <a href="apuracao.html#governador" data-cargo="0003">Governador</a>
+        <a href="apuracao.html#senado" data-cargo="0005">Senado</a>
+        <a href="apuracao-deputados.html?cargo=0006" data-cargo="0006">Deputado federal</a>
+        <a href="apuracao-deputados.html?cargo=0007" data-cargo="0007">Deputado estadual</a>
       </nav>
 
       <button class="apu-tema" id="trocarTema" type="button" aria-label="Mudar tema" title="Mudar tema">
@@ -209,19 +213,6 @@
       </div>
     </section>
 
-    <!-- --------------------------------------------------- saude do plantao -->
-    <section class="apu-bloco">
-      <div class="wrap">
-        <div class="apu-bloco-head">
-          <h2 class="apu-h2">Saúde do plantão</h2>
-          <span class="apu-progress-lab">
-            Teto do TSE: 100 requisições por IP por segundo; 404 repetido bloqueia igual a excesso.
-          </span>
-        </div>
-        <div class="apu-saude" id="saude" hidden></div>
-      </div>
-    </section>
-
   </main>
 
   <footer class="site-foot">
@@ -237,9 +228,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20260920a"></script>
-  <script src="js/apuracao-ui.js?v=20260930b"></script>
-  <script src="js/apuracao-central.js?v=20260930a"></script>
+  <script src="js/apuracao-dados.js?v=20260930c"></script>
+  <script src="js/apuracao-ui.js?v=20260930h"></script>
+  <script src="js/apuracao-central.js?v=20260930d"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

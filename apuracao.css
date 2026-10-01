@@ -37,6 +37,9 @@
   .apu-tema { margin-left: auto; }
 }
 
+/* Cargo da página no menu do topo. */
+.topnav a.is-ativo { color: var(--ink); font-weight: 600; }
+
 .apu-head {
   padding: clamp(22px, 3vw, 34px) 0 clamp(18px, 2.4vw, 26px);
   border-bottom: 1px solid var(--line);
@@ -608,25 +611,73 @@
 
 .apu-map { display: block; width: 100%; height: auto; }
 
-/* O contorno é do tom do fundo, não uma linha própria: o que separa dois
-   territórios é a falha entre eles. Cada palco declara o seu `--map-bg`, porque
-   nem todos são do mesmo tom de papel. */
+/* Contorno dos mapas: cinza-escuro nos dois temas. No escuro ele é o próprio
+   tom do fundo — o que separa dois territórios é a falha entre eles, e cada
+   palco declara o seu `--map-bg`. No claro, o mesmo truque dava divisa branca,
+   e o mapa perdia o desenho; ali o traço é escuro de verdade.
+
+   `initial` num custom property é o valor inválido garantido: no escuro o
+   var() cai no fallback, que é o tom do palco. O MapLibre da presidencial lê o
+   mesmo token (cores() em js/apuracao-nacional.js). */
+:root { --map-contorno: #262626; }
+
+/* Tema claro da apuração: texto preto sobre papel cinza-claro. Os tons do
+   portal (--ink-2 e --muted, cinza-azulados) liam como texto apagado, e o
+   branco puro ofuscava numa tela que fica aberta a noite inteira. O papel desce
+   para um cinza quente e os três degraus (papel, faixa, vazio) e os fios
+   descem junto, para continuarem se distinguindo. Só a apuração muda: este
+   arquivo não é carregado pelas outras páginas. */
+:root[data-theme="light"] {
+  --ink: #000000;
+  --ink-2: #111111;
+  --muted: #3a3a3a;
+  --paper: #ececea;
+  --paper-2: #e2e2df;
+  --paper-3: #d6d6d2;
+  --line: #cfcfcb;
+  --line-strong: #b4b4af;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --ink: #000000;
+    --ink-2: #111111;
+    --muted: #3a3a3a;
+    --paper: #ececea;
+    --paper-2: #e2e2df;
+    --paper-3: #d6d6d2;
+    --line: #cfcfcb;
+    --line-strong: #b4b4af;
+  }
+}
+
+/* Território ainda sem apuração: o cinza-claro do tema claro também no escuro,
+   para o mapa vazio ler igual nos dois. Não muda com o tema, então fica fora
+   dos blocos de escuro. */
+:root { --map-vazio: #ececee; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --map-contorno: initial; }
+}
+
+:root[data-theme="dark"] { --map-contorno: initial; }
+
 .apu-map path {
-  stroke: var(--map-bg, var(--paper));
+  stroke: var(--map-contorno, var(--map-bg, var(--paper)));
   stroke-width: 0.8;
   /* Espessura em pixels de tela. Sem isto o mapa municipal, que tem
      viewBox de 2000 unidades, sairia com metade do traco do nacional,
      de 1000. */
   vector-effect: non-scaling-stroke;
   stroke-linejoin: round;
-  fill: var(--paper-3);
+  fill: var(--map-vazio);
   cursor: pointer;
   transition: fill 0.45s ease, opacity 0.2s ease;
 }
 
 .apu-map path:hover { opacity: 0.72; }
 
-.apu-map path.is-empty { fill: var(--paper-3); cursor: default; }
+.apu-map path.is-empty { fill: var(--map-vazio); cursor: default; }
 .apu-map path.is-empty:hover { opacity: 1; }
 /* Território sem voto continua clicável quando o mapa navega. */
 .apu-map path.is-empty.is-click { cursor: pointer; }
@@ -698,8 +749,8 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.14s ease;
-  background: #ffffff;
-  color: #333333;
+  background: #f6f6f4;
+  color: #111111;
   border: 1px solid #cccccc;
   border-radius: 2px;
   padding: 8px 10px;
@@ -1668,6 +1719,16 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
    e o traco cheio fechava os municipios pequenos. */
 #mapaUF path { stroke-width: 0.2; }
 
+/* Quadro de ilha oceânica desenhada fora do lugar (Fernando de Noronha, em
+   PE): só um fio fino em volta, sem roubar o clique da ilha. */
+.apu-map .apu-map-quadro {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
 /* ------------------------------------------------- seletor de cargo (UF) */
 
 .apu-cargos {
@@ -1840,33 +1901,6 @@ body:has(#mapaUF) .apu-aside .apu-results {
 .apu-estagio.is-p { color: #93370d; border-color: #fec84b; background: #fffaeb; }
 .apu-estagio.is-f { color: #085d3a; border-color: #75e0a7; background: #ecfdf3; }
 
-/* Saúde do plantão. Sóbria e no fim da página: é instrumentação, não notícia —
-   mas sem ela a primeira notícia de bloqueio no CDN seria a tela vazia. */
-.apu-saude {
-  margin-top: 10px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--paper);
-}
-
-.apu-saude .apu-stats { grid-template-columns: repeat(4, 1fr); }
-
-@media (max-width: 720px) {
-  .apu-saude .apu-stats { grid-template-columns: 1fr 1fr; }
-}
-
-/* Saúde do plantão em alarme. As três regras do TSE — teto de 100 requisições
-   por IP por segundo, bloqueio de 10 minutos renovável e 404 que pune igual a
-   excesso — só viram defesa se a tela gritar quando saem da faixa. */
-.apu-saude .is-alarme .apu-stat-v { color: #b42318; }
-.apu-saude .is-alarme .apu-stat-l { color: #b42318; }
-
-.apu-saude.is-alarme {
-  border-color: #fda29b;
-  background: #fef3f2;
-}
-
 /* Eleito e segundo turno. Duas origens, duas aparências: sólido é o que o TSE
    declarou no arquivo; contornado (is-previsto) é a leitura das vagas do cargo
    e do campo "matematicamente definido" — enquanto a apuração corre, o TSE deixa
@@ -1885,8 +1919,8 @@ body:has(#mapaUF) .apu-aside .apu-results {
   vertical-align: middle;
 }
 
-.apu-marca.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
-.apu-marca.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-marca.is-eleito { background: #16a34a; color: #ffffff; border: 1px solid #16a34a; }
+.apu-marca.is-segundo { background: #2563eb; color: #ffffff; border: 1px solid #2563eb; }
 .apu-marca.is-suplente { background: var(--line-strong); color: var(--paper); }
 
 .apu-marca.is-previsto {
@@ -1911,8 +1945,8 @@ body:has(#mapaUF) .apu-aside .apu-results {
   vertical-align: middle;
 }
 
-.apu-tique.is-eleito { background: #085d3a; color: #ecfdf3; border: 1px solid #085d3a; }
-.apu-tique.is-segundo { background: #1f3a8a; color: #eff4ff; border: 1px solid #1f3a8a; }
+.apu-tique.is-eleito { background: #16a34a; color: #ffffff; border: 1px solid #16a34a; }
+.apu-tique.is-segundo { background: #2563eb; color: #ffffff; border: 1px solid #2563eb; }
 .apu-tique.is-previsto { background: transparent; border-style: dashed; }
 .apu-tique.is-eleito.is-previsto { color: #17a34a; border-color: #17a34a; }
 .apu-tique.is-segundo.is-previsto { color: #6e8bff; border-color: #6e8bff; }
@@ -1960,3 +1994,652 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-proj-resumo-txt { display: block; font-size: 0.88rem; line-height: 1.45; color: var(--ink); }
 .apu-proj-resumo-mais { display: inline-block; margin-top: 6px; font-size: 0.76rem; color: var(--brand-ink); }
+
+/* ===========================================================================
+   DEPUTADOS — Câmara e Assembleias (apuracao-deputados.html)
+
+   O hemiciclo enche da esquerda para a direita na régua do espectro; as listas
+   seguem o desenho do especial do La Nación sobre a Câmara argentina, no
+   vocabulário da apuração: um cartão por partido com as cadeiras em destaque na
+   cor dele, e a lista aberta logo abaixo, com quem está dentro das vagas
+   tingido. Sem fotos.
+   =========================================================================== */
+
+/* ------------------------------------------------- Brasil e as 27 unidades */
+
+/* Uma régua só, que cabe na largura: Brasil e as 27 siglas em células iguais,
+   separadas por um fio fino em vez de caixa. O estado escolhido ganha tinta
+   cheia e um traço embaixo. No celular a régua quebra em quatro linhas de sete,
+   em vez de rolar de lado e esconder o fim. */
+.apu-dep-ufs { border-bottom: 1px solid var(--line); }
+
+.apu-dep-ufs-in {
+  display: grid;
+  grid-template-columns: 1.8fr repeat(27, minmax(0, 1fr));
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.apu-dep-uf {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  height: 40px;
+  border-left: 1px solid var(--line);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.apu-dep-uf:first-child { border-left: 0; }
+.apu-dep-uf:last-child { border-right: 1px solid var(--line); }
+.apu-dep-uf:hover { color: var(--ink); background: var(--paper-2); }
+.apu-dep-uf.is-brasil { font-weight: 600; }
+
+.apu-dep-uf.is-ativo {
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 var(--ink);
+}
+
+@media (max-width: 760px) {
+  .apu-dep-ufs-in { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .apu-dep-uf { height: 36px; border-top: 1px solid var(--line); }
+  .apu-dep-uf:nth-child(-n+7) { border-top: 0; }
+  .apu-dep-uf:nth-child(7n+1) { border-left: 0; }
+  .apu-dep-uf:last-child { border-right: 0; }
+}
+
+/* ---------------------------------------------------- hemiciclo e quadro */
+
+.apu-dep-palco {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
+  gap: clamp(22px, 3.4vw, 44px);
+  align-items: start;
+  padding: clamp(22px, 3vw, 34px) 0 6px;
+}
+
+.apu-dep-palco[hidden] { display: none; }
+
+@media (max-width: 900px) {
+  .apu-dep-palco { grid-template-columns: 1fr; }
+}
+
+.apu-dep-hemi { margin: 0; }
+.apu-dep-hemi figcaption { display: block; margin-top: 8px; line-height: 1.5; }
+
+.apu-hemi { display: block; width: 100%; height: auto; overflow: visible; }
+
+.apu-hemi-assento {
+  fill: var(--paper-3);
+  stroke: var(--paper-3);
+  stroke-linejoin: round;
+  cursor: pointer;
+  transition: fill 0.6s ease, stroke 0.6s ease, opacity 0.2s ease;
+}
+
+.apu-hemi-assento.is-vazio { cursor: default; }
+.apu-hemi-assento.is-ponto { stroke: none; }
+
+/* Cadeira que o TSE ainda não declarou: meia opacidade, no hemiciclo e no
+   mosaico de cada estado. O foco num bloco (abaixo) vence esta regra. */
+.apu-hemi-assento.is-provisorio,
+.apu-mosaico circle.is-provisorio { opacity: 0.5; }
+.apu-hemi.is-foco .apu-hemi-assento:not(.is-foco) { opacity: 0.22; }
+
+.apu-hemi-maioria {
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.apu-hemi-maioria-rot {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  fill: var(--muted);
+}
+
+.apu-hemi-total {
+  font-family: var(--display);
+  font-size: 40px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.apu-hemi-rot {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  fill: var(--muted);
+}
+
+.apu-dep-quadro .apu-dock-rot { margin-bottom: 6px; }
+.apu-dep-quadro .apu-table-wrap { overflow-x: visible; }
+
+.apu-dep-tab {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.apu-dep-tab thead th {
+  text-align: left;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 6px 7px;
+  border-bottom: 2px solid var(--ink);
+  white-space: nowrap;
+}
+
+.apu-dep-tab th.num,
+.apu-dep-tab td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.apu-dep-tab tbody td {
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.apu-dep-tab tbody tr { transition: background 0.16s ease; }
+.apu-dep-tab tbody tr:hover { background: var(--paper-2); }
+.apu-dep-tab tbody tr.is-click { cursor: pointer; }
+.apu-dep-tab tbody tr.is-sem { color: var(--muted); }
+
+.apu-dep-tab-nome { min-width: 0; line-height: 1.25; }
+
+.apu-dep-tab-nome small {
+  display: block;
+  font-size: 0.64rem;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.apu-dep-tab td.apu-dep-tab-cad { font-weight: 700; font-size: 0.92rem; }
+
+/* No celular o número de votos sai: o percentual diz o mesmo em menos espaço,
+   e o voto continua no balão do hemiciclo e no cartão de cada lista. */
+@media (max-width: 520px) {
+  .apu-dep-tab .apu-dep-tab-votos { display: none; }
+}
+
+/* ------------------------------------------------- listas, nome a nome */
+
+.apu-dep-listas { padding-bottom: clamp(20px, 3vw, 36px); }
+
+.apu-carrossel { position: relative; }
+
+.apu-colunas {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding: 6px 2px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.apu-colunas:focus-visible { outline: 2px solid var(--brand); outline-offset: 4px; }
+
+.apu-carrossel-seta {
+  position: absolute;
+  top: 78px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  transition: opacity 0.16s ease;
+}
+
+.apu-carrossel-seta.is-esq { left: -18px; }
+.apu-carrossel-seta.is-dir { right: -18px; }
+.apu-carrossel-seta:disabled { opacity: 0; pointer-events: none; }
+.apu-carrossel-seta[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .apu-carrossel-seta { display: none; }
+}
+
+.apu-col {
+  flex: 0 0 196px;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+}
+
+.apu-col-topo {
+  min-height: 52px;
+  padding: 0 4px 8px;
+  text-align: center;
+}
+
+.apu-col-nome {
+  font-family: var(--display);
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.apu-col-sub {
+  margin-top: 3px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apu-col-placar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px 11px;
+  border-radius: 6px 6px 0 0;
+  background: var(--cor);
+  color: var(--cor-txt);
+  transition: background 0.4s ease;
+}
+
+.apu-col-n {
+  font-family: var(--display);
+  font-size: 2.7rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-col-rot {
+  margin-top: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.apu-col-votos {
+  margin-top: 6px;
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+.apu-col.is-aceso .apu-col-placar { animation: apuAceso 1.6s ease-out; }
+
+@keyframes apuAceso {
+  0%, 30% { box-shadow: 0 0 0 3px var(--ink); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+
+.apu-col-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-top: 0;
+  background: var(--paper);
+}
+
+.apu-li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px 5px 6px;
+  font-size: 0.76rem;
+  font-weight: 300;
+  color: var(--ink-2);
+  border-top: 1px solid var(--line);
+}
+
+.apu-li:first-child { border-top: 0; }
+
+.apu-li.is-dentro {
+  color: var(--ink);
+  font-weight: 500;
+  background: color-mix(in srgb, var(--cor) 24%, var(--paper));
+}
+
+.apu-li.is-dentro.is-previsto { background: color-mix(in srgb, var(--cor) 13%, var(--paper)); }
+
+/* A linha de corte: quem vem logo abaixo é quem entra se o partido ganhar mais
+   uma vaga — a notícia do fim da noite. */
+.apu-li.is-corte { border-top: 1.5px dashed var(--muted); }
+
+.apu-li-pos {
+  font-size: 0.66rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-li-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+
+.apu-li-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.apu-li-meta {
+  font-size: 0.6rem;
+  font-weight: 400;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apu-li-part {
+  margin-right: 5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.apu-li-marca {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--cor, var(--ink));
+  color: var(--cor-txt, var(--paper));
+}
+
+.apu-li-marca .apu-icone { width: 10px; height: 10px; }
+
+.apu-li-marca.is-previsto {
+  background: transparent;
+  color: var(--ink);
+  border: 1px dashed var(--ink-2);
+}
+
+.apu-li-marca.is-vazia { background: none; border: 0; }
+
+/* Situação da totalização final: quem não se elegeu sai riscado, como no
+   especial; suplente não, porque suplente assume de fato. */
+.apu-li.is-fora .apu-li-nome { text-decoration: line-through; color: var(--muted); }
+.apu-li.is-semvaga .apu-li-nome { color: var(--muted); font-style: italic; }
+
+/* Quem acabou de entrar nas vagas, e quem acabou de sair, no boletim que chegou. */
+.apu-li.is-entrou { animation: apuEntrou 2.6s ease-out; }
+.apu-li.is-saiu { animation: apuSaiu 2.6s ease-out; }
+
+@keyframes apuEntrou {
+  0%, 25% { background-color: color-mix(in srgb, var(--cor) 60%, var(--paper)); }
+}
+
+@keyframes apuSaiu {
+  0%, 25% { background-color: color-mix(in srgb, #d92d20 22%, var(--paper)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apu-li.is-entrou, .apu-li.is-saiu, .apu-col.is-aceso .apu-col-placar { animation: none; }
+  .apu-hemi-assento { transition: none; }
+}
+
+.apu-col-mais {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-top: 0;
+  font-size: 0.64rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.apu-dep-rodape {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.apu-dep-rodape .apu-legenda-marcas { margin: 0; flex: 1 1 420px; }
+
+.apu-more.apu-dep-ver {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: auto;
+  margin: 0;
+  padding: 9px 16px;
+}
+
+.apu-legenda-corte {
+  display: inline-block;
+  width: 22px;
+  border-top: 1.5px dashed var(--muted);
+}
+
+/* ---------------------------------------------------- estado a estado */
+
+.apu-dep-estados {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.apu-dep-estado {
+  display: flex;
+  flex-direction: column;
+  padding: 13px 15px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.apu-dep-estado:hover { background: var(--paper-2); border-color: var(--line-strong); }
+
+.apu-dep-estado .apu-estado-head { margin-bottom: 4px; }
+
+.apu-dep-estado-nv {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-dep-estado-mosaico {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 72px;
+  padding: 8px 0;
+}
+
+.apu-mosaico { display: block; max-width: 100%; height: auto; }
+.apu-mosaico circle { transition: fill 0.6s ease; }
+.apu-mosaico circle.is-vazio { fill: var(--paper-3); }
+
+/* Os três maiores partidos do estado, um por linha, alinhados à margem
+   esquerda do cartão: nome à esquerda, cadeiras à direita, no traço das linhas
+   dos cartões de governador. */
+.apu-dep-estado-maiores {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: auto;
+  font-size: 0.76rem;
+  color: var(--ink-2);
+}
+
+.apu-dep-estado-maior {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0 3px 9px;
+  border-left: 3px solid var(--cor-linha, var(--line-strong));
+}
+
+.apu-dep-estado-maior-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apu-dep-estado-maior b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.apu-dep-estado-maiores .is-vazio { color: var(--muted); }
+
+/* Assembleias somadas: sem semicírculo, o quadro ocupa a largura. */
+.apu-dep-palco.sem-hemiciclo { grid-template-columns: minmax(0, 1fr); }
+.apu-dep-palco.sem-hemiciclo .apu-dep-quadro { max-width: 820px; }
+.apu-dep-hemi[hidden] { display: none; }
+
+/* ===========================================================================
+   PRESIDENCIAL — painel da projeção e legenda das faixas
+
+   A projeção tem coluna própria, à esquerda do mapa: no painel da direita ela
+   ficava embaixo do placar e da participação, cortada no fim da tela. A coluna
+   só existe enquanto há o que projetar (`.com-proj`, posto por
+   apuracao-nacional.js), e nada nela rola de lado: tudo encolhe para caber.
+   =========================================================================== */
+
+.apu-stage.com-proj {
+  grid-template-columns: clamp(286px, 21vw, 352px) minmax(0, 1fr) clamp(322px, 26vw, 412px);
+}
+
+.apu-dock-proj[hidden] { display: none; }
+
+.apu-dock-proj {
+  border-left: 0;
+  border-right: 1px solid var(--line);
+}
+
+.apu-dock-proj .apu-dock-body { overflow-x: hidden; }
+
+.apu-dock-proj .apu-proj {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Na coluna estreita a tabela de chances e as linhas de votos se apertam:
+   medidor menor, nome que encolhe com reticências, número sem quebrar. */
+.apu-dock-proj .apu-proj-tab { table-layout: fixed; }
+.apu-dock-proj .apu-proj-tab thead th:first-child,
+.apu-dock-proj .apu-proj-tab tbody th { width: 40%; max-width: none; }
+.apu-dock-proj .apu-proj-tab thead th.num { white-space: normal; line-height: 1.25; }
+.apu-dock-proj .apu-proj-medidor { width: 26px; margin-right: 5px; }
+.apu-dock-proj .apu-proj-linha {
+  grid-template-columns: minmax(0, 6.2em) minmax(0, 1fr) 4.4em;
+  gap: 8px;
+}
+.apu-dock-proj .apu-proj-split-rot { flex-wrap: wrap; }
+
+/* Nome longo quebra linha em vez de sair cortado: aqui ha altura de sobra, e
+   largura nenhuma. */
+.apu-dock-proj .apu-proj-tab tbody th,
+.apu-dock-proj .apu-proj-nome {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+/* Tela média: três colunas apertariam o mapa demais. A projeção desce para
+   baixo do palco, na largura inteira, e o palco cresce para contê-la. */
+@media (max-width: 1080px) and (min-width: 901px) {
+  .apu-stage.com-proj {
+    grid-template-columns: minmax(0, 1fr) clamp(322px, 26vw, 412px);
+    grid-template-rows: calc(100dvh - var(--apu-topbar)) auto;
+    height: auto;
+  }
+  .apu-stage.com-proj .apu-stage-map { grid-column: 1; grid-row: 1; }
+  .apu-stage.com-proj > .apu-dock:not(.apu-dock-proj) { grid-column: 2; grid-row: 1; }
+  .apu-dock-proj {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .apu-dock-proj .apu-dock-body { overflow: visible; }
+  .apu-dock-proj .apu-proj { max-width: 760px; }
+}
+
+/* Celular: tudo em uma coluna — mapa, resultado, projeção. */
+@media (max-width: 900px) {
+  .apu-stage.com-proj { grid-template-columns: 1fr; }
+  .apu-stage-map { order: 1; }
+  .apu-stage > .apu-dock:not(.apu-dock-proj) { order: 2; }
+  .apu-dock-proj { order: 3; border-right: 0; border-top: 1px solid var(--line); }
+  .apu-dock-proj .apu-dock-body { overflow: visible; }
+}
+
+/* Legenda das faixas de cor, no canto do mapa. */
+.apu-faixas {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  z-index: 2;
+  padding: 9px 11px 8px;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.66rem;
+  color: var(--ink-2);
+  pointer-events: none;
+}
+
+.apu-faixas[hidden] { display: none; }
+
+.apu-faixas-tit {
+  margin-bottom: 6px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apu-faixas-linha {
+  display: grid;
+  grid-template-columns: 7.5em auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.apu-faixas-linha + .apu-faixas-linha { margin-top: 3px; }
+
+.apu-faixas-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.apu-faixas-regua { display: grid; grid-template-columns: repeat(8, 18px); gap: 1px; }
+.apu-faixas-regua > span { height: 10px; }
+
+.apu-faixas-regua.is-rotulos > span {
+  height: auto;
+  font-size: 0.56rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .apu-faixas { left: 8px; bottom: 8px; }
+}

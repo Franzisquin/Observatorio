@@ -25,7 +25,8 @@
    Dois arquivos avulsos, fora do eixo eleição/cargo:
      {ele}-ab.json              EA14 — andamento por UF e estágio dos municípios
      {ele}-{cargo}-eleitos.json EA10 — quem venceu, após a totalização final
-     status.json                saúde do plantão, escrita por plantao.py
+     status.json                saúde do plantão, escrita por plantao.py (para quem
+                                opera; nenhuma página pública a lê)
    =========================================================================== */
 'use strict';
 
@@ -178,7 +179,8 @@ const APU = (function () {
   }
 
   function chaveDeCor(sigla) {
-    let k = String(sigla || '').trim().toUpperCase()
+    /* `**` à direita é como o TSE marca partido inapto: a sigla é a mesma. */
+    let k = String(sigla || '').trim().replace(/\*+$/, '').trim().toUpperCase()
       .normalize('NFD').replace(/[̀-ͯ]/g, '')
       .replace(/\s+/g, ' ').replace(/^FEDERACAO /, '');
     return APELIDOS[k] || k;
@@ -316,7 +318,6 @@ const APU = (function () {
     return e ? arquivo(e + '-' + c + '-eleitos.json') : null;
   }
 
-  const saude = () => arquivo('status.json');
 
   /* ----------------------------------------------- leituras do EA20 */
 
@@ -420,8 +421,13 @@ const APU = (function () {
       .sort((a, b) => b.votos - a.votos);
   }
 
+  /* Quem lidera, ou null enquanto não há voto. Sem esta guarda, município
+     ainda sem urna apurada mostrava como "líder" o primeiro de uma lista toda
+     em zero — um candidato qualquer, com 0,00%. */
   function lider(entrada, dicionario) {
-    return ranking(entrada, dicionario)[0] || null;
+    if (!entrada || !(entrada.vv > 0)) return null;
+    const l = ranking(entrada, dicionario)[0];
+    return l && l.votos > 0 ? l : null;
   }
 
   /* ------------------------------------------------- eleito e segundo turno */
@@ -453,9 +459,11 @@ const APU = (function () {
     /* snt é o que ainda falta totalizar; pst arredonda para 100,00 antes do fim,
        então quem manda é a contagem de seções, não o percentual. */
     const acabou = e.snt === 0 || e.and === 'f' || e.tf === 's';
+    const garantidos = eleitosPelaConta(lista, e, cargo || cfg.cargo, vagas);
 
     lista.forEach((c, i) => {
       c.oficial = false;
+      c.matematico = false;
       if (c.situacao) {
         c.marca = /^eleit/i.test(c.situacao) ? 'eleito'
           : /turno/i.test(c.situacao) ? 'segundo'
@@ -465,9 +473,16 @@ const APU = (function () {
         c.marca = segundoTurno ? 'segundo' : 'eleito';
         c.oficial = true;
       } else if (segundoTurno) {
+        /* md='s' é o TSE dizendo que o 2º turno está definido: certo, e não
+           leitura — a marca sai firme, como a de eleito. */
         c.marca = i < 2 ? 'segundo' : '';
+        c.matematico = i < 2;
       } else if (definido) {
         c.marca = i < 1 ? 'eleito' : '';
+        c.matematico = i < 1;
+      } else if (i < garantidos) {
+        c.marca = 'eleito';
+        c.matematico = true;
       } else if (vagas > 1 && acabou) {
         /* Só o Senado cai aqui. Para cargo de vaga única sem `md`, declarar
            vencedor por estar na frente seria projeção — e o TSE ainda não disse. */
@@ -477,6 +492,29 @@ const APU = (function () {
       }
     });
     return lista;
+  }
+
+  /* Quantos dos primeiros já estão matematicamente eleitos, pela conta: nem
+     que todo o eleitorado das seções que faltam totalizar (`esnt`) votasse
+     contra, o resultado mudaria. É aritmética sobre o que o TSE publicou, não
+     projeção — e cobre o que o `md` do TSE não cobre: o Senado, e o intervalo
+     entre a conta fechar e o arquivo trazer o `md`.
+
+     Presidente e governador: maioria absoluta dos válidos. O líder está eleito
+     quando já tem mais da metade dos válidos que existiriam se todo o eleitorado
+     restante votasse em outro. Senado: maioria simples, por vaga — quem está
+     dentro está eleito quando passa o primeiro de fora mais o eleitorado
+     restante. Só vale com `esnt`, que só a camada alta traz. */
+  function eleitosPelaConta(lista, e, cargo, vagas) {
+    if (e.esnt == null || !(e.vv > 0) || !lista.length) return 0;
+    const resta = Math.max(0, Number(e.esnt) || 0);
+    if (cargo === '0005') {
+      const primeiroFora = lista[vagas] ? lista[vagas].votos : 0;
+      let n = 0;
+      while (n < vagas && n < lista.length && lista[n].votos > primeiroFora + resta) n += 1;
+      return n;
+    }
+    return 2 * lista[0].votos > e.vv + resta ? 1 : 0;
   }
 
   const ROTULO_MARCA = { eleito: 'Eleito', segundo: '2º turno', suplente: 'Suplente' };
@@ -578,6 +616,186 @@ const APU = (function () {
       .sort((a, b) => a.urna.localeCompare(b.urna, 'pt-BR'));
   }
 
+  /* ------------------------------------------- deputados: blocos e listas */
+
+  /* Na disputa proporcional a cadeira é do bloco — federação ou partido
+     isolado —, e o TSE publica quantas cada um tem (`vag`), recalculadas a cada
+     totalização. Quem ocupa essas cadeiras sai da lista aberta do bloco: os mais
+     votados dele, de qualquer partido da federação. Isto aqui só lê: não refaz o
+     quociente nem as sobras, que são do TSE. */
+
+  const semAsterisco = (s) => String(s || '').replace(/\*+$/, '').trim();
+
+  /* Siglas do bloco, na ordem da composição do TSE ("PT/PC do B/PV"). A
+     primeira é a cabeça da federação: é dela a cor e o lugar no espectro. */
+  function siglasDoBloco(a) {
+    const daComposicao = String(a.com || '').split('/').map(semAsterisco).filter(Boolean);
+    const dosPartidos = (a.par || []).map((p) => semAsterisco(p.sg)).filter(Boolean);
+    if (a.tp === 'f') {
+      /* Composição que não casa com as siglas dos partidos vale menos que a
+         lista de partidos: o simulado chegou a mandar o nome da federação ali. */
+      const casa = daComposicao.length > 0 && dosPartidos.length > 0
+        && daComposicao.every((s) => dosPartidos.includes(s));
+      return casa ? daComposicao : (dosPartidos.length ? dosPartidos : daComposicao);
+    }
+    return dosPartidos.length ? dosPartidos.slice(0, 1) : daComposicao.slice(0, 1);
+  }
+
+  /* Federação e partido isolado ficam com a mesma chave em todas as UFs — a
+     federação é nacional por lei —, e é ela que soma as bancadas no país. */
+  function chaveDoBloco(a, siglas) {
+    if (a.tp === 'f') return 'F:' + (a.fed || a.nm || siglas.join('/'));
+    return 'P:' + (siglas[0] || a.nm || '');
+  }
+
+  /* "Federação Brasil da Esperança - FE BRASIL" -> "Brasil da Esperança". Caixa
+     alta do TSE vira nome próprio, mas sigla de partido de até quatro letras
+     fica como é: "PSOL REDE", e não "Psol Rede". Nome do qual não sobra nada
+     além de número (o simulado manda "FEDERAÇÃO 9995") cai na sigla. */
+  function nomeDoBloco(a, siglas) {
+    if (a.tp !== 'f') return siglas[0] || a.nm || '';
+    let nm = String(a.nm || '').trim()
+      .replace(/\s+-\s+[^-]+$/, '')
+      .replace(/^federa[çc][ãa]o\s+/i, '')
+      .trim();
+    if (!nm || /^\d+$/.test(nm)) return a.fed || siglas.join('/');
+    if (nm === nm.toUpperCase()) {
+      const curtas = new Set(siglas.map((s) => s.toUpperCase()).filter((s) => s.length <= 4));
+      const original = nm.split(/\s+/);
+      nm = nomeProprio(nm).split(/\s+/)
+        .map((w, i) => (curtas.has(original[i]) ? original[i] : w)).join(' ');
+    }
+    return nm;
+  }
+
+  /* Lugar do bloco na régua esquerda -> direita (js/espectro-partidos.js, a
+     mesma do visualizador). A cabeça da federação decide; se ela não está na
+     régua, vale o primeiro partido do bloco que esteja. */
+  function espectroDoBloco(a, siglas) {
+    const regua = typeof getPartySpectrumRank === 'function' ? getPartySpectrumRank : null;
+    if (!regua) return 999;
+    for (const s of siglas) {
+      const r = regua(s, 2026);
+      if (r < 999) return r;
+    }
+    return regua(a.fed || a.nm || '', 2026);
+  }
+
+  /* O voto que não elege o próprio candidato: anulado, sub judice, ou válido
+     só para a legenda. O coletor omite `dvt` quando o voto é simplesmente
+     válido, que é o caso de quase todos. */
+  const disputaVaga = (c) => !c.dvt || /^v[áa]lido$/i.test(String(c.dvt).trim());
+
+  /* Quem está dentro das vagas do bloco, e com que autoridade.
+
+     OFICIAL — `st` (Eleito por QP, Eleito por média, Suplente, Não eleito) só
+     chega na totalização final, e então manda sozinho. `e = 's'` sem `st` é o
+     TSE dizendo que o candidato está eleito: também conta como declarado.
+
+     LEITURA — enquanto a contagem corre, as cadeiras do bloco que o TSE ainda
+     não atribuiu a ninguém vão, em ordem, aos mais votados que disputam vaga. É
+     a regra da lei aplicada ao boletim do momento: muda a cada totalização, e
+     por isso a tela a desenha tracejada. */
+  function marcarLista(candidatos, vagas) {
+    const lista = (candidatos || []).map((c) => ({
+      sq: String(c.sq || ''), numero: c.n || '', urna: nomeProprio(c.urna || ''),
+      partido: semAsterisco(c.partido), votos: Number(c.v) || 0, seq: Number(c.seq) || 0,
+      situacao: c.st || '', declarado: c.e === 's', destino: c.dvt || '',
+      semVaga: !disputaVaga(c), marca: '', oficial: false
+    })).sort((a, b) => b.votos - a.votos
+      || (a.seq || 1e9) - (b.seq || 1e9)
+      || a.urna.localeCompare(b.urna, 'pt-BR'));
+
+    const final = lista.some((c) => c.situacao);
+    let ocupadas = 0;
+    lista.forEach((c) => {
+      if (c.situacao) {
+        c.marca = /^eleit/i.test(c.situacao) ? 'eleito'
+          : /suplente/i.test(c.situacao) ? 'suplente' : 'fora';
+        c.oficial = true;
+      } else if (c.declarado) {
+        c.marca = 'eleito';
+        c.oficial = true;
+      }
+      if (c.marca === 'eleito') ocupadas += 1;
+    });
+
+    if (!final) {
+      let livres = Math.max(0, (Number(vagas) || 0) - ocupadas);
+      lista.forEach((c) => {
+        if (c.marca || livres <= 0 || c.semVaga || c.votos <= 0) return;
+        c.marca = 'eleito';
+        livres -= 1;
+      });
+    }
+    lista.forEach((c, i) => { c.pos = i + 1; c.dentro = c.marca === 'eleito'; });
+    return lista;
+  }
+
+  /* Os blocos de uma UF, prontos para a tela. `vv` é a base do percentual:
+     votos válidos, nominais mais legenda. */
+  function blocos(agrem, entrada) {
+    const lista = agrem || [];
+    const vv = (entrada && entrada.vv) || lista.reduce((s, a) => s + (Number(a.v) || 0), 0);
+    const prontos = lista.map((a) => {
+      const siglas = siglasDoBloco(a);
+      return {
+        chave: chaveDoBloco(a, siglas),
+        rotulo: nomeDoBloco(a, siglas),
+        federacao: a.tp === 'f',
+        siglas,
+        partidos: (a.par || []).map((p) => ({
+          sigla: semAsterisco(p.sg), nome: p.nm || '',
+          votos: (Number(p.vtn) || 0) + (Number(p.vtl) || 0),
+          inapto: /\*+$/.test(String(p.sg || ''))
+        })),
+        espectro: espectroDoBloco(a, siglas),
+        vagas: Number(a.vag) || 0,
+        votos: Number(a.v) || 0,
+        legenda: Number(a.vtl) || 0,
+        pct: fmt.parte(Number(a.v) || 0, vv),
+        cand: a.cand ? marcarLista(a.cand, a.vag) : null
+      };
+    });
+    /* Cadeiras que o TSE já declarou: os candidatos do bloco com situação
+       oficial. Sem a lista (camada alta), quem decide é quem chama — a UF com
+       totalização final tem todas declaradas. */
+    prontos.forEach((b) => {
+      b.declaradas = b.cand ? b.cand.filter((c) => c.dentro && c.oficial).length : 0;
+    });
+    /* Cor reservada em ordem alfabética, pelo mesmo motivo do placar: a paleta
+       de sigla nova não pode se remexer quando o ranking vira. */
+    semearCores(prontos.map((b) => b.siglas[0]));
+    prontos.forEach((b) => { b.cor = cor(b.siglas[0] || b.rotulo); });
+    return prontos;
+  }
+
+  /* Soma os blocos de várias UFs pela chave: a Câmara inteira, ou as
+     Assembleias somadas. `porUF` guarda de onde veio cada cadeira. */
+  function somarBlocos(porUF) {
+    const soma = new Map();
+    Object.entries(porUF || {}).forEach(([uf, lista]) => {
+      (lista || []).forEach((b) => {
+        const atual = soma.get(b.chave)
+          || { ...b, vagas: 0, declaradas: 0, votos: 0, legenda: 0, cand: null, porUF: [] };
+        atual.vagas += b.vagas;
+        atual.declaradas += b.declaradas || 0;
+        atual.votos += b.votos;
+        atual.legenda += b.legenda;
+        if (b.vagas || b.votos) atual.porUF.push({ uf, vagas: b.vagas, votos: b.votos });
+        soma.set(b.chave, atual);
+      });
+    });
+    const total = Array.from(soma.values()).reduce((s, b) => s + b.votos, 0);
+    return Array.from(soma.values()).map((b) => ({ ...b, pct: fmt.parte(b.votos, total) }));
+  }
+
+  /* As duas ordens que a tela usa. Listas e quadro: mais cadeiras primeiro,
+     voto desempata. Hemiciclo: da esquerda para a direita. */
+  const porCadeiras = (a, b) => b.vagas - a.vagas || b.votos - a.votos
+    || String(a.rotulo).localeCompare(String(b.rotulo), 'pt-BR');
+  const porEspectro = (a, b) => a.espectro - b.espectro || porCadeiras(a, b);
+
   /* ------------------------------------------------------------------ selo */
 
   /* "s" = simulado. Carregar essa marca até a tela é o que impede publicar
@@ -595,8 +813,9 @@ const APU = (function () {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, rankingZerado, fotosDisponiveis, temFoto,
-    simulado, carimbo, arquivo, acompanhamento, eleitos, saude,
+    simulado, carimbo, arquivo, acompanhamento, eleitos,
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
-    marcar, ROTULO_MARCA
+    marcar, ROTULO_MARCA,
+    blocos, somarBlocos, marcarLista, porCadeiras, porEspectro
   };
 })();

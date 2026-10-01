@@ -6,6 +6,8 @@ navegador faca 1 requisicao em vez de 5.569:
     snapshot/<eleicao>-<cargo>-br.json    o pais
     snapshot/<eleicao>-<cargo>-uf.json    as 27 UFs num arquivo
     snapshot/<eleicao>-<cargo>-<uf>.json  todos os municipios daquela UF
+    snapshot/<eleicao>-<cargo>-lista-<uf>.json  deputados: a lista aberta de
+                                          cada bloco daquela UF, com votos
 
 Uso (os dados de 2024 continuam no ar ate 04/04/2028, entao da para provar o
 pipeline inteiro hoje, sem esperar 2026):
@@ -285,12 +287,52 @@ def partidos(payload: dict) -> dict[str, int]:
     return total
 
 
-def agremiacoes(payload: dict) -> list[dict]:
+def lista_aberta(partes: list[dict]) -> list[dict]:
+    """Os candidatos de uma agremiacao, do mais ao menos votado.
+
+    E a lista aberta que decide quem ocupa as `vag` do bloco: numa federacao a
+    cadeira e do bloco, e vai para os mais votados dele, de qualquer partido.
+    Campo no valor padrao fica de fora — `e` so quando 's', `dvt` so quando o
+    voto NAO e simplesmente valido — porque Sao Paulo passa de 1.500 nomes por
+    cargo e o arquivo e relido a cada volta.
+
+    `st` (Eleito por QP, Eleito por media, Suplente, Nao eleito) so vem na
+    totalizacao final; ate la quem diz quem esta dentro e a leitura das vagas,
+    feita na pagina. `seq` e a ordem do proprio TSE, que desempata voto igual
+    (art. 110 do Codigo Eleitoral: o mais idoso).
+    """
+    lista = []
+    for partido in partes:
+        sigla = texto(partido.get("sg"))
+        for c in partido.get("cand", []):
+            item = {"sq": str(c.get("sqcand") or ""), "n": c.get("n", ""),
+                    "urna": texto(c.get("nmu")) or texto(c.get("nm")),
+                    "partido": sigla, "v": inteiro(c.get("vap"))}
+            if c.get("e") == "s":
+                item["e"] = "s"
+            if texto(c.get("st")):
+                item["st"] = texto(c.get("st"))
+            # dvt: Valido, Valido (legenda), Anulado, Anulado sub judice. So o
+            # primeiro concorre a cadeira; os outros sao voto que nao elege o
+            # proprio candidato, e a pagina precisa saber para pula-lo.
+            destino = texto(c.get("dvt"))
+            if destino and destino.lower() not in ("valido", "válido"):
+                item["dvt"] = destino
+            if inteiro(c.get("seq")):
+                item["seq"] = inteiro(c.get("seq"))
+            lista.append(item)
+    return sorted(lista, key=lambda c: (-c["v"], c.get("seq") or 10 ** 9, c["urna"]))
+
+
+def agremiacoes(payload: dict, com_candidatos: bool = False) -> list[dict]:
     """Bancada por agremiacao: coligacao, federacao ou partido isolado.
 
     As vagas (`vag`) sao as do proprio TSE, recalculadas a cada totalizacao a
     partir do quociente. Ficam na agremiacao, nao no partido — numa federacao a
     cadeira e do bloco, e reparti-la entre os partidos seria inventar dado.
+
+    `com_candidatos` acrescenta a lista aberta de cada uma (lista_aberta). Vai
+    no arquivo de lista de UMA UF; no arquivo das 27 juntas, nao.
     """
     saida = []
     for cargo in payload.get("carg", []):
@@ -318,9 +360,11 @@ def agremiacoes(payload: dict) -> list[dict]:
                 **({"fed": texto(fed.get("sg")),
                     "fedcom": texto(fed.get("com"))} if fed else {}),
                 "par": [{"sg": texto(p.get("sg")), "n": p.get("n", ""),
+                         "nm": texto(p.get("nm")),
                          "vtn": inteiro(p.get("tvtn")), "vtl": inteiro(p.get("tvtl")),
                          "dvt": texto(p.get("dvt"))}
                         for p in partes if texto(p.get("sg"))],
+                **({"cand": lista_aberta(partes)} if com_candidatos else {}),
             })
     return sorted(saida, key=lambda a: -a["v"])
 
@@ -477,6 +521,25 @@ def meta(payload: dict, cargo: str) -> dict:
     }
 
 
+# Ultimo conteudo escrito por arquivo, sem o carimbo `gerado`. A lista aberta
+# de deputados sai a cada volta para 27 UFs e dois cargos; regravar o que nao
+# mudou so engordaria cada publicacao na branch de dados com arquivo identico.
+_ESCRITO: dict[str, str] = {}
+
+
+def escrever_se_mudou(destino: Path, nome: str, conteudo: dict) -> bool:
+    """Como escrever(), mas so grava se algo alem do carimbo de hora mudou."""
+    meta_sem_hora = {k: v for k, v in (conteudo.get("meta") or {}).items() if k != "gerado"}
+    assinatura = json.dumps({**conteudo, "meta": meta_sem_hora}, ensure_ascii=False,
+                            sort_keys=True, separators=(",", ":"))
+    chave = str(destino / nome)
+    if _ESCRITO.get(chave) == assinatura and (destino / nome).exists():
+        return False
+    escrever(destino, nome, conteudo)
+    _ESCRITO[chave] = assinatura
+    return True
+
+
 def escrever(destino: Path, nome: str, conteudo: dict) -> Path:
     """Grava o snapshot de uma vez so, por troca de nome.
 
@@ -541,6 +604,13 @@ def camada_alta(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[
             porta_uf[uf] = resumo(payload, cargo, com_candidatos, completo=True)
             if not com_candidatos:
                 bancadas[uf] = agremiacoes(payload)
+                # A lista aberta da UF, num arquivo dela: e o que a pagina de
+                # deputados le para dizer quem esta dentro das vagas de cada
+                # bloco. Sai do mesmo EA20 que ja foi baixado acima — nenhuma
+                # requisicao a mais ao TSE.
+                escrever_se_mudou(destino, f"{eleicao}-{cargo}-lista-{uf}.json", {
+                    "meta": meta(payload, cargo), "uf": uf, "abr": porta_uf[uf],
+                    "agrem": agremiacoes(payload, com_candidatos=True)})
                 continue
             # Governador e senador tem candidatos diferentes em cada UF; o
             # sqcand e unico no pais, entao um dicionario so da conta.

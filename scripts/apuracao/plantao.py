@@ -83,6 +83,8 @@ def servir(porta: int, saida: Path) -> None:
           flush=True)
     print(f"  um estado          {endereco}/apuracao-uf.html?uf=sp&cargo=0003&dados={dados}",
           flush=True)
+    print(f"  deputados          {endereco}/apuracao-deputados.html?cargo=0006&dados={dados}",
+          flush=True)
     print("", flush=True)
 
 
@@ -142,7 +144,10 @@ def main() -> int:
     ap.add_argument("--servir", type=int, default=0, metavar="PORTA",
                     help="sobe um servidor local nesta porta e imprime o endereco "
                          "da tela; sem isso, a pagina precisa ser servida a parte")
-    ap.add_argument("--cargos", default="0001,0003,0005,0006,0007",
+    # 0008 e a Camara Legislativa do DF, que faz as vezes de Assembleia ali. So
+    # entra se o EA11 declarar o cargo (cargos_da_eleicao), e so para o DF
+    # (ufs_do_cargo), entao pedir aqui nao custa 404 nenhum.
+    ap.add_argument("--cargos", default="0001,0003,0005,0006,0007,0008",
                     help="codigos separados por virgula, ou apelidos: " + ", ".join(CARGOS))
     ap.add_argument("--uf", nargs="*", default=[],
                     help="UFs separadas por espaco (padrao: todas as da eleicao)")

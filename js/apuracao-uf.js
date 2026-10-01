@@ -66,8 +66,9 @@
   }
 
   /* Alterna o cargo sem sair do estado: mesma UF, mesmos parametros, so o
-     `cargo` muda. Deputado fica de fora porque a disputa proporcional nao cabe
-     nesta pagina — ela mostra ranking de candidato, nao quociente. */
+     `cargo` muda. Deputado nao cabe nesta pagina — ela mostra ranking de
+     candidato, nao bloco e vaga —, entao os dois botoes de deputado levam a
+     apuracao-deputados.html, na mesma UF. */
   const CARGOS_ALTERNAVEIS = [
     ['0001', 'Presidente'],
     ['0003', 'Governador'],
@@ -78,6 +79,8 @@
     const el = $('seletorCargo');
     if (!el) return;
     const base = new URLSearchParams(location.search);
+    const deputados = [['0006', 'Deputado federal'],
+      ['0007', estado.uf === 'df' ? 'Deputado distrital' : 'Deputado estadual']];
     el.innerHTML = CARGOS_ALTERNAVEIS.map(([cd, rotulo]) => {
       const q = new URLSearchParams(base);
       q.set('uf', estado.uf);
@@ -86,6 +89,11 @@
       return `<a class="apu-cargo${ativo ? ' is-ativo' : ''}"` +
         (ativo ? ' aria-current="page"' : '') +
         ` href="apuracao-uf.html?${q.toString()}">${rotulo}</a>`;
+    }).join('') + deputados.map(([cd, rotulo]) => {
+      const q = new URLSearchParams(base);
+      q.set('uf', estado.uf);
+      q.set('cargo', cd);
+      return `<a class="apu-cargo" href="apuracao-deputados.html?${q.toString()}">${rotulo}</a>`;
     }).join('');
   }
 
@@ -105,9 +113,14 @@
 
     const svg = $('mapaUF');
     svg.setAttribute('viewBox', `0 0 ${malha.w} ${malha.h}`);
+    /* `q`: ilha oceânica desenhada fora do lugar, num quadro (Fernando de
+       Noronha, em PE; scripts/gerar_malhas_apuracao.py). Só o fio do quadro:
+       o nome aparece no balão, ao passar o mouse na ilha. */
+    const quadros = (malha.q || []).map(([x, y, w, h]) =>
+      `<rect class="apu-map-quadro" x="${x}" y="${y}" width="${w}" height="${h}"></rect>`).join('');
     svg.innerHTML = malha.p.map(([chave, nome, d]) =>
       `<path data-chave="${APUUI.esc(chave)}" data-nome="${APUUI.esc(nome || '')}" d="${d}"></path>`
-    ).join('');
+    ).join('') + quadros;
 
     estado.geo = malha;
     estado.geoNivel = estado.nivel;
@@ -198,8 +211,7 @@
        central, que e onde governador e senador sao acompanhados. */
     const destino = (APU.cfg.cargo === '0001' ? 'apuracao-presidente.html' : 'apuracao.html')
       + sufixoParams();
-    $('navNacional').href = destino;
-    $('navNacional').textContent = APU.cfg.cargo === '0001' ? 'Mapa nacional' : 'Central';
+    APUUI.ligarMenu(APU.cfg.cargo);
     $('voltar').href = destino;
     const rot = $('voltar').querySelector('span');
     if (rot) rot.textContent = APU.cfg.cargo === '0001' ? 'Apuração nacional' : 'Central de apuração';

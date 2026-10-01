@@ -19,7 +19,7 @@ on:
         required: true
       cargos:
         description: "Codigos separados por virgula"
-        default: "0001,0003,0005,0006,0007"
+        default: "0001,0003,0005,0006,0007,0008"
       ambiente:
         description: "Pasta de ambiente no CDN: oficial, a do simulado, ou auto para sondar"
         default: "auto"

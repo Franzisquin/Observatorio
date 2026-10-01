@@ -76,8 +76,8 @@ O selo amarelo **Simulado** aparece sozinho quando o campo `f` do arquivo é `s`
 Se ele não aparecer numa janela de teste, o dado não é de teste — pare e confira o
 ambiente antes de qualquer publicação.
 
-A seção **Saúde do plantão**, na central, lê o `status.json`: ambiente, voltas,
-requisições, 404 e o apurado do país. O teto do TSE é de 100 requisições por IP
+O `status.json` da pasta de saída traz a saúde do plantão: ambiente, voltas,
+requisições, 404 e o apurado do país (a central deixou de exibi-lo). O teto do TSE é de 100 requisições por IP
 por segundo, com bloqueio de 10 minutos renovável, e **404 repetido bloqueia
 igual a excesso** — se a contagem de 404 subir de volta em volta, pare o plantão e
 ache a URL errada antes de recomeçar.

@@ -970,67 +970,9 @@ async function loadNationalLegislativeData(year, houseKey, onProgress = null) {
   return promise;
 }
 
-function getPartySpectrumRank(partyRaw, yearInput) {
-  const year = parseInt(yearInput || (typeof STATE !== 'undefined' && STATE.currentElectionYear) || 2022, 10);
-  const str = String(partyRaw || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toUpperCase()
-    .trim();
-
-  const isMatch = (...list) => list.some((item) => (
-    str === item ||
-    str.startsWith(item + '/') ||
-    str.endsWith('/' + item) ||
-    str.includes('/' + item + '/') ||
-    str.startsWith(item + ' ') ||
-    str.includes(' ' + item)
-  ));
-
-  if (isMatch('PL')) {
-    return year <= 2006 ? 25 : 34;
-  }
-
-  if (isMatch('PCO')) return 1;
-  if (isMatch('PSTU')) return 2;
-  if (isMatch('PCB')) return 3;
-  if (isMatch('UP', 'UNIDADE POPULAR')) return 4;
-  if (isMatch('PPL')) return 5;
-  if (isMatch('PSOL', 'PSOL/REDE', 'REDE/PSOL')) return 6;
-  if (isMatch('PCDOB', 'PC DO B')) return 7;
-  if (isMatch('PT', 'FE BRASIL', 'FEDERACAO BRASIL DA ESPERANCA', 'PT/PCDOB/PV')) return 8;
-  if (isMatch('REDE')) return 9;
-  if (isMatch('PV')) return 10;
-  if (isMatch('PDT')) return 11;
-  if (isMatch('PSB')) return 12;
-  if (isMatch('PMN')) return 13;
-  if (isMatch('PPS', 'CIDADANIA')) return 14;
-  if (isMatch('AVANTE', 'PTDOB', 'PT DO B')) return 15;
-  if (isMatch('SOLIDARIEDADE', 'SD')) return 16;
-  if (isMatch('PROS')) return 16.5;
-  if (isMatch('MDB', 'PMDB')) return 17;
-  if (isMatch('PSD')) return 18;
-  if (isMatch('PSDB', 'PSDB/CIDADANIA', 'CIDADANIA/PSDB', 'FEDERACAO PSDB CIDADANIA')) return 19;
-  if (isMatch('PRP')) return 20;
-  if (isMatch('PHS')) return 21;
-  if (isMatch('AGIR', 'PTC', 'PRN')) return 22;
-  if (isMatch('DC', 'PSDC', 'PDC')) return 23;
-  if (isMatch('PMB', 'DEMOCRATA')) return 24;
-  if (isMatch('PR')) return 25;
-  if (isMatch('PTB')) return 26;
-  if (isMatch('PODE', 'PODEMOS', 'PTN')) return 27;
-  if (isMatch('REPUBLICANOS', 'PRB', 'REP')) return 28;
-  if (isMatch('PP', 'PPB', 'PPR')) return 29;
-  if (isMatch('UNIAO', 'UNIAO BRASIL', 'DEM', 'DEMOCRATAS', 'PFL')) return 30;
-  if (isMatch('PSC')) return 31;
-  if (isMatch('PATRIOTA', 'PATRI', 'PEN')) return 32;
-  if (isMatch('PRD')) return 33;
-  if (isMatch('NOVO')) return 35;
-  if (isMatch('PRTB')) return 36;
-
-  return 999;
-}
-window.getPartySpectrumRank = getPartySpectrumRank;
+// getPartySpectrumRank (ordem esquerda -> direita do hemiciclo) mora em
+// js/espectro-partidos.js: a apuracao ao vivo enche o semicirculo pela mesma
+// regua, e uma copia em cada lugar divergiria na primeira sigla nova.
 
 // Agrega as 27 UFs num quadro por legenda: cadeiras, votos e de onde vieram.
 function buildNationalLegislativeAggregate(totalsByUf, houseKey) {
