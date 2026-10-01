@@ -727,8 +727,11 @@
   color: var(--muted);
 }
 
-/* Quadradinho de cor da coluna de lider, nas tabelas de UF e de municipio. */
+/* Quadradinho de cor da coluna de lider, nas tabelas de UF e de municipio. Fora
+   de flex (o título do balão), sem o inline-block ele some. */
 .apu-swatch {
+  display: inline-block;
+  vertical-align: -1px;
   width: 11px;
   height: 11px;
   border-radius: 2px;
@@ -848,6 +851,10 @@
 }
 
 .district-nyt-table td.votes-cell.winner { color: #333333; }
+
+/* Linha de duas colunas (o balão do candidato): o valor encosta na mesma borda
+   do título e da nota. Nas de três, a última já é a pct-cell, sem recuo. */
+.district-nyt-table td:last-child { padding-right: 0; }
 
 .district-nyt-table td.pct-cell {
   width: 50px;
@@ -2250,9 +2257,7 @@ body:has(#mapaUF) .apu-aside .apu-results {
   letter-spacing: 0.07em;
   text-transform: uppercase;
   color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .apu-col-placar {
@@ -2306,7 +2311,11 @@ body:has(#mapaUF) .apu-aside .apu-results {
   background: var(--paper);
 }
 
+/* `position: relative` segura o texto do leitor de tela (.sr-only, absoluto)
+   dentro da linha: sem isso ele se ancorava no carrossel, fora da área que
+   rola, e as colunas escondidas à direita alargavam a página inteira. */
 .apu-li {
+  position: relative;
   display: grid;
   grid-template-columns: 20px minmax(0, 1fr) 15px;
   align-items: center;
@@ -2340,16 +2349,15 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-li-txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
 
-.apu-li-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Nome inteiro, em quantas linhas precisar: cortar nome de candidato não. */
+.apu-li-nome { overflow-wrap: break-word; }
 
 .apu-li-meta {
   font-size: 0.6rem;
   font-weight: 400;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow-wrap: break-word;
 }
 
 .apu-li-part {
@@ -2501,7 +2509,7 @@ body:has(#mapaUF) .apu-aside .apu-results {
   border-left: 3px solid var(--cor-linha, var(--line-strong));
 }
 
-.apu-dep-estado-maior-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apu-dep-estado-maior-nome { overflow-wrap: break-word; }
 .apu-dep-estado-maior b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .apu-dep-estado-maiores .is-vazio { color: var(--muted); }
 

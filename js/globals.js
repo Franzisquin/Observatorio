@@ -507,6 +507,9 @@ function getFederationColorPartyKey(partido) {
   if (normalizedRaw.includes('BRASIL DA ESPERANCA')) return 'PT';
   if (normalizedRaw.includes('PSOL/REDE') || normalizedRaw.includes('PSOL REDE')) return 'PSOL';
   if (normalizedRaw.includes('PSDB/CIDADANIA') || normalizedRaw.includes('PSDB CIDADANIA')) return 'PSDB';
+  // Federacoes novas de 2026: a cor da cabeca, a primeira da composicao do TSE.
+  if (normalizedRaw.includes('UNIAO PROGRESSISTA')) return 'UNIAO';
+  if (normalizedRaw.includes('RENOVACAO SOLIDARIA')) return 'PRD';
 
   const compositionSource = (() => {
     const matches = Array.from(normalizedRaw.matchAll(/\(([^()]+)\)/g))
@@ -533,6 +536,8 @@ function getFederationColorPartyKey(partido) {
   if (signature === 'PCDOB/PT/PV') return 'PT';
   if (signature === 'PSOL/REDE') return 'PSOL';
   if (signature === 'CIDADANIA/PSDB') return 'PSDB';
+  if (signature === 'PP/UNIAO') return 'UNIAO';
+  if (signature === 'PRD/SOLIDARIEDADE') return 'PRD';
   return '';
 }
 

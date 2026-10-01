@@ -53,7 +53,22 @@ Ele imprime, logo no começo, três endereços prontos. Abra o primeiro:
 
 A pagina de deputados (federal e estadual; no DF, a Camara Legislativa, cargo
 0008) le as listas abertas que o coletor grava por UF em
-`{eleicao}-{cargo}-lista-{uf}.json`.
+`{eleicao}-{cargo}-lista-{uf}.json`. As cadeiras sao as do TSE (`vag`, que ele
+refaz a cada totalizacao, segundo o EA20); numa UF em que o TSE ainda nao
+distribuiu vaga nenhuma, valem as da conta do coletor (`cad`, `cadeiras.py`: 10%
+do QE no quociente, 80/20 nas sobras e a 3a fase aberta pelo STF). Ate 100% das
+secoes totalizadas tudo aparece como projecao, tracejado; firme (solido), so o
+que o TSE ja distribuiu: as vagas dele com 100% totalizado, ou o eleito que ele
+declarou (`e`, `st`). A conta do coletor nunca fica firme.
+`python scripts/apuracao/testar_cadeiras.py` confere essa conta contra 2022.
+
+Antes do primeiro boletim do TSE a pagina mostra os partidos e as listas
+registrados, com 0 voto e em ordem alfabetica, de
+`resultados_geo/candidatos_2026/deputados/` — escritos por
+`python scripts/apuracao/candidatos.py --cargos 6 7 8` (rode de novo quando o
+registro mudar; `--cargos 1 3 5` faz o mesmo para presidente, governador e
+senado). Essa pasta esta no `.assetsignore` junto com a apuracao: ao publicar a
+apuracao, tire a linha `resultados_geo/candidatos_2026/` tambem.
 
 ### Ensaio com 2022, todos os cargos, sem o TSE no ar
 

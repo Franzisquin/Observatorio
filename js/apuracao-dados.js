@@ -211,8 +211,10 @@ const APU = (function () {
     const nu = palavra.normalize('NFD').replace(/[̀-ͯ]/g, '');
     /* Sigla ou inicial: sem vogal, ou pontuada no meio (A.C.M.). */
     if (!/[AEIOU]/i.test(nu) || /\w\.\w/.test(palavra)) return palavra;
-    /* Maiuscula tambem depois de apostrofo: D'Avila, Sant'Anna, O'Brien. */
-    return (palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase())
+    /* Maiuscula na primeira letra, mesmo depois de pontuacao no inicio
+       ("(GÊMEOS)" -> "(Gêmeos)"), e depois de apostrofo: D'Avila, O'Brien. */
+    return palavra.toLowerCase()
+      .replace(/^([^\p{L}]*)(\p{L})/u, (_, antes, letra) => antes + letra.toUpperCase())
       .replace(/(['’])(\p{L})/gu, (_, ap, letra) => ap + letra.toUpperCase());
   }
 
@@ -561,6 +563,23 @@ const APU = (function () {
     return _cands[c];
   }
 
+  /* Deputados antes do primeiro boletim: os blocos e as listas registrados,
+     com 0 voto, no mesmo desenho dos snapshots do coletor (candidatos.py,
+     preurna). `nome` é o sufixo do snapshot: 'uf' ou 'lista-sp'. */
+  var _preUrna = {};
+
+  async function preUrna(nome, cargo) {
+    var k = cargo + '-' + nome;
+    if (_preUrna[k] !== undefined) return _preUrna[k];
+    try {
+      var r = await fetch(`resultados_geo/candidatos_2026/deputados/${k}.json`);
+      _preUrna[k] = r.ok ? await r.json() : null;
+    } catch (e) {
+      _preUrna[k] = null;
+    }
+    return _preUrna[k];
+  }
+
   /* Manifesto das fotos existentes. Sem ele, a página não pede foto nenhuma —
      tentar e cair no onerror enchia o console de 404 e gastava uma requisição
      por candidato. O importador escreve este arquivo junto com as imagens. */
@@ -585,12 +604,13 @@ const APU = (function () {
   /* Quem saiu da disputa antes da primeira urna, e por isso não entra na lista
      em zero: não é candidatura sem voto, é ausência.
 
-     Renúncia é o caso claro. "Indeferido" sozinho é o registro negado com a
-     decisão já firme. O que NÃO entra aqui é "Indeferido em prazo recursal ou
-     com recurso": esse concorre sub judice, aparece na urna e pode receber
-     voto — tirá-lo da tela esconderia candidato que o eleitor vai encontrar na
-     hora de votar. Daí a âncora no fim da expressão. */
-  var FORA_DA_DISPUTA = /^(Ren[úu]ncia|Indeferido)\s*$/i;
+     Renúncia, cancelamento e falecimento são os casos claros. "Indeferido" e
+     "Pedido não conhecido" sozinhos são o registro negado com a decisão já
+     firme. O que NÃO entra aqui é "Indeferido em prazo recursal ou com recurso"
+     (e o pedido não conhecido sob recurso): esse concorre sub judice, aparece
+     na urna e pode receber voto — tirá-lo da tela esconderia candidato que o
+     eleitor vai encontrar na hora de votar. Daí a âncora no fim da expressão. */
+  var FORA_DA_DISPUTA = /^(Ren[úu]ncia|Indeferido|Cancelado|Falecimento|Pedido n[ãa]o conhecido)\s*$/i;
 
   /* Ranking de partida: todo mundo em zero. A ordem é alfabética porque, sem
      voto, qualquer outra ordenação sugeriria uma disputa que ainda não houve. */
@@ -621,8 +641,9 @@ const APU = (function () {
   /* Na disputa proporcional a cadeira é do bloco — federação ou partido
      isolado —, e o TSE publica quantas cada um tem (`vag`), recalculadas a cada
      totalização. Quem ocupa essas cadeiras sai da lista aberta do bloco: os mais
-     votados dele, de qualquer partido da federação. Isto aqui só lê: não refaz o
-     quociente nem as sobras, que são do TSE. */
+     votados dele, de qualquer partido da federação. Isto aqui só lê: o quociente
+     e as sobras são do TSE e, enquanto o TSE não distribui as vagas de uma UF,
+     da conta do coletor (`cad`, scripts/apuracao/cadeiras.py). */
 
   const semAsterisco = (s) => String(s || '').replace(/\*+$/, '').trim();
 
@@ -654,7 +675,10 @@ const APU = (function () {
      além de número (o simulado manda "FEDERAÇÃO 9995") cai na sigla. */
   function nomeDoBloco(a, siglas) {
     if (a.tp !== 'f') return siglas[0] || a.nm || '';
+    /* A composição entre parênteses no fim, como o DivulgaCandContas escreve
+       ("FEDERAÇÃO UNIÃO PROGRESSISTA(44-UNIÃO/11-PP)"), sai junto. */
     let nm = String(a.nm || '').trim()
+      .replace(/\s*\([^()]*\)\s*$/, '')
       .replace(/\s+-\s+[^-]+$/, '')
       .replace(/^federa[çc][ãa]o\s+/i, '')
       .trim();
@@ -695,8 +719,12 @@ const APU = (function () {
      LEITURA — enquanto a contagem corre, as cadeiras do bloco que o TSE ainda
      não atribuiu a ninguém vão, em ordem, aos mais votados que disputam vaga. É
      a regra da lei aplicada ao boletim do momento: muda a cada totalização, e
-     por isso a tela a desenha tracejada. */
-  function marcarLista(candidatos, vagas) {
+     por isso a tela a desenha tracejada.
+
+     COMPLETA — com 100% das seções totalizadas, as vagas do TSE (`vag`) já são
+     a distribuição dele com todo o voto contado: a leitura delas vem firme,
+     mesmo antes da totalização final. Quem chama decide (APU.blocos). */
+  function marcarLista(candidatos, vagas, completa) {
     const lista = (candidatos || []).map((c) => ({
       sq: String(c.sq || ''), numero: c.n || '', urna: nomeProprio(c.urna || ''),
       partido: semAsterisco(c.partido), votos: Number(c.v) || 0, seq: Number(c.seq) || 0,
@@ -725,6 +753,7 @@ const APU = (function () {
       lista.forEach((c) => {
         if (c.marca || livres <= 0 || c.semVaga || c.votos <= 0) return;
         c.marca = 'eleito';
+        c.oficial = !!completa;
         livres -= 1;
       });
     }
@@ -737,6 +766,16 @@ const APU = (function () {
   function blocos(agrem, entrada) {
     const lista = agrem || [];
     const vv = (entrada && entrada.vv) || lista.reduce((s, a) => s + (Number(a.v) || 0), 0);
+    /* Sem vaga nenhuma do TSE na UF, valem as do coletor: a lei aplicada ao
+       boletim do momento — 10% do QE no quociente, 80/20 nas sobras, 3ª fase
+       aberta a todos pelo STF. Conta do ElectoMaps, e a tela diz isso
+       (`estimadas`). */
+    const doTSE = lista.some((a) => Number(a.vag) > 0);
+    const vagasDe = (a) => Number(doTSE ? a.vag : a.cad) || 0;
+    /* 100% das seções totalizadas: as vagas do TSE ficam firmes. As do coletor,
+       nunca — eleito, quem distribui é o TSE. */
+    const e = entrada || {};
+    const completa = doTSE && Number(e.ts) > 0 && Number(e.st) >= Number(e.ts);
     const prontos = lista.map((a) => {
       const siglas = siglasDoBloco(a);
       return {
@@ -750,18 +789,20 @@ const APU = (function () {
           inapto: /\*+$/.test(String(p.sg || ''))
         })),
         espectro: espectroDoBloco(a, siglas),
-        vagas: Number(a.vag) || 0,
+        vagas: vagasDe(a),
+        estimadas: doTSE ? 0 : vagasDe(a),
         votos: Number(a.v) || 0,
         legenda: Number(a.vtl) || 0,
         pct: fmt.parte(Number(a.v) || 0, vv),
-        cand: a.cand ? marcarLista(a.cand, a.vag) : null
+        cand: a.cand ? marcarLista(a.cand, vagasDe(a), completa) : null
       };
     });
-    /* Cadeiras que o TSE já declarou: os candidatos do bloco com situação
-       oficial. Sem a lista (camada alta), quem decide é quem chama — a UF com
-       totalização final tem todas declaradas. */
+    /* Cadeiras firmes: os candidatos do bloco com situação oficial ou, sem a
+       lista (camada alta), todas as da UF com 100% totalizado. A totalização
+       final quem marca é quem chama. */
     prontos.forEach((b) => {
-      b.declaradas = b.cand ? b.cand.filter((c) => c.dentro && c.oficial).length : 0;
+      b.declaradas = b.cand ? b.cand.filter((c) => c.dentro && c.oficial).length
+        : (completa ? b.vagas : 0);
     });
     /* Cor reservada em ordem alfabética, pelo mesmo motivo do placar: a paleta
        de sigla nova não pode se remexer quando o ranking vira. */
@@ -777,9 +818,10 @@ const APU = (function () {
     Object.entries(porUF || {}).forEach(([uf, lista]) => {
       (lista || []).forEach((b) => {
         const atual = soma.get(b.chave)
-          || { ...b, vagas: 0, declaradas: 0, votos: 0, legenda: 0, cand: null, porUF: [] };
+          || { ...b, vagas: 0, declaradas: 0, estimadas: 0, votos: 0, legenda: 0, cand: null, porUF: [] };
         atual.vagas += b.vagas;
         atual.declaradas += b.declaradas || 0;
+        atual.estimadas += b.estimadas || 0;
         atual.votos += b.votos;
         atual.legenda += b.legenda;
         if (b.vagas || b.votos) atual.porUF.push({ uf, vagas: b.vagas, votos: b.votos });
@@ -812,7 +854,7 @@ const APU = (function () {
   return {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
-    candidaturas, rankingZerado, fotosDisponiveis, temFoto,
+    candidaturas, preUrna, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo, arquivo, acompanhamento, eleitos,
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,

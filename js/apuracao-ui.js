@@ -814,7 +814,7 @@ const APUUI = (function () {
         const d = sob(ev);
         if (!d) { destacarBloco(svg, null); tip.esconder(); return; }
         destacarBloco(svg, d.b.chave);
-        tip.mostrar(d.cand ? balaoDoAssento(d) : balaoDoBloco(d.b, svg._apuTotal), ev);
+        tip.mostrar(d.cand ? balaoDoCandidato(d.b, d.cand) : balaoDoBloco(d.b, svg._apuTotal), ev);
       });
       svg.addEventListener('mouseleave', () => { destacarBloco(svg, null); tip.esconder(); });
       svg.addEventListener('click', (ev) => {
@@ -827,22 +827,33 @@ const APUUI = (function () {
     }
   }
 
-  /* Balão de um ponto da bancada: o deputado, e se o TSE já o declarou. */
-  function balaoDoAssento(d) {
-    const c = d.cand;
-    const sub = c.partido + (d.b.federacao ? ' · ' + d.b.rotulo : '');
-    const situacao = d.oficial
-      ? (c.situacao || 'Eleito') + ', declarado pelo TSE'
-      : 'Dentro das vagas do partido neste boletim; o TSE ainda não declarou';
+  /* O que o TSE disse — ou ainda não disse — de um candidato da bancada
+     (APU.marcarLista): situação da totalização final, eleito declarado, vaga
+     firme com 100% totalizado, projeção, fora das vagas ou voto que não elege. */
+  function situacaoDoCandidato(b, c) {
+    if (c.semVaga) return 'Voto ' + String(c.destino).toLowerCase() + ': não ocupa vaga';
+    if (c.situacao) return c.situacao + (c.dentro ? ', declarado pelo TSE' : ', segundo a totalização do TSE');
+    if (!c.dentro) return c.votos > 0 ? 'Fora das vagas do partido neste boletim' : 'Ainda sem voto apurado';
+    if (c.declarado) return 'Eleito, declarado pelo TSE';
+    if (c.oficial) return 'Eleito: vaga distribuída pelo TSE com 100% das urnas apuradas';
+    return 'Dentro das vagas na projeção deste boletim, na conta ' + (b.estimadas ? 'do ElectoMaps' : 'do TSE')
+      + '; quem distribui os eleitos é o TSE, com 100% das urnas apuradas';
+  }
+
+  /* Balão de um candidato da bancada, no ponto do hemiciclo e na linha da lista.
+     Tudo rente à margem esquerda: o nome sozinho no título, a cor junto do
+     partido, e votos e posição em duas linhas com o valor na mesma borda. */
+  function balaoDoCandidato(b, c) {
+    const partido = c.partido + (b.federacao ? ' · ' + b.rotulo : '');
     return '<div class="nyt-tooltip-container">'
-      + '<div class="district-nyt-title"><span class="apu-swatch" style="background:' + d.b.cor
-      + ';margin-right:7px"></span>' + esc(c.urna || c.numero) + '</div>'
-      + '<div class="district-nyt-sub">' + esc(sub) + '</div>'
+      + '<div class="district-nyt-title">' + esc(c.urna || c.numero) + '</div>'
+      + '<div class="district-nyt-sub"><span class="apu-swatch" style="background:' + b.cor
+      + ';margin-right:6px"></span>' + esc(partido) + '</div>'
       + '<table class="district-nyt-table"><tbody>'
-      + '<tr><td>Votos</td><td class="votes-cell winner">' + APU.fmt.int(c.votos) + '</td>'
-      + '<td class="pct-cell">' + c.pos + 'º da lista</td></tr>'
+      + '<tr><td>Votos</td><td class="votes-cell winner">' + APU.fmt.int(c.votos) + '</td></tr>'
+      + '<tr><td>Posição na lista</td><td class="votes-cell winner">' + c.pos + 'º</td></tr>'
       + '</tbody></table>'
-      + '<div class="district-nyt-nota">' + esc(situacao) + '</div></div>';
+      + '<div class="district-nyt-nota">' + esc(situacaoDoCandidato(b, c)) + '</div></div>';
   }
 
   /* Acende as cadeiras de um bloco e apaga as outras; `null` devolve todas. */
@@ -859,9 +870,10 @@ const APUUI = (function () {
     return '<div class="nyt-tooltip-container">'
       + '<div class="district-nyt-title"><span class="apu-swatch" style="background:' + b.cor
       + ';margin-right:7px"></span>' + esc(b.rotulo) + '</div>'
-      + (sub ? '<div class="district-nyt-sub">' + esc(sub) + '</div>' : '')
+      + (sub ? '<div class="district-nyt-sub" style="padding-left:18px">' + esc(sub) + '</div>' : '')
       + '<table class="district-nyt-table"><tbody>'
-      + '<tr><td>Cadeiras</td><td class="votes-cell winner">' + APU.fmt.int(b.vagas)
+      + '<tr><td>' + (b.vagas > (b.declaradas || 0) ? 'Cadeiras na projeção' : 'Cadeiras') + '</td>'
+      + '<td class="votes-cell winner">' + APU.fmt.int(b.vagas)
       + '</td><td class="pct-cell">' + (total ? (100 * b.vagas / total).toFixed(1) : '0,0') + '%</td></tr>'
       + '<tr><td>Votos</td><td class="votes-cell">' + APU.fmt.int(b.votos)
       + '</td><td class="pct-cell">' + b.pct.toFixed(1) + '%</td></tr>'
@@ -950,5 +962,5 @@ const APUUI = (function () {
   return { selo, avisos, progresso, placar, participacao, chance, chancePct,
     legendaMarcas, firme, tituloDaMarca, balao, conteudoDoBalao, tinta, tom, faixa, legendaFaixas, pintarMapa,
     foto, esc, icone,
-    hemiciclo, destacarBloco, mosaico, ligarMenu };
+    hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato };
 })();

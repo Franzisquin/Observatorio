@@ -33,6 +33,13 @@ function getPartySpectrumRank(partyRaw, yearInput) {
     return year <= 2006 ? 25 : 34;
   }
 
+  // Federacoes de 2026 (DivulgaCandContas), pelo nome ou pela composicao: vale
+  // o lugar da cabeca — Uniao e PRD, os primeiros da composicao do TSE. Antes das
+  // siglas soltas: "PROGRESSISTA" casaria com PR, "UNIAO/PP" com o PP e
+  // "PRD/SOLIDARIEDADE" com o Solidariedade, que vem antes na regua.
+  if (isMatch('UNIAO PROGRESSISTA', 'UNIAO/PP', 'PP/UNIAO')) return 30;
+  if (isMatch('RENOVACAO SOLIDARIA', 'PRD/SOLIDARIEDADE', 'SOLIDARIEDADE/PRD')) return 33;
+
   if (isMatch('PCO')) return 1;
   if (isMatch('PSTU')) return 2;
   if (isMatch('PCB')) return 3;

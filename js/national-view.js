@@ -1115,6 +1115,8 @@ function cleanNationalLegendName(id) {
   if (upper.includes('BRASIL DA ESPERANCA')) return 'FE Brasil (PT/PCdoB/PV)';
   if (upper.includes('PSDB/CIDADANIA') || upper.includes('PSDB CIDADANIA')) return 'PSDB/Cidadania';
   if (upper.includes('PSOL/REDE') || upper.includes('PSOL REDE')) return 'PSOL/Rede';
+  if (upper.includes('UNIAO PROGRESSISTA')) return 'União Progressista (União/PP)';
+  if (upper.includes('RENOVACAO SOLIDARIA')) return 'Renovação Solidária (PRD/SD)';
 
   // Demais federacoes/coligacoes: mostra so a composicao entre parenteses.
   const composicao = raw.match(/\(([^()]*\/[^()]*)\)/);
