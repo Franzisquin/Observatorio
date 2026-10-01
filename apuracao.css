@@ -2693,7 +2693,17 @@ body:has(#mapaUF) .apu-aside .apu-results {
   list-style: none;
 }
 
+.apu-clausula-regra {
+  max-width: 72ch;
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+/* `position: relative` segura o veredito do leitor de tela (.sr-only) na sigla. */
 .apu-clausula-chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -2705,6 +2715,8 @@ body:has(#mapaUF) .apu-aside .apu-results {
   white-space: nowrap;
   cursor: default;
 }
+
+.apu-clausula-chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 .apu-clausula-vazio { padding: 10px 0; font-size: 0.8rem; color: var(--muted); }
 

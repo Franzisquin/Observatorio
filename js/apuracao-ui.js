@@ -877,6 +877,38 @@ const APUUI = (function () {
       + '</tbody></table></div>';
   }
 
+  /* Cláusula de desempenho de um bloco (APU.clausulaDeDesempenho): o veredito,
+     e o balão com o apurado agora contra o mínimo de cada critério. */
+  function veredictoDaClausula(a) {
+    if (a.porCadeiras && a.porVotos) return 'Passa pelos deputados eleitos e pelos votos';
+    if (a.porCadeiras) return 'Passa pelos deputados eleitos';
+    if (a.porVotos) return 'Passa pelos votos';
+    return 'Não passa: não cumpre nenhum dos dois mínimos';
+  }
+
+  function balaoDaClausula(a) {
+    const b = a.bloco;
+    const r = APU.CLAUSULA;
+    const sub = b.federacao ? b.siglas.join(' · ') : '';
+    const linha = (ok, rotulo, agora, minimo) => '<tr><td>' + (ok ? '✓ ' : '✗ ') + esc(rotulo) + '</td>'
+      + '<td class="votes-cell' + (ok ? ' winner' : '') + '">' + agora + '</td>'
+      + '<td class="pct-cell">' + minimo + '</td></tr>';
+    return '<div class="nyt-tooltip-container">'
+      + '<div class="district-nyt-title"><span class="apu-swatch" style="background:' + b.cor
+      + ';margin-right:7px"></span>' + esc(b.rotulo) + '</div>'
+      + (sub ? '<div class="district-nyt-sub" style="padding-left:18px">' + esc(sub) + '</div>' : '')
+      + '<table class="district-nyt-table"><thead><tr><th></th><th>Agora</th><th>Mínimo</th></tr></thead>'
+      + '<tbody>'
+      + linha(a.cadeiras >= r.cadeiras, 'Deputados eleitos', APU.fmt.int(a.cadeiras), r.cadeiras)
+      + linha(a.ufsCadeira >= r.ufsCadeira, 'UFs com deputado', APU.fmt.int(a.ufsCadeira), r.ufsCadeira)
+      + linha(a.pct >= r.pct, 'Votos válidos no país', APU.fmt.pct(a.pct), APU.fmt.pct(r.pct))
+      + linha(a.ufsVoto >= r.ufsVoto, `UFs com ${APU.fmt.pct(r.pctUF)} ou mais`,
+        APU.fmt.int(a.ufsVoto), r.ufsVoto)
+      + '</tbody></table>'
+      + '<div class="district-nyt-nota">' + esc(veredictoDaClausula(a))
+      + '. Basta cumprir um dos dois pares: deputados e UFs, ou votos e UFs.</div></div>';
+  }
+
   /* Mosaico de cadeiras de uma casa pequena: pontos em grade, na ordem do
      espectro, com o mesmo número de colunas por faixa que os aglomerados do
      visualizador (createStateCircleDotsHTML). Serve ao cartão de cada estado. */
@@ -959,5 +991,6 @@ const APUUI = (function () {
   return { selo, avisos, progresso, placar, participacao, chance, chancePct,
     legendaMarcas, firme, tituloDaMarca, balao, conteudoDoBalao, tinta, tom, faixa, legendaFaixas, pintarMapa,
     foto, esc, icone,
-    hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato };
+    hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,
+    balaoDaClausula, veredictoDaClausula };
 })();

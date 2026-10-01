@@ -54,6 +54,8 @@
     dentroAntes: {},
     /* Os blocos das colunas na tela, por chave: o balão de cada nome lê daqui. */
     blocosDaLista: new Map(),
+    /* A cláusula de desempenho de cada bloco, por chave: o balão das siglas. */
+    clausula: new Map(),
     completas: false,
     quadroAberto: false,
     geracao: 0,
@@ -267,21 +269,32 @@
 
     const lista = APU.clausulaDeDesempenho(leitura.porUF, leitura.entradas);
     const regra = APU.CLAUSULA;
-    const plural = (n, um, varios) => `${APU.fmt.int(n)} ${n === 1 ? um : varios}`;
+    estado.clausula = new Map(lista.map((a) => [a.bloco.chave, a]));
+
+    /* A regra por escrito, sem depender do balão, e de quando é a situação. */
+    $('regraClausula').textContent = `Passa quem cumprir um dos dois mínimos: eleger `
+      + `${regra.cadeiras} deputados federais em ${regra.ufsCadeira} UFs, ou ter `
+      + `${APU.fmt.pct(regra.pct)} dos votos válidos do país, com ${APU.fmt.pct(regra.pctUF)} em `
+      + `${regra.ufsVoto} UFs ou mais (EC 97/2017, regra de 2026). Federação conta como um `
+      + `partido só. Passe o mouse ou toque numa sigla para ver as contas.`;
+    const semVoto = !lista.some((a) => a.votos > 0);
+    const projecao = leitura.blocos.some((b) => b.vagas > (b.declaradas || 0));
+    $('notaClausula').textContent = semVoto
+      ? 'Antes da primeira urna: sem voto, ninguém cumpre ainda'
+      : (leitura.cabecalho.tf === 's' ? 'Com a totalização final do TSE'
+        : 'Com o apurado até aqui' + (projecao ? ', e as cadeiras em projeção' : '')
+          + ': muda a cada boletim');
+
     /* Um quadradinho por partido, com a sigla sobre a cor dele. Federação vai
        pelas siglas que a compõem. Os números dos dois critérios ficam no balão
-       (title): na tela, só quem está de cada lado. */
+       do site (APUUI.balaoDaClausula), que abre com mouse, Tab ou toque; o
+       veredito vai por escrito para o leitor de tela. */
     const chip = (a) => {
       const b = a.bloco;
       const sigla = b.federacao ? b.siglas.join('/') : (b.siglas[0] || b.rotulo);
-      const titulo = `${b.rotulo}${b.federacao ? ' (' + b.siglas.join(' · ') + ')' : ''}\n`
-        + `${a.porCadeiras ? '✓' : '✗'} ${plural(a.cadeiras, 'deputado', 'deputados')} em `
-        + `${plural(a.ufsCadeira, 'UF', 'UFs')} (critério: ${regra.cadeiras} em ${regra.ufsCadeira} UFs)\n`
-        + `${a.porVotos ? '✓' : '✗'} ${APU.fmt.pct(a.pct)} dos votos, ${APU.fmt.pct(regra.pctUF)} ou mais em `
-        + `${plural(a.ufsVoto, 'UF', 'UFs')} (critério: ${APU.fmt.pct(regra.pct)}, com `
-        + `${APU.fmt.pct(regra.pctUF)} em ${regra.ufsVoto} UFs)`;
-      return `<li class="apu-clausula-chip" style="background:${b.cor};color:${textoSobre(b.cor)}"`
-        + ` title="${esc(titulo)}">${esc(sigla)}</li>`;
+      return `<li class="apu-clausula-chip" tabindex="0" data-chave="${esc(b.chave)}"`
+        + ` style="background:${b.cor};color:${textoSobre(b.cor)}">${esc(sigla)}`
+        + `<span class="sr-only">: ${esc(APUUI.veredictoDaClausula(a))}</span></li>`;
     };
 
     const passam = lista.filter((a) => a.passa);
@@ -726,6 +739,24 @@
       else tip.esconder();
     });
     $('colunas').addEventListener('mouseleave', () => tip.esconder());
+    /* Balão das siglas da cláusula: segue o mouse; com Tab ou toque, abre
+       embaixo da sigla. */
+    const siglaDaClausula = (el) => {
+      const a = el && estado.clausula.get(el.dataset.chave);
+      return a ? APUUI.balaoDaClausula(a) : '';
+    };
+    const abrirNaSigla = (ev) => {
+      const el = ev.target.closest && ev.target.closest('.apu-clausula-chip');
+      const html = siglaDaClausula(el);
+      if (!html) { tip.esconder(); return; }
+      const r = el.getBoundingClientRect();
+      tip.mostrar(html, ev.type === 'mousemove' ? ev : { clientX: r.left, clientY: r.bottom });
+    };
+    $('clausula').addEventListener('mousemove', abrirNaSigla);
+    $('clausula').addEventListener('click', abrirNaSigla);
+    $('clausula').addEventListener('focusin', abrirNaSigla);
+    $('clausula').addEventListener('mouseleave', () => tip.esconder());
+    $('clausula').addEventListener('focusout', () => tip.esconder());
     window.addEventListener('resize', setas);
     window.addEventListener('popstate', () => {
       const [cargo, uf] = [estado.cargo, estado.uf];
