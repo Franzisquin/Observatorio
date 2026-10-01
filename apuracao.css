@@ -2639,15 +2639,17 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-comp-seta { flex: none; margin-top: 1px; }
 
-.apu-setas-linha {
+.apu-setas-par { display: flex; gap: 2px; }
+
+.apu-setas-item {
   display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  font-weight: 600;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
 }
 
-.apu-setas-linha span { display: inline-flex; align-items: center; gap: 5px; }
-.apu-setas-nota { margin: 6px 0 0; color: var(--muted); }
+.apu-setas-item small { font-size: 0.64rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.apu-setas-nota { max-width: 24ch; margin: 7px 0 0; line-height: 1.35; color: var(--muted); }
 
 .apu-faixas-tit {
   margin-bottom: 6px;

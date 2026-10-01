@@ -82,6 +82,15 @@ ser refeita se mudar a malha ou o acervo:
 python scripts/apuracao/comparacao_2022.py
 ```
 
+Para ver a comparacao em acao sem eleicao, `simular2026.py` grava uma apuracao
+presidencial de 2026 inventada (2022 municipio a municipio, levado a Flavio 48%,
+Lula 41%, Renan, Cury, Caiado e Zema; `--semente` troca o sorteio):
+
+```bash
+python scripts/apuracao/simular2026.py
+# apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/sim2026/
+```
+
 ### Ensaio com 2022, todos os cargos, sem o TSE no ar
 
 Para testar as paginas sem simulado do TSE, `ensaio_2022.py` toca a apuracao

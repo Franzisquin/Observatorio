@@ -3,9 +3,9 @@
 O 1o turno presidencial de 2022, do acervo local, por municipio, por UF e no
 Brasil: votos validos e os votos dos dois numeros que a pagina compara (13, Lula;
 22, Jair Bolsonaro — em 2026, Lula e Flavio Bolsonaro tem os mesmos numeros). Vai
-junto o ponto de onde sai a seta de cada municipio e de cada UF no mapa: um ponto
-DENTRO do territorio (shapely.point_on_surface), e nao o centroide, que num
-municipio em forma de lua cai fora dele.
+junto o ponto de onde sai a seta de cada municipio e de cada UF no mapa: o
+centroide, como no NYT, ou um ponto de dentro do territorio quando o centroide
+cai fora dele (municipio em forma de lua).
 
     py scripts/apuracao/comparacao_2022.py
 
@@ -35,7 +35,11 @@ SAIDA = GEO / "comparacao" / "presidente_2022_t1.json"
 
 
 def ponto(geom) -> list[float]:
-    p = shapely.point_on_surface(geom)
+    """O centroide, de onde o NYT tira as setas: o campo delas fica alinhado
+    no meio de cada territorio. Se ele cai fora (municipio em forma de lua), um
+    ponto de dentro."""
+    c = shapely.centroid(geom)
+    p = c if geom.contains(c) else shapely.point_on_surface(geom)
     return [round(p.x, 3), round(p.y, 3)]
 
 

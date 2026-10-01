@@ -204,9 +204,18 @@
         paint: { 'line-color': c.tinta, 'line-width': 2, 'line-opacity': liga('sel', 1, 0) } });
       /* Setas da variação desde 2022, por cima de tudo (pintarSetas). */
       gl.addSource('setas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      /* A de município encolhe com o país inteiro à vista e cresce ao aproximar,
+         como no NYT: no tamanho cheio, 5.570 setas no zoom do Brasil viram uma
+         mancha. A de estado fica do mesmo tamanho. */
+      const porNivel = (s) => ['case', ['==', ['get', 'nivel'], 'uf'], 1, s];
       gl.addLayer({ id: 'setas', type: 'symbol', source: 'setas',
         layout: { 'icon-image': ['get', 'img'], 'icon-anchor': ['get', 'ancora'],
-          'icon-allow-overlap': true, 'icon-ignore-placement': true, visibility: 'none' } });
+          'icon-offset': ['get', 'desloc'],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 3, porNivel(0.5), 5, porNivel(0.7), 7, porNivel(0.9), 9, 1],
+          'icon-allow-overlap': true, 'icon-ignore-placement': true, visibility: 'none' },
+        /* Um pouco transparentes, como no NYT: onde muitas se cruzam, a cor
+           adensa e mostra a tendência da região. */
+        paint: { 'icon-opacity': 0.82 } });
 
       ligarEventos();
       ligarExterior();
@@ -220,7 +229,7 @@
   }
 
   /* Na variação desde 2022 o mapa fica neutro, sem a margem do líder no tom: o
-     que se lê são as setas. */
+     que se lê são as setas. A malha continua, para situar cada uma. */
   const OPACIDADE_UF_NEUTRA = ['*', liga('hover', 0.72, 1), liga('oculto', 0, 1), liga('fora', 0.35, 1)];
   const OPACIDADE_MUN_NEUTRA = ['*', liga('hover', 0.72, 1), liga('mostra', 1, 0), liga('fora', 0.35, 1)];
 
@@ -541,13 +550,36 @@
 
   /* Seta do estilo NYT, em SVG, para a lateral e a legenda: 30° acima da
      horizontal, para a direita (2º número) ou para a esquerda (1º). */
-  function setaSVG(cor, direita, largura) {
-    const w = largura || 26;
-    const h = Math.round(w * 0.62);
-    const [x0, x1] = direita ? [2, w - 3] : [w - 2, 3];
-    return `<svg class="apu-comp-seta" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">`
-      + `<line x1="${x0}" y1="${h - 2}" x2="${x1}" y2="3" stroke="${cor}" stroke-width="2" stroke-linecap="round"/>`
-      + `<path d="M${x1} 3 l${direita ? -7 : 7} 1.2 l${direita ? 3.4 : -3.4} 5.4 z" fill="${cor}"/></svg>`;
+  /* Geometria da seta, a mesma no mapa e no SVG, como a do NYT: 35° acima da
+     horizontal, traço de 3 px e ponta de 9 px. O rabo fica no canto de baixo —
+     é ele que encosta no ponto da unidade. */
+  const SETA_ANG = (35 * Math.PI) / 180;
+
+  function geometriaSeta(comprimento, direita) {
+    const cab = 9;
+    const meia = 5;
+    const folga = 3;
+    const w = Math.ceil(comprimento * Math.cos(SETA_ANG) + meia + 2 * folga);
+    const h = Math.ceil(comprimento * Math.sin(SETA_ANG) + meia + 2 * folga);
+    const ux = Math.cos(SETA_ANG) * (direita ? 1 : -1);
+    const uy = -Math.sin(SETA_ANG);
+    const x0 = direita ? folga : w - folga;
+    const y0 = h - folga;
+    const x1 = x0 + ux * comprimento;
+    const y1 = y0 + uy * comprimento;
+    const bx = x1 - ux * cab;
+    const by = y1 - uy * cab;
+    return { w, h, rabo: [x0, y0], base: [bx, by],
+      ponta: [[x1, y1], [bx - uy * meia, by + ux * meia], [bx + uy * meia, by - ux * meia]] };
+  }
+
+  function setaSVG(cor, direita, comprimento) {
+    const g = geometriaSeta(comprimento || 26, direita);
+    const n = (v) => v.toFixed(1);
+    return `<svg class="apu-comp-seta" width="${g.w}" height="${g.h}" viewBox="0 0 ${g.w} ${g.h}" aria-hidden="true">`
+      + `<line x1="${n(g.rabo[0])}" y1="${n(g.rabo[1])}" x2="${n(g.base[0])}" y2="${n(g.base[1])}"`
+      + ` stroke="${cor}" stroke-width="3" stroke-linecap="round"/>`
+      + `<path d="M${g.ponta.map((p) => p.map(n).join(' ')).join('L')}Z" fill="${cor}"/></svg>`;
   }
 
   /* O bloco da lateral, no recorte aberto. */
@@ -604,33 +636,24 @@
 
   function imagemSeta(comprimento, cor, direita) {
     const r = 2;
-    const ang = Math.PI / 6;
-    const cab = 6;
-    const w = Math.ceil(comprimento * Math.cos(ang) + cab + 4);
-    const h = Math.ceil(comprimento * Math.sin(ang) + cab + 4);
+    const g = geometriaSeta(comprimento, direita);
     const tela = document.createElement('canvas');
-    tela.width = w * r;
-    tela.height = h * r;
+    tela.width = g.w * r;
+    tela.height = g.h * r;
     const ctx = tela.getContext('2d');
     ctx.scale(r, r);
-    const x0 = direita ? 2 : w - 2;
-    const y0 = h - 2;
-    const ux = Math.cos(ang) * (direita ? 1 : -1);
-    const uy = -Math.sin(ang);
-    const x1 = x0 + ux * comprimento;
-    const y1 = y0 + uy * comprimento;
     ctx.strokeStyle = cor;
     ctx.fillStyle = cor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1 - ux * cab * 0.5, y1 - uy * cab * 0.5);
+    ctx.moveTo(...g.rabo);
+    ctx.lineTo(...g.base);
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x1 - ux * cab - uy * cab * 0.5, y1 - uy * cab + ux * cab * 0.5);
-    ctx.lineTo(x1 - ux * cab + uy * cab * 0.5, y1 - uy * cab - ux * cab * 0.5);
+    ctx.moveTo(...g.ponta[0]);
+    ctx.lineTo(...g.ponta[1]);
+    ctx.lineTo(...g.ponta[2]);
     ctx.closePath();
     ctx.fill();
     return ctx.getImageData(0, 0, tela.width, tela.height);
@@ -652,7 +675,23 @@
 
   /* Uma seta por unidade à mostra: os municípios das UFs desenhadas, ou os
      estados quando nenhum município está à mostra. Só com voto em 2026. */
+  /* Uma pintura por quadro: ao chegar a camada municipal, pintarMun chama isto
+     uma vez por UF, e 27 trocas seguidas de 5.570 pontos travavam a tela. E nada
+     de trocar os dados da fonte se as setas são as mesmas da vez anterior: cada
+     troca faz o MapLibre reprocessar todas. */
+  let setasNoQuadro = 0;
+  let setasAntes = '';
+
   function pintarSetas() {
+    if (!setasNoQuadro) {
+      setasNoQuadro = requestAnimationFrame(() => {
+        setasNoQuadro = 0;
+        desenharSetas();
+      });
+    }
+  }
+
+  function desenharSetas() {
     const gl = mapa.gl;
     if (!gl || !gl.getSource('setas')) return;
     const ligado = estado.modo === 'variacao' && comparavel();
@@ -661,24 +700,31 @@
     prepararSetas(dicionario());
     const base = estado.base2022;
     const setas = [];
-    const incluir = (linha, entrada, dic) => {
+    const incluir = (linha, entrada, dic, nivel) => {
       const comp = linha && linha.length >= 5 ? APU.comparar(entrada, dic, linha, base.numeros) : null;
       if (!comp || comp.desvio === null || Math.abs(comp.desvio) < 0.05) return;
       const k = Math.min(SETA_FAIXAS, Math.max(1, Math.ceil(Math.abs(comp.desvio) / SETA_PASSO)));
       const direita = comp.desvio > 0;
       setas.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [linha[3], linha[4]] },
-        properties: { img: `seta-${direita ? 'b' : 'a'}-${k}`, ancora: direita ? 'bottom-left' : 'bottom-right' } });
+        properties: { img: `seta-${direita ? 'b' : 'a'}-${k}`, nivel,
+          ancora: direita ? 'bottom-left' : 'bottom-right',
+          /* O rabo fica 3 px para dentro do canto da imagem (geometriaSeta):
+             o deslocamento o põe em cima do ponto da unidade. */
+          desloc: direita ? [-3, 3] : [3, 3] } });
     };
     const desenhadas = ufsDesenhadas();
     if (desenhadas.length) {
       desenhadas.forEach((uf) => {
         const dic = dicionarioMun(uf);
-        Object.entries(estado.porIbge[uf] || {}).forEach(([ibge, e]) => incluir(base.mun[ibge], e, dic));
+        Object.entries(estado.porIbge[uf] || {}).forEach(([ibge, e]) => incluir(base.mun[ibge], e, dic, 'mun'));
       });
     } else {
       const abr = (estado.uf && estado.uf.abr) || {};
-      mapa.ufs.forEach((uf) => incluir(base.uf[uf], abr[uf], dicionario()));
+      mapa.ufs.forEach((uf) => incluir(base.uf[uf], abr[uf], dicionario(), 'uf'));
     }
+    const assinatura = setas.map((f) => f.geometry.coordinates.join() + f.properties.img).join('|');
+    if (assinatura === setasAntes) return;
+    setasAntes = assinatura;
     gl.getSource('setas').setData({ type: 'FeatureCollection', features: setas });
   }
 
@@ -686,12 +732,15 @@
     const el = $('legendaSetas');
     el.hidden = !(estado.modo === 'variacao' && comparavel());
     if (el.hidden) return;
+    /* Como a "Shift in margin" do NYT: as duas setas saindo do mesmo ponto, em
+       V, cada uma com o lado embaixo, e uma nota curta. */
     const [a, b] = estado.base2022.numeros.map((n) => candidatoDe({ numero: n, c: null }, dicionario()));
-    el.innerHTML = '<p class="apu-faixas-tit">Variação da diferença desde 2022</p>'
-      + '<div class="apu-setas-linha">'
-      + `<span>${setaSVG(APU.cor(a.partido), false)} ${APUUI.esc(a.nome)}</span>`
-      + `<span>${APUUI.esc(b.nome)} ${setaSVG(APU.cor(b.partido), true)}</span></div>`
-      + '<p class="apu-setas-nota">Quanto mais longa a seta, mais pontos a diferença andou</p>';
+    const lado = (c, direita) => `<span class="apu-setas-item">${setaSVG(APU.cor(c.partido), direita, 30)}`
+      + `<small>Mais ${APUUI.esc(String(c.nome).split(' ')[0])}</small></span>`;
+    el.innerHTML = '<p class="apu-faixas-tit">Variação na diferença</p>'
+      + `<div class="apu-setas-par">${lado(a, false)}${lado(b, true)}</div>`
+      + '<p class="apu-setas-nota">Comparado com o 1º turno de 2022. Quanto mais longa a seta, '
+      + 'mais pontos a diferença andou.</p>';
   }
 
   function trocarModo(modo) {
