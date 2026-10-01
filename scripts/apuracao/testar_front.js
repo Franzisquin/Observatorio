@@ -609,6 +609,22 @@ ok(!cl.D.passa && cl.D.pct >= 2.5 && cl.D.ufsVoto === 8,
    catch da volta. Este check fecha a classe inteira — todo $('id') tem de
    existir na página que carrega aquele script. */
 
+/* ------------------------------------------------ comparação com 2022 */
+
+/* Lula 48% -> 50% e Jair 43% -> Flávio 40%: a diferença andou 5 pontos para
+   Lula (negativo). Sem voto em 2026 não há variação; sem base, nada. */
+console.log('\ncomparação com 2022');
+const dic2026 = { s13: { numero: '13', urna: 'LULA', partido: 'PT' },
+  s22: { numero: '22', urna: 'FLAVIO BOLSONARO', partido: 'PL' } };
+const comp = APU.comparar({ vv: 1000, vvc: 1000, cand: { s13: 500, s22: 400, s30: 100 } },
+  dic2026, [1000, 480, 430], ['13', '22']);
+ok(Math.abs(comp.desvio + 5) < 1e-9 && comp.pares[0].agora === 50 && comp.pares[1].antes === 43,
+  'desvio é a variação da diferença, a favor do 2º número', JSON.stringify(comp && comp.desvio));
+const semVoto = APU.comparar(null, dic2026, [1000, 480, 430], ['13', '22']);
+ok(semVoto.desvio === null && semVoto.pares[0].antes === 48, 'sem voto em 2026: só 2022, sem variação');
+ok(APU.comparar({ vv: 1, cand: {} }, dic2026, null, ['13', '22']) === null,
+  'unidade sem 2022 (instalada depois) não compara');
+
 console.log('\nids de getElementById presentes na página');
 const PARES = [
   ['js/apuracao-uf.js', 'apuracao-uf.html'],
