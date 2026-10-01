@@ -496,21 +496,21 @@ const agremTeste = [
 ];
 const bl = APU.blocos(agremTeste, { vv: 750 });
 const porChaveBl = Object.fromEntries(bl.map((b) => [b.chave, b]));
-ok(porChaveBl['F:FE BRASIL'].rotulo === 'Brasil da Esperança',
-  'federação perde o "Federação" e a sigla do fim', porChaveBl['F:FE BRASIL'].rotulo);
+ok(porChaveBl['F:FE BRASIL'].rotulo === 'BRASIL DA ESPERANÇA',
+  'federação perde o "Federação" e a sigla do fim, e sai em maiúsculas', porChaveBl['F:FE BRASIL'].rotulo);
 ok(porChaveBl['F:PSOL REDE'].rotulo === 'PSOL REDE',
-  'sigla curta de partido não vira nome próprio', porChaveBl['F:PSOL REDE'].rotulo);
+  'nome de federação em maiúsculas, como sigla de partido', porChaveBl['F:PSOL REDE'].rotulo);
 ok(porChaveBl['F:F 9995'].rotulo === 'F 9995', 'nome só com número cai na sigla da federação');
 ok(porChaveBl['P:PL'].rotulo === 'PL', 'partido isolado aparece pela sigla');
 ok(porChaveBl['F:FE BRASIL'].cor === APU.cor('PT'), 'a cor da federação é a do partido cabeça');
 ok(porChaveBl['F:F 9995'].siglas.join('/') === 'P 9984/P 9992',
   'composição com espaço em volta da barra é lida igual');
 ok(bl.slice().sort(APU.porEspectro).map((b) => b.rotulo).join(' < ')
-  === 'PSOL REDE < Brasil da Esperança < PL < F 9995',
+  === 'PSOL REDE < BRASIL DA ESPERANÇA < PL < F 9995',
   'hemiciclo: esquerda para a direita, e sigla fora da régua no fim',
   bl.slice().sort(APU.porEspectro).map((b) => b.rotulo).join(' < '));
 ok(bl.slice().sort(APU.porCadeiras).map((b) => b.rotulo).join(',')
-  === 'Brasil da Esperança,PL,PSOL REDE,F 9995',
+  === 'BRASIL DA ESPERANÇA,PL,PSOL REDE,F 9995',
   'listas: cadeiras primeiro e voto no desempate (3 x 3, mesmo voto: alfabética)',
   bl.slice().sort(APU.porCadeiras).map((b) => b.rotulo).join(','));
 
@@ -527,8 +527,8 @@ const fed2026 = APU.blocos([
   { nm: 'FEDERAÇÃO RENOVAÇÃO SOLIDÁRIA', com: 'PRD/SOLIDARIEDADE', tp: 'f', fed: 'RENOVAÇÃO SOLIDÁRIA',
     vag: 0, v: 10, par: [{ sg: 'PRD', vtn: 5 }, { sg: 'SOLIDARIEDADE', vtn: 5 }] }
 ], { vv: 20 });
-ok(fed2026.map((b) => b.rotulo).join(' | ') === 'União Progressista | Renovação Solidária',
-  'federações de 2026: nome sem "Federação" e sem a composição', fed2026.map((b) => b.rotulo).join(' | '));
+ok(fed2026.map((b) => b.rotulo).join(' | ') === 'UNIÃO PROGRESSISTA | RENOVAÇÃO SOLIDÁRIA',
+  'federações de 2026: nome sem "Federação" e sem a composição, em maiúsculas', fed2026.map((b) => b.rotulo).join(' | '));
 ok(fed2026[0].cor === APU.cor('UNIÃO') && fed2026[1].cor === APU.cor('PRD'),
   'federações de 2026: cor da cabeça');
 ok(fed2026[0].espectro === 30 && fed2026[1].espectro === 33
@@ -572,6 +572,33 @@ if (fs.existsSync(SIMULADO_DEP)) {
     'simulado de SP: as vagas dos blocos somam o nv do cargo');
   ok(blSp.every((b) => b.rotulo && b.cor), 'simulado de SP: todo bloco tem nome e cor');
 }
+
+/* -------------------------------------------- cláusula de desempenho */
+
+/* EC 97/2017, regra de 2026: 13 deputados em 9 UFs, ou 2,5% dos válidos do
+   país com 1,5% em 9 UFs. Federação conta como um partido só. */
+console.log('\ncláusula de desempenho');
+const ufsTeste = ['ac', 'al', 'am', 'ap', 'ba', 'ce', 'df', 'es', 'go', 'ma'];
+const entradasTeste = Object.fromEntries(ufsTeste.map((u) => [u, { vv: 1000 }]));
+const bloco = (chave, vagas, votos) => ({ chave, rotulo: chave, vagas, votos });
+const porUFTeste = Object.fromEntries(ufsTeste.map((u, i) => [u, [
+  // A: 2 deputados em cada UF (20 em 10 UFs) e 30% dos votos — passa pelos dois
+  bloco('A', 2, 300),
+  // B: 13 deputados, mas só em 8 UFs, e 1% dos votos — não passa
+  bloco('B', i < 8 ? (i < 5 ? 2 : 1) : 0, 10),
+  // C: sem deputado, 3% do país, com 1,5% ou mais em 9 UFs — passa pelos votos
+  bloco('C', 0, i < 9 ? 32 : 12),
+  // D: 3% do país, mas 1,5% ou mais só em 8 UFs — não passa
+  bloco('D', 0, i < 8 ? 36 : 6)
+]]));
+const cl = Object.fromEntries(APU.clausulaDeDesempenho(porUFTeste, entradasTeste).map((a) => [a.chave || a.bloco.chave, a]));
+ok(cl.A.passa && cl.A.porCadeiras && cl.A.porVotos, 'passa pelos dois critérios');
+ok(cl.B.cadeiras === 13 && cl.B.ufsCadeira === 8 && !cl.B.passa,
+  '13 deputados em só 8 UFs não basta', `${cl.B.cadeiras} em ${cl.B.ufsCadeira}`);
+ok(cl.C.passa && !cl.C.porCadeiras && cl.C.porVotos && cl.C.ufsVoto === 9,
+  '2,5% do país com 1,5% em 9 UFs passa, mesmo sem deputado', `${cl.C.pct} / ${cl.C.ufsVoto}`);
+ok(!cl.D.passa && cl.D.pct >= 2.5 && cl.D.ufsVoto === 8,
+  '2,5% do país com 1,5% em só 8 UFs não passa', `${cl.D.pct} / ${cl.D.ufsVoto}`);
 
 /* ------------------------------------------- ids que o script pede da página */
 

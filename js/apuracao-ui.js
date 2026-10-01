@@ -660,11 +660,18 @@ const APUUI = (function () {
     const x0 = 300 - (colunas * passo) / 2;
     const base = 296;
     const topo = base - linhas * passo;
+    /* Quando o total não fecha as linhas, a última coluna fica incompleta e as
+       linhas de baixo saem mais curtas. Cada linha é centralizada na largura da
+       grade: com meio ponto de diferença, os pontos dela caem no meio dos de
+       cima, em vez de encostados à esquerda. */
+    const cheias = Math.floor(total / linhas);
+    const sobra = total % linhas;
+    const recuo = (lin) => ((colunas - (cheias + (lin < sobra ? 1 : 0))) * passo) / 2;
     const assentos = [];
     for (let i = 0; i < total; i++) {
       const col = Math.floor(i / linhas);
       const lin = i % linhas;
-      assentos.push({ x: x0 + (col + 0.5) * passo, y: topo + (lin + 0.5) * passo,
+      assentos.push({ x: x0 + recuo(lin) + (col + 0.5) * passo, y: topo + (lin + 0.5) * passo,
         rp: passo * 0.42, col });
     }
     assentos.grade = { linhas, colunas, passo, x0, topo, base };
@@ -738,21 +745,10 @@ const APUUI = (function () {
       svg.appendChild(grupo);
       svg._apuGeo = geometria;
       if (pontos) {
-        /* Na grade, a maioria é a coluna onde cai a cadeira que dá metade mais
-           um: a linha passa logo depois dela. */
-        const g = geometria.grade;
-        const colMaioria = geometria[Math.min(total, Math.floor(total / 2) + 1) - 1].col;
-        const xm = g.x0 + (colMaioria + 1) * g.passo;
-        svg.appendChild(noSvg('line', {
-          class: 'apu-hemi-maioria', x1: xm.toFixed(1), x2: xm.toFixed(1),
-          y1: (g.topo - 6).toFixed(1), y2: (g.base + 6).toFixed(1)
-        }));
+        /* A grade é uma bancada, não um plenário: não há maioria a marcar.
+           A linha da maioria fica só no semicírculo. */
         svg.appendChild(noSvg('text', { class: 'apu-hemi-total', x: 300, y: 340, 'text-anchor': 'middle' }));
         svg.appendChild(noSvg('text', { class: 'apu-hemi-rot', x: 300, y: 362, 'text-anchor': 'middle' }));
-        svg.appendChild(noSvg('text', {
-          class: 'apu-hemi-maioria-rot', x: xm.toFixed(1), y: (g.topo - 10).toFixed(1),
-          'text-anchor': 'middle'
-        }));
       } else {
         /* Linha da maioria: o meio do semicírculo. Cadeiras dos dois lados dela
            somam metade da casa cada um. */
@@ -796,7 +792,8 @@ const APUUI = (function () {
     const maioria = Math.floor(total / 2) + 1;
     svg.querySelector('.apu-hemi-total').textContent = APU.fmt.int(total);
     svg.querySelector('.apu-hemi-rot').textContent = o.rotulo || 'CADEIRAS';
-    svg.querySelector('.apu-hemi-maioria-rot').textContent = 'Maioria: ' + APU.fmt.int(maioria);
+    const rotMaioria = svg.querySelector('.apu-hemi-maioria-rot');
+    if (rotMaioria) rotMaioria.textContent = 'Maioria: ' + APU.fmt.int(maioria);
 
     /* Balão e destaque do bloco sob o cursor. Ligados por delegação, uma vez
        por <svg>: o redesenho de cada boletim não acumula ouvintes. */

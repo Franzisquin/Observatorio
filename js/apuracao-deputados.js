@@ -216,6 +216,7 @@
       $('palco').hidden = true;
       $('listas').hidden = true;
       $('estados').hidden = true;
+      $('clausula').hidden = true;
       return;
     }
 
@@ -244,10 +245,53 @@
     if (uf) {
       listas(leitura);
       $('estados').hidden = true;
+      $('clausula').hidden = true;
     } else {
       $('listas').hidden = true;
       estados(leitura);
+      clausula(leitura);
     }
+  }
+
+  /* ------------------------------------------------ cláusula de desempenho */
+
+  /* Quem passa e quem não passa, com o apurado até aqui: as siglas em linha,
+     de cada lado. Passar por um dos dois critérios basta. Só na Câmara: a
+     cláusula olha os deputados federais. */
+  function clausula(leitura) {
+    const secao = $('clausula');
+    /* Aparece desde antes da primeira urna: sem voto e sem cadeira ninguém
+       cumpre a cláusula, e todos os partidos começam do lado de quem não passa. */
+    secao.hidden = estado.cargo !== '0006';
+    if (secao.hidden) return;
+
+    const lista = APU.clausulaDeDesempenho(leitura.porUF, leitura.entradas);
+    const regra = APU.CLAUSULA;
+    const plural = (n, um, varios) => `${APU.fmt.int(n)} ${n === 1 ? um : varios}`;
+    /* Um quadradinho por partido, com a sigla sobre a cor dele. Federação vai
+       pelas siglas que a compõem. Os números dos dois critérios ficam no balão
+       (title): na tela, só quem está de cada lado. */
+    const chip = (a) => {
+      const b = a.bloco;
+      const sigla = b.federacao ? b.siglas.join('/') : (b.siglas[0] || b.rotulo);
+      const titulo = `${b.rotulo}${b.federacao ? ' (' + b.siglas.join(' · ') + ')' : ''}\n`
+        + `${a.porCadeiras ? '✓' : '✗'} ${plural(a.cadeiras, 'deputado', 'deputados')} em `
+        + `${plural(a.ufsCadeira, 'UF', 'UFs')} (critério: ${regra.cadeiras} em ${regra.ufsCadeira} UFs)\n`
+        + `${a.porVotos ? '✓' : '✗'} ${APU.fmt.pct(a.pct)} dos votos, ${APU.fmt.pct(regra.pctUF)} ou mais em `
+        + `${plural(a.ufsVoto, 'UF', 'UFs')} (critério: ${APU.fmt.pct(regra.pct)}, com `
+        + `${APU.fmt.pct(regra.pctUF)} em ${regra.ufsVoto} UFs)`;
+      return `<li class="apu-clausula-chip" style="background:${b.cor};color:${textoSobre(b.cor)}"`
+        + ` title="${esc(titulo)}">${esc(sigla)}</li>`;
+    };
+
+    const passam = lista.filter((a) => a.passa);
+    const naoPassam = lista.filter((a) => !a.passa);
+    $('nPassam').textContent = APU.fmt.int(passam.length);
+    $('nNaoPassam').textContent = APU.fmt.int(naoPassam.length);
+    $('clausulaPassam').innerHTML = passam.map(chip).join('')
+      || '<li class="apu-clausula-vazio">Nenhum partido ainda.</li>';
+    $('clausulaNaoPassam').innerHTML = naoPassam.map(chip).join('')
+      || '<li class="apu-clausula-vazio">Nenhum partido.</li>';
   }
 
   /* ------------------------------------------------- hemiciclo e quadro */
@@ -294,14 +338,11 @@
     $('avisoQuadro').textContent = aviso;
     $('avisoQuadro').hidden = !(semHemiciclo && aviso);
     $('hemicicloLegenda').textContent = [
-      leitura.meta && leitura.meta.pre
-        ? 'Antes da primeira urna: os partidos e as candidaturas registrados no TSE, em ordem'
-          + ' alfabética, com 0 voto.' : '',
       aviso,
       falta > 0
         ? (distribuidas
           ? `${APU.fmt.int(distribuidas)} de ${APU.fmt.int(leitura.total)} cadeiras distribuídas até aqui.`
-          : 'As cadeiras se enchem conforme o TSE distribui as vagas a cada totalização.')
+          : 'As cadeiras serão preenchidas dinamicamente a cada atualização do TSE.')
         : ''
     ].filter(Boolean).join(' ');
 

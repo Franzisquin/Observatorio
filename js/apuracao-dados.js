@@ -669,10 +669,9 @@ const APU = (function () {
     return 'P:' + (siglas[0] || a.nm || '');
   }
 
-  /* "Federação Brasil da Esperança - FE BRASIL" -> "Brasil da Esperança". Caixa
-     alta do TSE vira nome próprio, mas sigla de partido de até quatro letras
-     fica como é: "PSOL REDE", e não "Psol Rede". Nome do qual não sobra nada
-     além de número (o simulado manda "FEDERAÇÃO 9995") cai na sigla. */
+  /* "Federação Brasil da Esperança - FE BRASIL" -> "BRASIL DA ESPERANÇA": sem o
+     "Federação", sem a sigla do fim e em maiúsculas. Nome do qual não sobra
+     nada além de número (o simulado manda "FEDERAÇÃO 9995") cai na sigla. */
   function nomeDoBloco(a, siglas) {
     if (a.tp !== 'f') return siglas[0] || a.nm || '';
     /* A composição entre parênteses no fim, como o DivulgaCandContas escreve
@@ -683,13 +682,10 @@ const APU = (function () {
       .replace(/^federa[çc][ãa]o\s+/i, '')
       .trim();
     if (!nm || /^\d+$/.test(nm)) return a.fed || siglas.join('/');
-    if (nm === nm.toUpperCase()) {
-      const curtas = new Set(siglas.map((s) => s.toUpperCase()).filter((s) => s.length <= 4));
-      const original = nm.split(/\s+/);
-      nm = nomeProprio(nm).split(/\s+/)
-        .map((w, i) => (curtas.has(original[i]) ? original[i] : w)).join(' ');
-    }
-    return nm;
+    /* Em maiúsculas, como a sigla dos partidos isolados (PL, UNIÃO,
+       REPUBLICANOS): numa lista de blocos lado a lado, federação e partido
+       se leem no mesmo registro. */
+    return nm.toLocaleUpperCase('pt-BR');
   }
 
   /* Lugar do bloco na régua esquerda -> direita (js/espectro-partidos.js, a
@@ -832,6 +828,39 @@ const APU = (function () {
     return Array.from(soma.values()).map((b) => ({ ...b, pct: fmt.parte(b.votos, total) }));
   }
 
+  /* Cláusula de desempenho (EC 97/2017, art. 3º, na regra que vale a partir
+     de 2026). Passa quem cumprir um dos dois:
+       - eleger ao menos 13 deputados federais, em ao menos 9 UFs (um terço);
+       - ou ter ao menos 2,5% dos votos válidos do país para a Câmara, com ao
+         menos 1,5% dos válidos em cada uma de 9 UFs ou mais.
+     A federação conta como um partido só (Lei 14.208/2021), então a conta é
+     por bloco. Sai do que já foi apurado: até a totalização final, é a
+     situação do momento, e não o resultado. */
+  const CLAUSULA = { cadeiras: 13, ufsCadeira: 9, pct: 2.5, pctUF: 1.5, ufsVoto: 9 };
+
+  function clausulaDeDesempenho(porUF, entradas) {
+    const vvPais = Object.values(entradas || {}).reduce((s, e) => s + (Number(e && e.vv) || 0), 0);
+    const por = new Map();
+    Object.entries(porUF || {}).forEach(([uf, lista]) => {
+      const vvUF = Number((entradas[uf] || {}).vv) || 0;
+      (lista || []).forEach((b) => {
+        const a = por.get(b.chave) || { bloco: b, cadeiras: 0, ufsCadeira: 0, votos: 0, ufsVoto: 0 };
+        a.cadeiras += b.vagas;
+        if (b.vagas > 0) a.ufsCadeira += 1;
+        a.votos += b.votos;
+        if (vvUF > 0 && (100 * b.votos) / vvUF >= CLAUSULA.pctUF) a.ufsVoto += 1;
+        por.set(b.chave, a);
+      });
+    });
+    return Array.from(por.values()).map((a) => {
+      const pct = vvPais ? (100 * a.votos) / vvPais : 0;
+      const porCadeiras = a.cadeiras >= CLAUSULA.cadeiras && a.ufsCadeira >= CLAUSULA.ufsCadeira;
+      const porVotos = pct >= CLAUSULA.pct && a.ufsVoto >= CLAUSULA.ufsVoto;
+      return { ...a, pct, porCadeiras, porVotos, passa: porCadeiras || porVotos };
+    }).sort((x, y) => y.votos - x.votos
+      || String(x.bloco.rotulo).localeCompare(String(y.bloco.rotulo), 'pt-BR'));
+  }
+
   /* As duas ordens que a tela usa. Listas e quadro: mais cadeiras primeiro,
      voto desempata. Hemiciclo: da esquerda para a direita. */
   const porCadeiras = (a, b) => b.vagas - a.vagas || b.votos - a.votos
@@ -858,6 +887,6 @@ const APU = (function () {
     simulado, carimbo, arquivo, acompanhamento, eleitos,
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,
-    blocos, somarBlocos, marcarLista, porCadeiras, porEspectro
+    blocos, somarBlocos, marcarLista, porCadeiras, porEspectro, clausulaDeDesempenho, CLAUSULA
   };
 })();

@@ -2650,3 +2650,61 @@ body:has(#mapaUF) .apu-aside .apu-results {
 @media (max-width: 900px) {
   .apu-faixas { left: 8px; bottom: 8px; }
 }
+
+/* --------------------------------------------- cláusula de desempenho */
+
+/* Vem logo depois de "Bancada de cada estado", que já fecha com respiro. */
+.apu-dep-clausula { padding-top: 0; }
+
+.apu-clausula-grade {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(20px, 3vw, 40px);
+  margin-top: 14px;
+}
+
+@media (max-width: 860px) {
+  .apu-clausula-grade { grid-template-columns: minmax(0, 1fr); }
+}
+
+.apu-clausula-tit {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.apu-clausula-tit span { font-variant-numeric: tabular-nums; color: var(--muted); }
+.apu-clausula-col.is-passa .apu-clausula-tit { border-bottom-color: #16a34a; }
+
+/* As siglas em linha, cada uma num quadradinho com a cor do partido por trás. */
+.apu-clausula-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 0 0;
+  list-style: none;
+}
+
+.apu-clausula-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 9px;
+  border-radius: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.apu-clausula-vazio { padding: 10px 0; font-size: 0.8rem; color: var(--muted); }
+
