@@ -215,6 +215,13 @@ Trocar aquele handler por `addEventListener` depois de inserir o nó permite tir
 o `'unsafe-inline'` e transformar o CSP numa defesa real contra XSS, em vez de só
 uma trava de origem de dados.
 
+Desde 30/09/2026 a `apuracao-presidente.html` desenha o mapa em MapLibre (abre os
+municípios na própria tela), e o CSP dela ganhou três itens: `https://unpkg.com`
+em `script-src` e `style-src`, para o `maplibre-gl@4.7.1` com o mesmo SRI de
+`simulador.html`, e `worker-src blob:`, porque o worker do MapLibre nasce de um
+blob. `connect-src` e `img-src` não mudaram: o mapa não tem base de terceiros, e
+a malha vem do próprio site.
+
 ### Hospedar o `sql-wasm.wasm` — feito em 17/09/2026
 
 O SRI cobre o `sql-wasm.js`, mas não o `.wasm` que ele busca em runtime. O par

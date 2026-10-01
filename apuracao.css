@@ -13,6 +13,30 @@
    padding aqui reintroduziria a barra de rolagem que ele evita. */
 .apu-main { padding-bottom: 0; }
 
+/* Botão de tema, na barra do topo, no traço do seletor de idioma do portal.
+   Fica fora do <nav>, que some no celular: o tema tem de continuar à mão. */
+.apu-tema {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.apu-tema:hover { color: var(--ink); border-color: var(--line-strong); }
+.apu-tema:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+@media (max-width: 720px) {
+  .apu-tema { margin-left: auto; }
+}
+
 .apu-head {
   padding: clamp(22px, 3vw, 34px) 0 clamp(18px, 2.4vw, 26px);
   border-bottom: 1px solid var(--line);
@@ -200,6 +224,63 @@
   min-height: 0;
 }
 
+/* Mapa em MapLibre da presidencial. Ocupa o palco inteiro, sem o respiro do
+   SVG: arrastar e aproximar precisam chegar até a borda. O `.apu-stage-map` na
+   frente vence o `position: relative` que o maplibre-gl.css dá ao contêiner. */
+.apu-stage-map .apu-gl {
+  position: absolute;
+  inset: 0;
+  font-family: var(--sans);
+}
+
+.apu-gl-camadas {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  background: var(--paper);
+}
+
+.apu-gl-carga {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2;
+  max-width: calc(100% - 32px);
+  padding: 6px 12px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+/* O globo do exterior, agora um marcador do MapLibre: o mesmo desenho, no
+   tamanho em que aparecia no SVG (~60px de disco). */
+.apu-gl-exterior { width: 88px; }
+
+/* Controle de zoom do MapLibre no traço da apuração. */
+.apu-stage-map .maplibregl-ctrl-group {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  box-shadow: none;
+}
+.apu-stage-map .maplibregl-ctrl-group button + button { border-top: 1px solid var(--line); }
+.apu-stage-map .maplibregl-ctrl button:not(:disabled):hover { background-color: var(--paper-3); }
+
+/* As páginas da apuração sempre declaram o tema no <html> (escuro de saída,
+   claro pelo botão; ver js/apuracao-tema.js), então as regras escuras deste
+   arquivo seguem o atributo, e não o tema do sistema. */
+:root[data-theme="dark"] .apu-stage-map .maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(1);
+}
+
 .apu-stage-empty {
   position: absolute;
   inset: auto clamp(16px, 4vw, 48px) clamp(16px, 3vw, 32px);
@@ -255,6 +336,252 @@
   text-transform: uppercase;
   color: var(--muted);
   margin-bottom: 12px;
+}
+
+/* Projeção do resultado final (presidencial). Uma linha por candidato: a faixa
+   com 95% de chance na cor do partido, o ponto da projeção por cima e um traço
+   no apurado agora, todos na mesma escala. */
+.apu-proj {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.apu-proj[hidden] { display: none; }
+
+.apu-proj-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.apu-proj-head .apu-dock-rot { margin-bottom: 8px; }
+.apu-proj-quando { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+
+.apu-proj-frase {
+  font-family: var(--display);
+  font-size: 1.02rem;
+  line-height: 1.35;
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+
+.apu-proj-frase small {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--sans);
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+/* Termina no 1º turno ou vai ao 2º: uma barra só, em tons neutros — cor de
+   partido aqui sugeriria quem ganha, e a barra não diz isso. */
+.apu-proj-desfecho { margin: 0 0 14px; }
+.apu-proj-desfecho[hidden] { display: none; }
+
+.apu-proj-split {
+  display: flex;
+  height: 10px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--paper-3);
+}
+
+.apu-proj-split .is-2t { background: var(--ink); }
+.apu-proj-split .is-1t { background: var(--brand); }
+
+.apu-proj-split-rot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.apu-proj-split-rot b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.apu-proj-split-rot span:last-child { text-align: right; }
+
+.apu-proj-par {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.apu-proj-par b { color: var(--ink); font-weight: 600; }
+.apu-proj-par span { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Chances por candidato: mais votado e vai ao 2º turno (no 2º, vence). */
+.apu-proj-tab {
+  width: 100%;
+  margin-bottom: 16px;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.apu-proj-tab[hidden] { display: none; }
+
+.apu-proj-tab th,
+.apu-proj-tab td {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  font-weight: 400;
+}
+
+.apu-proj-tab thead th {
+  padding-top: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apu-proj-tab tbody th {
+  max-width: 9em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apu-proj-tab tbody th small {
+  display: block;
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.apu-proj-tab .num {
+  padding-left: 10px;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.apu-proj-medidor {
+  display: inline-block;
+  width: 44px;
+  height: 5px;
+  margin-right: 7px;
+  vertical-align: middle;
+  border-radius: 3px;
+  background: var(--paper-3);
+  overflow: hidden;
+}
+
+.apu-proj-medidor > span { display: block; height: 100%; }
+
+.apu-proj-tab tr.is-resto th,
+.apu-proj-tab tr.is-resto td { font-size: 0.74rem; color: var(--muted); }
+
+.apu-proj-sub {
+  margin-bottom: 2px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apu-proj-sub[hidden] { display: none; }
+
+.apu-proj-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 7.4em) minmax(0, 1fr) 4.6em;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.apu-proj-nome {
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apu-proj-nome small {
+  display: block;
+  font-size: 0.64rem;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.apu-proj-trilho { position: relative; height: 16px; }
+
+.apu-proj-trilho::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--line);
+}
+
+.apu-proj-faixa {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  min-width: 2px;
+  border-radius: 4px;
+  opacity: 0.38;
+}
+
+.apu-proj-ponto {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 1.5px solid var(--paper);
+}
+
+.apu-proj-apurado {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--muted);
+}
+
+.apu-proj-num { text-align: right; font-variant-numeric: tabular-nums; }
+.apu-proj-num b { display: block; font-size: 0.86rem; font-weight: 600; color: var(--ink); }
+.apu-proj-num small { font-size: 0.64rem; color: var(--muted); white-space: nowrap; }
+
+.apu-proj-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 10px;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.apu-proj-legenda[hidden] { display: none; }
+
+.apu-proj-leg-ponto,
+.apu-proj-leg-faixa,
+.apu-proj-leg-apurado { display: inline-block; flex: none; }
+.apu-proj-leg-ponto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); }
+.apu-proj-leg-faixa { width: 16px; height: 7px; border-radius: 3px; background: var(--ink); opacity: 0.3; margin-left: 6px; }
+.apu-proj-leg-apurado { width: 2px; height: 11px; background: var(--muted); margin-left: 6px; }
+
+.apu-proj-aviso {
+  margin-top: 8px;
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 @media (max-width: 900px) {
@@ -499,20 +826,18 @@
 .district-nyt-loser-cell > span { margin-left: 6px; min-width: 0; }
 
 /* As mesmas trocas que o visualizador aplica em [data-theme="dark"]. */
-@media (prefers-color-scheme: dark) {
-  .apu-tip {
-    background: #151515;
-    color: #f5f5f5;
-    border-color: #2a2a2a;
-  }
-  .district-nyt-title { color: #ffffff; }
-  .district-nyt-table th { color: #aaaaaa; border-bottom-color: #2a2a2a; }
-  .district-nyt-table td { border-bottom-color: #2a2a2a; }
-  .district-nyt-table td.votes-cell { color: #aaaaaa; }
-  .district-nyt-table td.votes-cell.winner { color: #dddddd; }
-  .district-nyt-table td.pct-cell { color: #cccccc; }
-  .district-nyt-table td.pct-cell.winner { color: #ffffff; }
+:root[data-theme="dark"] .apu-tip {
+  background: #151515;
+  color: #f5f5f5;
+  border-color: #2a2a2a;
 }
+:root[data-theme="dark"] .district-nyt-title { color: #ffffff; }
+:root[data-theme="dark"] .district-nyt-table th { color: #aaaaaa; border-bottom-color: #2a2a2a; }
+:root[data-theme="dark"] .district-nyt-table td { border-bottom-color: #2a2a2a; }
+:root[data-theme="dark"] .district-nyt-table td.votes-cell { color: #aaaaaa; }
+:root[data-theme="dark"] .district-nyt-table td.votes-cell.winner { color: #dddddd; }
+:root[data-theme="dark"] .district-nyt-table td.pct-cell { color: #cccccc; }
+:root[data-theme="dark"] .district-nyt-table td.pct-cell.winner { color: #ffffff; }
 
 /* --------------------------------------------------------- resultado macro */
 
@@ -652,6 +977,9 @@
 }
 
 .apu-more:hover { color: var(--ink); border-color: var(--line-strong); }
+a.apu-more { text-align: center; text-decoration: none; }
+/* O `display: block` acima venceria o `hidden` do link da página do estado. */
+.apu-more[hidden] { display: none; }
 
 /* -------------------------------------------------------------- lateral */
 
@@ -980,12 +1308,10 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 .apu-top-table tbody td.apu-top-margin { color: var(--cor-partido, var(--ink)); font-weight: 400; }
 .apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
 
-@media (prefers-color-scheme: dark) {
-  .apu-top-table tbody td.apu-top-margin {
-    color: color-mix(in srgb, var(--cor-partido, #ffffff) 74%, #ffffff);
-  }
-  .apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin {
+  color: color-mix(in srgb, var(--cor-partido, #ffffff) 74%, #ffffff);
 }
+:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
 
 .apu-top-table tbody td.apu-top-in { color: var(--muted); }
 
@@ -1604,3 +1930,33 @@ body:has(#mapaUF) .apu-aside .apu-results {
 .apu-legenda-item { display: inline-flex; align-items: center; gap: 7px; }
 .apu-legenda-item .apu-marca { margin-left: 0; }
 .apu-legenda-txt { line-height: 1.35; }
+
+/* Resumo da projeção na central, com o link para a página presidencial. */
+.apu-proj-resumo {
+  display: block;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink-2);
+  text-decoration: none;
+  transition: border-color 0.16s ease;
+}
+
+.apu-proj-resumo[hidden] { display: none; }
+.apu-proj-resumo:hover { border-color: var(--line-strong); }
+
+.apu-proj-resumo-rot {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.apu-proj-resumo-txt { display: block; font-size: 0.88rem; line-height: 1.45; color: var(--ink); }
+.apu-proj-resumo-mais { display: inline-block; margin-top: 6px; font-size: 0.76rem; color: var(--brand-ink); }

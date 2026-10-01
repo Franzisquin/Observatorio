@@ -36,8 +36,13 @@
   --max: 1180px;
 }
 
+/* O escuro vale em dois casos: o sistema está no escuro e a página não escolheu
+   o claro — as páginas do portal seguem o sistema —, ou a página escolheu o
+   escuro com `data-theme="dark"` no <html>, qualquer que seja o sistema. A
+   apuração é a que escolhe: começa no escuro e tem o botão de tema. Os dois
+   blocos têm os mesmos valores; mexeu num, mexa no outro. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #0a0a0a;
     --paper-2: #151515;
     --paper-3: #1f1f1f;
@@ -50,6 +55,20 @@
     --brand-2: #a479d8;
     --brand-ink: #e58092;
   }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0a0a0a;
+  --paper-2: #151515;
+  --paper-3: #1f1f1f;
+  --ink: #f5f5f5;
+  --ink-2: #cccccc;
+  --muted: #a3a3a3;
+  --line: #2a2a2a;
+  --line-strong: #3d3d3d;
+  --brand: #dc5a6a;
+  --brand-2: #a479d8;
+  --brand-ink: #e58092;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

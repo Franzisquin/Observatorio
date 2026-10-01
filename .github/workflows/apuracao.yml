@@ -50,13 +50,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           # Sem blobs e so a pasta dos scripts: o checkout completo deste repo
-          # passa de 3 GB e levaria mais tempo que a propria coleta.
+          # passa de 3 GB e levaria mais tempo que a propria coleta. A ponte
+          # TSE -> IBGE vem junto: coleta.py corrige com ela o IBGE que o EA12
+          # traz errado (Boa Esperanca do Norte). Arquivo avulso so entra fora do
+          # modo cone, que aceita apenas pasta inteira — e a pasta dela tem GBs.
           filter: blob:none
-          sparse-checkout: scripts/apuracao
+          sparse-checkout: |
+            /scripts/apuracao/
+            /resultados_geo/tse_para_ibge.json
+          sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      # So a projecao usa (scripts/apuracao/projecao.py). Se a instalacao falhar,
+      # o plantao coleta do mesmo jeito, sem projecao.
+      - name: numpy para a projecao
+        continue-on-error: true
+        run: python -m pip install --quiet numpy
 
       - name: Preparar a branch de dados
         run: |

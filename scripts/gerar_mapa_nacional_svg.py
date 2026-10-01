@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Regenera o mapa nacional por UF embutido nas paginas de apuracao
-(apuracao.html e apuracao-presidente.html) a partir da malha estadual do IBGE
-em resultados_geo/estados_brasil.geojson.
+Regenera o mapa nacional por UF embutido na central de apuracao
+(apuracao.html) a partir da malha estadual do IBGE em
+resultados_geo/estados_brasil.geojson.
+
+A pagina presidencial (apuracao-presidente.html) tinha o mesmo SVG e deixou de
+ter em 30/09/2026: o mapa dela passou a ser MapLibre, que abre os municipios na
+propria tela (js/apuracao-nacional.js). Nao volta para esta lista.
 
 O desenho que estava ali tinha 971 vertices no pais inteiro e coordenadas
 inteiras num viewBox de 1000 unidades: a costa saia em degraus de 1 unidade e
@@ -14,8 +18,8 @@ Enquadramento: equirretangular simples (longitude -> x, latitude -> y, sem
 correcao pelo cosseno), ancorada no canto do bbox continental e escalada por
 864 / (lat_max - lat_min). Nao e a projecao mais fiel, e sim exatamente a que o
 mapa antigo usava — reproduzi-la mantem o viewBox 1000x864, o mesmo canto e a
-mesma largura util de 868 unidades, entao o disco do "Exterior" e o CSS das duas
-paginas continuam valendo sem ajuste.
+mesma largura util de 868 unidades, entao o CSS da pagina continua valendo sem
+ajuste.
 
 Ilhas: so entram poligonos com area >= 0.01 grau^2 (~115 km^2). Abaixo disso o
 ponto sairia menor que um pixel na tela e so sujaria o litoral — e o mapa antigo
@@ -39,7 +43,6 @@ MALHA = os.path.join(BASE_DIR, 'resultados_geo', 'estados_brasil.geojson')
 # Paginas que trazem o mapa embutido, e o id do <svg> em cada uma.
 PAGINAS = [
     ('apuracao.html', 'mapaNacional'),
-    ('apuracao-presidente.html', 'mapaBrasil'),
 ]
 
 ALTURA = 864.0          # altura do viewBox, herdada do mapa antigo
@@ -146,9 +149,9 @@ def reescrever(caminho_html, id_svg, blocos):
     abertura = re.search(r'(<svg class="apu-map" id="%s"[^>]*>)' % id_svg, s)
     if not abertura:
         raise SystemExit('nao achei o <svg id="%s"> em %s' % (id_svg, caminho_html))
-    # Depois dos estados vem o disco do "Exterior" na pagina do presidente e o
-    # fecho do <svg> na central: a substituicao vai ate o que vier primeiro,
-    # para nao encostar em nada alem dos paths das UFs.
+    # Depois dos estados vem o fecho do <svg> — ou o disco do "Exterior", se um
+    # dia a central o ganhar: a substituicao vai ate o que vier primeiro, para
+    # nao encostar em nada alem dos paths das UFs.
     resto = s[abertura.end():]
     corte = min(i for i in (resto.find('<g class="apu-exterior">'), resto.find('</svg>'))
                 if i >= 0)

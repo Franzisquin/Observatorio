@@ -27,6 +27,8 @@
     gov: null, sen: null,
     chapaPres: null, chapaGov: null, chapaSen: null,
     ab: null, saude: null,
+    /* Projeção do resultado presidencial ({ele}-0001-proj.json). */
+    proj: null,
     timer: null
   };
 
@@ -63,8 +65,39 @@
       { limite: 4, entrada: nacional, cargo: '0001' });
     APUUI.legendaMarcas(lista, 'legendaPres');
     APUUI.avisos(nacional, 'avisos');
+    resumoProjecao(nacional, dicionario);
 
     pintarMapaNacional();
+  }
+
+  /* A projeção do resultado final em uma linha, com o link para a página
+     presidencial, onde ela está inteira. Some antes do mínimo de urnas e depois
+     que o TSE declara o resultado, como lá. */
+  function resumoProjecao(nacional, dicionario) {
+    const el = $('projResumo');
+    const pr = estado.proj;
+    const decidido = !!(nacional && (APU.definicao(nacional) || nacional.tf === 's'));
+    el.hidden = !(pr && pr.suficiente && pr.cand) || !nacional || decidido;
+    if (el.hidden) return;
+    el.href = 'apuracao-presidente.html' + params({ cargo: '0001' });
+
+    const nome = (id) => APU.nomeProprio((dicionario[id] && (dicionario[id].urna || dicionario[id].nome)) || id);
+    const reais = Object.entries(pr.cand).filter(([id]) => id !== 'outros')
+      .sort((a, b) => b[1].media - a[1].media);
+    const [lid, lider] = reais[0];
+    const d = pr.desfecho || {};
+    let txt;
+    if (reais.length === 2) {
+      txt = `Vitória de ${nome(lid)} ${APUUI.chance(lider.p_maioria)}.`;
+    } else if ((d.p_decidido || 0) >= 0.5) {
+      txt = `Vitória de ${nome(lid)} no 1º turno ${APUUI.chance(lider.p_maioria)}.`;
+    } else {
+      const par = (d.segundo_turno || [])[0];
+      txt = `2º turno ${APUUI.chance(1 - (d.p_decidido || 0))}`
+        + (par ? `, mais provável entre ${nome(par.par[0])} e ${nome(par.par[1])}` : '')
+        + `. Mais votado no 1º turno: ${nome(lid)} (${APUUI.chancePct(lider.p_primeiro)}).`;
+    }
+    $('projResumoTexto').textContent = `${txt} Com ${APU.fmt.pct(pr.pct_apurado)} das urnas.`;
   }
 
   /* Mapa presidencial por UF, ao lado do placar. Sai do mesmo snapshot de UF
@@ -247,10 +280,10 @@
       await APU.fotosDisponiveis();
     }
 
-    const [br, ufPres, gov, sen, ab, saudeDoPlantao] = await Promise.all([
+    const [br, ufPres, gov, sen, ab, saudeDoPlantao, proj] = await Promise.all([
       snapshotDe('0001', 'br'), snapshotDe('0001', 'uf'),
       snapshotDe(CARGO_GOV, 'uf'), snapshotDe(CARGO_SEN, 'uf'),
-      APU.acompanhamento('0001'), APU.saude()
+      APU.acompanhamento('0001'), APU.saude(), snapshotDe('0001', 'proj')
     ]);
     /* Boletim antigo vale mais que painel vazio: só substitui o que chegou. */
     if (br) estado.br = br;
@@ -259,6 +292,7 @@
     if (sen) estado.sen = sen;
     if (ab) estado.ab = ab;
     if (saudeDoPlantao) estado.saude = saudeDoPlantao;
+    if (proj) estado.proj = proj;
 
     $('linkPresidente').href = 'apuracao-presidente.html' + params({ cargo: '0001' });
     pintarPresidente();

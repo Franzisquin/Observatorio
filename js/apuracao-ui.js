@@ -481,6 +481,19 @@ const APUUI = (function () {
 
   /* ----------------------------------------------------------------- mapa */
 
+  /* Cor do líder e opacidade proporcional à margem; null quando ainda não há
+     voto. Margem baixa = cor mais lavada: dá a leitura de disputa sem inventar
+     uma escala que o dado não tem. Serve ao SVG e ao mapa em MapLibre da
+     presidencial, para que os dois pintem igual. */
+  function tinta(entrada, dicionario) {
+    if (!entrada || !entrada.vv) return null;
+    const lista = APU.ranking(entrada, dicionario);
+    const l = lista[0];
+    if (!l) return null;
+    const margem = lista[1] ? l.pct - lista[1].pct : l.pct;
+    return { cor: APU.cor(l.partido), op: 0.42 + Math.min(0.58, margem / 55) };
+  }
+
   /* Pinta um <svg> já montado: cada <path data-chave> recebe a cor do líder da
      sua abrangência, e opacidade proporcional à margem — território ainda sem
      apuração fica no cinza neutro, nunca na cor de alguém. */
@@ -492,14 +505,14 @@ const APUUI = (function () {
       const chave = p.getAttribute('data-chave');
       const nome = p.getAttribute('data-nome') || chave;
       const entrada = entradaDe(chave);
-      const l = entrada ? APU.lider(entrada, dicionario) : null;
+      const t = tinta(entrada, dicionario);
 
       /* O clique não depende de já haver voto: antes do primeiro boletim o mapa
          inteiro está vazio e ainda assim precisa responder. */
       p.onclick = aoClicar ? () => { tip.esconder(); aoClicar(chave, nome); } : null;
       p.classList.toggle('is-click', !!aoClicar);
 
-      if (!l || !entrada.vv) {
+      if (!t) {
         p.classList.add('is-empty');
         p.style.fill = '';
         const vazio = conteudoDoBalao(nome, 'Sem apuração', entrada, dicionario);
@@ -509,12 +522,8 @@ const APUUI = (function () {
       }
 
       p.classList.remove('is-empty');
-      p.style.fill = APU.cor(l.partido);
-      /* Margem baixa = cor mais lavada. Dá a leitura de disputa sem inventar
-         uma escala que o dado não tem. */
-      const segundo = APU.ranking(entrada, dicionario)[1];
-      const margem = segundo ? l.pct - segundo.pct : l.pct;
-      p.style.fillOpacity = (0.42 + Math.min(0.58, margem / 55)).toFixed(2);
+      p.style.fill = t.cor;
+      p.style.fillOpacity = t.op.toFixed(2);
 
       const sub = APU.fmt.pct(entrada.pst || 0) + ' apurado';
       const html = conteudoDoBalao(nome, sub, entrada, dicionario);
@@ -523,6 +532,23 @@ const APUUI = (function () {
     });
   }
 
-  return { selo, avisos, progresso, placar, participacao, saude,
-    legendaMarcas, balao, conteudoDoBalao, pintarMapa, foto, esc, icone };
+  /* ------------------------------------------------------------- projeção */
+
+  /* Chance como fração dos cenários da projeção. Nunca 0% nem 100%: nos dois
+     extremos o texto diz "menos de 1" e "mais de 99", porque a simulação não
+     prova certeza — isso só o TSE declara. */
+  function chance(p) {
+    if (p > 0.99) return 'em mais de 99 de cada 100 cenários';
+    if (p < 0.01) return 'em menos de 1 de cada 100 cenários';
+    return `em ${Math.round(p * 100)} de cada 100 cenários`;
+  }
+
+  function chancePct(p) {
+    if (p > 0.99) return '>99%';
+    if (p < 0.01) return '<1%';
+    return `${Math.round(p * 100)}%`;
+  }
+
+  return { selo, avisos, progresso, placar, participacao, saude, chance, chancePct,
+    legendaMarcas, balao, conteudoDoBalao, tinta, pintarMapa, foto, esc, icone };
 })();

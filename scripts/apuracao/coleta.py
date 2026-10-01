@@ -32,6 +32,7 @@ from tse import (BASE, CARGOS, CARGOS_COM_BR, CARGOS_COM_ELEITOS,  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 DESTINO = RAIZ / "scratch" / "apuracao"
+PONTE_IBGE = RAIZ / "resultados_geo" / "tse_para_ibge.json"
 
 
 # ---------------------------------------------------------------- catalogo
@@ -139,13 +140,26 @@ def escrever_indice(destino: Path, base: str, ambiente: str, config: dict,
 def municipios(cli: Cliente, config: dict, eleicao: str) -> dict[str, list[dict]]:
     """EA12 — municipios por UF, com codigo TSE (5 digitos), IBGE, nome e zonas.
 
-    O codigo IBGE (`cdi`) e a ponte com as malhas municipais do site; o codigo
-    TSE (`cd`) e o que entra no nome dos arquivos de resultado.
+    O codigo IBGE e a ponte com as malhas municipais do site; o codigo TSE (`cd`)
+    e o que entra no nome dos arquivos de resultado.
+
+    O IBGE sai da ponte do proprio site (scripts/gerar_ponte_tse_ibge.py, a
+    mesma das malhas), e o `cdi` do EA12 fica de reserva: no simulado de
+    15/09/2026 ele trouxe Boa Esperanca do Norte (TSE 73709) com 5300109, codigo
+    que nao existe — Brasilia e 5300108 —, e o municipio ficava sem cor nos mapas
+    mesmo com voto. Nos outros 5.570 os dois concordam.
     """
     diretorio = cli.diretorio(config, "cm", cd_eleicao=eleicao)
     dados = cli.json_de(f"{diretorio}/mun-{e6(eleicao)}-cm.json")
     if dados is None:
         raise RuntimeError(f"EA12 nao encontrado para a eleicao {eleicao}")
+
+    # Chaveada pelo codigo TSE sem zero a esquerda; o EA12 manda "01120".
+    ponte = json.loads(PONTE_IBGE.read_text(encoding="utf-8")) if PONTE_IBGE.exists() else {}
+
+    def ibge(m: dict) -> str:
+        cd = str(m.get("cd", ""))
+        return ponte.get(cd.lstrip("0") or cd, m.get("cdi"))
 
     por_uf: dict[str, list[dict]] = {}
     for abrangencia in dados.get("abr", []):
@@ -154,7 +168,7 @@ def municipios(cli: Cliente, config: dict, eleicao: str) -> dict[str, list[dict]
             # O nome do municipio vem com entidade HTML dentro da string, como
             # todo texto do TSE: "MACHADINHO D&apos;OESTE". Sao 45 municipios no
             # pais, e sem desfazer aqui a entidade vai crua para a tela.
-            {"cd": m.get("cd"), "ibge": m.get("cdi"), "nm": texto(m.get("nm")),
+            {"cd": m.get("cd"), "ibge": ibge(m), "nm": texto(m.get("nm")),
              "zonas": list(m.get("z", []))}
             for m in abrangencia.get("mu", [])
         ]

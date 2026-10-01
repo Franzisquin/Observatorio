@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-theme="dark">
 
 <head>
   <meta charset="UTF-8" />
@@ -37,8 +37,11 @@
     href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@200;300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
     rel="stylesheet" />
 
-  <link rel="stylesheet" href="portal.css?v=20260829a" />
-  <link rel="stylesheet" href="apuracao.css?v=20260920a" />
+  <!-- Antes dos estilos: aplica o tema guardado antes da primeira pintura. -->
+  <script src="js/apuracao-tema.js?v=20260930a"></script>
+
+  <link rel="stylesheet" href="portal.css?v=20260930b" />
+  <link rel="stylesheet" href="apuracao.css?v=20260930f" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -59,6 +62,13 @@
         <a href="#senado">Senado</a>
         <a href="brasil.html">Brasil</a>
       </nav>
+
+      <button class="apu-tema" id="trocarTema" type="button" aria-label="Mudar tema" title="Mudar tema">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -83,6 +93,14 @@
             <div id="avisos" hidden></div>
             <div class="apu-results" id="placarPresidente"></div>
             <p class="apu-legenda-marcas" id="legendaPres" hidden></p>
+
+            <!-- Projeção do resultado final, em uma linha: a inteira está na
+                 página presidencial (scripts/apuracao/projecao.py). -->
+            <a class="apu-proj-resumo" id="projResumo" href="apuracao-presidente.html" hidden>
+              <span class="apu-proj-resumo-rot">Projeção ElectoMaps</span>
+              <span class="apu-proj-resumo-txt" id="projResumoTexto"></span>
+              <span class="apu-proj-resumo-mais">Ver a projeção completa</span>
+            </a>
 
             <div class="apu-destaque-andamento">
               <div class="apu-progress">
@@ -220,8 +238,8 @@
   </footer>
 
   <script src="js/apuracao-dados.js?v=20260920a"></script>
-  <script src="js/apuracao-ui.js?v=20260920a"></script>
-  <script src="js/apuracao-central.js?v=20260920a"></script>
+  <script src="js/apuracao-ui.js?v=20260930b"></script>
+  <script src="js/apuracao-central.js?v=20260930a"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

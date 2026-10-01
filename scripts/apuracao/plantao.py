@@ -31,9 +31,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coleta import (acompanhamento, camada_alta, camada_municipal,  # noqa: E402
                     cargos_da_eleicao, eleicoes_ordinarias, eleitos, escolher_ufs,
                     escrever_indice, municipios)
-from tse import BASE, CARGOS, SIM_2026, Cliente, descobrir_ambiente  # noqa: E402
+from tse import BASE, CARGOS, SIM_2026, Cliente, descobrir_ambiente, eleicao_de  # noqa: E402
+
+# A projecao precisa de numpy. Sem ele o plantao segue so com os snapshots: a
+# coleta nao pode depender de um extra.
+try:
+    import projecao  # noqa: E402
+except ImportError as _err:
+    projecao = None
+    print(f"  ! projecao desligada: {_err}", flush=True)
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
+
+
+def projetar_rodada(saida: Path, eleicao: str, cargo: str, turno: str) -> None:
+    """Projecao do resultado final de presidente, depois de cada camada municipal.
+
+    No 2o turno a base e o 1o turno da propria eleicao, se ele ja tiver sido
+    resumido (base_projecao.py --saida base_projecao_2026.json); senao, 2022."""
+    if projecao is None or cargo != "0001":
+        return
+    base_2t = projecao.AQUI / "base_projecao_2026.json"
+    caminho = base_2t if turno == "2" and base_2t.exists() else projecao.BASE_PADRAO
+    try:
+        r = projecao.rodada(saida, eleicao, cargo, projecao.carregar_base(caminho))
+        print(f"  projecao {eleicao}-{cargo}: {r.get('pct_apurado', 0):.1f}% apurado, "
+              f"suficiente={r.get('suficiente')}", flush=True)
+    except Exception as err:  # noqa: BLE001 — a coleta vale mais que a projecao
+        print(f"  ! projecao {eleicao}-{cargo} falhou ({type(err).__name__}: {err})", flush=True)
 
 
 def servir(porta: int, saida: Path) -> None:
@@ -229,6 +254,8 @@ def main() -> int:
                     for cargo in do_pleito:
                         camada_municipal(cli, config, eleicao, cargo, alvos, mapas[eleicao],
                                          saida, paralelo=args.paralelo, silencioso=True)
+                        projetar_rodada(saida, eleicao, cargo,
+                                        str(eleicao_de(config, eleicao).get("t", "1")))
                         # Prefeito nao tem camada alta: a totalizacao final aparece no
                         # snapshot municipal, entao ela e lida aqui.
                         if (eleicao, cargo) not in finalizados:

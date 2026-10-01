@@ -125,6 +125,19 @@ perto(primeiro.pct, 60.87, 0.01, 'pct do primeiro = 60,87% (o do TSE), não 155,
 ok(rr.vvc === rr.vv + rr.van + rr.vansj, 'hierarquia vvc = vv + van + vansj');
 ok(rr.tv === rr.vvc + rr.vb + rr.tvn + rr.vscv, 'hierarquia tv = vvc + vb + tvn + vscv');
 
+/* ------------------------------------------------------------ cor do mapa */
+
+/* A mesma regra pinta o SVG das páginas estaduais e o MapLibre da presidencial:
+   se ela quebrar, os dois mapas saem plausíveis e errados juntos. */
+console.log('\ncor do mapa — a tinta do líder, lavada pela margem');
+const tinta = APUUI.tinta(rr, dicionario);
+ok(!!tinta && tinta.cor === APU.cor(primeiro.partido), 'a cor é a do partido do líder',
+  tinta && tinta.cor);
+ok(!!tinta && tinta.op >= 0.42 && tinta.op <= 1, 'opacidade dentro da faixa 0,42–1',
+  tinta && String(tinta.op));
+ok(APUUI.tinta(null, dicionario) === null, 'sem boletim não há tinta');
+ok(APUUI.tinta({ ...rr, vv: 0 }, dicionario) === null, 'sem voto válido não há tinta');
+
 /* --------------------------------------------------- destinação e situação */
 
 console.log('\ndestinação do voto (art. 265 §2) e situação da totalização');
