@@ -10,9 +10,11 @@
                       coluna por partido ou federação, nome a nome. Lê
                       {ele}-{cargo}-lista-{uf}.json (coleta.py, lista_aberta).
 
-   As cadeiras de cada bloco são as que o TSE publica (`vag`). Quem as ocupa sai
-   da lista do bloco (APU.marcarLista): o que o TSE declarou vem sólido; a
-   leitura das vagas durante a contagem vem tracejada, e muda a cada boletim. O
+   As cadeiras de cada bloco são as que o TSE publica (`vag`) e, enquanto ele
+   não as distribui numa UF, as da conta do coletor pelas regras de 2026 (`cad`,
+   APU.blocos). Quem as ocupa sai da lista do bloco (APU.marcarLista): o que o
+   TSE declarou, e as vagas dele com 100% das seções totalizadas, vêm sólidos;
+   o resto é projeção, tracejada, e muda a cada boletim. O
    hemiciclo enche da esquerda para a direita pela régua de
    js/espectro-partidos.js; quadro e colunas, por cadeiras e depois votos.
 
@@ -50,6 +52,8 @@
     /* Quem estava dentro das vagas no boletim anterior, por cargo|uf: é o que
        acende quem acabou de entrar e quem acabou de sair. */
     dentroAntes: {},
+    /* Os blocos das colunas na tela, por chave: o balão de cada nome lê daqui. */
+    blocosDaLista: new Map(),
     completas: false,
     quadroAberto: false,
     geracao: 0,
@@ -217,9 +221,12 @@
 
     $('semDados').hidden = true;
     $('palco').hidden = false;
+    /* Pré-urna não tem seção nenhuma contada: "0 de 0 seções" diria menos que
+       o cabeçalho vazio. */
+    const preUrna = !!(leitura.meta && leitura.meta.pre);
     APUUI.selo(leitura.meta, leitura.cabecalho);
-    APUUI.progresso(leitura.cabecalho);
-    APUUI.avisos(leitura.cabecalho, 'avisos');
+    APUUI.progresso(preUrna ? null : leitura.cabecalho);
+    APUUI.avisos(preUrna ? null : leitura.cabecalho, 'avisos');
 
     const distribuidas = leitura.blocos.reduce((s, b) => s + b.vagas, 0);
     if (uf) {
@@ -263,21 +270,51 @@
     });
 
     const falta = leitura.total - distribuidas;
+    /* Toda cadeira que ainda não é firme é projeção, e a tela diz isso com todas
+       as letras: o título, o quadro e esta legenda. Projeção do TSE (o `vag` que
+       ele refaz a cada totalização) ou, onde ele ainda não distribuiu as vagas,
+       do ElectoMaps (`estimadas`). Firme, só o que o TSE já distribuiu: com 100%
+       das seções totalizadas, ou com o eleito declarado. */
+    const estimadas = leitura.blocos.reduce((s, b) => s + (b.estimadas || 0), 0);
+    const firmes = leitura.blocos.reduce((s, b) => s + Math.min(b.vagas, b.declaradas || 0), 0);
+    const projetadas = distribuidas - firmes;
+    const conta = estimadas >= projetadas ? 'na conta do ElectoMaps'
+      : 'na conta que o TSE refaz a cada totalização'
+        + (estimadas ? ' ou, onde ele ainda não distribuiu as vagas, na do ElectoMaps' : '');
+    const aviso = !projetadas ? ''
+      : (projetadas === distribuidas ? 'Projeção'
+        : `${APU.fmt.int(projetadas)} das ${APU.fmt.int(distribuidas)} cadeiras são projeção`)
+        + `: as vagas que cada partido teria se a apuração parasse neste boletim, ${conta},`
+        + ' pelas regras em vigor: 10% do QE no quociente partidário, 80/20 nas sobras e 3ª fase'
+        + ' aberta a todos os partidos (STF). Muda a cada boletim. Não é o resultado: quem'
+        + ' distribui as vagas e declara os eleitos é o TSE, com 100% das urnas apuradas.'
+        + (firmes ? ' As cadeiras sólidas são as que o TSE já distribuiu.' : '');
+    $('rotuloHemi').hidden = !projetadas;
+    $('rotuloHemi').textContent = estimadas >= projetadas ? 'Projeção ElectoMaps' : 'Projeção';
+    $('avisoQuadro').textContent = aviso;
+    $('avisoQuadro').hidden = !(semHemiciclo && aviso);
     $('hemicicloLegenda').textContent = [
+      leitura.meta && leitura.meta.pre
+        ? 'Antes da primeira urna: os partidos e as candidaturas registrados no TSE, em ordem'
+          + ' alfabética, com 0 voto.' : '',
+      aviso,
       falta > 0
         ? (distribuidas
-          ? `${APU.fmt.int(distribuidas)} de ${APU.fmt.int(leitura.total)} cadeiras distribuídas pelo TSE até aqui.`
+          ? `${APU.fmt.int(distribuidas)} de ${APU.fmt.int(leitura.total)} cadeiras distribuídas até aqui.`
           : 'As cadeiras se enchem conforme o TSE distribui as vagas a cada totalização.')
         : ''
     ].filter(Boolean).join(' ');
 
+    /* Sem voto nenhum ainda (pré-urna, primeiro boletim), todos os partidos
+       entram — sem cadeira e sem voto, em ordem alfabética (APU.porCadeiras). */
+    const semVoto = !leitura.blocos.some((b) => b.votos > 0);
     const ordenados = leitura.blocos.slice().sort(APU.porCadeiras)
-      .filter((b) => b.vagas > 0 || b.votos > 0);
+      .filter((b) => semVoto || b.vagas > 0 || b.votos > 0);
     const mostrar = estado.quadroAberto ? ordenados : ordenados.slice(0, QUADRO);
-    $('rotuloQuadro').textContent = 'Cadeiras por partido';
+    $('rotuloQuadro').textContent = projetadas ? 'Cadeiras por partido · projeção' : 'Cadeiras por partido';
     $('quadro').innerHTML = mostrar.map((b) => {
       const sub = b.federacao ? `<small>${esc(b.siglas.join(' · '))}</small>` : '';
-      return `<tr class="${b.vagas ? '' : 'is-sem'}${uf ? ' is-click' : ''}" data-chave="${esc(b.chave)}">
+      return `<tr class="${b.vagas || semVoto ? '' : 'is-sem'}${uf ? ' is-click' : ''}" data-chave="${esc(b.chave)}">
         <td><span class="apu-lead-cell"><span class="apu-swatch" style="background:${b.cor}"></span>
           <span class="apu-dep-tab-nome">${esc(b.rotulo)}${sub}</span></span></td>
         <td class="num apu-dep-tab-cad">${APU.fmt.int(b.vagas)}</td>
@@ -342,21 +379,22 @@
     if (mudou === 'entrou') classes.push('is-entrou');
     if (mudou === 'saiu') classes.push('is-saiu');
 
-    const situacao = c.situacao || (c.dentro ? 'Dentro das vagas do partido neste boletim' : '');
-    const titulo = `${c.urna}${b.federacao ? ' (' + c.partido + ')' : ''} — ${APU.fmt.int(c.votos)} votos`
-      + (situacao ? ' — ' + situacao : '') + (c.semVaga ? ' — voto ' + c.destino.toLowerCase() : '');
     const marca = c.dentro
       ? `<span class="apu-li-marca${c.oficial ? '' : ' is-previsto'}">${APUUI.icone('tique', 10)}</span>`
       : '<span class="apu-li-marca is-vazia"></span>';
     /* Nome numa linha, e embaixo, miúdos, o partido (só na federação, onde ele
-       varia) e os votos: numa linha só, o nome não cabia na coluna. */
-    return `<li class="${classes.join(' ')}" data-flip="r:${esc(c.sq)}" title="${esc(titulo)}">`
+       varia) e os votos: numa linha só, o nome não cabia na coluna. A situação
+       (eleito por QP, por média, suplente, projeção) vem no balão do site, ao
+       passar o mouse — sem `title`, que o navegador desenharia no estilo do
+       sistema —, e por escrito para o leitor de tela. */
+    return `<li class="${classes.join(' ')}" data-flip="r:${esc(c.sq)}" data-sq="${esc(c.sq)}">`
       + `<span class="apu-li-pos">${c.pos}.</span>`
       + '<span class="apu-li-txt">'
       + `<span class="apu-li-nome">${esc(c.urna || c.numero)}</span>`
       + '<span class="apu-li-meta">'
       + (b.federacao ? `<span class="apu-li-part">${esc(c.partido)}</span>` : '')
       + `${APU.fmt.int(c.votos)} ${c.votos === 1 ? 'voto' : 'votos'}</span>`
+      + `<span class="sr-only">${esc(APUUI.situacaoDoCandidato(b, c))}</span>`
       + '</span>'
       + marca
       + '</li>';
@@ -386,7 +424,8 @@
       + '</header>'
       + '<div class="apu-col-placar">'
       + `<strong class="apu-col-n">${APU.fmt.int(b.vagas)}</strong>`
-      + `<span class="apu-col-rot">${b.vagas === 1 ? 'cadeira' : 'cadeiras'}</span>`
+      + `<span class="apu-col-rot">${b.vagas === 1 ? 'cadeira' : 'cadeiras'}`
+      + `${b.vagas > (b.declaradas || 0) ? ' na projeção' : ''}</span>`
       + `<span class="apu-col-votos">${APU.fmt.int(b.votos)} votos · ${APU.fmt.pct(b.pct)}</span>`
       + '</div>'
       + `<ol class="apu-col-lista">${mostrar.map((c, i) => linha(b, c, i, ocupadas, mudou(c))).join('')}</ol>`
@@ -458,19 +497,24 @@
       $('colunas').innerHTML = ordenados.map((b) => coluna(b, limite, antes, agora)).join('');
     });
     estado.dentroAntes[k] = agora;
+    estado.blocosDaLista = new Map(ordenados.map((b) => [b.chave, b]));
 
     const algumOficial = ordenados.some((b) => b.cand.some((c) => c.dentro && c.oficial));
     const algumPrevisto = ordenados.some((b) => b.cand.some((c) => c.dentro && !c.oficial));
     $('legendaListas').innerHTML = [
       algumOficial ? `<span class="apu-legenda-item"><span class="apu-li-marca">${APUUI.icone('tique', 10)}</span>`
-        + '<span class="apu-legenda-txt">eleito, declarado pelo TSE</span></span>' : '',
+        + '<span class="apu-legenda-txt">eleito pelo TSE: declarado, ou na vaga que ele distribuiu com'
+        + ' 100% das urnas apuradas</span></span>' : '',
       algumPrevisto ? `<span class="apu-legenda-item"><span class="apu-li-marca is-previsto">${APUUI.icone('tique', 10)}</span>`
-        + '<span class="apu-legenda-txt">dentro das vagas que o TSE dá ao partido neste boletim; '
-        + 'muda conforme a contagem avança</span></span>' : '',
-      '<span class="apu-legenda-item"><span class="apu-legenda-corte"></span>'
-        + '<span class="apu-legenda-txt">linha de corte: logo abaixo, quem entra se o partido ganhar mais uma vaga</span></span>'
+        + '<span class="apu-legenda-txt">dentro das vagas na projeção deste boletim, na conta '
+        + (ordenados.some((b) => b.estimadas > 0) ? 'do ElectoMaps' : 'do TSE')
+        + '; muda conforme a contagem avança, e quem distribui os eleitos é o TSE, com 100% das urnas'
+        + ' apuradas</span></span>' : '',
+      /* Sem ninguém nas vagas (pré-urna) não há linha de corte a explicar. */
+      algumOficial || algumPrevisto ? '<span class="apu-legenda-item"><span class="apu-legenda-corte"></span>'
+        + '<span class="apu-legenda-txt">linha de corte: logo abaixo, quem entra se o partido ganhar mais uma vaga</span></span>' : ''
     ].filter(Boolean).join('');
-    $('legendaListas').hidden = false;
+    $('legendaListas').hidden = !$('legendaListas').innerHTML;
 
     $('verListas').innerHTML = estado.completas
       ? APUUI.icone('menos', 13) + ' Mostrar só o começo das listas'
@@ -545,6 +589,8 @@
         + '</div></a>';
     }).join('');
     $('notaEstados').textContent = (estado.cargo === '0007' ? 'O DF elege a Câmara Legislativa. ' : '')
+      + (leitura.blocos.some((b) => b.vagas > (b.declaradas || 0))
+        ? 'Em tom claro, projeção; sólidas, as vagas que o TSE já distribuiu. ' : '')
       + 'Clique num estado para ver as listas, nome a nome';
   }
 
@@ -556,12 +602,19 @@
     const cargo = cargoEfetivo();
     let pedidos;
     if (uf) {
-      pedidos = [[cargo + '|' + uf, APU.snapshot('lista-' + uf, cargo)]];
+      pedidos = [[cargo + '|' + uf, 'lista-' + uf, cargo]];
     } else {
-      pedidos = [[estado.cargo + '|', APU.snapshot('uf', estado.cargo)]];
-      if (estado.cargo === '0007') pedidos.push(['0008|', APU.snapshot('uf', '0008')]);
+      pedidos = [[estado.cargo + '|', 'uf', estado.cargo]];
+      if (estado.cargo === '0007') pedidos.push(['0008|', 'uf', '0008']);
     }
-    const respostas = await Promise.all(pedidos.map(([, p]) => p));
+    const respostas = await Promise.all(pedidos.map(async ([k, nome, c]) => {
+      const r = await APU.snapshot(nome, c);
+      /* Antes do primeiro boletim do TSE, o que está registrado no
+         DivulgaCandContas (APU.preUrna): partidos e listas com 0 voto. Boletim de
+         verdade, quando chega, substitui, e a página não volta atrás. */
+      const vivo = estado.dados[k] && !(estado.dados[k].meta || {}).pre;
+      return r || (vivo ? null : APU.preUrna(nome, c));
+    }));
     /* O leitor pode ter trocado de estado enquanto a rede respondia: a resposta
        velha não pinta por cima da tela nova. */
     if (geracao !== estado.geracao) return;
@@ -622,6 +675,16 @@
     $('setaEsq').onclick = () => rolar(-1);
     $('setaDir').onclick = () => rolar(1);
     $('colunas').addEventListener('scroll', setas, { passive: true });
+    /* Balão de cada nome da lista: o mesmo do hemiciclo, no estilo do site. */
+    const tip = APUUI.balao();
+    $('colunas').addEventListener('mousemove', (ev) => {
+      const li = ev.target.closest('.apu-li');
+      const b = li && estado.blocosDaLista.get(li.closest('.apu-col').dataset.chave);
+      const c = b && b.cand.find((x) => x.sq === li.dataset.sq);
+      if (c) tip.mostrar(APUUI.balaoDoCandidato(b, c), ev);
+      else tip.esconder();
+    });
+    $('colunas').addEventListener('mouseleave', () => tip.esconder());
     window.addEventListener('resize', setas);
     window.addEventListener('popstate', () => {
       const [cargo, uf] = [estado.cargo, estado.uf];

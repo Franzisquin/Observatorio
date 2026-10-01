@@ -423,16 +423,25 @@ const registro = {
   e: { urna: 'NEGADA', partido: 'X', uf: 'MG', situacao: 'Indeferido' },
   f: { urna: 'DESISTIU', partido: 'X', uf: 'MG', situacao: 'Renúncia' },
   g: { urna: 'SEM SITUACAO', partido: 'X', uf: 'MG', situacao: '' },
-  h: { urna: 'DE OUTRA UF', partido: 'X', uf: 'SP', situacao: 'Deferido' }
+  h: { urna: 'DE OUTRA UF', partido: 'X', uf: 'SP', situacao: 'Deferido' },
+  i: { urna: 'CANCELADA', partido: 'X', uf: 'MG', situacao: 'Cancelado' },
+  j: { urna: 'FALECEU', partido: 'X', uf: 'MG', situacao: 'Falecimento' },
+  k: { urna: 'NAO CONHECIDO', partido: 'X', uf: 'MG', situacao: 'Pedido não conhecido' },
+  l: { urna: 'NAO CONHECIDO RECORRE', partido: 'X', uf: 'MG',
+    situacao: 'Pedido não conhecido em prazo recursal ou com recurso' }
 };
 const naTela = new Set(APU.rankingZerado(registro, 'mg').map((c) => c.chave));
-ok(naTela.has('d'), 'indeferido sub judice CONTINUA na lista — está na urna');
-ok(!naTela.has('e'), 'indeferido com decisão firme sai da lista');
-ok(!naTela.has('f'), 'renúncia sai da lista');
+ok(naTela.has('d') && naTela.has('l'), 'quem ainda recorre CONTINUA na lista — está na urna');
+ok(!naTela.has('e') && !naTela.has('k'), 'indeferido e pedido não conhecido com decisão firme saem');
+ok(!naTela.has('f') && !naTela.has('i') && !naTela.has('j'), 'renúncia, cancelamento e falecimento saem');
 ok(naTela.has('a') && naTela.has('b') && naTela.has('c'), 'deferido e pendente ficam');
 ok(naTela.has('g'), 'situação vazia não é motivo para sumir com o candidato');
 ok(!naTela.has('h'), 'o filtro de UF segue valendo');
-ok(naTela.size === 5, 'nada além disso entrou', [...naTela].join(','));
+ok(naTela.size === 6, 'nada além disso entrou', [...naTela].join(','));
+ok(APU.nomeProprio('FERNANDO FERREIRA (GÊMEOS)') === 'Fernando Ferreira (Gêmeos)'
+  && APU.nomeProprio("JOÃO D'ÁVILA DA SILVA") === "João D'Ávila da Silva",
+  'nome: maiúscula depois de parêntese e de apóstrofo, partícula em minúscula',
+  APU.nomeProprio('FERNANDO FERREIRA (GÊMEOS)'));
 
 /* ------------------------------------------------------ deputados: vagas */
 
@@ -509,6 +518,49 @@ const somados = APU.somarBlocos({ sp: bl, rj: APU.blocos(agremTeste.slice(0, 1),
 const feNacional = somados.find((b) => b.chave === 'F:FE BRASIL');
 ok(feNacional.vagas === 6 && feNacional.porUF.length === 2,
   'a federação soma as bancadas das UFs pela mesma chave');
+
+/* As federações de 2026, como o DivulgaCandContas as escreve: nome limpo, cor e
+   lugar no hemiciclo da cabeça (União; PRD). */
+const fed2026 = APU.blocos([
+  { nm: 'FEDERAÇÃO UNIÃO PROGRESSISTA(44-UNIÃO/11-PP)', com: 'UNIÃO/PP', tp: 'f', fed: 'UNIÃO PROGRESSISTA',
+    vag: 0, v: 10, par: [{ sg: 'UNIÃO', vtn: 6 }, { sg: 'PP', vtn: 4 }] },
+  { nm: 'FEDERAÇÃO RENOVAÇÃO SOLIDÁRIA', com: 'PRD/SOLIDARIEDADE', tp: 'f', fed: 'RENOVAÇÃO SOLIDÁRIA',
+    vag: 0, v: 10, par: [{ sg: 'PRD', vtn: 5 }, { sg: 'SOLIDARIEDADE', vtn: 5 }] }
+], { vv: 20 });
+ok(fed2026.map((b) => b.rotulo).join(' | ') === 'União Progressista | Renovação Solidária',
+  'federações de 2026: nome sem "Federação" e sem a composição', fed2026.map((b) => b.rotulo).join(' | '));
+ok(fed2026[0].cor === APU.cor('UNIÃO') && fed2026[1].cor === APU.cor('PRD'),
+  'federações de 2026: cor da cabeça');
+ok(fed2026[0].espectro === 30 && fed2026[1].espectro === 33
+  && contexto.window.getPartySpectrumRank('FEDERAÇÃO UNIÃO PROGRESSISTA', 2026) === 30
+  && contexto.window.getPartySpectrumRank('FEDERAÇÃO RENOVAÇÃO SOLIDÁRIA', 2026) === 33,
+  'federações de 2026: lugar da cabeça na régua, também pelo nome',
+  `${fed2026[0].espectro}/${fed2026[1].espectro}`);
+
+/* `cad` é a conta do coletor pelas regras de 2026: só vale enquanto o TSE não
+   distribuiu vaga nenhuma na UF, e sai marcada como estimada. */
+const comCad = agremTeste.map((a, i) => ({ ...a, cad: [2, 2, 3, 0][i] }));
+ok(APU.blocos(comCad, { vv: 750 }).every((b) => b.estimadas === 0)
+  && APU.blocos(comCad, { vv: 750 })[0].vagas === 3, 'com vaga do TSE, o cad é ignorado');
+const semTSE = APU.blocos(comCad.map((a) => ({ ...a, vag: 0 })), { vv: 750 });
+ok(semTSE.map((b) => b.vagas).join() === '2,2,3,0' && semTSE[0].estimadas === 2,
+  'sem vaga do TSE, valem as do cad, marcadas como estimadas',
+  semTSE.map((b) => b.vagas + '/' + b.estimadas).join());
+ok(APU.somarBlocos({ sp: semTSE, rj: bl }).find((b) => b.chave === 'F:FE BRASIL').estimadas === 2,
+  'a soma do país conta quantas cadeiras são estimadas');
+
+/* 100% das seções totalizadas: as vagas do TSE ficam firmes (sólidas) antes da
+   totalização final; a conta do coletor, nunca. */
+const cheia = { vv: 750, ts: 10, st: 10 };
+ok(APU.blocos(agremTeste, { ...cheia, st: 9 }).every((b) => b.declaradas === 0),
+  'com seção por totalizar, nenhuma cadeira é firme');
+ok(APU.blocos(agremTeste, cheia).every((b) => b.declaradas === b.vagas),
+  'com 100% totalizado, as vagas do TSE ficam firmes');
+ok(APU.blocos(comCad.map((a) => ({ ...a, vag: 0 })), cheia).every((b) => b.declaradas === 0),
+  'com 100% totalizado, a conta do coletor continua projeção');
+ml = APU.marcarLista(lista3(), 2, true);
+ok(ml[0].dentro && ml[0].oficial && ml[2].dentro && ml[2].oficial && !ml[1].dentro,
+  'com 100% totalizado, quem está nas vagas do TSE fica firme — e o sub judice segue fora');
 
 /* Snapshot de verdade do simulado do TSE, quando houver: as vagas somam as do
    cargo e todo bloco sai com nome e cor. */

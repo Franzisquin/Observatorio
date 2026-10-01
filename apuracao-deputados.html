@@ -33,7 +33,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20260930o" />
+  <link rel="stylesheet" href="apuracao.css?v=20261001d" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -120,6 +120,8 @@
            (js/espectro-partidos.js); o quadro ao lado lê por cadeiras. -->
       <section class="apu-dep-palco" id="palco" hidden>
         <figure class="apu-dep-hemi">
+          <!-- Só quando as cadeiras são a conta do coletor (`cad`), e não as do TSE. -->
+          <h2 class="apu-dock-rot" id="rotuloHemi" hidden>Projeção ElectoMaps</h2>
           <svg class="apu-hemi" id="hemiciclo" viewBox="0 65 600 305" preserveAspectRatio="xMidYMin meet"
             role="img" aria-labelledby="hemicicloLegenda"></svg>
           <figcaption class="apu-progress-lab" id="hemicicloLegenda"></figcaption>
@@ -141,6 +143,8 @@
             </table>
           </div>
           <button class="apu-more" id="verQuadro" type="button" hidden></button>
+          <!-- O aviso da projeção, quando não há hemiciclo para levá-lo (Assembleias somadas). -->
+          <p class="apu-proj-aviso" id="avisoQuadro" hidden></p>
         </div>
       </section>
     </div>
@@ -201,10 +205,10 @@
     </div>
   </footer>
 
-  <script src="js/espectro-partidos.js?v=20260930a"></script>
-  <script src="js/apuracao-dados.js?v=20260930c"></script>
-  <script src="js/apuracao-ui.js?v=20260930h"></script>
-  <script src="js/apuracao-deputados.js?v=20260930j"></script>
+  <script src="js/espectro-partidos.js?v=20261001a"></script>
+  <script src="js/apuracao-dados.js?v=20261001e"></script>
+  <script src="js/apuracao-ui.js?v=20261001e"></script>
+  <script src="js/apuracao-deputados.js?v=20261001g"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

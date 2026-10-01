@@ -34,9 +34,10 @@ vagas finais e a situacao final de cada candidato. O QUE E ENSAIO: o caminho.
 Cada zona eleitoral de cada municipio "chega" num instante proprio — cidade
 pequena cedo, capital no fim, como na noite real —, e a mesma zona chega na
 mesma hora em todos os cargos. Secoes e eleitorado sao estimados do voto (o
-acervo nao os guarda por local), e a vaga parcial de deputado sai de uma conta
-de quociente e sobras feita aqui; na noite real ela e o `vag` do TSE. Tudo sai
-com fase "s": as paginas mostram o selo SIMULADO.
+acervo nao os guarda por local). As vagas de deputado (`vag`), que o TSE refaz a
+cada totalizacao, saem de cadeiras.py, com as regras de 2026; na totalizacao
+final ficam os eleitos de 2022, antes da retotalizacao do STF. Tudo sai com fase
+"s": as paginas mostram o selo SIMULADO.
 """
 
 from __future__ import annotations
@@ -51,6 +52,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from cadeiras import distribuir, quociente_eleitoral  # noqa: E402
 from coleta import escrever  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
@@ -236,7 +238,7 @@ def entrada(casa: Casa, votos: Counter, st: int, ts: int, te: int, te_fechado: i
                   "esa": te_fechado, "esna": 0, "vnom": s["vnom"], "vl": s["vl"],
                   "van": s["van"], "vansj": 0, "tvn": s["vn"], "vnt": 0, "vscv": 0, "vsan": 0})
         if casa.cargo in PROPORCIONAIS and casa.nv:
-            e["qe"] = round(s["vv"] / casa.nv) if s["vv"] else 0
+            e["qe"] = quociente_eleitoral(s["vv"], casa.nv)
     return e
 
 
@@ -334,30 +336,15 @@ def blocos(casa: Casa, votos: Counter, final: bool) -> list[dict]:
                       **({"fed": g["fed"], "fedcom": g["fedcom"]} if g.get("fed") else {}),
                       "par": par, "cand": g["cand"], "_eleitos": g["eleitos"]})
 
-    if final:
-        for b in saida:
-            b["vag"] = b["_eleitos"]
-    else:
-        for b, vag in zip(saida, vagas_parciais([b["v"] for b in saida], casa.nv)):
-            b["vag"] = vag
-    for b in saida:
+    # Como o TSE (EA20: `vag` "pode ter seu valor atualizado a cada
+    # totalizacao"), a vaga parcial sai a cada boletim, pelas regras de 2026; na
+    # totalizacao final ficam os eleitos de 2022. `cad` e a conta do coletor.
+    filas = [[c["v"] for c in b["cand"] if "dvt" not in c] for b in saida]
+    for b, n in zip(saida, distribuir([b["v"] for b in saida], filas, casa.nv)):
+        b["cad"] = n
+        b["vag"] = b["_eleitos"] if final else n
         del b["_eleitos"]
     return sorted(saida, key=lambda b: -b["v"])
-
-
-def vagas_parciais(votos: list[int], nv: int) -> list[int]:
-    """Quociente e sobras sobre o voto parcial. So para o ensaio: na noite
-    de verdade a vaga e o `vag` publicado pelo TSE."""
-    total = sum(votos)
-    if total <= 0 or nv <= 0:
-        return [0] * len(votos)
-    qe = total / nv
-    vagas = [int(v // qe) if v >= qe else 0 for v in votos]
-    aptos = [i for i, v in enumerate(votos) if v >= 0.8 * qe] or list(range(len(votos)))
-    while sum(vagas) < nv:
-        melhor = max(aptos, key=lambda i: votos[i] / (vagas[i] + 1))
-        vagas[melhor] += 1
-    return vagas
 
 
 # -------------------------------------------------------------------- quadro

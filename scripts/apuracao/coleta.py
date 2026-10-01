@@ -27,6 +27,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from cadeiras import distribuir  # noqa: E402
 from tse import (BASE, CARGOS, CARGOS_COM_BR, CARGOS_COM_ELEITOS,  # noqa: E402
                  CARGOS_COM_UF, CARGOS_PROPORCIONAIS, SIM_2026, TIPOS_ELEICAO,
                  TIPOS_ORDINARIAS, Cliente, ciclo_de, descobrir_ambiente, e6,
@@ -287,6 +288,12 @@ def partidos(payload: dict) -> dict[str, int]:
     return total
 
 
+def disputa_vaga(c: dict) -> bool:
+    """dvt: Valido, Valido (legenda), Anulado, Anulado sub judice. So o primeiro
+    concorre a cadeira; os outros sao voto que nao elege o proprio candidato."""
+    return texto(c.get("dvt")).lower() in ("", "valido", "válido")
+
+
 def lista_aberta(partes: list[dict]) -> list[dict]:
     """Os candidatos de uma agremiacao, do mais ao menos votado.
 
@@ -312,12 +319,9 @@ def lista_aberta(partes: list[dict]) -> list[dict]:
                 item["e"] = "s"
             if texto(c.get("st")):
                 item["st"] = texto(c.get("st"))
-            # dvt: Valido, Valido (legenda), Anulado, Anulado sub judice. So o
-            # primeiro concorre a cadeira; os outros sao voto que nao elege o
-            # proprio candidato, e a pagina precisa saber para pula-lo.
-            destino = texto(c.get("dvt"))
-            if destino and destino.lower() not in ("valido", "válido"):
-                item["dvt"] = destino
+            # A pagina precisa saber quem nao concorre, para pula-lo.
+            if not disputa_vaga(c):
+                item["dvt"] = texto(c.get("dvt"))
             if inteiro(c.get("seq")):
                 item["seq"] = inteiro(c.get("seq"))
             lista.append(item)
@@ -331,19 +335,27 @@ def agremiacoes(payload: dict, com_candidatos: bool = False) -> list[dict]:
     partir do quociente. Ficam na agremiacao, nao no partido — numa federacao a
     cadeira e do bloco, e reparti-la entre os partidos seria inventar dado.
 
+    `cad` e a conta do ElectoMaps sobre o mesmo boletim, pelas regras de 2026
+    (cadeiras.py: 10% do QE no quociente, 80/20 nas sobras, 3a fase aberta pelo
+    STF). Nao substitui o `vag`: a pagina so a usa enquanto o TSE nao distribui
+    as vagas da UF, e diz de quem e a conta.
+
     `com_candidatos` acrescenta a lista aberta de cada uma (lista_aberta). Vai
     no arquivo de lista de UMA UF; no arquivo das 27 juntas, nao.
     """
     saida = []
     for cargo in payload.get("carg", []):
         federacoes = {str(f.get("n")): f for f in cargo.get("fed", [])}
+        do_cargo, filas = [], []
         for agremiacao in cargo.get("agr", []):
             partes = agremiacao.get("par", [])
             nominais = sum(inteiro(p.get("tvtn")) for p in partes)
             legenda = sum(inteiro(p.get("tvtl")) for p in partes)
             fed = next((federacoes[str(p.get("nfed"))] for p in partes
                         if str(p.get("nfed") or "") in federacoes), None)
-            saida.append({
+            filas.append(sorted((inteiro(c.get("vap")) for p in partes
+                                 for c in p.get("cand", []) if disputa_vaga(c)), reverse=True))
+            do_cargo.append({
                 "nm": texto(agremiacao.get("nm")),
                 "com": texto(agremiacao.get("com")) or texto(agremiacao.get("nm")),
                 "tp": agremiacao.get("tp", "i"),
@@ -366,6 +378,10 @@ def agremiacoes(payload: dict, com_candidatos: bool = False) -> list[dict]:
                         for p in partes if texto(p.get("sg"))],
                 **({"cand": lista_aberta(partes)} if com_candidatos else {}),
             })
+        cad = distribuir([a["v"] for a in do_cargo], filas, inteiro(cargo.get("nv")))
+        for a, n in zip(do_cargo, cad):
+            a["cad"] = n
+        saida += do_cargo
     return sorted(saida, key=lambda a: -a["v"])
 
 

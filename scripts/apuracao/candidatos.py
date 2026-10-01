@@ -5,6 +5,10 @@ O que produz, em resultados_geo/candidatos_2026/:
     cargo-000N.json            {sq: {sq, urna, nome, numero, partido, situacao,
                                      coligacao, uf, cargo, foto}}
     fotos/{sqCandidato}.jpg    foto oficial de urna
+    deputados/000N-uf.json     deputados (6, 7, 8): os blocos de cada UF e as
+    deputados/000N-lista-{uf}.json   listas, no desenho dos snapshots do coletor
+                               e com 0 voto — o que a pagina de deputados mostra
+                               antes do primeiro boletim do TSE
 
 E o arquivo que js/apuracao-dados.js le para a pagina existir antes da primeira
 urna. Rode de novo sempre que a Justica Eleitoral mexer no registro: candidatura
@@ -89,6 +93,21 @@ CARGOS = {1: "Presidente", 3: "Governador", 5: "Senador",
 
 UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT",
        "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"]
+
+PROPORCIONAIS = {6, 7, 8}
+
+# Vagas de deputado federal por UF: as de 2022 (LC 78/1993), que valem ate o
+# TSE mandar o `nv` da eleicao no EA20. As UFs fora daqui tem 8. A Assembleia (e
+# a Camara Legislativa) sai do art. 27 da Constituicao: o triplo ate 36, e dai
+# mais uma por deputado federal acima de 12.
+VAGAS_FEDERAIS = {"SP": 70, "MG": 53, "RJ": 46, "BA": 39, "RS": 31, "PR": 30, "PE": 25,
+                  "CE": 22, "MA": 18, "GO": 17, "PA": 17, "SC": 16, "PB": 12, "ES": 10,
+                  "PI": 10, "AL": 9}
+
+
+def vagas(cargo: int, uf: str) -> int:
+    f = VAGAS_FEDERAIS.get(uf, 8)
+    return f if cargo == 6 else (3 * f if f <= 12 else f + 24)
 
 
 class Limitador:
@@ -241,6 +260,11 @@ def coletar(cargos: list[int], com_fotos: bool, destino: Path,
             print(f"  ! {CARGOS.get(cargo, cargo)}: nenhum candidato, arquivo "
                   f"preservado.", file=sys.stderr)
             continue
+        if cargo in PROPORCIONAIS:
+            # Deputado nao tem cargo-000N.json: 2 MB que a pagina nunca le. Ela
+            # le os arquivos por UF, com os blocos e as listas.
+            preurna(cargo, do_cargo, destino)
+            continue
 
         alvo = destino / f"cargo-{cargo:04d}.json"
         antigo = json.loads(alvo.read_text(encoding="utf-8")) if alvo.exists() else {}
@@ -256,9 +280,63 @@ def coletar(cargos: list[int], com_fotos: bool, destino: Path,
 
 
 # Quem o front tira da tela antes da primeira urna, e para quem, portanto, nao
-# vale a pena guardar foto. Espelha FORA_DA_DISPUTA de js/apuracao-dados.js; se
-# a regra de la mudar, o pior que acontece aqui e sobrar um jpg que ninguem pede.
-FORA_DA_DISPUTA = re.compile(r"^(Ren[uú]ncia|Indeferido)\s*$", re.IGNORECASE)
+# vale a pena guardar foto: so a situacao definitiva. Quem ainda recorre esta na
+# urna e fica. Espelha FORA_DA_DISPUTA de js/apuracao-dados.js; se a regra de la
+# mudar, o pior que acontece aqui e sobrar um jpg que ninguem pede.
+FORA_DA_DISPUTA = re.compile(
+    r"^(Ren[uú]ncia|Indeferido|Cancelado|Falecimento|Pedido n[aã]o conhecido)\s*$", re.IGNORECASE)
+
+
+def bloco(coligacao: str, partido: str) -> dict:
+    """A agremiacao do candidato, no desenho de coleta.agremiacoes(), a partir
+    do nomeColigacao: "FEDERAÇÃO PSOL REDE(50-PSOL/18-REDE)" ou so a sigla."""
+    m = re.match(r"^(FEDERA\S+\s.*?)\s*\(([^()]*)\)\s*$", coligacao or "", re.IGNORECASE)
+    if not m:
+        return {"nm": partido, "com": partido, "tp": "i", "par": [partido]}
+    nm = m.group(1).strip()
+    siglas = [re.sub(r"^\d+\s*-\s*", "", s).strip() for s in m.group(2).split("/")]
+    fed = (nm.rsplit(" - ", 1)[-1] if " - " in nm
+           else re.sub(r"^FEDERA\S+\s+", "", nm, flags=re.IGNORECASE))
+    return {"nm": nm, "com": "/".join(siglas), "tp": "f", "fed": fed, "par": siglas}
+
+
+def preurna(cargo: int, candidatos: dict[str, dict], destino: Path) -> None:
+    """O que a pagina de deputados mostra antes do primeiro boletim do TSE: os
+    blocos de cada UF e as listas, no mesmo desenho dos snapshots do coletor
+    ({ele}-{cargo}-uf.json e -lista-{uf}.json), com 0 voto. A ordem alfabetica
+    sai da propria pagina, que ordena por voto e desempata pelo nome."""
+    pasta = destino / "deputados"
+    pasta.mkdir(parents=True, exist_ok=True)
+    por_uf: dict[str, dict[str, dict]] = {}
+    for c in candidatos.values():
+        if FORA_DA_DISPUTA.match(c.get("situacao") or ""):
+            continue
+        b = bloco(c.get("coligacao"), c["partido"])
+        alvo = por_uf.setdefault(c["uf"], {}).setdefault(b["nm"], {**b, "cand": []})
+        alvo["cand"].append({"sq": c["sq"], "n": c["numero"], "urna": c["urna"],
+                             "partido": c["partido"], "v": 0})
+
+    cod = f"{cargo:04d}"
+    meta = {"pre": "s", "cargo": cod, "fonte": "DivulgaCandContas",
+            "gerado": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    abr_uf, agrem_uf = {}, {}
+    for uf, blocos in sorted(por_uf.items()):
+        agrem = [{"nm": b["nm"], "com": b["com"], "tp": b["tp"],
+                  **({"fed": b["fed"]} if b["tp"] == "f" else {}),
+                  "vag": 0, "v": 0, "par": [{"sg": s, "vtn": 0, "vtl": 0} for s in b["par"]],
+                  "cand": b["cand"]} for b in blocos.values()]
+        abr = {"nv": vagas(cargo, uf), "and": "n", "tf": "n", "st": 0, "ts": 0, "pst": 0}
+        u = uf.lower()
+        (pasta / f"{cod}-lista-{u}.json").write_text(json.dumps(
+            {"meta": meta, "uf": u, "abr": abr, "agrem": agrem},
+            ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        abr_uf[u] = abr
+        agrem_uf[u] = [{k: v for k, v in a.items() if k != "cand"} for a in agrem]
+    (pasta / f"{cod}-uf.json").write_text(json.dumps(
+        {"meta": meta, "abr": abr_uf, "agrem": agrem_uf},
+        ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    na_lista = sum(len(b["cand"]) for blocos in por_uf.values() for b in blocos.values())
+    print(f"  pre-urna: {len(por_uf)} UFs, {na_lista} na disputa -> {pasta.name}/{cod}-*.json")
 
 
 def baixar_fotos(candidatos: dict[str, dict], id_eleicao: str, pasta: Path) -> None:
@@ -305,6 +383,16 @@ def autoteste() -> int:
     assert n["situacao"] == "Renuncia", "situacao e o campo que o front filtra"
     assert set(n) == {"sq", "urna", "nome", "numero", "partido", "situacao",
                       "coligacao", "uf", "cargo", "foto"}
+
+    fe = bloco("FEDERAÇÃO BRASIL DA ESPERANÇA - FE BRASIL(13-PT/65-PC do B/43-PV)", "PT")
+    assert fe == {"nm": "FEDERAÇÃO BRASIL DA ESPERANÇA - FE BRASIL", "com": "PT/PC do B/PV",
+                  "tp": "f", "fed": "FE BRASIL", "par": ["PT", "PC do B", "PV"]}, fe
+    assert bloco("FEDERAÇÃO UNIÃO PROGRESSISTA(44-UNIÃO/11-PP)", "PP")["fed"] == "UNIÃO PROGRESSISTA"
+    assert bloco("PODE", "PODE") == {"nm": "PODE", "com": "PODE", "tp": "i", "par": ["PODE"]}
+    assert sum(vagas(6, uf) for uf in UFS) == 513, "a Camara tem 513"
+    assert (vagas(7, "SP"), vagas(7, "PB"), vagas(7, "AC"), vagas(8, "DF")) == (94, 36, 24, 24)
+    assert FORA_DA_DISPUTA.match("Pedido não conhecido")
+    assert not FORA_DA_DISPUTA.match("Pedido não conhecido em prazo recursal ou com recurso")
 
     global candidatos_de
     original = candidatos_de
