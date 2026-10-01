@@ -16,11 +16,12 @@ municipios ainda sem urna e o resto dos que estao pela metade. Somado ao que ja
 foi apurado, sai o resultado final.
 
 A incerteza vem de simulacao: em cada cenario variam, dentro do que o dado
-permite, os coeficientes da regressao, o desvio de cada UF, o erro de cada
-municipio e o comparecimento do que falta. As faixas sao os percentis 2,5 e 97,5
-dos cenarios, e as chances sao a fracao dos cenarios em que a coisa acontece.
-Quanto alargar tudo isso (INFLACAO) saiu da reencenacao de 2022 em
-scripts/apuracao/testar_projecao.py.
+permite, os coeficientes da regressao, o desvio de cada regiao e de cada UF, o
+erro de cada municipio e o comparecimento do que falta — e um desvio do pais
+inteiro, que nenhum dado da noite mede (TAU_NAC). As faixas sao os percentis 2,5
+e 97,5 dos cenarios, e as chances sao a fracao dos cenarios em que a coisa
+acontece. Quanto alargar tudo isso (INFLACAO, TAU_NAC) saiu das reencenacoes de
+2022 em scripts/apuracao/testar_projecao.py.
 
 Nao altera numero nenhum do TSE: e uma estimativa publicada a parte, rotulada
 como tal na pagina, e deixa de ser mostrada quando o TSE declara o resultado.
@@ -91,6 +92,16 @@ REGIAO = {
 # Alarga a incerteza alem do que o proprio ajuste mede: o que chega tarde difere
 # do que chegou cedo de jeitos que a regressao nao ve. Valor da reencenacao.
 INFLACAO = 1.6
+
+# Desvio a priori (escala logit) do voto que falta no pais inteiro, o mesmo para
+# todas as UFs. Dentro de cada cidade a secao que chega tarde nao vota como a que
+# chegou cedo: no 2o turno de 2022, os primeiros 20% apurados de cada cidade
+# davam a Lula 0,85 ponto a menos que a cidade inteira, e a projecao ficou meio
+# ponto abaixo dele a noite toda. Nenhum dado da noite mede esse desvio antes de
+# a urna chegar, entao ele nao encolhe com a apuracao. Valor da noite real
+# (testar_projecao.py --real): o menor que poe o resultado dentro da faixa de 95%
+# em todos os 22 marcos; sem ele, so em 8.
+TAU_NAC = 0.05
 
 # Minimo para publicar; menos que isso, qualquer numero seria chute.
 PCT_MIN = 5.0
@@ -289,9 +300,10 @@ def projetar(unidades: list[dict], base: dict, cenarios: int = CENARIOS,
         base_uf[g] = V[g_de == g].sum(axis=0)
     final_uf = np.zeros((cenarios, G, K))
 
-    def sortear(aj, S):
+    def sortear(aj, S, tau_nac=0.0):
         """Preditor linear das unidades vivas em S cenarios: coeficientes, desvio
-        da regiao (o mesmo para todas as UFs dela), da UF e de cada municipio."""
+        do pais (`tau_nac`), da regiao (o mesmo para todas as UFs dela), da UF e
+        de cada municipio."""
         b, cov, ur, ur_sd, ug, ug_sd, sig = aj
         try:
             C = np.linalg.cholesky(cov + np.eye(len(b)) * 1e-10)
@@ -302,13 +314,15 @@ def projetar(unidades: list[dict], base: dict, cenarios: int = CENARIOS,
         uk = ug[None, :] + inflacao * rng.standard_normal((S, G)) * ug_sd[None, :] + rk[:, r_de_g]
         eta = (bk @ Xv.T + uk[:, gv]).astype(np.float32)
         eta += (inflacao * sig) * rng.standard_normal((S, len(vivos))).astype(np.float32)
+        if tau_nac:
+            eta += (inflacao * tau_nac) * rng.standard_normal((S, 1)).astype(np.float32)
         return eta
 
     for ini in range(0, cenarios, BLOCO):
         S = min(BLOCO, cenarios - ini)
         eta = np.empty((S, len(vivos), K), dtype=np.float32)
         for k, aj in enumerate(ajuste):
-            eta[:, :, k] = sortear(aj, S)
+            eta[:, :, k] = sortear(aj, S, TAU_NAC)
         p = expit(eta)
         p /= p.sum(axis=2, keepdims=True)
         s = wobs_v * obs_v[None, :, :] + (1 - wobs_v) * p
