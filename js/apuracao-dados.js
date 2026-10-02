@@ -543,6 +543,27 @@ const APU = (function () {
     return total;
   }
 
+  /* --------------------------------------------- comparação com 2022 */
+
+  /* Cada candidatura de 2026 contra a de 2022 com o mesmo número de urna — Lula
+     (13) com Lula, Flávio Bolsonaro (22) com Jair. `linha` é a base de
+     scripts/apuracao/comparacao_2022.py: [válidos, votos do 1º número, do 2º].
+     O percentual de 2026 é o do placar (APU.ranking, sobre `vvc`); o de 2022,
+     sobre os válidos, que lá coincidiam. `desvio` é quanto a diferença entre os
+     dois andou, em pontos: positivo a favor do 2º número, negativo do 1º. */
+  function comparar(entrada, dic, linha, numeros) {
+    if (!linha || !(linha[0] > 0)) return null;
+    const agora = entrada && entrada.vv ? ranking(entrada, dic) : [];
+    const pares = numeros.map((n, i) => {
+      const c = agora.find((x) => String(x.numero) === n) || null;
+      return { numero: n, c, antes: fmt.parte(linha[i + 1], linha[0]), agora: c ? c.pct : null };
+    });
+    const [a, b] = pares;
+    const desvio = a.agora === null || b.agora === null ? null
+      : (b.agora - a.agora) - (b.antes - a.antes);
+    return { pares, desvio };
+  }
+
   /* ------------------------------------------------- candidaturas (pré-urna) */
 
   /* Lista registrada no DivulgaCandContas, escrita por
@@ -887,6 +908,7 @@ const APU = (function () {
     simulado, carimbo, arquivo, acompanhamento, eleitos,
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,
-    blocos, somarBlocos, marcarLista, porCadeiras, porEspectro, clausulaDeDesempenho, CLAUSULA
+    blocos, somarBlocos, marcarLista, porCadeiras, porEspectro, clausulaDeDesempenho, CLAUSULA,
+    comparar
   };
 })();

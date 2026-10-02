@@ -39,7 +39,12 @@
     /* Abrangência aberta: null (Brasil), a sigla de uma UF ou o exterior. */
     foco: null,
     /* Município escolhido no mapa: { uf, ibge, nome }. */
-    sel: null
+    sel: null,
+    /* 'resultado' pinta o líder; 'variacao' deixa o mapa neutro e desenha a
+       seta de cada unidade contra 2022 (comparação, abaixo). */
+    modo: 'resultado',
+    /* Base do 1º turno de 2022 (scripts/apuracao/comparacao_2022.py). */
+    base2022: null
   };
 
   function nomeDoCargo() {
@@ -197,6 +202,20 @@
         paint: { 'line-color': c.contorno, 'line-width': LARGURA_UF } });
       gl.addLayer({ id: 'mun-sel', type: 'line', ...mun, layout: redondo,
         paint: { 'line-color': c.tinta, 'line-width': 2, 'line-opacity': liga('sel', 1, 0) } });
+      /* Setas da variação desde 2022, por cima de tudo (pintarSetas). */
+      gl.addSource('setas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      /* A de município encolhe com o país inteiro à vista e cresce ao aproximar,
+         como no NYT: no tamanho cheio, 5.570 setas no zoom do Brasil viram uma
+         mancha. A de estado fica do mesmo tamanho. */
+      const porNivel = (s) => ['case', ['==', ['get', 'nivel'], 'uf'], 1, s];
+      gl.addLayer({ id: 'setas', type: 'symbol', source: 'setas',
+        layout: { 'icon-image': ['get', 'img'], 'icon-anchor': ['get', 'ancora'],
+          'icon-offset': ['get', 'desloc'],
+          'icon-size': ['interpolate', ['linear'], ['zoom'], 3, porNivel(0.5), 5, porNivel(0.7), 7, porNivel(0.9), 9, 1],
+          'icon-allow-overlap': true, 'icon-ignore-placement': true, visibility: 'none' },
+        /* Um pouco transparentes, como no NYT: onde muitas se cruzam, a cor
+           adensa e mostra a tendência da região. */
+        paint: { 'icon-opacity': 0.82 } });
 
       ligarEventos();
       ligarExterior();
@@ -209,12 +228,20 @@
     el.hidden = false;
   }
 
+  /* Na variação desde 2022 o mapa fica neutro, sem a margem do líder no tom: o
+     que se lê são as setas. A malha continua, para situar cada uma. */
+  const OPACIDADE_UF_NEUTRA = ['*', liga('hover', 0.72, 1), liga('oculto', 0, 1), liga('fora', 0.35, 1)];
+  const OPACIDADE_MUN_NEUTRA = ['*', liga('hover', 0.72, 1), liga('mostra', 1, 0), liga('fora', 0.35, 1)];
+
   function aplicarTema() {
     const gl = mapa.gl;
     const c = cores();
+    const neutro = estado.modo === 'variacao';
     gl.setPaintProperty('fundo', 'background-color', c.fundo);
-    gl.setPaintProperty('uf-fill', 'fill-color', corDe(c));
-    gl.setPaintProperty('mun-fill', 'fill-color', corDe(c));
+    gl.setPaintProperty('uf-fill', 'fill-color', neutro ? c.vazio : corDe(c));
+    gl.setPaintProperty('mun-fill', 'fill-color', neutro ? c.vazio : corDe(c));
+    gl.setPaintProperty('uf-fill', 'fill-opacity', neutro ? OPACIDADE_UF_NEUTRA : OPACIDADE_UF);
+    gl.setPaintProperty('mun-fill', 'fill-opacity', neutro ? OPACIDADE_MUN_NEUTRA : OPACIDADE_MUN);
     gl.setPaintProperty('mun-line', 'line-color', c.contorno);
     gl.setPaintProperty('uf-line', 'line-color', c.contorno);
     gl.setPaintProperty('mun-sel', 'line-color', c.tinta);
@@ -264,12 +291,18 @@
     /* O globo é SVG: o mesmo pintor das páginas estaduais e da central. */
     APUUI.pintarMapa($('exterior').querySelector('svg'), entradaDe, dic, (chave) => abrir(chave));
     legenda();
+    pintarSetas();
   }
 
   /* Legenda das faixas: uma régua de tons para cada candidato que lidera em
      algum território à mostra — estados e, onde estão desenhados, municípios.
      Na ordem do placar nacional, para não trocar de lugar a cada boletim. */
   function legenda() {
+    legendaSetas();
+    if (!$('legendaSetas').hidden) {
+      $('legendaFaixas').hidden = true;
+      return;
+    }
     const lideres = new Map();
     const anotar = (e, dic) => {
       const t = e && e.vv ? APU.ranking(e, dic)[0] : null;
@@ -309,6 +342,7 @@
       mapa.gl.setFeatureState(noMun(Number(id)), { cor: t ? t.cor : null, op: t ? t.op : 1 });
     });
     legenda();
+    pintarSetas();
   }
 
   /* ------------------------------------------------------ cursor e clique */
@@ -323,14 +357,20 @@
 
   function balaoDe(f) {
     const apurado = (e) => (e && e.vv ? APU.fmt.pct(e.pst || 0) + ' apurado' : 'Sem apuração');
+    /* Com a variação ligada, o balão compara com 2022 em vez de dar o placar. */
+    const variacao = estado.modo === 'variacao' && comparavel();
     const uf = f.properties.uf;
     if (f.sourceLayer === 'estados') {
       const e = (estado.uf && estado.uf.abr && estado.uf.abr[uf]) || null;
-      return APUUI.conteudoDoBalao(APU.UF_NOMES[uf] || uf, apurado(e), e, dicionario());
+      const nome = APU.UF_NOMES[uf] || uf;
+      return variacao ? balaoComparacao(nome, apurado(e), e, dicionario(), linha2022(uf, null))
+        : APUUI.conteudoDoBalao(nome, apurado(e), e, dicionario());
     }
     const e = (estado.porIbge[uf] || {})[f.id] || null;
-    return APUUI.conteudoDoBalao(f.properties.nm || 'Município',
-      `${APU.UF_NOMES[uf]} · ${apurado(e)}`, e, dicionarioMun(uf));
+    const nome = f.properties.nm || 'Município';
+    const sub = `${APU.UF_NOMES[uf]} · ${apurado(e)}`;
+    return variacao ? balaoComparacao(nome, sub, e, dicionarioMun(uf), linha2022(null, f.id))
+      : APUUI.conteudoDoBalao(nome, sub, e, dicionarioMun(uf));
   }
 
   function realcar(f) {
@@ -391,6 +431,7 @@
     marcar(mapa.desenhadas, desenhadas, 'mostra', 'oculto');
     marcar(mapa.fora, foco ? mapa.ufs.filter((uf) => uf !== foco) : [], 'fora', 'fora');
     realcarSel();
+    pintarSetas();
     const faltam = desenhadas.filter((uf) => !(uf in estado.mun));
     if (faltam.length) {
       Promise.all(faltam.map(buscarMun)).then(() => {
@@ -444,6 +485,275 @@
     const el = $('mapaCarga');
     el.textContent = texto || '';
     el.hidden = !texto;
+  }
+
+  /* --------------------------------------------------- comparação com 2022 */
+
+  /* 2026 contra o 1º turno de 2022, pelo mesmo número de urna: Lula (13) com
+     Lula, Flávio Bolsonaro (22) com Jair. A base tem o 1º turno por município,
+     UF e Brasil, e o ponto de onde sai a seta de cada unidade
+     (scripts/apuracao/comparacao_2022.py). Só presidente e só 1º turno: contra
+     o 2º turno de 2026 a conta seria outra. */
+  const BASE_2022 = 'resultados_geo/comparacao/presidente_2022_t1.json';
+  const NOME_2022 = { 13: 'Lula', 22: 'Jair Bolsonaro' };
+  const pontos = (x) => Math.abs(x).toLocaleString('pt-BR',
+    { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+  function comparavel() {
+    const meta = (estado.br && estado.br.meta) || (estado.uf && estado.uf.meta) || {};
+    return APU.cfg.cargo === '0001' && !!estado.base2022 && meta.t !== '2';
+  }
+
+  /* A linha de 2022 de uma unidade: o município (IBGE), a UF (ou o exterior) ou
+     o Brasil. */
+  function linha2022(uf, ibge) {
+    const b = estado.base2022;
+    if (ibge != null) return b.mun[String(ibge)] || null;
+    return uf ? (b.uf[uf] || null) : b.br;
+  }
+
+  /* Nome e partido de um dos dois números: do placar, se ele já tem voto; senão
+     do dicionário ou da chapa registrada; e o de 2022, em último caso. */
+  function candidatoDe(par, dic) {
+    if (par.c) return { nome: par.c.urna || par.c.nome, partido: par.c.partido };
+    const d = Object.values(dic || {}).find((x) => String(x.numero) === par.numero)
+      || Object.values(estado.chapa || {}).find((x) => String(x.numero) === par.numero);
+    return d ? { nome: APU.nomeProprio(d.urna || d.nome), partido: d.partido }
+      : { nome: NOME_2022[par.numero] || par.numero, partido: '' };
+  }
+
+  /* O que a lateral e o balão dizem de uma comparação: as duas linhas e a
+     frase da diferença, com a cor e o lado da seta. */
+  function resumoDe(comp, dic) {
+    const quem = comp.pares.map((p) => ({ ...p, ...candidatoDe(p, dic) }));
+    const [a, b] = quem;
+    const linhas = quem.map((p) => ({
+      nome: p.nome, cor: APU.cor(p.partido),
+      antes2022: NOME_2022[p.numero] !== p.nome ? NOME_2022[p.numero] : '',
+      antes: APU.fmt.pct(p.antes),
+      agora: p.agora === null ? '—' : APU.fmt.pct(p.agora),
+      varia: p.agora === null ? '' : (p.agora - p.antes >= 0 ? '+' : '−') + pontos(p.agora - p.antes)
+    }));
+    const lider = (m, x, y) => `${m >= 0 ? x : y} +${pontos(m)}`;
+    const m22 = a.antes - b.antes;
+    const d = comp.desvio;
+    let frase;
+    if (d === null) frase = 'A variação aparece com o primeiro boletim daqui.';
+    else if (Math.abs(d) < 0.05) frase = 'A diferença entre os dois está igual à de 2022.';
+    else {
+      frase = `A diferença andou ${pontos(d)} ${Math.abs(d) >= 1.95 ? 'pontos' : 'ponto'} para `
+        + `${d > 0 ? b.nome : a.nome} desde 2022: ${lider(m22, a.nome, NOME_2022[b.numero])} em 2022, `
+        + `${lider(a.agora - b.agora, a.nome, b.nome)} agora.`;
+    }
+    return { linhas, frase, desvio: d, lado: d === null ? null : (d > 0 ? linhas[1] : linhas[0]) };
+  }
+
+  /* Seta do estilo NYT, em SVG, para a lateral e a legenda: 30° acima da
+     horizontal, para a direita (2º número) ou para a esquerda (1º). */
+  /* Geometria da seta, a mesma no mapa e no SVG, como a do NYT: 35° acima da
+     horizontal, traço de 3 px e ponta de 9 px. O rabo fica no canto de baixo —
+     é ele que encosta no ponto da unidade. */
+  const SETA_ANG = (35 * Math.PI) / 180;
+
+  function geometriaSeta(comprimento, direita) {
+    const cab = 9;
+    const meia = 5;
+    const folga = 3;
+    const w = Math.ceil(comprimento * Math.cos(SETA_ANG) + meia + 2 * folga);
+    const h = Math.ceil(comprimento * Math.sin(SETA_ANG) + meia + 2 * folga);
+    const ux = Math.cos(SETA_ANG) * (direita ? 1 : -1);
+    const uy = -Math.sin(SETA_ANG);
+    const x0 = direita ? folga : w - folga;
+    const y0 = h - folga;
+    const x1 = x0 + ux * comprimento;
+    const y1 = y0 + uy * comprimento;
+    const bx = x1 - ux * cab;
+    const by = y1 - uy * cab;
+    return { w, h, rabo: [x0, y0], base: [bx, by],
+      ponta: [[x1, y1], [bx - uy * meia, by + ux * meia], [bx + uy * meia, by - ux * meia]] };
+  }
+
+  function setaSVG(cor, direita, comprimento) {
+    const g = geometriaSeta(comprimento || 26, direita);
+    const n = (v) => v.toFixed(1);
+    return `<svg class="apu-comp-seta" width="${g.w}" height="${g.h}" viewBox="0 0 ${g.w} ${g.h}" aria-hidden="true">`
+      + `<line x1="${n(g.rabo[0])}" y1="${n(g.rabo[1])}" x2="${n(g.base[0])}" y2="${n(g.base[1])}"`
+      + ` stroke="${cor}" stroke-width="3" stroke-linecap="round"/>`
+      + `<path d="M${g.ponta.map((p) => p.map(n).join(' ')).join('L')}Z" fill="${cor}"/></svg>`;
+  }
+
+  /* O bloco da lateral, no recorte aberto. */
+  function comparacao(entrada, dic) {
+    const sec = $('comparacao');
+    sec.hidden = !comparavel();
+    $('modoMapa').hidden = sec.hidden;
+    if (sec.hidden) return;
+    const linha = estado.sel ? linha2022(null, estado.sel.ibge) : linha2022(estado.foco, null);
+    const comp = APU.comparar(entrada, dic, linha, estado.base2022.numeros);
+    if (!comp) {
+      $('comparacaoCorpo').innerHTML = '<p class="apu-progress-lab">Sem 2022 para comparar: '
+        + 'o município foi instalado depois da eleição.</p>';
+      return;
+    }
+    const r = resumoDe(comp, dic);
+    $('comparacaoCorpo').innerHTML = '<table class="apu-proj-tab apu-comp-tab"><thead><tr>'
+      + '<th scope="col"></th><th scope="col" class="num">2022</th><th scope="col" class="num">2026</th>'
+      + '<th scope="col" class="num">Var.</th></tr></thead><tbody>'
+      + r.linhas.map((l) => `<tr><th scope="row"><span class="apu-swatch" style="background:${l.cor}"></span>`
+        + `${APUUI.esc(l.nome)}${l.antes2022 ? `<small>2022: ${APUUI.esc(l.antes2022)}</small>` : ''}</th>`
+        + `<td class="num">${l.antes}</td><td class="num">${l.agora}</td>`
+        + `<td class="num">${l.varia || '—'}</td></tr>`).join('')
+      + '</tbody></table>'
+      + `<p class="apu-comp-frase">${r.lado ? setaSVG(r.lado.cor, r.desvio > 0) : ''}`
+      + `<span>${APUUI.esc(r.frase)}</span></p>`;
+  }
+
+  /* Balão de uma unidade no mapa, com a variação ligada. */
+  function balaoComparacao(nome, sub, entrada, dic, linha) {
+    const comp = APU.comparar(entrada, dic, linha, estado.base2022.numeros);
+    if (!comp) {
+      return `<div class="nyt-tooltip-container"><div class="district-nyt-title">${APUUI.esc(nome)}</div>`
+        + `<div class="district-nyt-sub">${APUUI.esc(sub)}</div><div class="district-nyt-nota">`
+        + 'Sem 2022 para comparar.</div></div>';
+    }
+    const r = resumoDe(comp, dic);
+    return `<div class="nyt-tooltip-container"><div class="district-nyt-title">${APUUI.esc(nome)}</div>`
+      + `<div class="district-nyt-sub">${APUUI.esc(sub)}</div>`
+      + '<table class="district-nyt-table"><thead><tr><th></th><th>2022</th><th>Agora</th></tr></thead><tbody>'
+      + r.linhas.map((l) => `<tr><td><span class="apu-swatch" style="background:${l.cor};margin-right:6px"></span>`
+        + `${APUUI.esc(l.nome)}</td><td class="votes-cell">${l.antes}</td>`
+        + `<td class="pct-cell">${l.agora}</td></tr>`).join('')
+      + `</tbody></table><div class="district-nyt-nota">${APUUI.esc(r.frase)}</div></div>`;
+  }
+
+  /* Setas do mapa no estilo do NYT: uma por unidade à mostra, saindo do ponto
+     dela para a esquerda (cor do 1º número, Lula) ou para a direita (cor do 2º,
+     Flávio), mais longa quanto mais a diferença entre os dois andou desde 2022.
+     As imagens são desenhadas uma vez, em faixas de comprimento, com o traço da
+     mesma espessura em todas, como no original. */
+  const SETA_PASSO = 2.5;   // pontos por faixa de comprimento
+  const SETA_FAIXAS = 12;   // a última junta tudo acima de 27,5 pontos
+
+  function imagemSeta(comprimento, cor, direita) {
+    const r = 2;
+    const g = geometriaSeta(comprimento, direita);
+    const tela = document.createElement('canvas');
+    tela.width = g.w * r;
+    tela.height = g.h * r;
+    const ctx = tela.getContext('2d');
+    ctx.scale(r, r);
+    ctx.strokeStyle = cor;
+    ctx.fillStyle = cor;
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(...g.rabo);
+    ctx.lineTo(...g.base);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(...g.ponta[0]);
+    ctx.lineTo(...g.ponta[1]);
+    ctx.lineTo(...g.ponta[2]);
+    ctx.closePath();
+    ctx.fill();
+    return ctx.getImageData(0, 0, tela.width, tela.height);
+  }
+
+  /* As cores são as dos partidos dos dois números em 2026; na primeira vez que
+     há chapa ou boletim para saber quais são. */
+  function prepararSetas(dic) {
+    const gl = mapa.gl;
+    if (!gl || !estado.base2022 || gl.hasImage('seta-a-1')) return;
+    const [a, b] = estado.base2022.numeros.map((n) => candidatoDe({ numero: n, c: null }, dic));
+    if (!a.partido || !b.partido) return;
+    for (let k = 1; k <= SETA_FAIXAS; k++) {
+      const comprimento = 6 + k * 4.5;
+      gl.addImage(`seta-a-${k}`, imagemSeta(comprimento, APU.cor(a.partido), false), { pixelRatio: 2 });
+      gl.addImage(`seta-b-${k}`, imagemSeta(comprimento, APU.cor(b.partido), true), { pixelRatio: 2 });
+    }
+  }
+
+  /* Uma seta por unidade à mostra: os municípios das UFs desenhadas, ou os
+     estados quando nenhum município está à mostra. Só com voto em 2026. */
+  /* Uma pintura por quadro: ao chegar a camada municipal, pintarMun chama isto
+     uma vez por UF, e 27 trocas seguidas de 5.570 pontos travavam a tela. E nada
+     de trocar os dados da fonte se as setas são as mesmas da vez anterior: cada
+     troca faz o MapLibre reprocessar todas. */
+  let setasNoQuadro = 0;
+  let setasAntes = '';
+
+  function pintarSetas() {
+    if (!setasNoQuadro) {
+      setasNoQuadro = requestAnimationFrame(() => {
+        setasNoQuadro = 0;
+        desenharSetas();
+      });
+    }
+  }
+
+  function desenharSetas() {
+    const gl = mapa.gl;
+    if (!gl || !gl.getSource('setas')) return;
+    const ligado = estado.modo === 'variacao' && comparavel();
+    gl.setLayoutProperty('setas', 'visibility', ligado ? 'visible' : 'none');
+    if (!ligado) return;
+    prepararSetas(dicionario());
+    const base = estado.base2022;
+    const setas = [];
+    const incluir = (linha, entrada, dic, nivel) => {
+      const comp = linha && linha.length >= 5 ? APU.comparar(entrada, dic, linha, base.numeros) : null;
+      if (!comp || comp.desvio === null || Math.abs(comp.desvio) < 0.05) return;
+      const k = Math.min(SETA_FAIXAS, Math.max(1, Math.ceil(Math.abs(comp.desvio) / SETA_PASSO)));
+      const direita = comp.desvio > 0;
+      setas.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [linha[3], linha[4]] },
+        properties: { img: `seta-${direita ? 'b' : 'a'}-${k}`, nivel,
+          ancora: direita ? 'bottom-left' : 'bottom-right',
+          /* O rabo fica 3 px para dentro do canto da imagem (geometriaSeta):
+             o deslocamento o põe em cima do ponto da unidade. */
+          desloc: direita ? [-3, 3] : [3, 3] } });
+    };
+    const desenhadas = ufsDesenhadas();
+    if (desenhadas.length) {
+      desenhadas.forEach((uf) => {
+        const dic = dicionarioMun(uf);
+        Object.entries(estado.porIbge[uf] || {}).forEach(([ibge, e]) => incluir(base.mun[ibge], e, dic, 'mun'));
+      });
+    } else {
+      const abr = (estado.uf && estado.uf.abr) || {};
+      mapa.ufs.forEach((uf) => incluir(base.uf[uf], abr[uf], dicionario(), 'uf'));
+    }
+    const assinatura = setas.map((f) => f.geometry.coordinates.join() + f.properties.img).join('|');
+    if (assinatura === setasAntes) return;
+    setasAntes = assinatura;
+    gl.getSource('setas').setData({ type: 'FeatureCollection', features: setas });
+  }
+
+  function legendaSetas() {
+    const el = $('legendaSetas');
+    el.hidden = !(estado.modo === 'variacao' && comparavel());
+    if (el.hidden) return;
+    /* Como a "Shift in margin" do NYT: as duas setas saindo do mesmo ponto, em
+       V, cada uma com o lado embaixo, e uma nota curta. */
+    const [a, b] = estado.base2022.numeros.map((n) => candidatoDe({ numero: n, c: null }, dicionario()));
+    const lado = (c, direita) => `<span class="apu-setas-item">${setaSVG(APU.cor(c.partido), direita, 30)}`
+      + `<small>Mais ${APUUI.esc(String(c.nome).split(' ')[0])}</small></span>`;
+    el.innerHTML = '<p class="apu-faixas-tit">Variação na diferença</p>'
+      + `<div class="apu-setas-par">${lado(a, false)}${lado(b, true)}</div>`
+      + '<p class="apu-setas-nota">Comparado com o 1º turno de 2022. Quanto mais longa a seta, '
+      + 'mais pontos a diferença andou.</p>';
+  }
+
+  function trocarModo(modo) {
+    if (modo === estado.modo) return;
+    estado.modo = modo;
+    $('modoMapa').querySelectorAll('[data-modo]').forEach((b) => {
+      const on = b.dataset.modo === modo;
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    if (mapa.gl) aplicarTema();
+    pintarSetas();
+    legenda();
   }
 
   /* --------------------------------------------------------------- painel */
@@ -520,6 +830,7 @@
     /* A projeção é nacional e tem painel próprio: continua à mostra com um
        estado aberto no mapa. */
     projecao(entradaNacional());
+    comparacao(entrada, dic);
 
     $('mapaNota').textContent = nota();
   }
@@ -757,6 +1068,11 @@
     if (estado.chapa === null) {
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
+      /* A base de 2022 não muda: lida uma vez. Sem ela a página segue, só sem
+         a comparação. */
+      if (APU.cfg.cargo === '0001') {
+        estado.base2022 = await fetch(BASE_2022).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      }
     }
     /* A camada municipal é republicada bem mais devagar que a alta (~4 min no
        plantão): relê-la a cada volta seria pedir o mesmo arquivo. */
@@ -803,6 +1119,10 @@
     $('camadas').onclick = (ev) => {
       const b = ev.target.closest('[data-camada]');
       if (b) trocarCamada(b.dataset.camada);
+    };
+    $('modoMapa').onclick = (ev) => {
+      const b = ev.target.closest('[data-modo]');
+      if (b) trocarModo(b.dataset.modo);
     };
 
     /* O mapa não segura o resto da página: sem WebGL, ou com o MapLibre fora do

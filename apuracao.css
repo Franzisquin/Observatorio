@@ -2628,6 +2628,41 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-faixas[hidden] { display: none; }
 
+/* Comparação com 2022 (js/apuracao-nacional.js): o seletor do que o mapa
+   mostra, no canto oposto ao da camada; o bloco da lateral, com a tabela da
+   projeção; e a legenda das setas, no lugar da das faixas. */
+.apu-gl-modo { left: auto; right: 14px; }
+.apu-gl-modo[hidden] { display: none; }
+
+.apu-comp { margin-top: 18px; }
+.apu-comp[hidden] { display: none; }
+.apu-comp-tab { margin-bottom: 10px; }
+.apu-comp-tab tbody th .apu-swatch { margin-right: 6px; }
+
+.apu-comp-frase {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.apu-comp-seta { flex: none; margin-top: 1px; }
+
+.apu-setas-par { display: flex; gap: 2px; }
+
+.apu-setas-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.apu-setas-item small { font-size: 0.64rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.apu-setas-nota { max-width: 24ch; margin: 7px 0 0; line-height: 1.35; color: var(--muted); }
+
 .apu-faixas-tit {
   margin-bottom: 6px;
   font-size: 0.6rem;
