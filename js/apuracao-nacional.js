@@ -46,7 +46,10 @@
     /* Base do 1º turno de 2022 (scripts/apuracao/comparacao_2022.py). */
     base2022: null,
     /* Acompanhamento do TSE (EA14): onde ainda se está contando. */
-    ab: null
+    ab: null,
+    /* Cidades com mapa por zona eleitoral (APUUI.cidadesComZonas): clicada uma
+       delas no mapa, o painel leva à página das zonas. */
+    zonas: []
   };
 
   function nomeDoCargo() {
@@ -818,6 +821,8 @@
       link.href = `apuracao-uf.html?uf=${foco}${sufixoParams()}`;
       link.textContent = 'Abrir a página do estado';
     }
+    /* Município escolhido que tem mapa por zona: o atalho para a página dele. */
+    APUUI.linkDeZonas('linkZonas', estado.zonas, estado.sel && estado.sel.ibge, APU.cfg.cargo);
 
     /* Com um estado ou município aberto, o selo de definido e as marcas de
        eleito continuam sendo do país: presidente se elege no Brasil inteiro. */
@@ -1123,6 +1128,7 @@
     if (estado.chapa === null) {
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
+      estado.zonas = await APUUI.cidadesComZonas();
       /* A base de 2022 não muda: lida uma vez. Sem ela a página segue, só sem
          a comparação. */
       if (APU.cfg.cargo === '0001') {

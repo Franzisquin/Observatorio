@@ -40,8 +40,11 @@ Quem tem o login do Cloudflare:
    npx wrangler secret put CHAVE_PLANTAO                            # cola a chave
    ```
    Guarde a chave fora do repositório. Ela vai para quem roda o plantão.
-3. Tirar do `.assetsignore` o bloco da apuração (deixe `locais.*` se locais
-   continuar fora) e publicar: `npx wrangler deploy`.
+3. Tirar do `.assetsignore` o bloco da apuração, inclusive a página de zonas
+   (`apuracao-zonas.html`, `js/apuracao-zonas.js`) e as malhas
+   `resultados_geo/zonas_svg/`. Ficam: `locais.*`, se locais continuar fora, e
+   `resultados_geo/zonas_eleitorais/` (fontes brutas, nunca sobem). Publicar:
+   `npx wrangler deploy`.
 4. Conferir no ar: `/apuracao` redireciona para `/apuracao-presidente`, e
    `https://electomaps.com.br/dados/indice.json` responde 404 "ainda não
    publicado".
@@ -146,6 +149,19 @@ Antes do primeiro boletim, a página mostra os partidos e as listas registrados,
 com 0 voto e em ordem alfabética, de `resultados_geo/candidatos_2026/deputados/`
 — escritos por `python scripts/apuracao/candidatos.py --cargos 6 7 8` (`--cargos
 1 3 5` faz o mesmo para presidente, governador e senado).
+
+### Zonas eleitorais
+
+190 cidades têm mapa por zona (`resultados_geo/zonas_svg/indice.json`, de
+`scripts/gerar_malhas_zonas.py`). Em cada rodada, o plantão baixa do TSE o
+arquivo de cada zona delas para presidente, governador e senador
+(`coleta.camada_zonas`, ~900 arquivos por cargo, uns 25 s) e grava
+`{eleicao}-{cargo}-zonas-{ibge}.json`. Conferido em 02/10 contra o ambiente
+oficial: 917 requisições, 0 respostas 404.
+
+Clicar numa dessas cidades — no mapa nacional (presidente) ou no mapa do estado
+(presidente, governador, senador) — mostra no painel o link "Ver as N zonas
+eleitorais de …", que abre `apuracao-zonas.html?mun=<ibge>` no mesmo cargo.
 
 ### Comparação com 2022 (página presidencial)
 

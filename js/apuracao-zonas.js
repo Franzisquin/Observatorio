@@ -80,6 +80,9 @@
         + '</optgroup>').join('');
 
     ajustarSeletor();
+    /* Medido antes de a fonte do título chegar, o nome sai com a largura da
+       fonte de reserva, mais estreita, e a Playfair o cortava em "São Pa…". */
+    if (document.fonts) document.fonts.ready.then(ajustarSeletor);
 
     if (c) {
       const nomeUF = APU.UF_NOMES[c.uf] || c.uf.toUpperCase();

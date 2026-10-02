@@ -1214,7 +1214,48 @@ const APUUI = (function () {
     return `${Math.round(p * 100)}%`;
   }
 
+  /* ---------------------------------------------------- zonas eleitorais */
+
+  /* As cidades com mapa por zona eleitoral (resultados_geo/zonas_svg/indice.json,
+     de scripts/gerar_malhas_zonas.py), lidas uma vez por página:
+     [{ibge, tse, uf, nm, zonas}]. É a mesma lista de onde o plantão tira as
+     cidades cujas zonas ele baixa do TSE (coleta.camada_zonas). */
+  let _cidadesZonas = null;
+  function cidadesComZonas() {
+    if (!_cidadesZonas) {
+      _cidadesZonas = fetch('resultados_geo/zonas_svg/indice.json', { cache: 'no-cache' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => (d && d.cidades) || [])
+        .catch(() => []);
+    }
+    return _cidadesZonas;
+  }
+
+  /* A cidade de `ibge` na lista, se ela tiver mapa por zona. */
+  function cidadeComZonas(lista, ibge) {
+    return ibge == null ? null : (lista || []).find((c) => c.ibge === String(ibge)) || null;
+  }
+
+  /* O atalho de uma cidade para a página das zonas dela. Zona só existe para
+     presidente, governador e senador: de qualquer outro cargo, vai presidente. */
+  function hrefZonas(ibge, cargo) {
+    const c = ['0001', '0003', '0005'].includes(cargo) ? cargo : '0001';
+    return 'apuracao-zonas.html' + paramsDeFonte({ mun: ibge, cargo: c });
+  }
+
+  /* Mostra ou esconde o link `#id` para as zonas da cidade escolhida. */
+  function linkDeZonas(id, lista, ibge, cargo) {
+    const a = document.getElementById(id);
+    if (!a) return;
+    const cidade = cidadeComZonas(lista, ibge);
+    a.hidden = !cidade;
+    if (!cidade) return;
+    a.href = hrefZonas(cidade.ibge, cargo);
+    a.textContent = `Ver as ${cidade.zonas} zonas eleitorais de ${cidade.nm}`;
+  }
+
   return { selo, avisos, progresso, placar, participacao, chance, chancePct,
+    cidadesComZonas, cidadeComZonas, hrefZonas, linkDeZonas,
     legendaMarcas, firme, tituloDaMarca, balao, conteudoDoBalao, tinta, tom, faixa, legendaFaixas, pintarMapa,
     foto, esc, icone,
     hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,

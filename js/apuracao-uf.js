@@ -45,18 +45,6 @@
     zonas: null
   };
 
-  const hrefZonas = (ibge) => 'apuracao-zonas.html' + APUUI.paramsDeFonte({ mun: ibge, cargo: APU.cfg.cargo });
-
-  async function cidadesComZonas(uf) {
-    try {
-      const r = await fetch('resultados_geo/zonas_svg/indice.json', { cache: 'no-cache' });
-      const d = r.ok ? await r.json() : null;
-      return ((d && d.cidades) || []).filter((c) => c.uf === uf);
-    } catch (e) {
-      return [];
-    }
-  }
-
 
   function lerUF() {
     const u = (APU.cfg.uf || '').toLowerCase();
@@ -160,12 +148,7 @@
 
     $('voltarMun').hidden = !sel;
     /* Município escolhido que tem mapa por zona: o atalho para a página dele. */
-    const comZonas = sel && (estado.zonas || []).find((c) => c.ibge === String(sel.chave));
-    $('linkZonas').hidden = !comZonas;
-    if (comZonas) {
-      $('linkZonas').href = hrefZonas(comZonas.ibge);
-      $('linkZonas').textContent = 'Ver zonas eleitorais';
-    }
+    APUUI.linkDeZonas('linkZonas', estado.zonas, sel && sel.chave, APU.cfg.cargo);
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
     /* Mesmo arranjo da presidencial: a participação abre junto com a lista
@@ -420,7 +403,7 @@
     if (estado.chapa === null) {
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
-      estado.zonas = await cidadesComZonas(estado.uf);
+      estado.zonas = (await APUUI.cidadesComZonas()).filter((c) => c.uf === estado.uf);
     }
     const [d, alto, br] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf'),
       APU.cfg.cargo === '0001' ? APU.snapshot('br') : null]);

@@ -707,38 +707,44 @@ def camada_zonas(cli: Cliente, config: dict, eleicao: str, cargo: str,
     O arquivo do municipio vem primeiro e serve de porta: se ele ainda nao existe,
     as zonas daquela cidade nao sao pedidas nesta volta. 404 em serie bloqueia o
     acesso por dez minutos, e uma cidade sem arquivo daria dezenas deles.
+
+    Os pedidos correm em paralelo entre TODAS as cidades (primeiro os totais,
+    depois as zonas), nao cidade a cidade: em serie, as 190 cidades levavam 260 s
+    contra o ambiente oficial — e no plantao isso e tempo de placar parado.
     """
     if cargo not in CARGOS_ZONAS:
         return 0
     por_ibge = {str(m.get("ibge")): (uf, m) for uf, lista in mapa.items() for m in lista}
     ufs_validas = set(ufs_do_cargo(cargo, list(mapa)))
+    alvos = [por_ibge[str(c.get("ibge"))] for c in cidades_com_zonas()
+             if str(c.get("ibge")) in por_ibge and por_ibge[str(c.get("ibge"))][0] in ufs_validas]
+
+    def baixar(uf: str, muni: dict, zona: str | None = None) -> dict | None:
+        return cli.json_de(url_resultado(cli, config, eleicao, cargo, uf, munic=muni["cd"], zona=zona))
+
     escritos = 0
     with cf.ThreadPoolExecutor(max_workers=paralelo) as pool:
-        for cidade in cidades_com_zonas():
-            uf, muni = por_ibge.get(str(cidade.get("ibge")), (None, None))
-            if not muni or uf not in ufs_validas:
-                continue
-            total = cli.json_de(url_resultado(cli, config, eleicao, cargo, uf, munic=muni["cd"]))
-            if total is None:
-                continue
-            pacote = {"meta": meta(total, cargo), "total": resumo(total, cargo, True, completo=True),
-                      "abr": {}, "cand": dicionario_cand(total),
-                      "mun": {"cd": muni["cd"], "ibge": muni["ibge"], "nm": muni["nm"], "uf": uf}}
+        totais = list(pool.map(lambda a: baixar(*a), alvos))
+        abertas = [(uf, muni, total) for (uf, muni), total in zip(alvos, totais) if total is not None]
+        pedidos = [(uf, muni, z) for uf, muni, _ in abertas for z in muni.get("zonas", [])]
+        por_zona = dict(zip(((muni["cd"], z) for _, muni, z in pedidos),
+                            pool.map(lambda p: baixar(*p), pedidos)))
 
-            def uma(z: str, uf=uf, muni=muni):
-                return z, cli.json_de(url_resultado(cli, config, eleicao, cargo, uf,
-                                                    munic=muni["cd"], zona=z))
-
-            for z, payload in pool.map(uma, list(muni.get("zonas", []))):
-                if payload is None:
-                    continue
-                pacote["abr"][z] = resumo(payload, cargo, True, completo=True)
-                pacote["cand"].update(dicionario_cand(payload))
-            caminho = escrever(destino, f"{eleicao}-{cargo}-zonas-{muni['ibge']}.json", pacote)
-            escritos += 1
-            if not silencioso:
-                print(f"  zonas {uf}/{muni['nm']}: {len(pacote['abr'])}/{len(muni.get('zonas', []))} "
-                      f"-> {caminho.name} ({caminho.stat().st_size / 1024:.0f} KB)")
+    for uf, muni, total in abertas:
+        pacote = {"meta": meta(total, cargo), "total": resumo(total, cargo, True, completo=True),
+                  "abr": {}, "cand": dicionario_cand(total),
+                  "mun": {"cd": muni["cd"], "ibge": muni["ibge"], "nm": muni["nm"], "uf": uf}}
+        for z in muni.get("zonas", []):
+            payload = por_zona.get((muni["cd"], z))
+            if payload is None:
+                continue
+            pacote["abr"][z] = resumo(payload, cargo, True, completo=True)
+            pacote["cand"].update(dicionario_cand(payload))
+        caminho = escrever(destino, f"{eleicao}-{cargo}-zonas-{muni['ibge']}.json", pacote)
+        escritos += 1
+        if not silencioso:
+            print(f"  zonas {uf}/{muni['nm']}: {len(pacote['abr'])}/{len(muni.get('zonas', []))} "
+                  f"-> {caminho.name} ({caminho.stat().st_size / 1024:.0f} KB)")
     return escritos
 
 
