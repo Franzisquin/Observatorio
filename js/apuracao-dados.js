@@ -450,7 +450,16 @@ const APU = (function () {
                  a apuração encerrada elas são dos dois primeiros.
 
      Deduzir não é alterar o dado — nenhum número publicado muda. Mas a tela
-     precisa dizer qual é qual, e por isso `oficial` acompanha a marca. */
+     precisa dizer qual é qual, e por isso `oficial` acompanha a marca.
+
+     VOTO ANULADO NÃO ELEGE. Candidato com registro indeferido tem o voto
+     publicado com destino (`dvt`) "Anulado" ou, enquanto há recurso, "Anulado
+     sub judice": o voto é contado à parte, aparece no placar, mas não é válido
+     e não entra em `vv`. Ele nunca recebe marca de eleito nem de 2º turno —
+     nem a deduzida, nem uma vinda do arquivo — e as posições da disputa (os
+     dois do 2º turno, as vagas do Senado) contam só quem tem voto válido. Em
+     SE 2022, Valmir de Francisquinho foi o mais votado com o registro
+     indeferido: o 2º turno foi entre o segundo e o terceiro do placar. */
   function marcar(lista, entrada, cargo) {
     const e = entrada || {};
     if (PROPORCIONAIS.has(cargo || cfg.cargo)) return lista;
@@ -462,10 +471,17 @@ const APU = (function () {
        então quem manda é a contagem de seções, não o percentual. */
     const acabou = e.snt === 0 || e.and === 'f' || e.tf === 's';
     const garantidos = eleitosPelaConta(lista, e, cargo || cfg.cargo, vagas);
+    const aptos = lista.filter((c) => !votoAnulado(c));
 
-    lista.forEach((c, i) => {
+    lista.forEach((c) => {
       c.oficial = false;
       c.matematico = false;
+      if (votoAnulado(c)) {
+        c.marca = '';
+        return;
+      }
+      /* A posição na disputa, entre quem tem voto válido. */
+      const i = aptos.indexOf(c);
       if (c.situacao) {
         c.marca = /^eleit/i.test(c.situacao) ? 'eleito'
           : /turno/i.test(c.situacao) ? 'segundo'
@@ -506,17 +522,32 @@ const APU = (function () {
      quando já tem mais da metade dos válidos que existiriam se todo o eleitorado
      restante votasse em outro. Senado: maioria simples, por vaga — quem está
      dentro está eleito quando passa o primeiro de fora mais o eleitorado
-     restante. Só vale com `esnt`, que só a camada alta traz. */
+     restante. Só vale com `esnt`, que só a camada alta traz.
+
+     A conta corre só entre quem tem voto válido: o anulado não está em `vv`, e
+     compará-lo com os válidos dos outros o dava por eleito com folga (SE 2022).
+     E o anulado sub judice (`vansj`) ainda pode virar válido, se o recurso for
+     provido: entra como voto que pode ir contra o líder, na maioria absoluta,
+     e o candidato sub judice conta como concorrente às vagas do Senado. */
   function eleitosPelaConta(lista, e, cargo, vagas) {
-    if (e.esnt == null || !(e.vv > 0) || !lista.length) return 0;
+    const aptos = lista.filter((c) => !votoAnulado(c));
+    if (e.esnt == null || !(e.vv > 0) || !aptos.length) return 0;
     const resta = Math.max(0, Number(e.esnt) || 0);
+    const subJudice = lista.filter((c) => /sub\s*judice/i.test(String(c.destino || '')));
     if (cargo === '0005') {
-      const primeiroFora = lista[vagas] ? lista[vagas].votos : 0;
+      const primeiroFora = Math.max(aptos[vagas] ? aptos[vagas].votos : 0,
+        ...subJudice.map((c) => c.votos || 0));
       let n = 0;
-      while (n < vagas && n < lista.length && lista[n].votos > primeiroFora + resta) n += 1;
+      while (n < vagas && n < aptos.length && aptos[n].votos > primeiroFora + resta) n += 1;
       return n;
     }
-    return 2 * lista[0].votos > e.vv + resta ? 1 : 0;
+    const pendente = Math.max(Number(e.vansj) || 0, subJudice.reduce((s, c) => s + (c.votos || 0), 0));
+    return 2 * aptos[0].votos > e.vv + pendente + resta ? 1 : 0;
+  }
+
+  /* Voto que não conta para eleger: destino "Anulado" ou "Anulado sub judice". */
+  function votoAnulado(c) {
+    return /anulad/i.test(String((c && c.destino) || ''));
   }
 
   const ROTULO_MARCA = { eleito: 'Eleito', segundo: '2º turno', suplente: 'Suplente' };
@@ -941,11 +972,21 @@ const APU = (function () {
       const e = abr[uf];
       if (!e || !(e.vv > 0)) { porUF[uf] = { estado: 'vazio', entrada: e || null }; return; }
       const lista = marcar(ranking(e, dic), e, '0003');
-      const [p, s] = lista;
       const certo = (c) => !!c && !!(c.oficial || c.matematico);
+      /* Quem lidera a disputa é o primeiro com voto válido (APU.marcar): o
+         anulado aparece no placar, mas não pinta o estado nem conta. */
+      const aptos = lista.filter((c) => !votoAnulado(c));
+      const eleito = aptos.find((c) => c.marca === 'eleito' && certo(c));
+      const finalistas = aptos.filter((c) => c.marca === 'segundo');
       let situacao = 'lidera';
-      if (p && p.marca === 'eleito' && certo(p)) situacao = 'eleito';
-      else if (p && s && p.marca === 'segundo' && s.marca === 'segundo' && certo(p) && certo(s)) situacao = 'segundo';
+      let [p, s] = aptos;
+      if (eleito) {
+        situacao = 'eleito';
+        p = eleito;
+      } else if (finalistas.length === 2 && finalistas.every(certo)) {
+        situacao = 'segundo';
+        [p, s] = finalistas;
+      }
       porUF[uf] = { estado: situacao, entrada: e, lider: p || null, vice: s || null };
       if (situacao === 'eleito') {
         const k = chaveDeCor(p.partido);
@@ -1018,7 +1059,9 @@ const APU = (function () {
       if (!e || !(e.vv > 0)) return;
       ufsComVoto += 1;
       const lista = marcar(ranking(e, dic), e, '0005');
-      lista.slice(0, SENADO.porUF).forEach((c, i) => {
+      /* Voto anulado não ocupa vaga, nem em projeção: as duas vão aos dois
+         primeiros com voto válido. */
+      lista.filter((c) => !votoAnulado(c)).slice(0, SENADO.porUF).forEach((c, i) => {
         const b = bloco(disputa, c.partido);
         const oficial = !!c.oficial && c.marca === 'eleito';
         b.vagas += 1;
@@ -1072,6 +1115,6 @@ const APU = (function () {
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,
     blocos, somarBlocos, marcarLista, porCadeiras, porEspectro, clausulaDeDesempenho, CLAUSULA,
-    comparar, governos, senado, SENADO, cabecalhoDe
+    comparar, governos, senado, SENADO, cabecalhoDe, votoAnulado
   };
 })();
