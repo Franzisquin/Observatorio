@@ -408,10 +408,17 @@ def unidades_do_snapshot(pasta: Path, eleicao: str, cargo: str,
         if len(uf) != 2 or uf in ('br', 'uf', 'ab') or (ufs and uf not in ufs):
             continue
         d = json.loads(arq.read_text(encoding='utf-8'))
+        # Voto anulado (destino "Anulado" ou "Anulado sub judice": registro
+        # indeferido) nao elege: sai da projecao, e a base dos percentuais —
+        # a soma de `cand`, em `projetar` — fica so com o voto valido. Sem isto,
+        # um candidato indeferido apareceria com chance de vencer.
+        anulados = {sq for sq, c in (d.get('cand') or {}).items()
+                    if 'anulad' in str((c or {}).get('destino') or '').lower()}
         for cd, e in (d.get('abr') or {}).items():
             unid.append({'cd': cd, 'uf': uf, 'te': e.get('te', 0), 'st': e.get('st', 0),
                          'ts': e.get('ts', 0), 'vv': e.get('vvc', e.get('vv', 0)),
-                         'cand': e.get('cand') or {}})
+                         'cand': {sq: v for sq, v in (e.get('cand') or {}).items()
+                                  if sq not in anulados}})
     return unid
 
 

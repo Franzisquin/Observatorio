@@ -899,7 +899,7 @@ const APUUI = (function () {
     }
     const situacao = c.oficial ? 'Eleito, declarado pelo TSE'
       : (c.matematico ? 'Matematicamente eleito; o TSE ainda não declarou'
-        : `${c.pos}º mais votado em ${nomeUF} neste boletim; as duas vagas do estado vão aos dois primeiros`);
+        : `${c.pos}º entre os votos válidos de ${nomeUF} neste boletim; as duas vagas do estado vão aos dois primeiros`);
     return cabeca + '<table class="district-nyt-table"><tbody>'
       + '<tr><td>Votos</td><td class="votes-cell winner">' + APU.fmt.int(c.votos) + '</td>'
       + '<td class="pct-cell">' + APU.fmt.pct(c.pct) + '</td></tr>'
@@ -1034,7 +1034,11 @@ const APUUI = (function () {
        Senado é o segundo da UF, e cortar antes de marcar mudaria o índice. */
     const completa = comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf);
     if (comVotos) APU.marcar(completa, entrada, cargo);
-    const lista = completa.slice(0, 2);
+    /* Os dois primeiros do placar e, se a marca de eleito ou de 2º turno caiu
+       em alguém mais abaixo (porque um dos dois de cima teve o voto anulado),
+       também ele: o cartão nunca esconde quem está eleito ou no 2º turno. */
+    const lista = completa.slice(0, 2)
+      .concat(completa.slice(2).filter((c) => c.marca === 'eleito' || c.marca === 'segundo'));
     const pst = entrada ? (entrada.pst || 0) : 0;
 
     if (!lista.length) {
@@ -1044,7 +1048,6 @@ const APUUI = (function () {
         + '<p class="apu-estado-vazio">sem lista importada</p></a>';
     }
 
-    const lider = comVotos ? APU.cor(lista[0].partido) : 'var(--line-strong)';
     const linhas = lista.map((c, i) => {
       /* Check sólido quando é certo — declarado pelo TSE ou matematicamente
          definido: verde para eleito, azul para quem vai ao 2º turno.
@@ -1055,11 +1058,16 @@ const APUUI = (function () {
         : '';
       return '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
         + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
-        + '<span class="apu-estado-nome">' + esc(c.urna) + marca + '</span>'
+        /* O nome encolhe com reticências; o check fica sempre inteiro ao lado,
+           e o aviso de voto anulado também. */
+        + '<span class="apu-estado-nome"><span class="apu-estado-nome-txt">' + esc(c.urna) + '</span>'
+        + marca + (APU.votoAnulado(c)
+          ? '<span class="apu-estado-anulado" title="' + esc(c.destino) + ': o voto não elege">anulado</span>'
+          : '') + '</span>'
         + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>';
     }).join('');
 
-    return '<a class="apu-estado" href="' + href + '" style="--cor:' + lider + '">'
+    return '<a class="apu-estado" href="' + href + '">'
       + '<div class="apu-estado-head">' + bandeira(uf)
       + '<span class="apu-estado-uf">' + esc(nome) + '</span></div>'
       + linhas

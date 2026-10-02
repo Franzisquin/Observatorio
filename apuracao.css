@@ -1554,7 +1554,6 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--paper);
-  border-left: 3px solid var(--cor, var(--line-strong));
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 
@@ -1614,8 +1613,9 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 .apu-estado-pe .apu-mini { flex: 1; width: auto; }
 
-/* A cor do partido entra como fio vertical à esquerda da linha, não como
-   quadrado solto: fica preso ao nome a que se refere. */
+/* A cor do partido entra como fio vertical à esquerda do nome, não como
+   quadrado solto: fica preso ao candidato a que se refere. O cartão em si não
+   tem cor — na grade de 27, a lateral colorida de cada um virava um mosaico. */
 .apu-estado-linha {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1630,7 +1630,33 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 .apu-estado-linha.is-lead { color: var(--ink); font-weight: 400; }
 
-.apu-estado-nome { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Nome longo corta com reticências, mas o check de eleito ou de 2º turno nunca
+   some: ele fica fora do recorte, logo depois do nome. */
+.apu-estado-nome { display: flex; align-items: center; min-width: 0; }
+
+.apu-estado-nome-txt {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apu-estado-nome .apu-tique { flex: none; }
+
+/* Voto anulado (registro indeferido): aparece no placar, não elege. */
+.apu-estado-anulado {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 4px;
+  border: 1px solid #e5484d;
+  border-radius: 2px;
+  font-size: 0.56rem;
+  font-weight: 700;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #e5484d;
+}
 .apu-estado-pct { font-variant-numeric: tabular-nums; font-weight: 500; }
 
 
@@ -1995,19 +2021,21 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 /* ---------------------------------------------------- hemiciclo e quadro */
 
+/* Uma coluna só: o semicírculo em cima e, embaixo dele, o quadro por partido,
+   antes dos estados. Lado a lado, o quadro tinha de caber na altura da figura
+   e as linhas saíam espremidas. Os dois na mesma largura, centrados. */
 .apu-dep-palco {
   display: grid;
-  grid-template-columns: minmax(0, 1.3fr) minmax(300px, 1fr);
-  gap: clamp(22px, 3.4vw, 44px);
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: clamp(20px, 2.6vw, 30px);
   padding: clamp(22px, 3vw, 34px) 0 6px;
 }
 
 .apu-dep-palco[hidden] { display: none; }
 
-@media (max-width: 900px) {
-  .apu-dep-palco { grid-template-columns: 1fr; }
-}
+.apu-dep-hemi,
+.apu-dep-quadro { width: 100%; max-width: 780px; }
 
 .apu-dep-hemi { margin: 0; }
 .apu-dep-hemi figcaption { display: block; margin-top: 8px; line-height: 1.5; }
@@ -2447,8 +2475,6 @@ body:has(#mapaUF) .apu-aside .apu-results {
 .apu-dep-estado-maiores .is-vazio { color: var(--muted); }
 
 /* Assembleias somadas: sem semicírculo, o quadro ocupa a largura. */
-.apu-dep-palco.sem-hemiciclo { grid-template-columns: minmax(0, 1fr); }
-.apu-dep-palco.sem-hemiciclo .apu-dep-quadro { max-width: 820px; }
 .apu-dep-hemi[hidden] { display: none; }
 
 /* ===========================================================================
@@ -2682,6 +2708,36 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 
 /* ===========================================================================
+   ESTADO A ESTADO EM GRADE ÚNICA
+
+   Governador, Senado e bancadas de deputados: os cartões encostam uns nos
+   outros numa grade só, separados por um fio fino à direita e embaixo de cada
+   um, como a régua de estados do topo. O fio que sobraria na borda de fora —
+   à direita da última coluna e embaixo da última linha — fica fora do recorte
+   (clip-path), e a grade não ganha moldura.
+   =========================================================================== */
+
+.apu-estados,
+.apu-dep-estados { gap: 0; clip-path: inset(0 1px 1px 0); }
+
+.apu-estados > .apu-estado,
+.apu-dep-estados > .apu-dep-estado {
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+.apu-estados > .apu-estado:hover,
+.apu-dep-estados > .apu-dep-estado:hover { border-color: var(--line); }
+
+/* O recorte cortaria o contorno de foco dos cartões da borda: ele vai para
+   dentro do cartão. */
+.apu-estados > .apu-estado:focus-visible,
+.apu-dep-estados > .apu-dep-estado:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+
+
+/* ===========================================================================
    GOVERNADORES
 
    No topo, os partidos com governador eleito; embaixo, o mapa: cheio com a
@@ -2762,11 +2818,10 @@ body:has(#mapaUF) .apu-aside .apu-results {
    =========================================================================== */
 
 .apu-sen { padding-bottom: clamp(40px, 5vw, 72px); }
-.apu-sen .apu-dep-palco { grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.7fr); }
 
-@media (max-width: 900px) {
-  .apu-sen .apu-dep-palco { grid-template-columns: 1fr; }
-}
+/* Duas colunas só (partido e cadeiras): na largura do semicírculo, o número
+   ficaria longe demais do nome. */
+.apu-sen .apu-dep-quadro { max-width: 560px; }
 
 
 /* ===========================================================================

@@ -625,6 +625,68 @@ ok(semVoto.desvio === null && semVoto.pares[0].antes === 48, 'sem voto em 2026: 
 ok(APU.comparar({ vv: 1, cand: {} }, dic2026, null, ['13', '22']) === null,
   'unidade sem 2022 (instalada depois) não compara');
 
+console.log('\nvoto anulado não elege');
+/* SE 2022: Valmir de Francisquinho, registro indeferido, foi o mais votado; o
+   voto dele (`van`) não está em `vv`, e a conta da maioria o dava por eleito. */
+const dicSE = {
+  v: { urna: 'VALMIR', partido: 'PL', destino: 'Anulado' },
+  r: { urna: 'ROGERIO', partido: 'PT', destino: 'Válido' },
+  f: { urna: 'FABIO', partido: 'PSD', destino: 'Válido' },
+  d: { urna: 'DELEGADO', partido: 'PSDB', destino: 'Válido' }
+};
+const se = { vv: 757938, vvc: 1215860, van: 457922, vansj: 0, nv: 1, snt: 0, esnt: 0, and: 'f',
+  cand: { v: 457922, r: 338796, f: 294936, d: 82495 } };
+l = APU.marcar(APU.ranking(se, dicSE), se, '0003');
+ok(l[0].urna === 'Valmir' || /valmir/i.test(l[0].urna), 'o anulado segue no placar, na posição dos votos');
+ok(!l[0].marca && !l[0].matematico && !l[0].oficial, 'anulado mais votado não é dado por eleito pela conta',
+  JSON.stringify(l[0]));
+ok(!l.some((c) => c.marca === 'eleito'), 'sem maioria entre os válidos, ninguém eleito');
+l = APU.marcar(APU.ranking({ ...se, md: 's' }, dicSE), { ...se, md: 's' }, '0003');
+ok(l.filter((c) => c.marca === 'segundo').map((c) => c.chave).join() === 'r,f',
+  '2º turno definido: os dois primeiros com voto válido, não o anulado',
+  l.map((c) => c.chave + ':' + c.marca).join(' '));
+l = APU.marcar(APU.ranking({ ...se, md: 'e' }, dicSE), { ...se, md: 'e' }, '0003');
+ok(l.find((c) => c.marca === 'eleito').chave === 'r', 'definido no 1º turno: o primeiro com voto válido');
+const dicSEoficial = { ...dicSE, v: { ...dicSE.v, eleito: 's', situacao: 'Eleito' } };
+l = APU.marcar(APU.ranking(se, dicSEoficial), se, '0003');
+ok(!l[0].marca, 'nem marca de eleito vinda do arquivo vale para voto anulado');
+const govSE = APU.governos({ cand: dicSE, abr: { se: { ...se, md: 's' } } });
+ok(govSE.porUF.se.estado === 'segundo' && govSE.porUF.se.lider.chave === 'r' && govSE.porUF.se.vice.chave === 'f',
+  'mapa de governador: SE no 2º turno entre os dois válidos', JSON.stringify(govSE.porUF.se.estado));
+const govSEcorrendo = APU.governos({ cand: dicSE, abr: { se: { ...se, snt: 10, esnt: 5000, and: 'p' } } });
+ok(govSEcorrendo.porUF.se.estado === 'lidera' && govSEcorrendo.porUF.se.lider.chave === 'r',
+  'quem lidera a disputa é o primeiro com voto válido');
+
+/* Sub judice: o recurso ainda pode validar o voto. Líder com maioria só dos
+   válidos não está garantido se os votos sub judice podem ir contra ele. */
+const dicSJ = {
+  g: { urna: 'GAROTO', partido: 'REPUBLICANOS', destino: 'Anulado sub judice' },
+  a: { urna: 'ANA', partido: 'PSD', destino: 'Válido' }, b: { urna: 'BIA', partido: 'PT', destino: 'Válido' }
+};
+const sj = { vv: 1000, vvc: 1500, vansj: 500, nv: 1, snt: 0, esnt: 0, cand: { g: 500, a: 600, b: 400 } };
+l = APU.marcar(APU.ranking(sj, dicSJ), sj, '0003');
+ok(!l.some((c) => c.marca === 'eleito'), 'maioria dos válidos não basta com voto sub judice pendente',
+  l.map((c) => c.chave + ':' + c.marca).join(' '));
+const sj2 = { ...sj, cand: { g: 100, a: 700, b: 300 }, vansj: 100 };
+l = APU.marcar(APU.ranking(sj2, dicSJ), sj2, '0003');
+ok(l.find((c) => c.chave === 'a').marca === 'eleito', 'com folga sobre válidos e sub judice somados, eleito');
+
+/* Senado: o anulado não ocupa vaga, nem em projeção, e o sub judice concorre. */
+const dicSen2 = {
+  x: { urna: 'X', partido: 'PT', destino: 'Anulado sub judice' },
+  y: { urna: 'Y', partido: 'PL', destino: 'Válido' }, z: { urna: 'Z', partido: 'PSD', destino: 'Válido' },
+  w: { urna: 'W', partido: 'MDB', destino: 'Válido' }
+};
+const ufSen = { vv: 1500, vvc: 2400, vansj: 900, nv: 2, snt: 0, esnt: 0, and: 'f', cand: { x: 900, y: 800, z: 500, w: 200 } };
+l = APU.marcar(APU.ranking(ufSen, dicSen2), ufSen, '0005');
+ok(!l.find((c) => c.chave === 'x').marca && l.find((c) => c.chave === 'y').marca === 'eleito'
+  && l.find((c) => c.chave === 'z').marca === 'eleito', 'Senado: as duas vagas aos dois primeiros válidos',
+  l.map((c) => c.chave + ':' + c.marca).join(' '));
+ok(!l.some((c) => c.matematico), 'Senado: com sub judice à frente, nenhuma vaga garantida pela conta');
+const senSJ = APU.senado({ senadores: [] }, { cand: dicSen2, abr: { sp: ufSen } }, null);
+ok(senSJ.disputa.flatMap((b) => b.cand).map((c) => c.urna).sort().join() === 'Y,Z',
+  'semicírculo do Senado: anulado sub judice não ocupa cadeira');
+
 console.log('\ngovernadores');
 const dicGov = {
   s1: { urna: 'ANA', partido: 'PT' }, s2: { urna: 'BIA', partido: 'PL' },
