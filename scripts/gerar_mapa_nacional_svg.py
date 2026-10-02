@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Regenera o mapa nacional por UF embutido na central de apuracao
-(apuracao.html) a partir da malha estadual do IBGE em
+Regenera o mapa nacional por UF embutido na pagina dos governadores
+(apuracao-governador.html) a partir da malha estadual do IBGE em
 resultados_geo/estados_brasil.geojson.
 
 A pagina presidencial (apuracao-presidente.html) tinha o mesmo SVG e deixou de
@@ -42,7 +42,7 @@ MALHA = os.path.join(BASE_DIR, 'resultados_geo', 'estados_brasil.geojson')
 
 # Paginas que trazem o mapa embutido, e o id do <svg> em cada uma.
 PAGINAS = [
-    ('apuracao.html', 'mapaNacional'),
+    ('apuracao-governador.html', 'mapaGov'),
 ]
 
 ALTURA = 864.0          # altura do viewBox, herdada do mapa antigo
@@ -146,11 +146,11 @@ def montar():
 
 def reescrever(caminho_html, id_svg, blocos):
     s = io.open(caminho_html, encoding='utf-8').read()
-    abertura = re.search(r'(<svg class="apu-map" id="%s"[^>]*>)' % id_svg, s)
+    abertura = re.search(r'(<svg class="apu-map[^"]*" id="%s"[^>]*>)' % id_svg, s)
     if not abertura:
         raise SystemExit('nao achei o <svg id="%s"> em %s' % (id_svg, caminho_html))
     # Depois dos estados vem o fecho do <svg> — ou o disco do "Exterior", se um
-    # dia a central o ganhar: a substituicao vai ate o que vier primeiro, para
+    # dia a pagina o ganhar: a substituicao vai ate o que vier primeiro, para
     # nao encostar em nada alem dos paths das UFs.
     resto = s[abertura.end():]
     corte = min(i for i in (resto.find('<g class="apu-exterior">'), resto.find('</svg>'))

@@ -67,8 +67,9 @@ por volta; EA10 de eleitos só depois que alguma abrangência marca `tf=s`.
 O plantão local escreve em `--saida`; a página lê de lá pelo parâmetro `dados`:
 
 ```
-apuracao.html?eleicao=<cd>&dados=scratch/apuracao/plantao/
 apuracao-presidente.html?eleicao=<cd>&cargo=0001&dados=scratch/apuracao/plantao/
+apuracao-governador.html?eleicao=<cd>&dados=scratch/apuracao/plantao/
+apuracao-senado.html?eleicao=<cd>&dados=scratch/apuracao/plantao/
 apuracao-uf.html?eleicao=<cd>&cargo=0003&uf=rr&dados=scratch/apuracao/plantao/
 ```
 
@@ -77,7 +78,7 @@ Se ele não aparecer numa janela de teste, o dado não é de teste — pare e co
 ambiente antes de qualquer publicação.
 
 O `status.json` da pasta de saída traz a saúde do plantão: ambiente, voltas,
-requisições, 404 e o apurado do país (a central deixou de exibi-lo). O teto do TSE é de 100 requisições por IP
+requisições, 404 e o apurado do país (as páginas não o exibem). O teto do TSE é de 100 requisições por IP
 por segundo, com bloqueio de 10 minutos renovável, e **404 repetido bloqueia
 igual a excesso** — se a contagem de 404 subir de volta em volta, pare o plantão e
 ache a URL errada antes de recomeçar.

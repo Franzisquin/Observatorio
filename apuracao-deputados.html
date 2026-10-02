@@ -10,7 +10,7 @@
   <meta name="description"
     content="Apuração ao vivo da Câmara dos Deputados e das Assembleias Legislativas: cadeiras por partido e, estado a estado, quem está dentro das vagas de cada lista. Dados oficiais do TSE." />
 
-  <!-- CSP: ver a nota completa em apuracao.html. `connect-src` é a segunda trava
+  <!-- CSP: ver a nota completa em apuracao-presidente.html. `connect-src` é a segunda trava
        sobre o `?dados=`. -->
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'self';
@@ -33,7 +33,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261001j" />
+  <link rel="stylesheet" href="apuracao.css?v=20261002b" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -53,8 +53,8 @@
            APUUI.ligarMenu (js/apuracao-ui.js). -->
       <nav class="topnav" id="menuCargos">
         <a href="apuracao-presidente.html?cargo=0001" data-cargo="0001">Presidente</a>
-        <a href="apuracao.html#governador" data-cargo="0003">Governador</a>
-        <a href="apuracao.html#senado" data-cargo="0005">Senado</a>
+        <a href="apuracao-governador.html" data-cargo="0003">Governador</a>
+        <a href="apuracao-senado.html" data-cargo="0005">Senado</a>
         <a href="apuracao-deputados.html?cargo=0006" data-cargo="0006">Deputado federal</a>
         <a href="apuracao-deputados.html?cargo=0007" data-cargo="0007">Deputado estadual</a>
       </nav>
@@ -72,13 +72,13 @@
 
     <section class="apu-head">
       <div class="wrap">
-        <a class="crumb" href="apuracao.html" id="voltar">
+        <a class="crumb" href="apuracao-presidente.html" id="voltar">
           <svg class="arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
             style="transform:rotate(180deg)">
             <path d="M5 12h14M13 6l6 6-6 6" />
           </svg>
-          <span id="voltarRotulo">Central de apuração</span>
+          <span id="voltarRotulo">Apuração nacional</span>
         </a>
 
         <div class="apu-kicker">
@@ -87,7 +87,7 @@
           <span class="apu-stamp" id="selCarimbo"></span>
         </div>
 
-        <div class="apu-cargos" id="seletorCargo" role="group" aria-label="Casa legislativa"></div>
+        <div class="apu-cargos" id="seletorCargo" role="group" aria-label="Cargo em disputa"></div>
 
         <h1 class="apu-title" id="titulo">Câmara dos Deputados</h1>
         <p class="apu-sub" id="subtitulo"></p>
@@ -194,10 +194,14 @@
     <section class="apu-table-sec apu-dep-clausula" id="clausula" hidden>
       <div class="wrap">
         <div class="apu-table-head">
-          <h2 class="apu-h2">Cláusula de desempenho</h2>
+          <!-- A regra fica no "i": abre com o mouse, com Tab ou com um toque. -->
+          <h2 class="apu-h2 apu-info-alvo">Cláusula de desempenho<span class="apu-info" id="infoClausula">
+              <button class="apu-info-botao" type="button" aria-label="Como funciona a cláusula de desempenho"
+                aria-expanded="false" aria-describedby="regraClausula">i</button>
+              <span class="apu-info-pop" id="regraClausula" role="tooltip"></span>
+            </span></h2>
           <span class="apu-progress-lab" id="notaClausula"></span>
         </div>
-        <p class="apu-clausula-regra" id="regraClausula"></p>
         <div class="apu-clausula-grade">
           <div class="apu-clausula-col is-passa">
             <h3 class="apu-clausula-tit">Passam <span id="nPassam"></span></h3>
@@ -229,9 +233,9 @@
   </footer>
 
   <script src="js/espectro-partidos.js?v=20261001a"></script>
-  <script src="js/apuracao-dados.js?v=20261001j"></script>
-  <script src="js/apuracao-ui.js?v=20261001k"></script>
-  <script src="js/apuracao-deputados.js?v=20261001m"></script>
+  <script src="js/apuracao-dados.js?v=20261002a"></script>
+  <script src="js/apuracao-ui.js?v=20261002a"></script>
+  <script src="js/apuracao-deputados.js?v=20261002a"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

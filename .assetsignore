@@ -71,21 +71,36 @@ final_patch.js
 #
 # Nenhuma pagina do lancamento carrega estes arquivos (conferido um a um).
 # Para republicar, basta remover as linhas abaixo.
-apuracao.html
+#
+# AO PUBLICAR A APURACAO (ainda NAO -- decisao de 01/10/2026):
+#   - o endereco curto /apuracao ja esta pronto em _redirects (302 para
+#     /apuracao-presidente, a pagina de entrada; o antigo /apuracao.html vai
+#     para o mesmo lugar). Ate la ele cai no 404, como cairia sem a regra;
+#   - tirar daqui as paginas e scripts da apuracao, o apuracao.css, o
+#     bandeiras-estados.png, o resultados_geo/candidatos_2026/ e o
+#     resultados_geo/senado_em_exercicio.json -- este, gerado de novo perto
+#     da eleicao (scripts/apuracao/senado_em_exercicio.py), porque filiacao e
+#     suplencia mudam;
+#   - depois do deploy, conferir no ar que /apuracao redireciona.
 apuracao-presidente.html
+apuracao-governador.html
+apuracao-senado.html
 apuracao-uf.html
 apuracao-deputados.html
 locais.html
 apuracao.css
 locais.css
-js/apuracao-central.js
 js/apuracao-dados.js
 js/apuracao-nacional.js
 js/apuracao-uf.js
 js/apuracao-ui.js
 js/apuracao-deputados.js
+js/apuracao-governador.js
+js/apuracao-senado.js
 js/locais-view.js
-# Sprite das bandeiras dos estados: so apuracao.css e js/apuracao-central.js o
+# Os 27 senadores que ficam ate 2031: so a pagina do Senado le.
+resultados_geo/senado_em_exercicio.json
+# Sprite das bandeiras dos estados: so apuracao.css e js/apuracao-ui.js o
 # usam, e os dois estao acima. Esta fora do git tambem, entao publicar daqui
 # poria no ar um arquivo que a outra maquina nao tem.
 bandeiras-estados.png

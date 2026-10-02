@@ -1521,90 +1521,11 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 .apu-map .apu-exterior-disco { stroke-width: 1; }
 
 /* ===========================================================================
-   CENTRAL DE APURAÇÃO
+   ESTADO A ESTADO
 
-   Porta de entrada da noite. Ao contrário da página presidencial, que é um
-   painel de tela cheia, esta rola: são três disputas empilhadas.
+   A grade de cartões das páginas de governador e de Senado: um por UF, com os
+   dois primeiros e o andamento.
    =========================================================================== */
-
-.apu-central { padding-bottom: clamp(40px, 5vw, 72px); }
-
-/* -------------------------------------------------------- presidente */
-
-.apu-destaque {
-  padding: clamp(22px, 3vw, 38px) 0 clamp(28px, 3.4vw, 44px);
-  border-bottom: 1px solid var(--line);
-  background: var(--paper-2);
-}
-
-.apu-destaque-topo { margin-bottom: clamp(14px, 2vw, 22px); }
-
-/* Andamento e chamada ficam abaixo da lista, fechando a coluna da esquerda. */
-.apu-destaque-andamento {
-  display: flex;
-  align-items: flex-end;
-  gap: clamp(16px, 2.4vw, 32px);
-  flex-wrap: wrap;
-  margin-top: clamp(16px, 2vw, 22px);
-}
-
-.apu-destaque-andamento .apu-progress { margin: 0; min-width: 220px; flex: 1; }
-.apu-destaque-andamento .btn { margin: 0; flex: none; }
-
-/* Placar e andamento à esquerda, mapa à direita ocupando toda a altura. */
-.apu-destaque-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.82fr);
-  gap: clamp(24px, 4vw, 56px);
-  align-items: stretch;
-}
-
-.apu-destaque-coluna { display: flex; flex-direction: column; min-width: 0; }
-
-/* O SVG sai do fluxo para não impor a própria altura: quem manda na altura da
-   faixa é a coluna da esquerda, e o mapa se encaixa no que sobrar. */
-.apu-destaque-mapa {
-  --map-bg: var(--paper-2);
-  position: relative;
-  min-width: 0;
-  min-height: 300px;
-}
-
-.apu-destaque-mapa .apu-map {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: calc(100% - 22px);
-}
-
-.apu-destaque-mapa .apu-progress-lab {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  text-align: right;
-}
-
-@media (max-width: 880px) {
-  .apu-destaque-grid { grid-template-columns: 1fr; gap: 24px; }
-  .apu-destaque-mapa { min-height: 0; height: 56vw; }
-}
-
-.apu-destaque-rot {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
-  color: var(--brand-ink);
-  margin-bottom: 10px;
-}
-
-.apu-destaque-titulo {
-  font-family: var(--display);
-  font-size: clamp(1.9rem, 4vw, 2.9rem);
-  font-weight: 500;
-  line-height: 1.04;
-  letter-spacing: -0.026em;
-}
 
 /* ------------------------------------------------------------ blocos */
 
@@ -1649,7 +1570,7 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 /* A bandeira do estado, tirada do sprite de 27 células que
    scripts/gerar_bandeiras_estados.py monta. A célula tem 56x40 e aparece a
    14x10. `--bandeira` é o índice da UF na ordem alfabética, e quem o escreve
-   é cartao(), em js/apuracao-central.js. */
+   é APUUI.cartaoEstado(), em js/apuracao-ui.js. */
 .apu-estado-bandeira {
   flex: none;
   width: 14px;
@@ -2740,14 +2661,6 @@ body:has(#mapaUF) .apu-aside .apu-results {
   list-style: none;
 }
 
-.apu-clausula-regra {
-  max-width: 72ch;
-  margin: 10px 0 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--ink-2);
-}
-
 /* `position: relative` segura o veredito do leitor de tela (.sr-only) na sigla. */
 .apu-clausula-chip {
   position: relative;
@@ -2767,3 +2680,147 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-clausula-vazio { padding: 10px 0; font-size: 0.8rem; color: var(--muted); }
 
+
+/* ===========================================================================
+   GOVERNADORES
+
+   No topo, os partidos com governador eleito; embaixo, o mapa: cheio com a
+   cor do partido quando eleito, claro enquanto só está à frente, riscado
+   quando vai ao 2º turno.
+   =========================================================================== */
+
+.apu-gov { padding-bottom: clamp(40px, 5vw, 72px); }
+
+.apu-gov-placar { padding: clamp(22px, 3vw, 34px) 0 0; }
+.apu-gov-placar .apu-dock-rot { margin-bottom: 10px; }
+
+.apu-gov-partidos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 24px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.apu-gov-partido { display: inline-flex; align-items: baseline; gap: 7px; }
+.apu-gov-partido .apu-swatch { align-self: center; }
+.apu-gov-partido-sigla { font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+
+.apu-gov-partido-n {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.apu-gov-partido-ufs { font-size: 0.64rem; letter-spacing: 0.05em; color: var(--muted); }
+.apu-gov-resto { font-size: 0.78rem; color: var(--muted); }
+
+/* Mapa: sem moldura, centrado, do tamanho que a coluna permite. */
+.apu-gov-palco { padding: clamp(18px, 2.6vw, 30px) 0 0; }
+.apu-gov-mapa { margin: 0 auto; max-width: 720px; }
+
+/* As listras claras do 2º turno sobre a cor de quem lidera (o <pattern> sai
+   de js/apuracao-governador.js). */
+.apu-gov-svg .apu-gov-risco { fill: rgba(255, 255, 255, 0.62); }
+
+.apu-gov-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  margin: 10px 0 0;
+  font-size: 0.74rem;
+  color: var(--ink-2);
+}
+
+.apu-gov-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+
+.apu-gov-leg {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+}
+
+.apu-gov-leg.is-eleito { background: #5b6472; }
+.apu-gov-leg.is-lidera { background: #c4c8ce; }
+.apu-gov-leg.is-segundo {
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.62) 0 2px, transparent 2px 5px), #5b6472;
+}
+
+
+/* ===========================================================================
+   SENADO
+
+   O mesmo palco da Câmara (.apu-dep-palco): semicírculo e quadro. O quadro
+   tem só o total de cadeiras de cada partido.
+   =========================================================================== */
+
+.apu-sen { padding-bottom: clamp(40px, 5vw, 72px); }
+.apu-sen .apu-dep-palco { grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.7fr); }
+
+@media (max-width: 900px) {
+  .apu-sen .apu-dep-palco { grid-template-columns: 1fr; }
+}
+
+
+/* ===========================================================================
+   "i" DE INFORMAÇÃO
+
+   Um balão preso ao título da seção: abre com o mouse, com Tab ou com um
+   toque (js alterna `.is-on`), e fecha ao sair, com Esc ou tocando fora.
+   =========================================================================== */
+
+.apu-info-alvo { position: relative; }
+
+.apu-info { display: inline-block; margin-left: 9px; vertical-align: middle; }
+
+.apu-info-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-2);
+  font: italic 700 0.74rem/1 Georgia, 'Times New Roman', serif;
+  cursor: help;
+  transform: translateY(-3px);
+  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.apu-info-botao:hover,
+.apu-info.is-on .apu-info-botao { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+.apu-info-botao:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+.apu-info-pop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  width: min(440px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.16);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: var(--ink-2);
+}
+
+.apu-info:hover .apu-info-pop,
+.apu-info:focus-within .apu-info-pop,
+.apu-info.is-on .apu-info-pop { display: block; }

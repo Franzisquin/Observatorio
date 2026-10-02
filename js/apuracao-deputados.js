@@ -116,23 +116,12 @@
 
   /* ------------------------------------------------------------ seletores */
 
+  /* Os cinco cargos e a barra de estados, os mesmos das outras páginas da
+     apuração (APUUI). Deputado federal e estadual trocam aqui mesmo, sem
+     recarregar; presidente, governador e senador levam à página deles. */
   function seletores() {
-    const cargos = [['0006', 'Deputado federal'],
-      ['0007', estado.uf === 'df' ? 'Deputado distrital' : 'Deputado estadual']];
-    $('seletorCargo').innerHTML = cargos.map(([cd, rotulo]) => {
-      const ativo = cd === estado.cargo;
-      return `<a class="apu-cargo${ativo ? ' is-ativo' : ''}" data-cargo="${cd}"`
-        + (ativo ? ' aria-current="page"' : '') + ` href="${esc(endereco(cd, estado.uf))}">${rotulo}</a>`;
-    }).join('');
-
-    const chips = [['', 'Brasil']].concat(UFS.map((u) => [u, u.toUpperCase()]));
-    $('seletorUF').innerHTML = '<div class="wrap apu-dep-ufs-in">' + chips.map(([u, rotulo]) => {
-      const ativo = u === estado.uf;
-      const titulo = u ? APU.UF_NOMES[u] : 'O país inteiro';
-      return `<a class="apu-dep-uf${ativo ? ' is-ativo' : ''}${u ? '' : ' is-brasil'}" data-uf="${u}"`
-        + (ativo ? ' aria-current="page"' : '') + ` title="${esc(titulo)}"`
-        + ` href="${esc(endereco(estado.cargo, u))}">${rotulo}</a>`;
-    }).join('') + '</div>';
+    APUUI.seletorDeCargo('seletorCargo', estado.cargo, estado.uf);
+    APUUI.barraDeUFs('seletorUF', estado.cargo, estado.uf);
   }
 
   /* ------------------------------------------------------------- leitura */
@@ -201,8 +190,8 @@
     $('titulo').textContent = uf ? nomeUF : casa('');
     document.title = (uf ? `${nomeUF} — ${casa(uf)}` : casa('')) + ' — Apuração — ElectoMaps';
     APUUI.ligarMenu(estado.cargo);
-    $('voltar').href = uf ? endereco(estado.cargo, '') : 'apuracao.html' + paramsDeFonte();
-    $('voltarRotulo').textContent = uf ? casa('') : 'Central de apuração';
+    $('voltar').href = uf ? endereco(estado.cargo, '') : 'apuracao-presidente.html' + paramsDeFonte();
+    $('voltarRotulo').textContent = uf ? casa('') : 'Apuração nacional';
 
     if (!leitura) {
       APUUI.selo(null, null);
@@ -360,10 +349,11 @@
     ].filter(Boolean).join(' ');
 
     /* Sem voto nenhum ainda (pré-urna, primeiro boletim), todos os partidos
-       entram — sem cadeira e sem voto, em ordem alfabética (APU.porCadeiras). */
+       entram — sem cadeira e sem voto, em ordem alfabética (APU.porCadeiras).
+       Com a contagem andando, só quem tem ao menos uma cadeira. */
     const semVoto = !leitura.blocos.some((b) => b.votos > 0);
     const ordenados = leitura.blocos.slice().sort(APU.porCadeiras)
-      .filter((b) => semVoto || b.vagas > 0 || b.votos > 0);
+      .filter((b) => semVoto || b.vagas > 0);
     const mostrar = estado.quadroAberto ? ordenados : ordenados.slice(0, QUADRO);
     $('rotuloQuadro').textContent = projetadas ? 'Cadeiras por partido · projeção' : 'Cadeiras por partido';
     $('quadro').innerHTML = mostrar.map((b) => {
@@ -710,8 +700,10 @@
     history.replaceState({ cargo: estado.cargo, uf: estado.uf }, '', location.href);
 
     $('seletorCargo').addEventListener('click', (ev) => {
-      const a = ev.target.closest('[data-cargo]');
-      if (interceptar(ev, a)) irPara(a.dataset.cargo, estado.uf);
+      const a = ev.target.closest('[data-pagina-cargo]');
+      const cargo = a && a.dataset.paginaCargo;
+      /* Só os dois de deputado ficam nesta página; os outros são links comuns. */
+      if ((cargo === '0006' || cargo === '0007') && interceptar(ev, a)) irPara(cargo, estado.uf);
     });
     $('seletorUF').addEventListener('click', (ev) => {
       const a = ev.target.closest('[data-uf]');
@@ -757,6 +749,15 @@
     $('clausula').addEventListener('focusin', abrirNaSigla);
     $('clausula').addEventListener('mouseleave', () => tip.esconder());
     $('clausula').addEventListener('focusout', () => tip.esconder());
+    const info = $('infoClausula');
+    const botaoInfo = info.querySelector('button');
+    const abrirInfo = (sim) => {
+      info.classList.toggle('is-on', sim);
+      botaoInfo.setAttribute('aria-expanded', String(sim));
+    };
+    botaoInfo.addEventListener('click', (ev) => { ev.stopPropagation(); abrirInfo(!info.classList.contains('is-on')); });
+    document.addEventListener('click', (ev) => { if (!info.contains(ev.target)) abrirInfo(false); });
+    document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') abrirInfo(false); });
     window.addEventListener('resize', setas);
     window.addEventListener('popstate', () => {
       const [cargo, uf] = [estado.cargo, estado.uf];

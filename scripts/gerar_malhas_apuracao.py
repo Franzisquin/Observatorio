@@ -10,7 +10,7 @@ HD do IBGE, a simplificacao acontece uma vez so, e o que chega ao navegador e
 menor do que o GeoJSON que ele baixava antes.
 
 Projecao equiretangular corrigida pelo cosseno da latitude media, viewBox de
-largura 1000 — a mesma do mapa nacional embutido em apuracao.html, para que o
+largura 1000 — a mesma do mapa nacional embutido em apuracao-governador.html, para que o
 CSS trate os dois mapas igual.
 
 As camadas regionais (regiao imediata e intermediaria, divisao IBGE 2023) saem

@@ -10,9 +10,19 @@
   <meta name="description"
     content="Apuração presidencial ao vivo, com mapa nacional, resultado por candidato e desagregação estado a estado. Dados oficiais do TSE." />
 
-  <!-- CSP: ver a nota completa em apuracao.html. `connect-src` é a segunda trava
-       sobre o `?dados=`; 'unsafe-inline' sai quando o `onerror=` de apuracao-ui.js
-       virar addEventListener. O mapa é MapLibre: unpkg entra em script-src e
+  <!-- CSP: segunda trava sobre o `?dados=`. Ainda que alguém contorne o allowlist
+       de apuracao-dados.js, `connect-src` impede o navegador de buscar snapshot
+       fora destas origens — resultado forjado simplesmente não carrega. As outras
+       páginas da apuração apontam para esta nota.
+
+       `script-src` ainda precisa de 'unsafe-inline' por causa do `onerror=` que o
+       placar gera via innerHTML (apuracao-ui.js). Trocar aquele handler por
+       addEventListener permite remover o 'unsafe-inline' e fechar também o XSS.
+
+       `frame-ancestors` não vale em <meta>, só em cabeçalho HTTP: a proteção
+       contra clickjacking tem que vir do Cloudflare (ver NOTAS-SEGURANCA.md).
+
+       O mapa é MapLibre: unpkg entra em script-src e
        style-src (com SRI, como em simulador.html) e o worker dele nasce de um
        blob:. Sem mapa de base, nenhum servidor de tiles precisa ser liberado. -->
   <meta http-equiv="Content-Security-Policy" content="
@@ -45,7 +55,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261001j" />
+  <link rel="stylesheet" href="apuracao.css?v=20261002b" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -65,8 +75,8 @@
            APUUI.ligarMenu (js/apuracao-ui.js). -->
       <nav class="topnav" id="menuCargos">
         <a href="apuracao-presidente.html?cargo=0001" data-cargo="0001">Presidente</a>
-        <a href="apuracao.html#governador" data-cargo="0003">Governador</a>
-        <a href="apuracao.html#senado" data-cargo="0005">Senado</a>
+        <a href="apuracao-governador.html" data-cargo="0003">Governador</a>
+        <a href="apuracao-senado.html" data-cargo="0005">Senado</a>
         <a href="apuracao-deputados.html?cargo=0006" data-cargo="0006">Deputado federal</a>
         <a href="apuracao-deputados.html?cargo=0007" data-cargo="0007">Deputado estadual</a>
       </nav>
@@ -250,13 +260,40 @@
       </div>
     </section>
 
+    <!-- ------------------------------------------- andamento: onde falta contar -->
+    <!-- O arquivo de acompanhamento do TSE (EA14): estágio de cada unidade e
+         quantos dos seus municípios já finalizaram. Some sem o arquivo. -->
+    <section class="apu-table-sec" id="andamento" hidden>
+      <div class="wrap">
+        <div class="apu-table-head">
+          <h2 class="apu-h2">Onde ainda se está contando</h2>
+          <span class="apu-progress-lab" id="notaAndamento"></span>
+        </div>
+        <div class="apu-table-wrap">
+          <table class="apu-table">
+            <thead>
+              <tr>
+                <th scope="col">Unidade</th>
+                <th scope="col">Totalização</th>
+                <th scope="col" class="num">Apurado</th>
+                <th scope="col" class="num">Seções a totalizar</th>
+                <th scope="col" class="num">Eleitores nelas</th>
+                <th scope="col" class="num">Municípios finalizados</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaAndamento"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <div class="apu-tip" id="tip" role="status" aria-live="polite"></div>
 
-  <script src="js/apuracao-dados.js?v=20261001j"></script>
-  <script src="js/apuracao-ui.js?v=20261001k"></script>
-  <script src="js/apuracao-nacional.js?v=20261001b"></script>
+  <script src="js/apuracao-dados.js?v=20261002a"></script>
+  <script src="js/apuracao-ui.js?v=20261002a"></script>
+  <script src="js/apuracao-nacional.js?v=20261002a"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

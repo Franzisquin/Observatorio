@@ -1,0 +1,17 @@
+# Redirecionamentos dos assets estaticos (Workers + Static Assets le este
+# arquivo como le o _headers; ele nao e servido como pagina).
+#
+# A apuracao nao tem mais pagina-indice: a presidencial e a entrada, e dela se
+# chega a governador, Senado e deputados pelo menu. /apuracao e o endereco curto
+# que se divulga. 302, e nao 301, para o navegador nao gravar o destino: se a
+# entrada mudar de pagina, o endereco curto muda junto.
+#
+# O antigo apuracao.html (a central, removida em 02/10/2026) vai para o mesmo
+# lugar, para nao quebrar link que alguem tenha guardado.
+#
+# Enquanto as paginas da apuracao estiverem fora do deploy (.assetsignore), o
+# destino responde 404 -- o mesmo que /apuracao responderia sem esta regra.
+
+/apuracao              /apuracao-presidente  302
+/apuracao/             /apuracao-presidente  302
+/apuracao.html         /apuracao-presidente  302

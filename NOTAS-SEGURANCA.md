@@ -176,9 +176,10 @@ Worker, três mudanças de código:
 
 1. `PUBLICADO`, em `js/apuracao-dados.js`, aponta para a rota nova;
 2. a origem nova entra em `ORIGENS_OK`, na mesma função `baseSegura`;
-3. e entra no `connect-src` do CSP das quatro páginas que carregam
-   `apuracao-dados.js` (`apuracao.html`, `apuracao-presidente.html`,
-   `apuracao-uf.html`, `locais.html`).
+3. e entra no `connect-src` do CSP das páginas que carregam
+   `apuracao-dados.js` (`apuracao-presidente.html`, `apuracao-governador.html`,
+   `apuracao-senado.html`, `apuracao-uf.html`, `apuracao-deputados.html`,
+   `locais.html`).
 
 Se o fetch mantiver o cache-buster na querystring, a chave de cache precisa
 ignorá-la — senão cada visitante gera uma chave distinta e o cache não serve para

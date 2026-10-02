@@ -1,0 +1,223 @@
+{
+ "fonte": "https://legis.senado.leg.br/dadosabertos/senador/lista/atual",
+ "versao": "01/10/2026 21:41:02",
+ "gerado": "2026-10-02T00:56:00Z",
+ "senadores": [
+  {
+   "uf": "ac",
+   "nome": "Alan Rick",
+   "partido": "REPUBLICANOS",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5672"
+  },
+  {
+   "uf": "al",
+   "nome": "Renan Filho",
+   "partido": "MDB",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5207"
+  },
+  {
+   "uf": "am",
+   "nome": "Omar Aziz",
+   "partido": "PSD",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5525"
+  },
+  {
+   "uf": "ap",
+   "nome": "Davi Alcolumbre",
+   "partido": "UNIÃO",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "3830"
+  },
+  {
+   "uf": "ba",
+   "nome": "Otto Alencar",
+   "partido": "PSD",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5523"
+  },
+  {
+   "uf": "ce",
+   "nome": "Camilo Santana",
+   "partido": "PT",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6336"
+  },
+  {
+   "uf": "df",
+   "nome": "Damares Alves",
+   "partido": "REPUBLICANOS",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6335"
+  },
+  {
+   "uf": "es",
+   "nome": "Magno Malta",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "631"
+  },
+  {
+   "uf": "go",
+   "nome": "Wilder Morais",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5070"
+  },
+  {
+   "uf": "ma",
+   "nome": "Lourdinha Pereira",
+   "partido": "PSB",
+   "participacao": "2º Suplente",
+   "ate": "2031-01-31",
+   "codigo": "6359"
+  },
+  {
+   "uf": "mg",
+   "nome": "Cleitinho",
+   "partido": "REPUBLICANOS",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6337"
+  },
+  {
+   "uf": "ms",
+   "nome": "Tereza Cristina",
+   "partido": "PP",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5736"
+  },
+  {
+   "uf": "mt",
+   "nome": "Wellington Fagundes",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "1173"
+  },
+  {
+   "uf": "pa",
+   "nome": "Beto Faro",
+   "partido": "PT",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "4639"
+  },
+  {
+   "uf": "pb",
+   "nome": "Efraim Filho",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "4642"
+  },
+  {
+   "uf": "pe",
+   "nome": "Teresa Leitão",
+   "partido": "PT",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6338"
+  },
+  {
+   "uf": "pi",
+   "nome": "Jussara Lima",
+   "partido": "PSD",
+   "participacao": "1º Suplente",
+   "ate": "2031-01-31",
+   "codigo": "6369"
+  },
+  {
+   "uf": "pr",
+   "nome": "Sergio Moro",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6331"
+  },
+  {
+   "uf": "rj",
+   "nome": "Romário",
+   "partido": "S/Partido",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5322"
+  },
+  {
+   "uf": "rn",
+   "nome": "Rogerio Marinho",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "4694"
+  },
+  {
+   "uf": "ro",
+   "nome": "Jaime Bagattoli",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6340"
+  },
+  {
+   "uf": "rr",
+   "nome": "Dr. Hiran",
+   "partido": "PP",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5793"
+  },
+  {
+   "uf": "rs",
+   "nome": "Hamilton Mourão",
+   "partido": "REPUBLICANOS",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6341"
+  },
+  {
+   "uf": "sc",
+   "nome": "Jorge Seif",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6342"
+  },
+  {
+   "uf": "se",
+   "nome": "Laércio Oliveira",
+   "partido": "PP",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "4811"
+  },
+  {
+   "uf": "sp",
+   "nome": "Astronauta Marcos Pontes",
+   "partido": "PL",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "6009"
+  },
+  {
+   "uf": "to",
+   "nome": "Professora Dorinha Seabra",
+   "partido": "UNIÃO",
+   "participacao": "Titular",
+   "ate": "2031-01-31",
+   "codigo": "5386"
+  }
+ ]
+}

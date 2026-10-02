@@ -78,9 +78,10 @@ def servir(porta: int, saida: Path) -> None:
     dados = saida.resolve().relative_to(RAIZ).as_posix() + "/"
     endereco = f"http://127.0.0.1:{porta}"
     print("", flush=True)
-    print(f"  tela da apuracao   {endereco}/apuracao.html?dados={dados}", flush=True)
     print(f"  mapa presidencial  {endereco}/apuracao-presidente.html?cargo=0001&dados={dados}",
           flush=True)
+    print(f"  governadores       {endereco}/apuracao-governador.html?dados={dados}", flush=True)
+    print(f"  senado             {endereco}/apuracao-senado.html?dados={dados}", flush=True)
     print(f"  um estado          {endereco}/apuracao-uf.html?uf=sp&cargo=0003&dados={dados}",
           flush=True)
     print(f"  deputados          {endereco}/apuracao-deputados.html?cargo=0006&dados={dados}",

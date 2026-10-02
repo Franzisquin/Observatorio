@@ -901,6 +901,169 @@ const APU = (function () {
     return `${entrada.dt} ${entrada.ht || ''}`.trim();
   }
 
+  /* ----------------------------------------- cabeçalho de várias UFs */
+
+  /* O cabeçalho do país num cargo estadual (governador, senador, deputado):
+     a soma das UFs de `abr`, sem o exterior. Encerrado só quando todas
+     encerraram; o carimbo é o da UF totalizada por último. */
+  const carimboOrdenavel = (e) => {
+    const [d, m, a] = String(e.dt || '').split('/');
+    return Number(`${a || 0}${m || 0}${d || 0}${String(e.ht || '').replace(/:/g, '')}`) || 0;
+  };
+
+  function cabecalhoDe(abr) {
+    const lista = Object.entries(abr || {})
+      .filter(([uf, e]) => uf !== EXTERIOR && e).map(([, e]) => e);
+    if (!lista.length) return null;
+    const soma = agregar(lista);
+    const and = lista.every((e) => e.and === 'f') ? 'f'
+      : (lista.some((e) => e.and === 'p' || e.and === 'f') ? 'p' : 'n');
+    const recente = lista.slice().sort((a, b) => carimboOrdenavel(b) - carimboOrdenavel(a))[0];
+    return { ...soma, and, dt: recente.dt, ht: recente.ht, tf: and === 'f' ? 's' : 'n' };
+  }
+
+  /* ------------------------------------------------------- governadores */
+
+  /* O retrato dos governos estaduais a partir da camada alta de governador
+     ({ele}-0003-uf.json). Por UF, um de quatro estados:
+       eleito   o primeiro está eleito com certeza — declarado pelo TSE, ou
+                matematicamente (APU.marcar): é o check verde da tela;
+       segundo  o 2º turno está definido, pelo TSE (md = 's') ou pela situação;
+       lidera   há voto, e ainda não há decisão;
+       vazio    nenhum voto apurado.
+     Só `eleito` entra na contagem por partido: a eleição declarada. */
+  function governos(pacote) {
+    const abr = (pacote && pacote.abr) || {};
+    const dic = (pacote && pacote.cand) || {};
+    const porUF = {};
+    const porPartido = new Map();
+    Object.keys(UF_NOMES).filter((uf) => uf !== EXTERIOR).forEach((uf) => {
+      const e = abr[uf];
+      if (!e || !(e.vv > 0)) { porUF[uf] = { estado: 'vazio', entrada: e || null }; return; }
+      const lista = marcar(ranking(e, dic), e, '0003');
+      const [p, s] = lista;
+      const certo = (c) => !!c && !!(c.oficial || c.matematico);
+      let situacao = 'lidera';
+      if (p && p.marca === 'eleito' && certo(p)) situacao = 'eleito';
+      else if (p && s && p.marca === 'segundo' && s.marca === 'segundo' && certo(p) && certo(s)) situacao = 'segundo';
+      porUF[uf] = { estado: situacao, entrada: e, lider: p || null, vice: s || null };
+      if (situacao === 'eleito') {
+        const k = chaveDeCor(p.partido);
+        const atual = porPartido.get(k) || { chave: k, sigla: p.partido, cor: cor(p.partido),
+          espectro: typeof getPartySpectrumRank === 'function' ? getPartySpectrumRank(p.partido, 2026) : 999,
+          eleitos: 0, ufs: [] };
+        atual.eleitos += 1;
+        atual.ufs.push(uf);
+        porPartido.set(k, atual);
+      }
+    });
+    const conta = (s) => Object.values(porUF).filter((u) => u.estado === s).length;
+    return {
+      porUF,
+      porPartido: Array.from(porPartido.values())
+        .sort((a, b) => b.eleitos - a.eleitos || a.espectro - b.espectro || a.sigla.localeCompare(b.sigla, 'pt-BR')),
+      eleitos: conta('eleito'), segundo: conta('segundo'), lidera: conta('lidera'), vazio: conta('vazio')
+    };
+  }
+
+  /* ------------------------------------------------------------ Senado */
+
+  /* As 81 cadeiras do Senado em 2026. O terço que não está em disputa são os 27
+     eleitos em 2022 (mandato até 2031), com o partido de hoje e, onde o eleito
+     saiu, o suplente em exercício (resultados_geo/senado_em_exercicio.json,
+     scripts/apuracao/senado_em_exercicio.py). As outras 54 — duas por UF — vão,
+     em cada estado onde já há voto, aos dois mais votados do momento; onde não
+     há voto, ficam vazias. Firmes só quando o TSE declara o eleito.
+
+     Devolve os blocos do miolo (mantidos) e da periferia (em disputa), no
+     formato que APUUI.hemiciclo enche, e o quadro de cadeiras por partido. */
+  const SENADO = { total: 81, mantidas: 27, porUF: 2 };
+
+  function senado(emExercicio, pacote, chapa) {
+    const regua = typeof getPartySpectrumRank === 'function' ? getPartySpectrumRank : () => 999;
+    const blocosDe = () => new Map();
+    const miolo = blocosDe();
+    const disputa = blocosDe();
+    const nomes = new Map();
+
+    /* Sem partido é um senador sem bloco: cinza, e no meio do semicírculo, que
+       é onde fica quem não está em nenhum dos lados da régua. */
+    const semPartido = (s) => !s || /^s\/?\s*partido$/i.test(String(s).trim()) || /^sem partido$/i.test(s);
+    const bloco = (mapa, sigla) => {
+      const s = semAsterisco(sigla);
+      const sem = semPartido(s);
+      const k = sem ? 'SEM PARTIDO' : chaveDeCor(s);
+      if (!nomes.has(k)) nomes.set(k, sem ? 'SEM PARTIDO' : s.toUpperCase());
+      if (!mapa.has(k)) {
+        mapa.set(k, { chave: 'P:' + k, rotulo: nomes.get(k), siglas: [nomes.get(k)], federacao: false,
+          cor: sem ? CINZA : cor(s), espectro: sem ? 17.5 : regua(s, 2026),
+          vagas: 0, declaradas: 0, votos: null, cand: [] });
+      }
+      return mapa.get(k);
+    };
+
+    ((emExercicio && emExercicio.senadores) || []).forEach((sen) => {
+      const b = bloco(miolo, sen.partido);
+      b.vagas += 1;
+      b.declaradas += 1;
+      b.cand.push({ dentro: true, oficial: true, mantido: true, urna: sen.nome, partido: b.rotulo,
+        uf: sen.uf, participacao: sen.participacao, ate: sen.ate });
+    });
+
+    const abr = (pacote && pacote.abr) || {};
+    const dic = (pacote && pacote.cand) || {};
+    let ufsComVoto = 0;
+    Object.keys(UF_NOMES).filter((uf) => uf !== EXTERIOR).forEach((uf) => {
+      const e = abr[uf];
+      if (!e || !(e.vv > 0)) return;
+      ufsComVoto += 1;
+      const lista = marcar(ranking(e, dic), e, '0005');
+      lista.slice(0, SENADO.porUF).forEach((c, i) => {
+        const b = bloco(disputa, c.partido);
+        const oficial = !!c.oficial && c.marca === 'eleito';
+        b.vagas += 1;
+        if (oficial) b.declaradas += 1;
+        b.cand.push({ dentro: true, oficial, urna: c.urna || c.nome, partido: c.partido, uf,
+          votos: c.votos, pct: c.pct, pos: i + 1, marca: c.marca, matematico: !!c.matematico });
+      });
+    });
+    /* Dentro do bloco, cadeira firme primeiro e, entre iguais, mais voto. */
+    disputa.forEach((b) => b.cand.sort((x, y) => (y.oficial - x.oficial) || (y.votos - x.votos)));
+    miolo.forEach((b) => b.cand.sort((x, y) => x.uf.localeCompare(y.uf)));
+
+    /* Quadro: o total de cada partido, mantidas mais em disputa. Antes da
+       primeira urna entra também quem só tem candidatura, com zero. */
+    const quadro = new Map();
+    const somar = (b, campo) => {
+      const k = b.chave;
+      const q = quadro.get(k) || { chave: k, rotulo: b.rotulo, cor: b.cor, espectro: b.espectro,
+        cadeiras: 0, mantidas: 0, disputa: 0 };
+      q[campo] += b.vagas;
+      q.cadeiras += b.vagas;
+      quadro.set(k, q);
+    };
+    miolo.forEach((b) => somar(b, 'mantidas'));
+    disputa.forEach((b) => somar(b, 'disputa'));
+    if (!ufsComVoto) {
+      Object.values(chapa || {}).forEach((c) => {
+        if (/^(Ren[úu]ncia|Indeferido)\s*$/i.test(String(c.situacao || ''))) return;
+        const b = bloco(blocosDe(), c.partido);
+        if (!quadro.has(b.chave)) {
+          quadro.set(b.chave, { chave: b.chave, rotulo: b.rotulo, cor: b.cor, espectro: b.espectro,
+            cadeiras: 0, mantidas: 0, disputa: 0 });
+        }
+      });
+    }
+
+    return {
+      miolo: Array.from(miolo.values()),
+      disputa: Array.from(disputa.values()),
+      quadro: Array.from(quadro.values())
+        .sort((a, b) => b.cadeiras - a.cadeiras || a.rotulo.localeCompare(b.rotulo, 'pt-BR')),
+      ufsComVoto
+    };
+  }
+
   return {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
@@ -909,6 +1072,6 @@ const APU = (function () {
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,
     blocos, somarBlocos, marcarLista, porCadeiras, porEspectro, clausulaDeDesempenho, CLAUSULA,
-    comparar
+    comparar, governos, senado, SENADO, cabecalhoDe
   };
 })();

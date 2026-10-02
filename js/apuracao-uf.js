@@ -56,45 +56,13 @@
     return APU.rankingZerado(estado.chapa, APU.cfg.cargo === '0001' ? '' : estado.uf);
   }
 
-  function sufixoParams() {
-    const p = [];
-    if (APU.cfg.eleicao) p.push('eleicao=' + encodeURIComponent(APU.cfg.eleicao));
-    if (APU.cfg.cargo) p.push('cargo=' + encodeURIComponent(APU.cfg.cargo));
-    const dados = new URLSearchParams(location.search).get('dados');
-    if (dados) p.push('dados=' + encodeURIComponent(dados));
-    return p.length ? '?' + p.join('&') : '';
-  }
-
-  /* Alterna o cargo sem sair do estado: mesma UF, mesmos parametros, so o
-     `cargo` muda. Deputado nao cabe nesta pagina — ela mostra ranking de
-     candidato, nao bloco e vaga —, entao os dois botoes de deputado levam a
-     apuracao-deputados.html, na mesma UF. */
-  const CARGOS_ALTERNAVEIS = [
-    ['0001', 'Presidente'],
-    ['0003', 'Governador'],
-    ['0005', 'Senador']
-  ];
-
+  /* Os cinco cargos e a barra de estados, como nas outras páginas da apuração
+     (APUUI.seletorDeCargo, APUUI.barraDeUFs): o cargo muda e o estado fica;
+     o estado muda e o cargo fica. Deputado leva a apuracao-deputados.html,
+     na mesma UF — esta página mostra ranking de candidato, não bloco e vaga. */
   function montarSeletorDeCargo() {
-    const el = $('seletorCargo');
-    if (!el) return;
-    const base = new URLSearchParams(location.search);
-    const deputados = [['0006', 'Deputado federal'],
-      ['0007', estado.uf === 'df' ? 'Deputado distrital' : 'Deputado estadual']];
-    el.innerHTML = CARGOS_ALTERNAVEIS.map(([cd, rotulo]) => {
-      const q = new URLSearchParams(base);
-      q.set('uf', estado.uf);
-      q.set('cargo', cd);
-      const ativo = cd === APU.cfg.cargo;
-      return `<a class="apu-cargo${ativo ? ' is-ativo' : ''}"` +
-        (ativo ? ' aria-current="page"' : '') +
-        ` href="apuracao-uf.html?${q.toString()}">${rotulo}</a>`;
-    }).join('') + deputados.map(([cd, rotulo]) => {
-      const q = new URLSearchParams(base);
-      q.set('uf', estado.uf);
-      q.set('cargo', cd);
-      return `<a class="apu-cargo" href="apuracao-deputados.html?${q.toString()}">${rotulo}</a>`;
-    }).join('');
+    APUUI.seletorDeCargo('seletorCargo', APU.cfg.cargo, estado.uf);
+    APUUI.barraDeUFs('seletorUF', APU.cfg.cargo, estado.uf);
   }
 
   /* ------------------------------------------------------------------ mapa */
@@ -207,14 +175,14 @@
     montarSeletorDeCargo();
     $('tituloUF').textContent = nomeUF;
     $('brandScope').textContent = nomeUF;
-    /* Presidente tem mapa nacional proprio; os demais cargos voltam para a
-       central, que e onde governador e senador sao acompanhados. */
-    const destino = (APU.cfg.cargo === '0001' ? 'apuracao-presidente.html' : 'apuracao.html')
-      + sufixoParams();
+    /* Volta à página do cargo no país: o mapa nacional do presidente, os
+       governadores, o Senado. */
     APUUI.ligarMenu(APU.cfg.cargo);
-    $('voltar').href = destino;
+    $('voltar').href = APUUI.hrefDoCargo(APU.cfg.cargo, '');
     const rot = $('voltar').querySelector('span');
-    if (rot) rot.textContent = APU.cfg.cargo === '0001' ? 'Apuração nacional' : 'Central de apuração';
+    if (rot) {
+      rot.textContent = { '0003': 'Governadores', '0005': 'Senado' }[APU.cfg.cargo] || 'Apuração nacional';
+    }
     document.title = `${nomeUF} — ${nomeDoCargo()} — Apuração — ElectoMaps`;
 
     $('rotuloMapa').textContent = NIVEIS[estado.nivel].titulo;
@@ -239,7 +207,8 @@
         return;
       }
 
-      $('subtitulo').textContent = `${nomeDoCargo()} — candidaturas registradas`;
+      $('subtitulo').textContent = '';
+      $('subtitulo').hidden = true;
       estado.porChave = {};
 
       const vazio = await montarMapa(uf);
@@ -265,7 +234,8 @@
     const total = estado.ufTSE || APU.agregar(entradas);
     estado.total = total;
 
-    $('subtitulo').textContent = `${nomeDoCargo()} · ${APU.fmt.int(entradas.length)} municípios`;
+    $('subtitulo').textContent = `${APU.fmt.int(entradas.length)} municípios`;
+    $('subtitulo').hidden = false;
 
     const cabecalho = estado.ufTSE || {
       ...total,

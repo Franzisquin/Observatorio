@@ -636,6 +636,36 @@ const APUUI = (function () {
     return assentos;
   }
 
+  /* Semicírculo com anéis dados por quem chama: [{raio, n}], de dentro para
+     fora. Serve ao Senado, que precisa de anéis inteiros para o terço mantido
+     (miolo) e para os dois terços em disputa (periferia) — a partilha
+     proporcional de geometriaDoHemiciclo cortaria um anel ao meio. Cada
+     cadeira leva o índice do seu anel. */
+  function geometriaDeAneis(aneis) {
+    const margem = 0.06;
+    const abertura = Math.PI - 2 * margem;
+    const raios = aneis.map((a) => a.raio);
+    const passo = raios.length > 1 ? (raios[raios.length - 1] - raios[0]) / (raios.length - 1) : 20;
+    const espessura = passo * 0.88;
+    const canto = Math.max(1.2, Math.min(3.5, espessura * 0.2));
+    const assentos = [];
+    aneis.forEach(({ raio, n }, anel) => {
+      const entre = n > 1 ? abertura / (n - 1) : 0;
+      const largura = (abertura / n) * 0.93;
+      const r1 = raio - espessura / 2 + canto;
+      const r2 = raio + espessura / 2 - canto;
+      for (let s = 0; s < n; s++) {
+        const theta = n === 1 ? Math.PI / 2 : (Math.PI - margem - s * entre);
+        const meia = Math.max(0.0001, largura / 2 - canto / raio);
+        assentos.push({ d: setor(r1, r2, theta - meia, theta + meia), theta, canto, anel,
+          x: raio * Math.cos(theta), y: -raio * Math.sin(theta) });
+      }
+    });
+    assentos.sort((a, b) => b.theta - a.theta);
+    assentos.limites = [raios[0] - espessura / 2, raios[raios.length - 1] + espessura / 2];
+    return assentos;
+  }
+
   /* Geometria do desenho de bancada: um ponto por deputado, numa grade de
      linhas e colunas. A grade se enche coluna a coluna, de cima para baixo e
      da esquerda para a direita: como cada bloco recebe uma sequência contínua
@@ -706,24 +736,31 @@ const APUUI = (function () {
     if (!svg) return;
     const o = opcoes || {};
     const pontos = !!o.pontos;
-    const ordem = (blocos || []).filter((b) => b.vagas > 0).slice().sort(APU.porEspectro);
 
     /* Quem ocupa cada cadeira, na ordem do espectro e, dentro do bloco, do
-       mais ao menos votado. */
-    const donos = [];
-    ordem.forEach((b) => {
-      const dentro = (b.cand || []).filter((c) => c.dentro);
-      for (let i = 0; i < b.vagas && donos.length < total; i++) {
-        const cand = dentro[i] || null;
-        donos.push({ b, cand, oficial: cand ? !!cand.oficial : i < (b.declaradas || 0) });
-      }
-    });
+       mais ao menos votado. Com `miolo` ({aneis, blocos}), os anéis de dentro
+       são de um grupo (o terço do Senado que não está em disputa) e os de
+       fora, do outro — cada grupo enche a sua parte da esquerda para a direita. */
+    const donosDe = (lista, limite) => {
+      const donos = [];
+      (lista || []).filter((b) => b.vagas > 0).slice().sort(APU.porEspectro).forEach((b) => {
+        const dentro = (b.cand || []).filter((c) => c.dentro);
+        for (let i = 0; i < b.vagas && donos.length < limite; i++) {
+          const cand = dentro[i] || null;
+          donos.push({ b, cand, oficial: cand ? !!cand.oficial : i < (b.declaradas || 0) });
+        }
+      });
+      return donos;
+    };
 
-    const desenho = total + '|' + (pontos ? 'pontos' : 'arcos');
+    const aneis = o.aneis || null;
+    const desenho = total + '|' + (pontos ? 'pontos' : 'arcos')
+      + (aneis ? '|' + aneis.map((a) => a.raio + 'x' + a.n).join(',') : '');
     if (svg.dataset.desenho !== desenho) {
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       svg.dataset.desenho = desenho;
-      const geometria = pontos ? geometriaDeGrade(total) : geometriaDoHemiciclo(total);
+      const geometria = pontos ? geometriaDeGrade(total)
+        : (aneis ? geometriaDeAneis(aneis) : geometriaDoHemiciclo(total));
       const grupo = noSvg('g', pontos ? { class: 'apu-hemi-assentos' }
         : { transform: 'translate(300,360)', class: 'apu-hemi-assentos' });
       const [dentro, fora] = geometria.limites || [180, 266];
@@ -762,15 +799,14 @@ const APUUI = (function () {
        ordem de voto. */
     const geo = svg._apuGeo || [];
     const porLugar = new Array(geo.length).fill(null);
-    let inicio = 0;
-    while (inicio < donos.length) {
-      let fim = inicio;
-      while (fim < donos.length && donos[fim].b === donos[inicio].b) fim += 1;
-      const lugares = [];
-      for (let i = inicio; i < fim; i++) lugares.push(i);
-      lugares.forEach((lugar, k) => { porLugar[lugar] = donos[inicio + k]; });
-      inicio = fim;
-    }
+    const todos = geo.map((_, i) => i);
+    const grupos = o.miolo
+      ? [{ lugares: todos.filter((i) => geo[i].anel < o.miolo.aneis), blocos: o.miolo.blocos },
+        { lugares: todos.filter((i) => !(geo[i].anel < o.miolo.aneis)), blocos }]
+      : [{ lugares: todos, blocos }];
+    grupos.forEach((g) => {
+      donosDe(g.blocos, g.lugares.length).forEach((d, k) => { porLugar[g.lugares[k]] = d; });
+    });
 
     svg.querySelectorAll('.apu-hemi-assento').forEach((el) => {
       const d = porLugar[Number(el.dataset.i)];
@@ -833,6 +869,7 @@ const APUUI = (function () {
      Tudo rente à margem esquerda: o nome sozinho no título, a cor junto do
      partido, e votos e posição em duas linhas com o valor na mesma borda. */
   function balaoDoCandidato(b, c) {
+    if (c.mantido || c.uf) return balaoDoSenador(b, c);
     const partido = c.partido + (b.federacao ? ' · ' + b.rotulo : '');
     return '<div class="nyt-tooltip-container">'
       + '<div class="district-nyt-title">' + esc(c.urna || c.numero) + '</div>'
@@ -843,6 +880,31 @@ const APUUI = (function () {
       + '<tr><td>Posição na lista</td><td class="votes-cell winner">' + c.pos + 'º</td></tr>'
       + '</tbody></table>'
       + '<div class="district-nyt-nota">' + esc(situacaoDoCandidato(b, c)) + '</div></div>';
+  }
+
+  /* Balão de uma cadeira do Senado: o senador que fica até 2031, ou o
+     candidato que ocupa uma das duas vagas do estado neste boletim. */
+  function balaoDoSenador(b, c) {
+    const nomeUF = APU.UF_NOMES[c.uf] || String(c.uf || '').toUpperCase();
+    const cabeca = '<div class="nyt-tooltip-container">'
+      + '<div class="district-nyt-title">' + esc(APU.nomeProprio(c.urna || '')) + '</div>'
+      + '<div class="district-nyt-sub"><span class="apu-swatch" style="background:' + b.cor
+      + ';margin-right:6px"></span>' + esc(b.rotulo) + ' · ' + esc(nomeUF) + '</div>';
+    if (c.mantido) {
+      const ate = String(c.ate || '').slice(0, 4);
+      return cabeca + '<div class="district-nyt-nota">Fora da disputa: mandato até ' + esc(ate || '2031')
+        + (c.participacao && !/^titular$/i.test(c.participacao)
+          ? '. ' + esc(c.participacao) + ' em exercício, no lugar do eleito em 2022' : ', eleito em 2022')
+        + '.</div></div>';
+    }
+    const situacao = c.oficial ? 'Eleito, declarado pelo TSE'
+      : (c.matematico ? 'Matematicamente eleito; o TSE ainda não declarou'
+        : `${c.pos}º mais votado em ${nomeUF} neste boletim; as duas vagas do estado vão aos dois primeiros`);
+    return cabeca + '<table class="district-nyt-table"><tbody>'
+      + '<tr><td>Votos</td><td class="votes-cell winner">' + APU.fmt.int(c.votos) + '</td>'
+      + '<td class="pct-cell">' + APU.fmt.pct(c.pct) + '</td></tr>'
+      + '</tbody></table>'
+      + '<div class="district-nyt-nota">' + esc(situacao) + '</div></div>';
   }
 
   /* Acende as cadeiras de um bloco e apaga as outras; `null` devolve todas. */
@@ -864,8 +926,8 @@ const APUUI = (function () {
       + '<tr><td>' + (b.vagas > (b.declaradas || 0) ? 'Cadeiras na projeção' : 'Cadeiras') + '</td>'
       + '<td class="votes-cell winner">' + APU.fmt.int(b.vagas)
       + '</td><td class="pct-cell">' + (total ? (100 * b.vagas / total).toFixed(1) : '0,0') + '%</td></tr>'
-      + '<tr><td>Votos</td><td class="votes-cell">' + APU.fmt.int(b.votos)
-      + '</td><td class="pct-cell">' + b.pct.toFixed(1) + '%</td></tr>'
+      + (b.votos == null ? '' : '<tr><td>Votos</td><td class="votes-cell">' + APU.fmt.int(b.votos)
+        + '</td><td class="pct-cell">' + b.pct.toFixed(1) + '%</td></tr>')
       + '</tbody></table></div>';
   }
 
@@ -937,6 +999,134 @@ const APUUI = (function () {
       + '" height="' + Math.ceil(h) + '" aria-hidden="true">' + pontos + '</svg>';
   }
 
+  /* ---------------------------------------------------- cartões de estado */
+
+  /* Ordem das células em bandeiras-estados.png. É a mesma que
+     scripts/gerar_bandeiras_estados.py imprime ao gerar o sprite — se aquele
+     script mudar de ordem, esta linha muda junto, ou cada estado passa a exibir
+     a bandeira do vizinho. Fora da lista (o exterior, `zz`) fica sem chip. */
+  const ORDEM_BANDEIRAS = ('ac al am ap ba ce df es go ma mg ms mt pa pb pe pi '
+    + 'pr rj rn ro rr rs sc se sp to').split(' ');
+
+  /* Decorativa: o nome do estado está ao lado, então o leitor de tela não ganha
+     nada repetindo "bandeira de São Paulo" antes dele. */
+  function bandeira(uf) {
+    const i = ORDEM_BANDEIRAS.indexOf(uf);
+    return i < 0 ? ''
+      : '<span class="apu-estado-bandeira" style="--bandeira:' + i + '" aria-hidden="true"></span>';
+  }
+
+  /* As 27 unidades, ordenadas por tamanho do eleitorado (TSE, 2022) — não é
+     ranking de importância política, é onde mais gente vota. */
+  const UFS_POR_ELEITORADO = ['sp', 'mg', 'rj', 'ba', 'rs', 'pr', 'pe', 'ce', 'pa', 'sc', 'go', 'ma',
+    'am', 'es', 'pb', 'rn', 'mt', 'al', 'pi', 'df', 'ms', 'se', 'ro', 'to', 'ac', 'ap', 'rr'];
+
+  /* Um cartão por estado, na grade de governador e na de senador. Com boletim
+     mostra os dois primeiros; sem boletim, os dois primeiros da chapa
+     registrada, todos em 0,00%. `href` leva à página do estado. */
+  function cartaoEstado(uf, cargo, pacote, chapa, href) {
+    const nome = APU.UF_NOMES[uf] || uf.toUpperCase();
+    const entrada = pacote && pacote.abr && pacote.abr[uf];
+    const dicionario = (pacote && pacote.cand) || {};
+    const comVotos = !!(entrada && entrada.vv > 0);
+
+    /* A marca sai da lista inteira, não do recorte: quem ocupa a segunda vaga do
+       Senado é o segundo da UF, e cortar antes de marcar mudaria o índice. */
+    const completa = comVotos ? APU.ranking(entrada, dicionario) : APU.rankingZerado(chapa, uf);
+    if (comVotos) APU.marcar(completa, entrada, cargo);
+    const lista = completa.slice(0, 2);
+    const pst = entrada ? (entrada.pst || 0) : 0;
+
+    if (!lista.length) {
+      return '<a class="apu-estado is-vazio" href="' + href + '">'
+        + '<div class="apu-estado-head">' + bandeira(uf)
+        + '<span class="apu-estado-uf">' + esc(nome) + '</span></div>'
+        + '<p class="apu-estado-vazio">sem lista importada</p></a>';
+    }
+
+    const lider = comVotos ? APU.cor(lista[0].partido) : 'var(--line-strong)';
+    const linhas = lista.map((c, i) => {
+      /* Check sólido quando é certo — declarado pelo TSE ou matematicamente
+         definido: verde para eleito, azul para quem vai ao 2º turno.
+         Tracejado quando ainda é leitura. */
+      const marca = c.marca
+        ? '<span class="apu-tique is-' + c.marca + (firme(c) ? '' : ' is-previsto')
+          + '" title="' + esc(tituloDaMarca(c)) + '">' + icone('tique', 11) + '</span>'
+        : '';
+      return '<div class="apu-estado-linha ' + (i === 0 && comVotos ? 'is-lead' : '') + '"'
+        + ' style="--cor-linha:' + APU.cor(c.partido) + '">'
+        + '<span class="apu-estado-nome">' + esc(c.urna) + marca + '</span>'
+        + '<span class="apu-estado-pct">' + APU.fmt.pct(c.pct) + '</span></div>';
+    }).join('');
+
+    return '<a class="apu-estado" href="' + href + '" style="--cor:' + lider + '">'
+      + '<div class="apu-estado-head">' + bandeira(uf)
+      + '<span class="apu-estado-uf">' + esc(nome) + '</span></div>'
+      + linhas
+      + '<div class="apu-estado-pe">'
+      + '<div class="apu-mini"><span style="width:' + Math.min(100, pst) + '%;background:var(--ink)"></span></div>'
+      + '<span class="apu-estado-apurado">' + APU.fmt.pct(pst) + ' apurado</span>'
+      + '</div></a>';
+  }
+
+  /* Parâmetros que identificam a fonte de dados (`eleicao`, `dados`), mais os
+     extras, para os links entre as páginas da apuração. */
+  function paramsDeFonte(extra) {
+    const q = new URLSearchParams();
+    const atual = new URLSearchParams(location.search);
+    ['eleicao', 'dados'].forEach((k) => { if (atual.get(k)) q.set(k, atual.get(k)); });
+    Object.entries(extra || {}).forEach(([k, v]) => q.set(k, v));
+    const s = q.toString();
+    return s ? '?' + s : '';
+  }
+
+  /* ----------------------------------------- cabeçalho: cargos e estados */
+
+  /* Para onde vai cada cargo, no país ou num estado. Majoritário no estado é a
+     página da UF (mapa por município); no país, a página do cargo. Deputado vai
+     sempre à página de deputados, com ou sem UF. */
+  function hrefDoCargo(cargo, uf) {
+    if (cargo === '0006' || cargo === '0007') {
+      return 'apuracao-deputados.html' + paramsDeFonte(uf ? { cargo, uf } : { cargo });
+    }
+    if (uf) return 'apuracao-uf.html' + paramsDeFonte({ uf, cargo });
+    const pagina = { '0001': 'apuracao-presidente.html', '0003': 'apuracao-governador.html',
+      '0005': 'apuracao-senado.html' }[cargo];
+    return pagina + paramsDeFonte(cargo === '0001' ? { cargo } : {});
+  }
+
+  const CARGOS_DO_SELETOR = [['0001', 'Presidente'], ['0003', 'Governador'], ['0005', 'Senador'],
+    ['0006', 'Deputado federal'], ['0007', 'Deputado estadual']];
+
+  /* Os cinco cargos, no mesmo lugar em todas as páginas da apuração. No DF a
+     casa estadual é a Câmara Legislativa: o botão diz "Deputado distrital". */
+  function seletorDeCargo(alvo, cargo, uf) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    const ativo = cargo === '0008' ? '0007' : cargo;
+    el.innerHTML = CARGOS_DO_SELETOR.map(([cd, rotulo]) => {
+      const nome = cd === '0007' && uf === 'df' ? 'Deputado distrital' : rotulo;
+      const eh = cd === ativo;
+      return `<a class="apu-cargo${eh ? ' is-ativo' : ''}" data-pagina-cargo="${cd}"`
+        + (eh ? ' aria-current="page"' : '') + ` href="${esc(hrefDoCargo(cd, uf))}">${nome}</a>`;
+    }).join('');
+  }
+
+  /* Brasil e as 27 unidades. Brasil leva à página do cargo no país; o estado,
+     à página dele no mesmo cargo. */
+  function barraDeUFs(alvo, cargo, uf) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    const ufs = ORDEM_BANDEIRAS;
+    const chips = [['', 'Brasil']].concat(ufs.map((u) => [u, u.toUpperCase()]));
+    el.innerHTML = '<div class="wrap apu-dep-ufs-in">' + chips.map(([u, rotulo]) => {
+      const eh = u === (uf || '');
+      return `<a class="apu-dep-uf${eh ? ' is-ativo' : ''}${u ? '' : ' is-brasil'}" data-uf="${u}"`
+        + (eh ? ' aria-current="page"' : '') + ` title="${esc(u ? APU.UF_NOMES[u] : 'O país inteiro')}"`
+        + ` href="${esc(hrefDoCargo(cargo === '0008' ? '0007' : cargo, u))}">${rotulo}</a>`;
+    }).join('') + '</div>';
+  }
+
   /* ------------------------------------------------------- menu de cargos */
 
   /* O menu do topo é o mesmo nas quatro páginas (#menuCargos): só cargos. Os
@@ -984,5 +1174,6 @@ const APUUI = (function () {
     legendaMarcas, firme, tituloDaMarca, balao, conteudoDoBalao, tinta, tom, faixa, legendaFaixas, pintarMapa,
     foto, esc, icone,
     hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,
-    balaoDaClausula, veredictoDaClausula };
+    balaoDaClausula, veredictoDaClausula, bandeira, cartaoEstado, paramsDeFonte, UFS_POR_ELEITORADO,
+    hrefDoCargo, seletorDeCargo, barraDeUFs };
 })();

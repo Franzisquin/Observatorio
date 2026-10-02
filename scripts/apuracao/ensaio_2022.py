@@ -19,8 +19,9 @@ todas as paginas da apuracao possam ser testadas ao mesmo tempo:
     python scripts/apuracao/ensaio_2022.py --instante 0.4 --ufs sp rj ac
 
 Depois abra, com o mesmo `dados=` em todas:
-    apuracao.html?dados=scratch/apuracao/ensaio2022-t1/
     apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/ensaio2022-t1/
+    apuracao-governador.html?dados=scratch/apuracao/ensaio2022-t1/
+    apuracao-senado.html?dados=scratch/apuracao/ensaio2022-t1/
     apuracao-uf.html?uf=sp&cargo=0003&dados=scratch/apuracao/ensaio2022-t1/
     apuracao-deputados.html?cargo=0006&dados=scratch/apuracao/ensaio2022-t1/
 

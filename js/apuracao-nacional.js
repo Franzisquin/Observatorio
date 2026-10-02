@@ -44,7 +44,9 @@
        seta de cada unidade contra 2022 (comparação, abaixo). */
     modo: 'resultado',
     /* Base do 1º turno de 2022 (scripts/apuracao/comparacao_2022.py). */
-    base2022: null
+    base2022: null,
+    /* Acompanhamento do TSE (EA14): onde ainda se está contando. */
+    ab: null
   };
 
   function nomeDoCargo() {
@@ -1046,6 +1048,55 @@
     }).join('');
   }
 
+  /* --------------------------------------------------- andamento (EA14) */
+
+  /* Onde ainda se está contando, com os contadores que o próprio TSE publica no
+     arquivo de acompanhamento: estágio da UF e quantos dos seus municípios já
+     finalizaram. É a leitura que fica interessante justamente quando o mapa de
+     quem ganha já saturou. */
+  function pintarAndamento() {
+    const secao = $('andamento');
+    const corpo = $('tabelaAndamento');
+    if (!secao || !corpo) return;
+
+    const ab = estado.ab;
+    if (!ab || !ab.uf || !Object.keys(ab.uf).length) { secao.hidden = true; return; }
+    secao.hidden = false;
+
+    const br = ab.br || {};
+    /* Os contadores do EA14 somam todas as abrangências, exterior incluído.
+       Aqui a frase é sobre unidades da Federação, então ele sai dos dois lados:
+       do total e, se já tiver finalizado, também do numerador. */
+    const ext = ab.uf[APU.EXTERIOR];
+    const fora = ext ? 1 : 0;
+    const foraFinalizada = ext && ext.and === 'f' ? 1 : 0;
+    $('notaAndamento').textContent = br.pst != null
+      ? `${APU.fmt.pct(br.pst)} das seções do país · `
+        + `${APU.fmt.int(br.uff - foraFinalizada)} de `
+        + `${APU.fmt.int(br.uff + br.ufpt + br.ufnr - fora)} unidades finalizadas`
+      : '';
+
+    const linhas = Object.values(ab.uf)
+      .sort((a, b) => (b.pst || 0) - (a.pst || 0)
+        || (APU.UF_NOMES[a.cd] || a.cd).localeCompare(APU.UF_NOMES[b.cd] || b.cd, 'pt-BR'));
+
+    corpo.innerHTML = linhas.map((u) => {
+      const nome = APU.UF_NOMES[u.cd] || u.cd.toUpperCase();
+      const total = u.muf + u.mupt + u.munr;
+      /* O exterior não tem página de estado: fica sem link. */
+      const rotulo = u.cd === APU.EXTERIOR ? APUUI.esc(nome)
+        : `<a href="apuracao-uf.html?uf=${u.cd}${sufixoParams()}">${APUUI.esc(nome)}</a>`;
+      return `<tr>
+        <td>${rotulo}</td>
+        <td><span class="apu-estagio is-${u.and}">${APUUI.esc(APU.ESTAGIOS[u.and] || u.and)}</span></td>
+        <td class="num">${APU.fmt.pct(u.pst || 0)}</td>
+        <td class="num">${APU.fmt.int(u.snt)}</td>
+        <td class="num">${APU.fmt.int(u.esnt)}</td>
+        <td class="num">${total ? APU.fmt.int(u.muf) + ' / ' + APU.fmt.int(total) : '—'}</td>
+      </tr>`;
+    }).join('');
+  }
+
   /* --------------------------------------------------------------- ciclo */
 
   async function buscarMun(uf) {
@@ -1077,15 +1128,18 @@
     /* A camada municipal é republicada bem mais devagar que a alta (~4 min no
        plantão): relê-la a cada volta seria pedir o mesmo arquivo. */
     const municipal = estado.volta++ % 4 === 0 ? ufsDesenhadas() : [];
-    const [br, uf, proj] = await Promise.all([
-      APU.snapshot('br'), APU.snapshot('uf'), APU.snapshot('proj'), ...municipal.map(buscarMun)
+    const [br, uf, proj, ab] = await Promise.all([
+      APU.snapshot('br'), APU.snapshot('uf'), APU.snapshot('proj'), APU.acompanhamento('0001'),
+      ...municipal.map(buscarMun)
     ]);
     /* Não apaga o que já está na tela se uma volta falhar: um boletim antigo
        vale mais que um painel vazio. */
     if (br) estado.br = br;
     if (uf) estado.uf = uf;
     if (proj) estado.proj = proj;
+    if (ab) estado.ab = ab;
     pintar();
+    pintarAndamento();
     municipal.forEach(pintarMun);
   }
 

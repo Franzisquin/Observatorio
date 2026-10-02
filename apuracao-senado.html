@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Apuração por estado — ElectoMaps</title>
+  <title>Senado — Apuração ao vivo — ElectoMaps</title>
   <link rel="icon" type="image/png" href="favicon.png?v=2" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2" />
   <meta name="description"
-    content="Apuração ao vivo por estado, com mapa por município e lista de candidatos. Dados oficiais do TSE." />
+    content="Apuração ao vivo do Senado: as 81 cadeiras, com os 27 senadores que ficam até 2031 e as 54 vagas em disputa em 2026, estado a estado. Dados oficiais do TSE." />
 
   <!-- CSP: ver a nota completa em apuracao-presidente.html. `connect-src` é a segunda trava
        sobre o `?dados=`; 'unsafe-inline' sai quando o `onerror=` de apuracao-ui.js
@@ -46,7 +46,7 @@
         <img class="brand-mark" src="logo.png?v=2" alt="" width="128" height="128" />
         ElectoMaps
         <span class="brand-sep" aria-hidden="true">/</span>
-        <span class="brand-scope" id="brandScope">Apuração</span>
+        <span class="brand-scope" id="brandScope">Senado</span>
       </a>
 
       <!-- Menu de cargos, o mesmo nas quatro páginas da apuração. Os links ganham
@@ -69,19 +69,10 @@
     </div>
   </header>
 
-  <main class="apu-main">
+  <main class="apu-main apu-dep apu-sen">
 
     <section class="apu-head">
       <div class="wrap">
-        <a class="crumb" href="apuracao-presidente.html" id="voltar">
-          <svg class="arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
-            style="transform:rotate(180deg)">
-            <path d="M5 12h14M13 6l6 6-6 6" />
-          </svg>
-          <span>Apuração nacional</span>
-        </a>
-
         <div class="apu-kicker">
           <span class="apu-live is-off" id="selLive">Aguardando</span>
           <span class="apu-selo" id="selSimulado">Simulado</span>
@@ -89,11 +80,10 @@
           <span class="apu-stamp" id="selCarimbo"></span>
         </div>
 
+        <!-- Os cinco cargos, como nas outras páginas (APUUI.seletorDeCargo). -->
         <div class="apu-cargos" id="seletorCargo" role="group" aria-label="Cargo em disputa"></div>
-
-        <h1 class="apu-title" id="tituloUF">Estado</h1>
-        <p class="apu-sub" id="subtitulo" hidden></p>
-
+        <h1 class="apu-title">Senado Federal</h1>
+        <p class="apu-sub" id="subtitulo">81 cadeiras · 54 em disputa</p>
         <div class="apu-progress">
           <div class="apu-progress-top">
             <span class="apu-progress-pct" id="pctApurado">—</span>
@@ -104,105 +94,48 @@
       </div>
     </section>
 
-    <!-- Brasil e as 27 unidades (APUUI.barraDeUFs), no mesmo cargo. -->
+    <!-- Brasil e as 27 unidades (APUUI.barraDeUFs): o estado abre a página dele. -->
     <nav class="apu-dep-ufs" id="seletorUF" aria-label="Escolher o estado"></nav>
 
     <div class="wrap">
-      <div id="semDados" class="apu-empty" hidden>
-        <h3>Sem dados para este estado</h3>
-        <p id="semDadosTexto">
-          A camada municipal entra em cadência mais lenta que a nacional. Se a apuração já começou, ela aparece na
-          próxima atualização.
-        </p>
-      </div>
-
       <div id="avisos" hidden></div>
 
-      <div class="apu-grid" id="painel">
-        <div>
-          <div class="apu-maphead">
-            <span class="apu-maptitle" id="rotuloMapa">Liderança por município</span>
+      <!-- Semicírculo de 81 cadeiras: no miolo, os 27 eleitos em 2022 (até
+           2031); na periferia, as 54 vagas em disputa, com os dois mais votados
+           de cada estado onde já há voto (APU.senado). -->
+      <section class="apu-dep-palco" id="palco">
+        <figure class="apu-dep-hemi">
+          <svg class="apu-hemi" id="hemiciclo" viewBox="0 65 600 305" preserveAspectRatio="xMidYMin meet"
+            role="img" aria-labelledby="hemicicloLegenda"></svg>
+          <figcaption class="apu-progress-lab" id="hemicicloLegenda"></figcaption>
+        </figure>
 
-            <div class="apu-levels" id="niveis" role="group" aria-label="Camada do mapa">
-              <button class="apu-level is-on" type="button" data-nivel="municipios">Municípios</button>
-              <button class="apu-level" type="button" data-nivel="rgint">Intermediárias</button>
-              <button class="apu-level" type="button" data-nivel="rgi">Imediatas</button>
-            </div>
-
-            <span class="apu-progress-lab" id="mapaNota"></span>
+        <div class="apu-dep-quadro">
+          <h2 class="apu-dock-rot">Cadeiras por partido</h2>
+          <div class="apu-table-wrap">
+            <table class="apu-dep-tab apu-sen-tab">
+              <thead>
+                <tr>
+                  <th scope="col">Partido</th>
+                  <th scope="col" class="num">Cadeiras</th>
+                </tr>
+              </thead>
+              <tbody id="quadro"></tbody>
+            </table>
           </div>
-
-          <div class="apu-mapwrap">
-            <svg class="apu-map" id="mapaUF" role="img" aria-label="Mapa do estado por município"></svg>
-          </div>
-
         </div>
-
-        <aside class="apu-aside">
-          <div class="apu-card">
-            <div class="apu-card-head">
-              <h3 id="rotuloPlacar">Resultado no estado</h3>
-              <button class="apu-back" id="voltarMun" type="button" hidden>Voltar ao estado</button>
-            </div>
-            <div class="apu-results" id="placar"></div>
-
-            <h3 id="rotuloParticipacao" style="margin-top:18px">Participação</h3>
-            <div class="apu-stats" id="participacao"></div>
-
-            <!-- Um cartão só, e o botão no fim dele: abre e fecha as
-                 candidaturas e a participação de uma vez, como na presidencial. -->
-            <div id="maisResultado"></div>
-          </div>
-        </aside>
-      </div>
+      </section>
     </div>
 
-    <section class="apu-top-sec" id="maisVotos" hidden>
+    <!-- ----------------------------------------------------- estado a estado -->
+    <section class="apu-bloco apu-pagina-estados" id="estados">
       <div class="wrap">
-        <div class="apu-top-head">
-          <h2 class="apu-top-title">Municípios com mais votos apurados</h2>
-          <span class="apu-progress-lab" id="notaMaisVotos"></span>
+        <div class="apu-bloco-head">
+          <h2 class="apu-h2">Estado a estado</h2>
+          <span class="apu-progress-lab" id="notaEstados"></span>
         </div>
-        <div class="apu-top" id="topMun">
-          <table class="apu-top-table">
-            <thead>
-              <tr>
-                <th scope="col">Município</th>
-                <th scope="col">Margem</th>
-                <th scope="col" class="num"><svg class="apu-top-mark" width="11" height="11"
-                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path
-                      d="M6 9l6 6 6-6" /></svg>Votos</th>
-                <th scope="col" class="num">% apurado</th>
-              </tr>
-            </thead>
-            <tbody id="tabelaMaisVotos"></tbody>
-          </table>
-          <button class="apu-top-more" id="verTodosMun" type="button" hidden>+ Mostrar todos</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="apu-table-sec" id="municipios">
-      <div class="wrap">
-        <div class="apu-table-head">
-          <h2 class="apu-h2">Município a município</h2>
-          <span class="apu-progress-lab" id="notaTabela"></span>
-        </div>
-        <div class="apu-table-wrap">
-          <table class="apu-table">
-            <thead>
-              <tr>
-                <th>Município</th>
-                <th>Liderança</th>
-                <th class="num">%</th>
-                <th class="num">Votos</th>
-                <th class="num">Apurado</th>
-              </tr>
-            </thead>
-            <tbody id="tabelaMun"></tbody>
-          </table>
-        </div>
+        <div class="apu-estados" id="gradeEstados"></div>
+        <p class="apu-legenda-marcas" id="legendaMarcas" hidden></p>
       </div>
     </section>
 
@@ -223,9 +156,10 @@
     </div>
   </footer>
 
+  <script src="js/espectro-partidos.js?v=20261001a"></script>
   <script src="js/apuracao-dados.js?v=20261002a"></script>
   <script src="js/apuracao-ui.js?v=20261002a"></script>
-  <script src="js/apuracao-uf.js?v=20261002a"></script>
+  <script src="js/apuracao-senado.js?v=20261002a"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

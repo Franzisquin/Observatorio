@@ -625,11 +625,81 @@ ok(semVoto.desvio === null && semVoto.pares[0].antes === 48, 'sem voto em 2026: 
 ok(APU.comparar({ vv: 1, cand: {} }, dic2026, null, ['13', '22']) === null,
   'unidade sem 2022 (instalada depois) não compara');
 
+console.log('\ngovernadores');
+const dicGov = {
+  s1: { urna: 'ANA', partido: 'PT' }, s2: { urna: 'BIA', partido: 'PL' },
+  r1: { urna: 'CAIO', partido: 'PSD' }, r2: { urna: 'DUDA', partido: 'PL' },
+  m1: { urna: 'EVA', partido: 'PT' }, m2: { urna: 'FABIO', partido: 'NOVO' }
+};
+const gov = APU.governos({ cand: dicGov, abr: {
+  sp: { vv: 1000, vvc: 1000, nv: 1, md: 'e', cand: { s1: 600, s2: 400 } },
+  rj: { vv: 1000, vvc: 1000, nv: 1, md: 's', cand: { r1: 450, r2: 350 } },
+  mg: { vv: 1000, vvc: 1000, nv: 1, cand: { m1: 520, m2: 480 } },
+  zz: { vv: 10, vvc: 10, nv: 1, md: 'e', cand: { s1: 10 } }
+} });
+ok(gov.porUF.sp.estado === 'eleito' && gov.porUF.rj.estado === 'segundo'
+  && gov.porUF.mg.estado === 'lidera' && gov.porUF.ba.estado === 'vazio',
+  'eleito, 2º turno, à frente e sem voto, por UF',
+  ['sp', 'rj', 'mg', 'ba'].map((u) => gov.porUF[u].estado).join(','));
+ok(gov.eleitos === 1 && gov.segundo === 1 && gov.lidera === 1 && gov.vazio === 24 && !gov.porUF.zz,
+  'contagem só das 27 UFs, sem o exterior');
+ok(gov.porPartido.length === 1 && gov.porPartido[0].sigla === 'PT' && gov.porPartido[0].eleitos === 1
+  && gov.porPartido[0].ufs.join() === 'sp', 'no placar por partido só entra eleito declarado',
+  JSON.stringify(gov.porPartido));
+ok(APU.governos(null).vazio === 27 && !APU.governos(null).porPartido.length, 'sem boletim: 27 vazios');
+
+console.log('\nSenado');
+const mantidos = { senadores: [
+  { uf: 'sp', nome: 'Fulano', partido: 'PT', participacao: 'Titular', ate: '2031-01-31' },
+  { uf: 'rj', nome: 'Sicrano', partido: 'S/Partido', participacao: 'Titular', ate: '2031-01-31' },
+  { uf: 'mg', nome: 'Beltrana', partido: 'PSD', participacao: '1º Suplente', ate: '2031-01-31' }
+] };
+const dicSen = {
+  a: { urna: 'A', partido: 'PL', situacao: 'Eleito' }, b: { urna: 'B', partido: 'PT' },
+  c: { urna: 'C', partido: 'PSD' }
+};
+const sen = APU.senado(mantidos, { cand: dicSen, abr: {
+  sp: { vv: 1000, vvc: 1000, nv: 2, snt: 0, and: 'f', cand: { a: 500, b: 300, c: 200 } }
+} }, { x: { partido: 'NOVO', situacao: 'Deferido' } });
+const vagas = (bs) => bs.reduce((s, b) => s + b.vagas, 0);
+ok(vagas(sen.miolo) === 3 && vagas(sen.disputa) === 2 && sen.ufsComVoto === 1,
+  'miolo com os mantidos, periferia com os dois primeiros de cada UF com voto');
+const pt = sen.quadro.find((q) => q.rotulo === 'PT');
+ok(pt && pt.cadeiras === 2 && pt.mantidas === 1 && pt.disputa === 1, 'quadro soma mantidas e em disputa',
+  JSON.stringify(pt));
+const pl = sen.disputa.find((b) => b.rotulo === 'PL');
+const ptDisputa = sen.disputa.find((b) => b.rotulo === 'PT');
+ok(pl && pl.declaradas === 1 && ptDisputa && ptDisputa.declaradas === 0,
+  'só o eleito declarado pelo TSE é cadeira firme');
+const semPartido = sen.miolo.find((b) => b.rotulo === 'SEM PARTIDO');
+ok(!!semPartido && semPartido.espectro === 17.5, 'sem partido fica no meio do semicírculo');
+ok(!sen.quadro.some((q) => q.rotulo === 'NOVO'), 'com voto, partido só de candidatura não entra no quadro');
+const senVazio = APU.senado(mantidos, null, { x: { partido: 'NOVO', situacao: 'Deferido' } });
+ok(senVazio.ufsComVoto === 0 && vagas(senVazio.disputa) === 0
+  && senVazio.quadro.some((q) => q.rotulo === 'NOVO' && q.cadeiras === 0),
+  'antes da primeira urna: periferia vazia e todo partido com candidatura no quadro');
+
+console.log('\ncabeçalho de várias UFs e links entre páginas');
+const cab = APU.cabecalhoDe({
+  sp: { st: 50, ts: 100, vv: 10, and: 'p', dt: '04/10/2026', ht: '18:00:00' },
+  rj: { st: 100, ts: 100, vv: 20, and: 'f', dt: '04/10/2026', ht: '19:30:00' },
+  zz: { st: 0, ts: 1000, vv: 0, and: 'n', dt: '04/10/2026', ht: '20:00:00' }
+});
+ok(cab.st === 150 && cab.ts === 200 && cab.pst === 75 && cab.and === 'p' && cab.tf === 'n'
+  && cab.ht === '19:30:00', 'soma as UFs sem o exterior, e o carimbo é o mais recente', JSON.stringify(cab));
+ok(APU.cabecalhoDe({}) === null, 'sem UF não há cabeçalho');
+ok(APUUI.hrefDoCargo('0003', '') === 'apuracao-governador.html?eleicao=6278'
+  && APUUI.hrefDoCargo('0005', 'sp') === 'apuracao-uf.html?eleicao=6278&uf=sp&cargo=0005'
+  && APUUI.hrefDoCargo('0006', 'sp') === 'apuracao-deputados.html?eleicao=6278&cargo=0006&uf=sp'
+  && APUUI.hrefDoCargo('0001', '') === 'apuracao-presidente.html?eleicao=6278&cargo=0001',
+  'cada cargo leva à sua página, no país ou no estado');
+
 console.log('\nids de getElementById presentes na página');
 const PARES = [
   ['js/apuracao-uf.js', 'apuracao-uf.html'],
-  ['js/apuracao-central.js', 'apuracao.html'],
   ['js/apuracao-nacional.js', 'apuracao-presidente.html'],
+  ['js/apuracao-governador.js', 'apuracao-governador.html'],
+  ['js/apuracao-senado.js', 'apuracao-senado.html'],
   ['js/apuracao-deputados.js', 'apuracao-deputados.html']
 ];
 for (const [js, pagina] of PARES) {

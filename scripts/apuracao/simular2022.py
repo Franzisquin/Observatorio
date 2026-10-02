@@ -14,7 +14,7 @@ mapa recolorindo, ranking virando, barra andando — com magnitude real.
     python scripts/apuracao/simular2022.py --tocar --duracao 8 --passo 5
 
 Depois abra:
-    apuracao.html?dados=scratch/apuracao/2022/&eleicao=544&cargo=0001
+    apuracao-presidente.html?dados=scratch/apuracao/2022/&eleicao=544&cargo=0001
 
 O snapshot sai marcado com fase "s" (simulado). A pagina mostra o selo SIMULADO
 em amarelo — 2022 nao pode ser confundido com apuracao em curso.
@@ -168,7 +168,7 @@ def baixar(cli: Cliente, eleicao: str, ufs: list[str], destino: Path, paralelo: 
         print(f"  {uf}: {len(entradas)}/{len(lista)} municipios convertidos", flush=True)
 
     # `final/` e a copia mestra; a pasta de cima e o que a pagina le. Copiando
-    # agora, abrir apuracao.html sem ter rodado --tocar ja mostra 2022 fechado,
+    # agora, abrir a apuracao sem ter rodado --tocar ja mostra 2022 fechado,
     # em vez de uma tela vazia.
     for caminho in (destino / "final").glob(f"{eleicao}-{CARGO}-*.json"):
         shutil.copy(caminho, destino / caminho.name)
