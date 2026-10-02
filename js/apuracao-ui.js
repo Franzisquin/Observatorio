@@ -198,6 +198,29 @@ const APUUI = (function () {
     if (el) { el.hidden = true; el.innerHTML = ''; }
   }
 
+  /* ------------------------------------------- marcas no nível da eleição */
+
+  /* Quem está eleito ou no 2º turno, como Map chave -> {marca, oficial,
+     matematico}, decidido com a `entrada` de onde a eleição se decide: o país
+     (presidente) ou o estado (governador, senador). Um estado, um município ou
+     uma zona na tela recebem estas marcas pelo `marcas` do placar — a conta
+     feita com o voto de um pedaço daria eleito quem só ganha ali (Lula
+     "eleito" no Maranhão, com 68% do estado e a apuração nacional aberta).
+     Sem a entrada da eleição, nenhuma marca: melhor faltar que sobrar. */
+  function marcasDaEleicao(entrada, dicionario, cargo) {
+    if (!entrada || !(entrada.vv > 0)) return new Map();
+    const lista = APU.marcar(APU.ranking(entrada, dicionario || {}), entrada, cargo);
+    return new Map(lista.filter((c) => c.marca)
+      .map((c) => [c.chave, { marca: c.marca, oficial: c.oficial, matematico: c.matematico }]));
+  }
+
+  /* O cabeçalho de um recorte (estado, município) com o "matematicamente
+     definido" da eleição, e não do recorte: o selo diz o mesmo que as marcas. */
+  function comDefinicaoDa(eleicao, entrada) {
+    if (!entrada) return entrada;
+    return { ...entrada, md: (eleicao && eleicao.md) || '', tf: eleicao ? eleicao.tf : entrada.tf };
+  }
+
   /* ---------------------------------------------------------------- placar */
 
   /* Quem já pediu a lista inteira, por elemento de destino. O placar é
@@ -216,8 +239,22 @@ const APUUI = (function () {
     }
 
     /* Só os quatro primeiros — inclusive antes da primeira urna, quando a chapa
-       inteira estouraria a altura do mapa. O resto entra pelo botão. */
-    APU.marcar(lista, o.entrada, o.cargo);
+       inteira estouraria a altura do mapa. O resto entra pelo botão.
+
+       `marcas` (Map chave -> {marca, oficial, matematico}) traz as marcas de
+       fora: numa cidade ou numa zona, quem está eleito ou no 2º turno se decide
+       no estado ou no país, e a conta feita com o voto de um pedaço só daria
+       eleito quem lidera ali. */
+    if (o.marcas) {
+      lista.forEach((c) => {
+        const m = o.marcas.get(c.chave);
+        c.marca = m ? m.marca : '';
+        c.oficial = !!(m && m.oficial);
+        c.matematico = !!(m && m.matematico);
+      });
+    } else {
+      APU.marcar(lista, o.entrada, o.cargo);
+    }
     const limite = o.limite || 4;
     const chave = (typeof alvo === 'string' ? alvo : el.id) || 'placar';
     const aberto = !!abertos[chave];
@@ -396,8 +433,7 @@ const APUUI = (function () {
     if (!entrada || !entrada.vv) {
       return '<div class="nyt-tooltip-container">'
         + '<div class="district-nyt-title">' + esc(nome) + '</div>'
-        + '<div class="district-nyt-sub">' + esc(subtitulo) + '</div>'
-        + '<div class="district-nyt-nota">Sem votos apurados.</div></div>';
+        + '<div class="district-nyt-sub">Sem votos apurados</div></div>';
     }
 
     return '<div class="nyt-tooltip-container">'
@@ -1183,5 +1219,5 @@ const APUUI = (function () {
     foto, esc, icone,
     hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,
     balaoDaClausula, veredictoDaClausula, bandeira, cartaoEstado, paramsDeFonte, UFS_POR_ELEITORADO,
-    hrefDoCargo, seletorDeCargo, barraDeUFs };
+    hrefDoCargo, seletorDeCargo, barraDeUFs, marcasDaEleicao, comDefinicaoDa };
 })();

@@ -34,7 +34,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261002k" />
+  <link rel="stylesheet" href="apuracao.css?v=20261002r" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -132,7 +132,7 @@
             <span class="apu-progress-lab" id="mapaNota"></span>
           </div>
 
-          <div class="apu-mapwrap">
+          <div class="apu-mapwrap is-quadrado">
             <svg class="apu-map" id="mapaUF" role="img" aria-label="Mapa do estado por município"></svg>
           </div>
 
@@ -152,9 +152,12 @@
             <!-- Um cartão só, e o botão no fim dele: abre e fecha as
                  candidaturas e a participação de uma vez, como na presidencial. -->
             <div id="maisResultado"></div>
+            <!-- Município com mapa por zona eleitoral: leva à página dele. -->
+            <a class="apu-more" id="linkZonas" hidden></a>
           </div>
         </aside>
       </div>
+
     </div>
 
     <section class="apu-top-sec" id="maisVotos" hidden>
@@ -223,9 +226,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20261002b"></script>
-  <script src="js/apuracao-ui.js?v=20261002e"></script>
-  <script src="js/apuracao-uf.js?v=20261002a"></script>
+  <script src="js/apuracao-dados.js?v=20261002c"></script>
+  <script src="js/apuracao-ui.js?v=20261002h"></script>
+  <script src="js/apuracao-uf.js?v=20261002f"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

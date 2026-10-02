@@ -36,6 +36,10 @@ from tse import (BASE, CARGOS, CARGOS_COM_BR, CARGOS_COM_ELEITOS,  # noqa: E402
 RAIZ = Path(__file__).resolve().parent.parent.parent
 DESTINO = RAIZ / "scratch" / "apuracao"
 PONTE_IBGE = RAIZ / "resultados_geo" / "tse_para_ibge.json"
+# Cidades com malha de zona eleitoral (scripts/gerar_malhas_zonas.py): so elas
+# ganham a camada de zonas, e so nos cargos majoritarios de 2026.
+ZONAS_INDICE = RAIZ / "resultados_geo" / "zonas_svg" / "indice.json"
+CARGOS_ZONAS = ("0001", "0003", "0005")
 
 
 # ---------------------------------------------------------------- catalogo
@@ -677,6 +681,67 @@ def camada_municipal(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: 
     return escritos
 
 
+# ------------------------------------------------------------- zonas
+
+def cidades_com_zonas() -> list[dict]:
+    """As cidades da pagina de zonas, do indice das malhas: [{ibge, uf, ...}]."""
+    try:
+        return json.loads(ZONAS_INDICE.read_text(encoding="utf-8")).get("cidades", [])
+    except (OSError, ValueError):
+        return []
+
+
+def camada_zonas(cli: Cliente, config: dict, eleicao: str, cargo: str,
+                 mapa: dict[str, list[dict]], destino: Path, paralelo: int = 12,
+                 silencioso: bool = False) -> int:
+    """Um arquivo por cidade com as suas zonas eleitorais, para a pagina de zonas:
+    snapshot/<eleicao>-<cargo>-zonas-<ibge>.json
+
+        {meta, total: <o municipio>, abr: {"0001": <zona>, ...}, cand, mun}
+
+    So presidente, governador e senador, e so as cidades com malha de zona — ~720
+    zonas em 190 cidades, ~900 arquivos do TSE por cargo (uns 15 s a 60 req/s). As zonas de cada
+    cidade sao as do EA12 (a lista do proprio TSE), nao as da malha: zona criada
+    ou extinta depois do desenho aparece na tabela mesmo sem lugar no mapa.
+
+    O arquivo do municipio vem primeiro e serve de porta: se ele ainda nao existe,
+    as zonas daquela cidade nao sao pedidas nesta volta. 404 em serie bloqueia o
+    acesso por dez minutos, e uma cidade sem arquivo daria dezenas deles.
+    """
+    if cargo not in CARGOS_ZONAS:
+        return 0
+    por_ibge = {str(m.get("ibge")): (uf, m) for uf, lista in mapa.items() for m in lista}
+    ufs_validas = set(ufs_do_cargo(cargo, list(mapa)))
+    escritos = 0
+    with cf.ThreadPoolExecutor(max_workers=paralelo) as pool:
+        for cidade in cidades_com_zonas():
+            uf, muni = por_ibge.get(str(cidade.get("ibge")), (None, None))
+            if not muni or uf not in ufs_validas:
+                continue
+            total = cli.json_de(url_resultado(cli, config, eleicao, cargo, uf, munic=muni["cd"]))
+            if total is None:
+                continue
+            pacote = {"meta": meta(total, cargo), "total": resumo(total, cargo, True, completo=True),
+                      "abr": {}, "cand": dicionario_cand(total),
+                      "mun": {"cd": muni["cd"], "ibge": muni["ibge"], "nm": muni["nm"], "uf": uf}}
+
+            def uma(z: str, uf=uf, muni=muni):
+                return z, cli.json_de(url_resultado(cli, config, eleicao, cargo, uf,
+                                                    munic=muni["cd"], zona=z))
+
+            for z, payload in pool.map(uma, list(muni.get("zonas", []))):
+                if payload is None:
+                    continue
+                pacote["abr"][z] = resumo(payload, cargo, True, completo=True)
+                pacote["cand"].update(dicionario_cand(payload))
+            caminho = escrever(destino, f"{eleicao}-{cargo}-zonas-{muni['ibge']}.json", pacote)
+            escritos += 1
+            if not silencioso:
+                print(f"  zonas {uf}/{muni['nm']}: {len(pacote['abr'])}/{len(muni.get('zonas', []))} "
+                      f"-> {caminho.name} ({caminho.stat().st_size / 1024:.0f} KB)")
+    return escritos
+
+
 # ------------------------------------------------------ acompanhamento (EA14)
 
 def acompanhamento(cli: Cliente, config: dict, eleicao: str, destino: Path,
@@ -975,6 +1040,7 @@ def main() -> int:
     acompanhamento(cli, config, args.eleicao, destino)
     camada_municipal(cli, config, args.eleicao, cargo, ufs, mapa, destino,
                      paralelo=args.paralelo)
+    camada_zonas(cli, config, args.eleicao, cargo, mapa, destino, paralelo=args.paralelo)
     if estado.get("tf") == "s":
         eleitos(cli, config, args.eleicao, cargo, ufs, destino)
 

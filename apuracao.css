@@ -611,6 +611,21 @@
 
 .apu-map { display: block; width: 100%; height: auto; }
 
+/* Mapa de um estado ou de uma cidade por zona: um quadro quadrado de tamanho
+   fixo — a largura da coluna, sem passar de 80% da altura da tela —, igual para
+   todo estado e toda cidade. O desenho se enquadra dentro dele
+   (preserveAspectRatio do SVG: centrado e inteiro), e o quadro não muda de
+   tamanho para acompanhar território alto ou largo. */
+.apu-mapwrap.is-quadrado {
+  box-sizing: border-box;
+  width: min(100%, 80vh);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
+  padding: 3%;
+}
+
+.apu-mapwrap.is-quadrado .apu-map { width: 100%; height: 100%; }
+
 /* Contorno dos mapas: cinza-escuro nos dois temas. No escuro ele é o próprio
    tom do fundo — o que separa dois territórios é a falha entre eles, e cada
    palco declara o seu `--map-bg`. No claro, o mesmo truque dava divisa branca,
@@ -1737,8 +1752,8 @@ body:has(#mapaUF) .site-foot { flex: none; }
 
    A pagina do estado tem uma dobra so: mapa e candidatos. Numa tela larga o
    `--max` do portal deixava os dois pequenos no meio de muito vazio. Aqui a
-   faixa e mais larga e o mapa ganha altura fixa — como o SVG usa
-   `xMidYMid meet`, crescer em altura o faz crescer junto na largura.
+   faixa e mais larga, e o mapa fica no quadro quadrado de tamanho fixo
+   (.apu-mapwrap.is-quadrado), com o estado enquadrado dentro dele.
    -------------------------------------------------------------------------- */
 
 body:has(#mapaUF) .apu-main > .wrap,
@@ -1751,17 +1766,7 @@ body:has(#mapaUF) .apu-grid {
   align-items: stretch;
 }
 
-body:has(#mapaUF) .apu-mapwrap {
-  display: flex;
-  min-height: 0;
-}
-
-body:has(#mapaUF) .apu-mapwrap .apu-map {
-  width: 100%;
-  height: 68vh;
-  min-height: 460px;
-  max-height: none;
-}
+/* O mapa do estado fica no quadro quadrado fixo (.apu-mapwrap.is-quadrado). */
 
 /* O cartao acompanha a altura do mapa e distribui as linhas no vao. */
 body:has(#mapaUF) .apu-aside {
@@ -1788,7 +1793,6 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 @media (max-width: 940px) {
   body:has(#mapaUF) .apu-grid { grid-template-columns: 1fr; }
-  body:has(#mapaUF) .apu-mapwrap .apu-map { height: auto; min-height: 0; }
   body:has(#mapaUF) .apu-aside .apu-results { display: block; }
 }
 
@@ -2879,3 +2883,107 @@ body:has(#mapaUF) .apu-aside .apu-results {
 .apu-info:hover .apu-info-pop,
 .apu-info:focus-within .apu-info-pop,
 .apu-info.is-on .apu-info-pop { display: block; }
+
+
+/* ===========================================================================
+   ZONAS ELEITORAIS
+
+   A página de uma cidade por zona (apuracao-zonas.html), no desenho da página
+   de estado, e a lista de cidades quando nenhuma foi escolhida.
+   =========================================================================== */
+
+.apu-zonas { padding-bottom: clamp(24px, 3vw, 40px); }
+
+/* O título é o seletor: o nome da cidade, na fonte do título, com uma seta
+   discreta ao lado e um fio pontilhado embaixo que diz que ele abre. */
+.apu-zonas-titulo { max-width: 100%; }
+
+.apu-zonas-seletor {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+
+.apu-zonas-seletor select {
+  box-sizing: content-box;
+  max-width: calc(100% - 0.9em);
+  padding: 0 0.9em 0 0;
+  border: 0;
+  border-bottom: 1px dashed var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.apu-zonas-seletor select:hover { border-bottom-color: var(--ink); }
+.apu-zonas-seletor select:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* A lista aberta volta à fonte do texto: o tamanho do título ficaria enorme. */
+.apu-zonas-seletor option,
+.apu-zonas-seletor optgroup { font: 400 0.9rem/1.4 var(--sans); letter-spacing: 0; color: #111; }
+
+.apu-zonas-seletor::after {
+  content: '';
+  position: absolute;
+  right: 0.12em;
+  top: 50%;
+  width: 0.26em;
+  height: 0.26em;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-75%) rotate(45deg);
+  pointer-events: none;
+}
+
+/* Régua invisível com a fonte do título, para medir o nome escolhido. */
+.apu-zonas-medida { position: absolute; visibility: hidden; white-space: nowrap; font: inherit; }
+
+
+.apu-map path.is-sel { stroke: var(--ink); stroke-width: 2.4; }
+
+.apu-zonas-num { margin-right: 8px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.apu-zonas-nome { font-size: 0.7rem; letter-spacing: 0.03em; color: var(--muted); }
+
+#tabelaZonas tr.is-click { cursor: pointer; }
+#tabelaZonas tr.is-click:hover,
+#tabelaZonas tr.is-sel { background: var(--paper-2); }
+
+/* A lista de cidades: um bloco por estado, em colunas. */
+.apu-zonas-ufs { columns: 3 260px; column-gap: clamp(24px, 3vw, 44px); }
+.apu-zonas-uf { break-inside: avoid; margin-bottom: 22px; }
+
+.apu-zonas-uf h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: 2px solid var(--ink);
+  font-family: var(--display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.apu-zonas-uf ul { margin: 0; padding: 0; list-style: none; }
+
+.apu-zonas-uf a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 0.88rem;
+}
+
+.apu-zonas-uf a:hover { background: var(--paper-2); }
+.apu-zonas-uf a span { font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }

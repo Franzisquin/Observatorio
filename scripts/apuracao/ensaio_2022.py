@@ -11,6 +11,8 @@ todas as paginas da apuracao possam ser testadas ao mesmo tempo:
     {ele}-{cargo}-uf.json            as UFs; nos proporcionais, com `agrem`
     {ele}-{cargo}-{uf}.json          os municipios de uma UF
     {ele}-{cargo}-lista-{uf}.json    deputados: a lista aberta de cada bloco
+    {ele}-{cargo}-zonas-{ibge}.json  as zonas eleitorais das cidades da pagina
+                                     de zonas (presidente, governador, senador)
     {ele}-0001-proj.json             a projecao presidencial (com numpy)
 
     python scripts/apuracao/ensaio_2022.py --tocar --duracao 10 --passo 8
@@ -22,6 +24,7 @@ Depois abra, com o mesmo `dados=` em todas:
     apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/ensaio2022-t1/
     apuracao-governador.html?dados=scratch/apuracao/ensaio2022-t1/
     apuracao-senado.html?dados=scratch/apuracao/ensaio2022-t1/
+    apuracao-zonas.html?mun=3550308&dados=scratch/apuracao/ensaio2022-t1/
     apuracao-uf.html?uf=sp&cargo=0003&dados=scratch/apuracao/ensaio2022-t1/
     apuracao-deputados.html?cargo=0006&dados=scratch/apuracao/ensaio2022-t1/
 
@@ -31,11 +34,17 @@ turno, eleito por QP...) e as federacoes. E o mesmo acervo do visualizador, e
 nada aqui vai a rede.
 
 O QUE E DE VERDADE: nomes, partidos, coligacoes, federacoes, votos por local,
-vagas finais e a situacao final de cada candidato. O QUE E ENSAIO: o caminho.
-Cada zona eleitoral de cada municipio "chega" num instante proprio — cidade
-pequena cedo, capital no fim, como na noite real —, e a mesma zona chega na
-mesma hora em todos os cargos. Secoes e eleitorado sao estimados do voto (o
-acervo nao os guarda por local). As vagas de deputado (`vag`), que o TSE refaz a
+vagas finais e a situacao final de cada candidato — e, com o resumo dos
+boletins de urna (scripts/apuracao/sequencia_2022.py), o CAMINHO: cada secao
+chega na hora em que o boletim dela chegou ao TSE na noite de 2022
+(DT_BU_RECEBIDO), em todos os cargos ao mesmo tempo, com as secoes, os aptos e
+o comparecimento reais. O acervo guarda o voto por local, nao por secao: o voto
+de um local entra em faixas de 10 minutos, na proporcao do comparecimento das
+secoes dele que chegaram naquela faixa. `--duracao` comprime a noite de 17h ate
+o momento em que 99,9% das secoes tinham chegado; as poucas que chegaram depois
+entram no fim. Sem o resumo (ou para o local que ele nao tem, como o exterior),
+cada zona chega num instante sorteado, como antes, e secoes e eleitorado sao
+estimados do voto. As vagas de deputado (`vag`), que o TSE refaz a
 cada totalizacao, saem de cadeiras.py, com as regras de 2026; na totalizacao
 final ficam os eleitos de 2022, antes da retotalizacao do STF. Tudo sai com fase
 "s": as paginas mostram o selo SIMULADO.
@@ -61,6 +70,8 @@ GEO = RAIZ / "resultados_geo"
 MAJ = GEO / "Majoritarias 2022"
 LEG = GEO / "Legislativas 2022"
 PONTE = GEO / "tse_para_ibge.json"
+ZONAS_INDICE = GEO / "zonas_svg" / "indice.json"
+CARGOS_ZONAS = ("0001", "0003", "0005")
 
 UFS = ("ac al am ap ba ce df es go ma mg ms mt pa pb pe pi pr rj rn ro rr rs sc se "
        "sp to").split()
@@ -83,6 +94,29 @@ SITUACAO = {"ELEITO": "Eleito", "2º TURNO": "2º turno", "NÃO ELEITO": "Não e
 # Proporcoes de ensaio: o acervo guarda voto, nao secao nem eleitorado.
 VOTOS_POR_SECAO = 280
 COMPARECIMENTO = 0.79
+
+# A noite real, dos boletins de urna (sequencia_2022.py). Faixa, em minutos,
+# em que as secoes de um mesmo local chegam juntas; e a fracao das secoes do
+# pais que marca o fim da noite comprimida em --duracao.
+SEQUENCIA = RAIZ / "scratch" / "bweb" / "sequencia_2022_t{turno}.json"
+FAIXA_MIN = 10
+FIM_DA_NOITE = 0.999
+
+
+def carregar_sequencia(turno: str) -> tuple[dict, float, str] | None:
+    """(locais, minutos do fim da noite, hora zero) ou None sem o resumo."""
+    caminho = Path(str(SEQUENCIA).format(turno=turno))
+    if not caminho.exists():
+        return None
+    d = json.loads(caminho.read_text(encoding="utf-8"))
+    tempos = sorted(s[0] for secoes in d["locais"].values() for s in secoes)
+    fim = tempos[min(len(tempos) - 1, int(FIM_DA_NOITE * len(tempos)))]
+    return d["locais"], max(fim, 1.0), d["zero"]
+
+
+def inteiros(votos: Counter) -> Counter:
+    """Voto fracionado (o local repartido pelas secoes) de volta a inteiro."""
+    return Counter({k: int(round(v)) for k, v in votos.items()})
 
 
 def ufs_do_cargo(cargo: str, turno: str, pedidas: list[str]) -> list[str]:
@@ -125,14 +159,23 @@ class Casa:
     da noite, e o que ja chegou."""
 
     def __init__(self, cargo: str, uf: str, dados: dict, tamanho: dict[str, int],
-                 semente: int, nv: int):
+                 semente: int, nv: int, sequencia: tuple | None = None):
         self.cargo, self.uf, self.nv = cargo, uf, nv
         self.nomes = dados["METADATA"]["cand_names"]
+        self.unidades = []
+        self.na_sequencia = self.fora_da_sequencia = 0
+        locais, fim_da_noite = (sequencia[0], sequencia[1]) if sequencia else ({}, 1.0)
         unidades: dict[tuple[str, str], Counter] = {}
         for chave, votos in dados["RESULTS"].items():
             partes = chave.split("_")
             if len(partes) >= 3:
                 zona, mun = partes[0], partes[1].zfill(5)
+                secoes = locais.get(f"{mun}_{int(zona)}_{int(partes[2])}") if locais else None
+                if secoes:
+                    self.na_sequencia += 1
+                    self.adicionar_local(mun, zona, votos, secoes, fim_da_noite)
+                    continue
+                self.fora_da_sequencia += 1
             elif uf == "zz":
                 # O exterior vem por pais ("NPL", "CIV"): cada um e uma unidade.
                 zona, mun = "1", chave
@@ -150,37 +193,73 @@ class Casa:
         # mesma urna chega na mesma hora para todos.
         ordem = sorted(tamanho, key=lambda m: tamanho[m])
         posicao = {m: i / max(1, len(ordem) - 1) for i, m in enumerate(ordem)}
-        self.unidades = []
         for (mun, zona), votos in unidades.items():
             sorteio = random.Random(f"{semente}|{uf}|{mun}|{zona}")
             curva = 1.3 + 1.5 * (1 - posicao.get(mun, 0.5))
             fim = min(0.985, 0.01 + sorteio.random() ** curva)
             tv = sum(votos.values())
-            self.unidades.append({"t": fim, "mun": mun, "votos": votos,
-                                  "secoes": max(1, round(tv / VOTOS_POR_SECAO)),
+            self.unidades.append({"t": fim, "mun": mun, "zona": zona.zfill(4), "votos": votos,
+                                  "fracao": 1.0, "secoes": max(1, round(tv / VOTOS_POR_SECAO)),
                                   "te": round(tv / COMPARECIMENTO)})
         self.unidades.sort(key=lambda u: u["t"])
 
         self.ts_mun, self.te_mun = Counter(), Counter()
+        # A mesma conta por zona, para a pagina de zonas: (municipio, zona).
+        self.ts_zona, self.te_zona = Counter(), Counter()
         for u in self.unidades:
             self.ts_mun[u["mun"]] += u["secoes"]
             self.te_mun[u["mun"]] += u["te"]
+            self.ts_zona[(u["mun"], u["zona"])] += u["secoes"]
+            self.te_zona[(u["mun"], u["zona"])] += u["te"]
         self.reiniciar()
+
+    def adicionar_local(self, mun: str, zona: str, votos: dict, secoes: list,
+                        fim_da_noite: float) -> None:
+        """Um local de votacao na hora real: as secoes dele em faixas de
+        FAIXA_MIN minutos, cada faixa com a parte do voto do local que cabe ao
+        comparecimento das secoes que chegaram nela."""
+        contagem = Counter()
+        for numero, v in votos.items():
+            contagem[str(numero)] += int(v)
+        comp_total = sum(c for _, _, c in secoes)
+        faixas: dict[int, list] = {}
+        for minutos, aptos, comp in secoes:
+            faixas.setdefault(int(max(0.0, minutos) // FAIXA_MIN), []).append((minutos, aptos, comp))
+        for grupo in faixas.values():
+            ultimo = max(m for m, _, _ in grupo)
+            comp = sum(c for _, _, c in grupo)
+            fracao = (comp / comp_total) if comp_total else len(grupo) / len(secoes)
+            self.unidades.append({
+                "t": min(0.999, max(0.0001, ultimo / fim_da_noite)),
+                "mun": mun, "zona": zona.zfill(4), "votos": contagem, "fracao": fracao,
+                "secoes": len(grupo), "te": sum(a for _, a, _ in grupo)})
 
     def reiniciar(self):
         self.ponteiro = 0
         self.mun = {m: {"votos": Counter(), "st": 0, "te": 0} for m in self.ts_mun}
+        self.zona = {k: {"votos": Counter(), "st": 0, "te": 0} for k in self.ts_zona}
 
     def avancar(self, t: float):
         """Soma o que chegou ate o instante t (que so cresce)."""
         while self.ponteiro < len(self.unidades) and (self.unidades[self.ponteiro]["t"] <= t
                                                       or t >= 1.0):
             u = self.unidades[self.ponteiro]
-            alvo = self.mun[u["mun"]]
-            alvo["votos"].update(u["votos"])
-            alvo["st"] += u["secoes"]
-            alvo["te"] += u["te"]
+            fracao = u["fracao"]
+            for alvo in (self.mun[u["mun"]], self.zona[(u["mun"], u["zona"])]):
+                if fracao == 1.0:
+                    alvo["votos"].update(u["votos"])
+                else:
+                    acc = alvo["votos"]
+                    for k, v in u["votos"].items():
+                        acc[k] += v * fracao
+                alvo["st"] += u["secoes"]
+                alvo["te"] += u["te"]
             self.ponteiro += 1
+
+    def anulados(self) -> set[str]:
+        """Chaves dos candidatos com voto anulado (registro indeferido)."""
+        return {sq(self.cargo, self.uf, n) for n in self.candidatos()
+                if self.situacao(n) == "INAPTO"}
 
     # ---- leitura do voto
 
@@ -219,6 +298,7 @@ def sq(cargo: str, uf: str, numero: str) -> str:
 
 def entrada(casa: Casa, votos: Counter, st: int, ts: int, te: int, te_fechado: int,
             final: bool, completo: bool, agora: time.struct_time) -> dict:
+    votos = inteiros(votos)
     s = casa.separar(votos)
     tv = sum(votos.values())
     e = {
@@ -395,11 +475,14 @@ def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: flo
                 todos = Counter()
                 for acc in casa.mun.values():
                     todos.update(acc["votos"])
+                todos = inteiros(todos)
                 st = sum(a["st"] for a in casa.mun.values())
                 te_f = sum(a["te"] for a in casa.mun.values())
                 e_uf = entrada(casa, todos, st, sum(casa.ts_mun.values()),
                                sum(casa.te_mun.values()), te_f, final, True, agora)
-                definir_md(e_uf, cargo, turno)
+                # Presidente se decide no pais: o `md` vai so no arquivo br.
+                if cargo != "0001":
+                    definir_md(e_uf, cargo, turno, casa.anulados())
                 abr_uf[uf] = e_uf
                 if cargo in PROPORCIONAIS:
                     lista = blocos(casa, todos, final)
@@ -414,13 +497,15 @@ def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: flo
                     mun_nomes = {m: nomes_mun.get(m, {"nm": m, "ibge": ""}) for m in municipal}
                     escrever(destino, f"{eleicao}-{cargo}-{uf}.json",
                              {"meta": cab, "abr": municipal, "mun": mun_nomes, "cand": dic})
+                if cargo in CARGOS_ZONAS:
+                    escrever_zonas(casa, cab, dic, eleicao, cargo, uf, final, agora, destino)
 
             escrever(destino, f"{eleicao}-{cargo}-uf.json",
                      {"meta": cab, "abr": abr_uf, "cand": cand_uf,
                       **({"agrem": agrem_uf} if agrem_uf else {})})
             if cargo == "0001":
                 br = somar(list(abr_uf.values()))
-                definir_md(br, cargo, turno)
+                definir_md(br, cargo, turno, set().union(*(c.anulados() for c in por_uf.values())))
                 escrever(destino, f"{eleicao}-{cargo}-br.json",
                          {"meta": cab, "cand": cand_uf, "abr": {"br": br}})
             if acompanha is None:
@@ -433,14 +518,19 @@ def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: flo
     return resumo
 
 
-def definir_md(e: dict, cargo: str, turno: str) -> None:
+def definir_md(e: dict, cargo: str, turno: str, anulados: set[str] = frozenset()) -> None:
     """`md` como o TSE o publica (so presidente e governador, e so antes da
     totalizacao final): 'e' quando o lider ja tem maioria absoluta mesmo que
     todo o eleitorado que falta votasse contra; 's' quando ninguem mais alcanca
-    a maioria e os dois primeiros ja nao podem ser passados."""
+    a maioria e os dois primeiros ja nao podem ser passados.
+
+    So entre quem tem voto valido: o anulado (registro indeferido) nao esta em
+    `vv` e nao disputa. Contado, o Valmir de Francisquinho (SE 2022) saia com
+    'e' — maioria "absoluta" de votos que nao valiam."""
     if cargo not in ("0001", "0003") or e.get("tf") == "s":
         return
-    votos = sorted((e.get("cand") or {}).values(), reverse=True) + [0, 0, 0]
+    votos = sorted((v for k, v in (e.get("cand") or {}).items() if k not in anulados),
+                   reverse=True) + [0, 0, 0]
     resta, vv = e.get("esnt", 0), e.get("vv", 0)
     if not vv:
         e["md"] = ""
@@ -450,6 +540,40 @@ def definir_md(e: dict, cargo: str, turno: str) -> None:
         e["md"] = "s"
     else:
         e["md"] = ""
+
+
+def cidades_com_zonas() -> dict[str, list[dict]]:
+    """As cidades da pagina de zonas por UF, do indice das malhas de zona."""
+    try:
+        cidades = json.loads(ZONAS_INDICE.read_text(encoding="utf-8")).get("cidades", [])
+    except (OSError, ValueError):
+        return {}
+    por_uf: dict[str, list[dict]] = {}
+    for c in cidades:
+        por_uf.setdefault(c["uf"], []).append(c)
+    return por_uf
+
+
+ZONAS = cidades_com_zonas()
+
+
+def escrever_zonas(casa: Casa, cab: dict, dic: dict, eleicao: str, cargo: str, uf: str,
+                   final: bool, agora: time.struct_time, destino: Path) -> None:
+    """{ele}-{cargo}-zonas-{ibge}.json, como coleta.camada_zonas o escreve: o
+    municipio inteiro em `total` e cada zona em `abr`."""
+    for cidade in ZONAS.get(uf, []):
+        mun = str(cidade["tse"]).zfill(5)
+        if mun not in casa.mun:
+            continue
+        acc = casa.mun[mun]
+        total = entrada(casa, acc["votos"], acc["st"], casa.ts_mun[mun], casa.te_mun[mun],
+                        acc["te"], final, True, agora)
+        zonas = {z: entrada(casa, a["votos"], a["st"], casa.ts_zona[(m, z)], casa.te_zona[(m, z)],
+                            a["te"], final, True, agora)
+                 for (m, z), a in casa.zona.items() if m == mun}
+        escrever(destino, f"{eleicao}-{cargo}-zonas-{cidade['ibge']}.json",
+                 {"meta": cab, "total": total, "abr": dict(sorted(zonas.items())), "cand": dic,
+                  "mun": {"cd": mun, "ibge": cidade["ibge"], "nm": cidade["nm"], "uf": uf}})
 
 
 def escrever_acompanhamento(destino: Path, eleicao: str, turno: str, volta: int,
@@ -532,6 +656,8 @@ def main() -> int:
     ap.add_argument("--cargos", default="", help="so estes (padrao: todos do turno)")
     ap.add_argument("--ufs", nargs="*", default=[], help="so estas UFs (padrao: todas)")
     ap.add_argument("--semente", type=int, default=2022)
+    ap.add_argument("--sorteio", action="store_true",
+                    help="ignora a sequencia real de 2022 e sorteia a ordem de chegada")
     ap.add_argument("--sem-projecao", action="store_true")
     ap.add_argument("--destino", type=Path, default=None)
     args = ap.parse_args()
@@ -548,6 +674,13 @@ def main() -> int:
 
     inicio = time.monotonic()
     nomes_mun = nomes_dos_municipios()
+    sequencia = None if args.sorteio else carregar_sequencia(turno)
+    if sequencia:
+        print(f"  sequencia real de 2022: {len(sequencia[0]):,} locais, fim da noite "
+              f"{17 + int(sequencia[1] // 60)}h{int(sequencia[1] % 60):02d}".replace(",", "."), flush=True)
+    else:
+        print("  sem a sequencia real (scripts/apuracao/sequencia_2022.py): ordem sorteada",
+              flush=True)
     # Tamanho de cada municipio pelo voto presidencial do turno: e o que
     # decide quem chega cedo, e vale igual para todos os cargos.
     tamanho: dict[str, dict[str, int]] = {}
@@ -569,8 +702,12 @@ def main() -> int:
                 if not dados:
                     continue
                 casas[cargo][uf] = Casa(cargo, uf, dados, tamanho.get(uf, {}),
-                                        args.semente, vagas_oficiais(cargo, uf))
-            print(f"  {cargo} {NOME_CARGO[cargo]:18s} {len(casas[cargo]):2d} UFs", flush=True)
+                                        args.semente, vagas_oficiais(cargo, uf), sequencia)
+            dentro = sum(c.na_sequencia for c in casas[cargo].values())
+            fora = sum(c.fora_da_sequencia for c in casas[cargo].values())
+            print(f"  {cargo} {NOME_CARGO[cargo]:18s} {len(casas[cargo]):2d} UFs"
+                  + (f" | {dentro:,} locais na hora real, {fora:,} sorteados".replace(",", ".")
+                     if sequencia else ""), flush=True)
     print(f"  acervo lido em {time.monotonic() - inicio:.0f}s", flush=True)
 
     indice_cargos = {c: e for e, cs in plano.items() for c in cs if casas.get(c)}
@@ -588,7 +725,11 @@ def main() -> int:
         resumo = escrever_quadro(casas, plano, turno, t, volta, destino, nomes_mun)
         proj = "" if args.sem_projecao or "0001" not in casas else " | " + projetar(destino, turno)
         andamento = " ".join(f"{k.split('-')[1]}={v:.1f}%" for k, v in resumo.items())
-        print(f"  t={t * 100:5.1f}% | {andamento}{proj}", flush=True)
+        hora = ""
+        if sequencia:
+            m = t * sequencia[1]
+            hora = f" | {17 + int(m // 60):02d}h{int(m % 60):02d} de 2022"
+        print(f"  t={t * 100:5.1f}%{hora} | {andamento}{proj}", flush=True)
 
     if args.instante is not None:
         quadro(max(0.0, min(1.0, args.instante)), 1)

@@ -38,7 +38,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from coleta import (acompanhamento, camada_alta, camada_municipal,  # noqa: E402
+from coleta import (CARGOS_ZONAS, acompanhamento, camada_alta, camada_municipal, camada_zonas,  # noqa: E402
                     cargos_da_eleicao, eleicoes_ordinarias, eleitos, escolher_ufs,
                     escrever_indice, municipios)
 from tse import (BASE, CARGOS, CARGOS_COM_UF, CARGOS_PROPORCIONAIS,  # noqa: E402
@@ -97,6 +97,7 @@ def servir(porta: int, saida: Path) -> None:
           flush=True)
     print(f"  deputados          {endereco}/apuracao-deputados.html?cargo=0006&dados={dados}",
           flush=True)
+    print(f"  zonas eleitorais   {endereco}/apuracao-zonas.html?dados={dados}", flush=True)
     print("", flush=True)
 
 
@@ -324,17 +325,25 @@ def main() -> int:
                 # eram 2 dos 5 cargos de uma rodada municipal de ~13 min, e
                 # atrasavam o mapa municipal e a projecao do resto. Vereador fica:
                 # e cargo municipal, sem camada alta.
+                # Depois das UFs de cada cargo majoritario, as zonas das cidades
+                # da pagina de zonas (coleta.camada_zonas): um item so, ~900
+                # arquivos, na mesma cadencia da camada municipal.
                 fila = [(eleicao, cargo, uf)
                         for eleicao, do_pleito in plano.items()
                         for cargo in do_pleito
                         if not (cargo in CARGOS_COM_UF and cargo in CARGOS_PROPORCIONAIS)
-                        for uf in ufs_do_cargo(cargo, escolher_ufs(mapas[eleicao], args.uf))]
+                        for uf in (ufs_do_cargo(cargo, escolher_ufs(mapas[eleicao], args.uf))
+                                   + (["zonas"] if cargo in CARGOS_ZONAS else []))]
             limite = time.monotonic() + args.fatia_mun
             while fila and time.monotonic() < limite:
                 eleicao, cargo, uf = fila.pop(0)
                 municipal = True
-                camada_municipal(cli, config, eleicao, cargo, [uf], mapas[eleicao],
-                                 saida, paralelo=args.paralelo, silencioso=True)
+                if uf == "zonas":
+                    camada_zonas(cli, config, eleicao, cargo, mapas[eleicao], saida,
+                                 paralelo=args.paralelo, silencioso=True)
+                else:
+                    camada_municipal(cli, config, eleicao, cargo, [uf], mapas[eleicao],
+                                     saida, paralelo=args.paralelo, silencioso=True)
                 if fila and fila[0][:2] == (eleicao, cargo):
                     continue
                 # Ultima UF deste cargo na rodada: a projecao le o pais inteiro.

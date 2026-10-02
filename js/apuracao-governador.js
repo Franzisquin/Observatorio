@@ -144,7 +144,7 @@
         console.warn('[apuracao] volta falhou, seguindo para a próxima', e);
       }
       agendar();
-    }, APU.cfg.intervalo);
+    }, APU.intervaloDe(1));
   }
 
   document.addEventListener('visibilitychange', () => {

@@ -819,7 +819,10 @@
       link.textContent = 'Abrir a página do estado';
     }
 
-    APUUI.selo(meta, entrada);
+    /* Com um estado ou município aberto, o selo de definido e as marcas de
+       eleito continuam sendo do país: presidente se elege no Brasil inteiro. */
+    const nacional = entradaNacional();
+    APUUI.selo(meta, APUUI.comDefinicaoDa(nacional, entrada));
     APUUI.progresso(entrada);
     APUUI.avisos(entrada, 'avisos');
     /* Um botão só para os dois blocos: a participação segue a abertura do
@@ -827,7 +830,8 @@
     const verParticipacao = () =>
       APUUI.participacao(entrada, 'participacao', { seguir: 'placar' });
     APUUI.placar(lista.length ? lista : APU.rankingZerado(estado.chapa), 'placar',
-      { entrada, cargo: APU.cfg.cargo, botao: 'maisResultado', aoAlternar: verParticipacao });
+      { entrada, cargo: APU.cfg.cargo, marcas: APUUI.marcasDaEleicao(nacional, dicionario(), APU.cfg.cargo),
+        botao: 'maisResultado', aoAlternar: verParticipacao });
     verParticipacao();
     /* A projeção é nacional e tem painel próprio: continua à mostra com um
        estado aberto no mapa. */
@@ -1157,7 +1161,7 @@
         console.warn('[apuracao] volta falhou, seguindo para a proxima', e);
       }
       agendar();
-    }, APU.cfg.intervalo);
+    }, APU.intervaloDe(1));
   }
 
   document.addEventListener('visibilitychange', () => {

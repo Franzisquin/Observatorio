@@ -33,8 +33,30 @@
        acompanha o resultado estadual — em SP os dois que foram ao segundo turno
        constam `eleito=n` no arquivo do municipio e `eleito=s, situacao=2o turno`
        no da UF. Quem manda no selo e o estadual. */
-    candTSE: null
+    candTSE: null,
+
+    /* Presidente se elege no país: o arquivo br traz a entrada de onde saem as
+       marcas de eleito e de 2º turno (APUUI.marcasDaEleicao). */
+    brTSE: null,
+    candBR: null,
+
+    /* As cidades deste estado com mapa por zona eleitoral
+       (resultados_geo/zonas_svg/indice.json): [{ibge, nm, zonas}]. */
+    zonas: null
   };
+
+  const hrefZonas = (ibge) => 'apuracao-zonas.html' + APUUI.paramsDeFonte({ mun: ibge, cargo: APU.cfg.cargo });
+
+  async function cidadesComZonas(uf) {
+    try {
+      const r = await fetch('resultados_geo/zonas_svg/indice.json', { cache: 'no-cache' });
+      const d = r.ok ? await r.json() : null;
+      return ((d && d.cidades) || []).filter((c) => c.uf === uf);
+    } catch (e) {
+      return [];
+    }
+  }
+
 
   function lerUF() {
     const u = (APU.cfg.uf || '').toLowerCase();
@@ -137,6 +159,13 @@
     });
 
     $('voltarMun').hidden = !sel;
+    /* Município escolhido que tem mapa por zona: o atalho para a página dele. */
+    const comZonas = sel && (estado.zonas || []).find((c) => c.ibge === String(sel.chave));
+    $('linkZonas').hidden = !comZonas;
+    if (comZonas) {
+      $('linkZonas').href = hrefZonas(comZonas.ibge);
+      $('linkZonas').textContent = 'Ver zonas eleitorais';
+    }
     $('rotuloPlacar').textContent = sel ? sel.nome
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
     /* Mesmo arranjo da presidencial: a participação abre junto com a lista
@@ -144,9 +173,19 @@
     const verParticipacao = () =>
       APUUI.participacao(alvo, 'participacao', { seguir: 'placar' });
     APUUI.placar(lista.length ? lista : chapaZerada(), 'placar',
-      { entrada: alvo, cargo: APU.cfg.cargo,
+      { entrada: alvo, cargo: APU.cfg.cargo, marcas: marcasDaEleicao(),
         botao: 'maisResultado', aoAlternar: verParticipacao });
     verParticipacao();
+  }
+
+  /* Eleito e 2º turno saem do país (presidente) ou do estado (governador,
+     senador), nunca do município escolhido no mapa. */
+  const presidente = () => APU.cfg.cargo === '0001';
+  const entradaDaEleicao = () => (presidente() ? estado.brTSE : estado.ufTSE);
+
+  function marcasDaEleicao() {
+    return APUUI.marcasDaEleicao(entradaDaEleicao(),
+      (presidente() ? estado.candBR : estado.candTSE) || {}, APU.cfg.cargo);
   }
 
   function selecionar(chave, nome) {
@@ -243,7 +282,7 @@
       dt: entradas[0] && entradas[0].dt,
       ht: entradas[0] && entradas[0].ht
     };
-    APUUI.selo(dados.meta, cabecalho);
+    APUUI.selo(dados.meta, presidente() ? APUUI.comDefinicaoDa(estado.brTSE, cabecalho) : cabecalho);
     APUUI.progresso(cabecalho);
     APUUI.avisos(cabecalho, 'avisos');
 
@@ -381,9 +420,13 @@
     if (estado.chapa === null) {
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
+      estado.zonas = await cidadesComZonas(estado.uf);
     }
-    const [d, alto] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf')]);
+    const [d, alto, br] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf'),
+      APU.cfg.cargo === '0001' ? APU.snapshot('br') : null]);
     if (d) estado.dados = d;
+    if (br && br.abr && br.abr.br) estado.brTSE = br.abr.br;
+    if (br && br.cand) estado.candBR = br.cand;
     if (alto && alto.abr && alto.abr[estado.uf]) estado.ufTSE = alto.abr[estado.uf];
     if (alto && alto.cand) estado.candTSE = alto.cand;
     await pintar();
@@ -404,7 +447,7 @@
         console.warn('[apuracao] volta falhou, seguindo para a proxima', e);
       }
       agendar();
-    }, APU.cfg.intervalo * 4);
+    }, APU.intervaloDe(4));
   }
 
   document.addEventListener('visibilitychange', () => {

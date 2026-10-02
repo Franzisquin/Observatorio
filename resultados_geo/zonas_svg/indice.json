@@ -1,0 +1,1525 @@
+{
+ "fonte": "CEM/USP (zonas de 2022 e 2024) e desenho do ElectoMaps sobre setores censitarios, conferido com os locais de votacao de 2026",
+ "cidades": [
+  {
+   "ibge": "1200401",
+   "tse": "01392",
+   "uf": "ac",
+   "nm": "Rio Branco",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2700300",
+   "tse": "27057",
+   "uf": "al",
+   "nm": "Arapiraca",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2704302",
+   "tse": "27855",
+   "uf": "al",
+   "nm": "Maceió",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "1302603",
+   "tse": "02550",
+   "uf": "am",
+   "nm": "Manaus",
+   "ano": 2026,
+   "zonas": 13
+  },
+  {
+   "ibge": "1600303",
+   "tse": "06050",
+   "uf": "ap",
+   "nm": "Macapá",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2903201",
+   "tse": "33634",
+   "uf": "ba",
+   "nm": "Barreiras",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2905701",
+   "tse": "34134",
+   "uf": "ba",
+   "nm": "Camaçari",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "2910727",
+   "tse": "30058",
+   "uf": "ba",
+   "nm": "Eunápolis",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2910800",
+   "tse": "35157",
+   "uf": "ba",
+   "nm": "Feira de Santana",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "2913606",
+   "tse": "35734",
+   "uf": "ba",
+   "nm": "Ilhéus",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2914802",
+   "tse": "35971",
+   "uf": "ba",
+   "nm": "Itabuna",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2918001",
+   "tse": "36617",
+   "uf": "ba",
+   "nm": "Jequié",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2918407",
+   "tse": "36692",
+   "uf": "ba",
+   "nm": "Juazeiro",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2924009",
+   "tse": "37818",
+   "uf": "ba",
+   "nm": "Paulo Afonso",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2925303",
+   "tse": "38075",
+   "uf": "ba",
+   "nm": "Porto Seguro",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2927408",
+   "tse": "38490",
+   "uf": "ba",
+   "nm": "Salvador",
+   "ano": 2022,
+   "zonas": 19
+  },
+  {
+   "ibge": "2928703",
+   "tse": "38733",
+   "uf": "ba",
+   "nm": "Santo Antônio de Jesus",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2933307",
+   "tse": "39659",
+   "uf": "ba",
+   "nm": "Vitória da Conquista",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2303709",
+   "tse": "13730",
+   "uf": "ce",
+   "nm": "Caucaia",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "2304400",
+   "tse": "13897",
+   "uf": "ce",
+   "nm": "Fortaleza",
+   "ano": 2022,
+   "zonas": 17
+  },
+  {
+   "ibge": "2307304",
+   "tse": "14478",
+   "uf": "ce",
+   "nm": "Juazeiro do Norte",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2307650",
+   "tse": "15857",
+   "uf": "ce",
+   "nm": "Maracanaú",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "2312908",
+   "tse": "15598",
+   "uf": "ce",
+   "nm": "Sobral",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5300108",
+   "tse": "97012",
+   "uf": "df",
+   "nm": "Brasília",
+   "ano": 2022,
+   "zonas": 19
+  },
+  {
+   "ibge": "3201209",
+   "tse": "56235",
+   "uf": "es",
+   "nm": "Cachoeiro de Itapemirim",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3201308",
+   "tse": "56251",
+   "uf": "es",
+   "nm": "Cariacica",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3205002",
+   "tse": "56995",
+   "uf": "es",
+   "nm": "Serra",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3205200",
+   "tse": "57037",
+   "uf": "es",
+   "nm": "Vila Velha",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3205309",
+   "tse": "57053",
+   "uf": "es",
+   "nm": "Vitória",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "5201108",
+   "tse": "92215",
+   "uf": "go",
+   "nm": "Anápolis",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "5201405",
+   "tse": "92274",
+   "uf": "go",
+   "nm": "Aparecida de Goiânia",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "5208707",
+   "tse": "93734",
+   "uf": "go",
+   "nm": "Goiânia",
+   "ano": 2022,
+   "zonas": 9
+  },
+  {
+   "ibge": "5218805",
+   "tse": "95710",
+   "uf": "go",
+   "nm": "Rio Verde",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2105302",
+   "tse": "08036",
+   "uf": "ma",
+   "nm": "Imperatriz",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2111300",
+   "tse": "09210",
+   "uf": "ma",
+   "nm": "São Luís",
+   "ano": 2026,
+   "zonas": 6
+  },
+  {
+   "ibge": "3106200",
+   "tse": "41238",
+   "uf": "mg",
+   "nm": "Belo Horizonte",
+   "ano": 2022,
+   "zonas": 18
+  },
+  {
+   "ibge": "3106705",
+   "tse": "41335",
+   "uf": "mg",
+   "nm": "Betim",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3113404",
+   "tse": "42676",
+   "uf": "mg",
+   "nm": "Caratinga",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3118601",
+   "tse": "43710",
+   "uf": "mg",
+   "nm": "Contagem",
+   "ano": 2022,
+   "zonas": 4
+  },
+  {
+   "ibge": "3122306",
+   "tse": "44458",
+   "uf": "mg",
+   "nm": "Divinópolis",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3127701",
+   "tse": "45535",
+   "uf": "mg",
+   "nm": "Governador Valadares",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3129806",
+   "tse": "45950",
+   "uf": "mg",
+   "nm": "Ibirité",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3131307",
+   "tse": "46256",
+   "uf": "mg",
+   "nm": "Ipatinga",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3136702",
+   "tse": "47333",
+   "uf": "mg",
+   "nm": "Juiz de Fora",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "3143302",
+   "tse": "48658",
+   "uf": "mg",
+   "nm": "Montes Claros",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3148004",
+   "tse": "49590",
+   "uf": "mg",
+   "nm": "Patos de Minas",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3151800",
+   "tse": "50350",
+   "uf": "mg",
+   "nm": "Poços de Caldas",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3154606",
+   "tse": "50911",
+   "uf": "mg",
+   "nm": "Ribeirão das Neves",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3157807",
+   "tse": "51551",
+   "uf": "mg",
+   "nm": "Santa Luzia",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3167202",
+   "tse": "53430",
+   "uf": "mg",
+   "nm": "Sete Lagoas",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3170107",
+   "tse": "54011",
+   "uf": "mg",
+   "nm": "Uberaba",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3170206",
+   "tse": "54038",
+   "uf": "mg",
+   "nm": "Uberlândia",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "5002704",
+   "tse": "90514",
+   "uf": "ms",
+   "nm": "Campo Grande",
+   "ano": 2026,
+   "zonas": 6
+  },
+  {
+   "ibge": "5003207",
+   "tse": "90638",
+   "uf": "ms",
+   "nm": "Corumbá",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5003702",
+   "tse": "90735",
+   "uf": "ms",
+   "nm": "Dourados",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5006606",
+   "tse": "91316",
+   "uf": "ms",
+   "nm": "Ponta Porã",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5008305",
+   "tse": "91650",
+   "uf": "ms",
+   "nm": "Três Lagoas",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5103403",
+   "tse": "90670",
+   "uf": "mt",
+   "nm": "Cuiabá",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "5107602",
+   "tse": "91510",
+   "uf": "mt",
+   "nm": "Rondonópolis",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "5108402",
+   "tse": "91677",
+   "uf": "mt",
+   "nm": "Várzea Grande",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "1500800",
+   "tse": "04154",
+   "uf": "pa",
+   "nm": "Ananindeua",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "1501402",
+   "tse": "04278",
+   "uf": "pa",
+   "nm": "Belém",
+   "ano": 2022,
+   "zonas": 10
+  },
+  {
+   "ibge": "1502400",
+   "tse": "04472",
+   "uf": "pa",
+   "nm": "Castanhal",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "1504208",
+   "tse": "04839",
+   "uf": "pa",
+   "nm": "Marabá",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "1505536",
+   "tse": "05835",
+   "uf": "pa",
+   "nm": "Parauapebas",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "1506807",
+   "tse": "05355",
+   "uf": "pa",
+   "nm": "Santarém",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2504009",
+   "tse": "19810",
+   "uf": "pb",
+   "nm": "Campina Grande",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2507507",
+   "tse": "20516",
+   "uf": "pb",
+   "nm": "João Pessoa",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "2513703",
+   "tse": "21750",
+   "uf": "pb",
+   "nm": "Santa Rita",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2602902",
+   "tse": "23574",
+   "uf": "pe",
+   "nm": "Cabo de Santo Agostinho",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "2603454",
+   "tse": "26298",
+   "uf": "pe",
+   "nm": "Camaragibe",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "2604106",
+   "tse": "23817",
+   "uf": "pe",
+   "nm": "Caruaru",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2607901",
+   "tse": "24570",
+   "uf": "pe",
+   "nm": "Jaboatão dos Guararapes",
+   "ano": 2022,
+   "zonas": 4
+  },
+  {
+   "ibge": "2609600",
+   "tse": "24910",
+   "uf": "pe",
+   "nm": "Olinda",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "2610707",
+   "tse": "25135",
+   "uf": "pe",
+   "nm": "Paulista",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "2611101",
+   "tse": "25216",
+   "uf": "pe",
+   "nm": "Petrolina",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "2611606",
+   "tse": "25313",
+   "uf": "pe",
+   "nm": "Recife",
+   "ano": 2022,
+   "zonas": 11
+  },
+  {
+   "ibge": "2616407",
+   "tse": "26271",
+   "uf": "pe",
+   "nm": "Vitória de Santo Antão",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2202208",
+   "tse": "10430",
+   "uf": "pi",
+   "nm": "Campo Maior",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2207702",
+   "tse": "11533",
+   "uf": "pi",
+   "nm": "Parnaíba",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2211001",
+   "tse": "12190",
+   "uf": "pi",
+   "nm": "Teresina",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "4104808",
+   "tse": "74934",
+   "uf": "pr",
+   "nm": "Cascavel",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4105805",
+   "tse": "75132",
+   "uf": "pr",
+   "nm": "Colombo",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4106902",
+   "tse": "75353",
+   "uf": "pr",
+   "nm": "Curitiba",
+   "ano": 2026,
+   "zonas": 10
+  },
+  {
+   "ibge": "4108304",
+   "tse": "75639",
+   "uf": "pr",
+   "nm": "Foz do Iguaçu",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4109401",
+   "tse": "75833",
+   "uf": "pr",
+   "nm": "Guarapuava",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4113700",
+   "tse": "76678",
+   "uf": "pr",
+   "nm": "Londrina",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "4115200",
+   "tse": "76910",
+   "uf": "pr",
+   "nm": "Maringá",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4119905",
+   "tse": "77771",
+   "uf": "pr",
+   "nm": "Ponta Grossa",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4125506",
+   "tse": "78859",
+   "uf": "pr",
+   "nm": "São José dos Pinhais",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3300100",
+   "tse": "58017",
+   "uf": "rj",
+   "nm": "Angra dos Reis",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3300407",
+   "tse": "58076",
+   "uf": "rj",
+   "nm": "Barra Mansa",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3300456",
+   "tse": "58041",
+   "uf": "rj",
+   "nm": "Belford Roxo",
+   "ano": 2022,
+   "zonas": 4
+  },
+  {
+   "ibge": "3300704",
+   "tse": "58130",
+   "uf": "rj",
+   "nm": "Cabo Frio",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3301009",
+   "tse": "58190",
+   "uf": "rj",
+   "nm": "Campos dos Goytacazes",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "3301702",
+   "tse": "58335",
+   "uf": "rj",
+   "nm": "Duque de Caxias",
+   "ano": 2022,
+   "zonas": 7
+  },
+  {
+   "ibge": "3301900",
+   "tse": "58378",
+   "uf": "rj",
+   "nm": "Itaboraí",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3302403",
+   "tse": "58475",
+   "uf": "rj",
+   "nm": "Macaé",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3302502",
+   "tse": "58491",
+   "uf": "rj",
+   "nm": "Magé",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3302858",
+   "tse": "58467",
+   "uf": "rj",
+   "nm": "Mesquita",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3303203",
+   "tse": "58637",
+   "uf": "rj",
+   "nm": "Nilópolis",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3303302",
+   "tse": "58653",
+   "uf": "rj",
+   "nm": "Niterói",
+   "ano": 2022,
+   "zonas": 4
+  },
+  {
+   "ibge": "3303401",
+   "tse": "58670",
+   "uf": "rj",
+   "nm": "Nova Friburgo",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3303500",
+   "tse": "58696",
+   "uf": "rj",
+   "nm": "Nova Iguaçu",
+   "ano": 2022,
+   "zonas": 6
+  },
+  {
+   "ibge": "3303906",
+   "tse": "58777",
+   "uf": "rj",
+   "nm": "Petrópolis",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3304201",
+   "tse": "58831",
+   "uf": "rj",
+   "nm": "Resende",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3304557",
+   "tse": "60011",
+   "uf": "rj",
+   "nm": "Rio de Janeiro",
+   "ano": 2022,
+   "zonas": 49
+  },
+  {
+   "ibge": "3304904",
+   "tse": "58971",
+   "uf": "rj",
+   "nm": "São Gonçalo",
+   "ano": 2022,
+   "zonas": 7
+  },
+  {
+   "ibge": "3305109",
+   "tse": "59013",
+   "uf": "rj",
+   "nm": "São João de Meriti",
+   "ano": 2022,
+   "zonas": 4
+  },
+  {
+   "ibge": "3305802",
+   "tse": "59153",
+   "uf": "rj",
+   "nm": "Teresópolis",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3306008",
+   "tse": "59196",
+   "uf": "rj",
+   "nm": "Três Rios",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3306305",
+   "tse": "59250",
+   "uf": "rj",
+   "nm": "Volta Redonda",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2408003",
+   "tse": "17590",
+   "uf": "rn",
+   "nm": "Mossoró",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2408102",
+   "tse": "17612",
+   "uf": "rn",
+   "nm": "Natal",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "1100122",
+   "tse": "00051",
+   "uf": "ro",
+   "nm": "Ji-Paraná",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "1100205",
+   "tse": "00035",
+   "uf": "ro",
+   "nm": "Porto Velho",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "1400100",
+   "tse": "03018",
+   "uf": "rr",
+   "nm": "Boa Vista",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4300604",
+   "tse": "85111",
+   "uf": "rs",
+   "nm": "Alvorada",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4301602",
+   "tse": "85316",
+   "uf": "rs",
+   "nm": "Bagé",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4304606",
+   "tse": "85898",
+   "uf": "rs",
+   "nm": "Canoas",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4305108",
+   "tse": "85995",
+   "uf": "rs",
+   "nm": "Caxias do Sul",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4307005",
+   "tse": "86371",
+   "uf": "rs",
+   "nm": "Erechim",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4309209",
+   "tse": "86835",
+   "uf": "rs",
+   "nm": "Gravataí",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4313409",
+   "tse": "87718",
+   "uf": "rs",
+   "nm": "Novo Hamburgo",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4314100",
+   "tse": "87858",
+   "uf": "rs",
+   "nm": "Passo Fundo",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4314407",
+   "tse": "87912",
+   "uf": "rs",
+   "nm": "Pelotas",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4314902",
+   "tse": "88013",
+   "uf": "rs",
+   "nm": "Porto Alegre",
+   "ano": 2026,
+   "zonas": 10
+  },
+  {
+   "ibge": "4315602",
+   "tse": "88153",
+   "uf": "rs",
+   "nm": "Rio Grande",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4316808",
+   "tse": "88390",
+   "uf": "rs",
+   "nm": "Santa Cruz do Sul",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4316907",
+   "tse": "88412",
+   "uf": "rs",
+   "nm": "Santa Maria",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4318705",
+   "tse": "88773",
+   "uf": "rs",
+   "nm": "São Leopoldo",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4323002",
+   "tse": "89630",
+   "uf": "rs",
+   "nm": "Viamão",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4202008",
+   "tse": "80390",
+   "uf": "sc",
+   "nm": "Balneário Camboriú",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4202404",
+   "tse": "80470",
+   "uf": "sc",
+   "nm": "Blumenau",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4202909",
+   "tse": "80551",
+   "uf": "sc",
+   "nm": "Brusque",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4204202",
+   "tse": "80810",
+   "uf": "sc",
+   "nm": "Chapecó",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4204301",
+   "tse": "80837",
+   "uf": "sc",
+   "nm": "Concórdia",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4204608",
+   "tse": "80896",
+   "uf": "sc",
+   "nm": "Criciúma",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4205407",
+   "tse": "81051",
+   "uf": "sc",
+   "nm": "Florianópolis",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4208203",
+   "tse": "81612",
+   "uf": "sc",
+   "nm": "Itajaí",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4208906",
+   "tse": "81752",
+   "uf": "sc",
+   "nm": "Jaraguá do Sul",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4209102",
+   "tse": "81795",
+   "uf": "sc",
+   "nm": "Joinville",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "4209300",
+   "tse": "81833",
+   "uf": "sc",
+   "nm": "Lages",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "4211900",
+   "tse": "82333",
+   "uf": "sc",
+   "nm": "Palhoça",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4216602",
+   "tse": "83275",
+   "uf": "sc",
+   "nm": "São José",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "4218707",
+   "tse": "83674",
+   "uf": "sc",
+   "nm": "Tubarão",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "2800308",
+   "tse": "31054",
+   "uf": "se",
+   "nm": "Aracaju",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3501608",
+   "tse": "61310",
+   "uf": "sp",
+   "nm": "Americana",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3503208",
+   "tse": "61638",
+   "uf": "sp",
+   "nm": "Araraquara",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3502804",
+   "tse": "61557",
+   "uf": "sp",
+   "nm": "Araçatuba",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3505708",
+   "tse": "62138",
+   "uf": "sp",
+   "nm": "Barueri",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3506003",
+   "tse": "62197",
+   "uf": "sp",
+   "nm": "Bauru",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3507605",
+   "tse": "62510",
+   "uf": "sp",
+   "nm": "Bragança Paulista",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3509502",
+   "tse": "62910",
+   "uf": "sp",
+   "nm": "Campinas",
+   "ano": 2022,
+   "zonas": 7
+  },
+  {
+   "ibge": "3510609",
+   "tse": "63134",
+   "uf": "sp",
+   "nm": "Carapicuíba",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3513009",
+   "tse": "63614",
+   "uf": "sp",
+   "nm": "Cotia",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3513801",
+   "tse": "63770",
+   "uf": "sp",
+   "nm": "Diadema",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3515004",
+   "tse": "64017",
+   "uf": "sp",
+   "nm": "Embu das Artes",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3516200",
+   "tse": "64254",
+   "uf": "sp",
+   "nm": "Franca",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3518701",
+   "tse": "64750",
+   "uf": "sp",
+   "nm": "Guarujá",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3518800",
+   "tse": "64777",
+   "uf": "sp",
+   "nm": "Guarulhos",
+   "ano": 2022,
+   "zonas": 7
+  },
+  {
+   "ibge": "3523107",
+   "tse": "65633",
+   "uf": "sp",
+   "nm": "Itaquaquecetuba",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3524402",
+   "tse": "65897",
+   "uf": "sp",
+   "nm": "Jacareí",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3525904",
+   "tse": "66192",
+   "uf": "sp",
+   "nm": "Jundiaí",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3526902",
+   "tse": "66397",
+   "uf": "sp",
+   "nm": "Limeira",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3529005",
+   "tse": "66818",
+   "uf": "sp",
+   "nm": "Marília",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3529401",
+   "tse": "66893",
+   "uf": "sp",
+   "nm": "Mauá",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3530607",
+   "tse": "67130",
+   "uf": "sp",
+   "nm": "Mogi das Cruzes",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3534401",
+   "tse": "67890",
+   "uf": "sp",
+   "nm": "Osasco",
+   "ano": 2022,
+   "zonas": 6
+  },
+  {
+   "ibge": "3538709",
+   "tse": "68756",
+   "uf": "sp",
+   "nm": "Piracicaba",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3541000",
+   "tse": "69213",
+   "uf": "sp",
+   "nm": "Praia Grande",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3541406",
+   "tse": "69299",
+   "uf": "sp",
+   "nm": "Presidente Prudente",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3543303",
+   "tse": "69671",
+   "uf": "sp",
+   "nm": "Ribeirão Pires",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3543402",
+   "tse": "69698",
+   "uf": "sp",
+   "nm": "Ribeirão Preto",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "3543907",
+   "tse": "69795",
+   "uf": "sp",
+   "nm": "Rio Claro",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3547809",
+   "tse": "70572",
+   "uf": "sp",
+   "nm": "Santo André",
+   "ano": 2022,
+   "zonas": 6
+  },
+  {
+   "ibge": "3548500",
+   "tse": "70718",
+   "uf": "sp",
+   "nm": "Santos",
+   "ano": 2022,
+   "zonas": 3
+  },
+  {
+   "ibge": "3552205",
+   "tse": "71455",
+   "uf": "sp",
+   "nm": "Sorocaba",
+   "ano": 2026,
+   "zonas": 5
+  },
+  {
+   "ibge": "3552403",
+   "tse": "71498",
+   "uf": "sp",
+   "nm": "Sumaré",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3552502",
+   "tse": "71510",
+   "uf": "sp",
+   "nm": "Suzano",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3548708",
+   "tse": "70750",
+   "uf": "sp",
+   "nm": "São Bernardo do Campo",
+   "ano": 2024,
+   "zonas": 6
+  },
+  {
+   "ibge": "3548807",
+   "tse": "70777",
+   "uf": "sp",
+   "nm": "São Caetano do Sul",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3548906",
+   "tse": "70793",
+   "uf": "sp",
+   "nm": "São Carlos",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "3549805",
+   "tse": "70971",
+   "uf": "sp",
+   "nm": "São José do Rio Preto",
+   "ano": 2026,
+   "zonas": 3
+  },
+  {
+   "ibge": "3549904",
+   "tse": "70998",
+   "uf": "sp",
+   "nm": "São José dos Campos",
+   "ano": 2026,
+   "zonas": 4
+  },
+  {
+   "ibge": "3550308",
+   "tse": "71072",
+   "uf": "sp",
+   "nm": "São Paulo",
+   "ano": 2024,
+   "zonas": 57
+  },
+  {
+   "ibge": "3551009",
+   "tse": "71218",
+   "uf": "sp",
+   "nm": "São Vicente",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3552809",
+   "tse": "71579",
+   "uf": "sp",
+   "nm": "Taboão da Serra",
+   "ano": 2022,
+   "zonas": 2
+  },
+  {
+   "ibge": "3554102",
+   "tse": "71838",
+   "uf": "sp",
+   "nm": "Taubaté",
+   "ano": 2026,
+   "zonas": 2
+  },
+  {
+   "ibge": "1702109",
+   "tse": "92410",
+   "uf": "to",
+   "nm": "Araguaína",
+   "ano": 2026,
+   "zonas": 2
+  }
+ ]
+}

@@ -248,6 +248,19 @@ const APU = (function () {
     return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
   }
 
+  /* De quanto em quanto tempo a página relê os snapshots. Na noite de verdade,
+     o intervalo de cfg — e `vezes` mais devagar nas páginas que leem a camada
+     municipal, que o plantão republica em cadência lenta (~4 min). No ensaio
+     (indice.json com base "ensaio"), o quadro muda a cada ~10 s e toda página
+     acompanha no piso de 10 s: sem isto, a página de estado e a de zonas
+     ficavam até 80 s paradas com o ensaio andando. `?intervalo=` vale nos dois. */
+  function intervaloDe(vezes) {
+    if (_indice && _indice.base === 'ensaio') {
+      return Math.max(10, Number(P.get('intervalo') || 10)) * 1000;
+    }
+    return cfg.intervalo * (vezes || 1);
+  }
+
   /* Qual eleição responde por cada cargo. Em 2026 a eleição geral vem partida
      em duas — uma federal, com presidente e deputado federal, e uma estadual,
      com governador, senador e as assembleias —, e cada uma tem o seu código.
@@ -1104,7 +1117,7 @@ const APU = (function () {
   }
 
   return {
-    cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR,
+    cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR, intervaloDe,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
     candidaturas, preUrna, rankingZerado, fotosDisponiveis, temFoto,
     simulado, carimbo, arquivo, acompanhamento, eleitos,

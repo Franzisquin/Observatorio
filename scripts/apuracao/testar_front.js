@@ -687,6 +687,21 @@ const senSJ = APU.senado({ senadores: [] }, { cand: dicSen2, abr: { sp: ufSen } 
 ok(senSJ.disputa.flatMap((b) => b.cand).map((c) => c.urna).sort().join() === 'Y,Z',
   'semicírculo do Senado: anulado sub judice não ocupa cadeira');
 
+console.log('\nmarcas no nível da eleição');
+/* Presidente: 68% no Maranhão não elege ninguém com o país em aberto. */
+const dicPres = { l: { urna: 'LULA', partido: 'PT' }, b: { urna: 'BOLSONARO', partido: 'PL' } };
+const ma = { vv: 1000, vvc: 1000, nv: 1, esnt: 100, snt: 10, cand: { l: 680, b: 320 } };
+const br = { vv: 100000, vvc: 100000, nv: 1, esnt: 40000, snt: 9000, cand: { l: 48000, b: 52000 } };
+ok(APU.marcar(APU.ranking(ma, dicPres), ma, '0001')[0].marca === 'eleito',
+  'a conta feita só com o estado daria eleito (o erro que as marcas de fora evitam)');
+const mPais = APUUI.marcasDaEleicao(br, dicPres, '0001');
+ok(mPais.size === 0, 'com o país em aberto, ninguém eleito', JSON.stringify([...mPais]));
+ok(APUUI.marcasDaEleicao(null, dicPres, '0001').size === 0, 'sem a entrada da eleição, nenhuma marca');
+const brDef = { ...br, md: 'e', cand: { l: 52000, b: 48000 } };
+ok(APUUI.marcasDaEleicao(brDef, dicPres, '0001').get('l').marca === 'eleito',
+  'definido no país: a marca vale em qualquer recorte');
+ok(APUUI.comDefinicaoDa(br, { ...ma, md: 'e' }).md === '', 'selo de definido também vem do país');
+
 console.log('\ngovernadores');
 const dicGov = {
   s1: { urna: 'ANA', partido: 'PT' }, s2: { urna: 'BIA', partido: 'PL' },
@@ -762,6 +777,7 @@ const PARES = [
   ['js/apuracao-nacional.js', 'apuracao-presidente.html'],
   ['js/apuracao-governador.js', 'apuracao-governador.html'],
   ['js/apuracao-senado.js', 'apuracao-senado.html'],
+  ['js/apuracao-zonas.js', 'apuracao-zonas.html'],
   ['js/apuracao-deputados.js', 'apuracao-deputados.html']
 ];
 for (const [js, pagina] of PARES) {

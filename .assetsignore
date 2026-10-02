@@ -102,6 +102,12 @@ js/apuracao-ui.js
 js/apuracao-deputados.js
 js/apuracao-governador.js
 js/apuracao-senado.js
+apuracao-zonas.html
+js/apuracao-zonas.js
+# Malhas das zonas eleitorais (scripts/gerar_malhas_zonas.py): so a pagina de
+# zonas le. As fontes do CEM sao insumo e nao sobem nunca.
+resultados_geo/zonas_svg/
+resultados_geo/zonas_eleitorais/
 js/locais-view.js
 # Os 27 senadores que ficam ate 2031: so a pagina do Senado le.
 resultados_geo/senado_em_exercicio.json
