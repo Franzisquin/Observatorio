@@ -158,3 +158,6 @@ scratch/cnefe/
 # scripts/corrigir_aptos_presidente_por_estado.py; so os denominadores ja
 # corrigidos em resultados_geo/ entram no repo. Ver analise_eleitorado_denominador.md.
 atualizações_eleitorado/
+
+# Segredos de teste local do wrangler (worker/apuracao.js)
+.dev.vars*

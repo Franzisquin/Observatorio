@@ -1,5 +1,10 @@
 # Plantão da apuração — operação dos simulados
 
+> **Histórico.** Os simulados do TSE acabaram em setembro. O plantão agora lê só
+> o ambiente oficial e publica no Worker do site, sem GitHub; os comandos abaixo
+> (`--descobrir`, `--ambiente auto`, o workflow do Actions) não existem mais.
+> Para a noite de 04/10, use [COMECAR-AQUI.md](COMECAR-AQUI.md).
+
 Janelas do TSE: **15, 16 e 17** e **22, 23 e 24 de setembro de 2026**, das 9h às
 12h e das 14h às 17h. Os dados simulados vêm com 100% das seções recebidas e com
 a totalização final incluída, na mesma estrutura de pastas do ambiente oficial.

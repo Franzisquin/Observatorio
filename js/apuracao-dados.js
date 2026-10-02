@@ -32,27 +32,22 @@
 
 const APU = (function () {
 
-  const PUBLICADO = 'https://raw.githubusercontent.com/Franzisquin/Observatorio/apuracao-data/';
+  /* Os snapshots vêm do próprio domínio: o plantão grava no Worker do site
+     (worker/apuracao.js), que os guarda no R2 e serve com cache de borda curto. */
+  const PUBLICADO = '/dados/';
   const P = new URLSearchParams(location.search);
 
-  /* Origens que `?dados=` pode apontar. O parâmetro existe para desenvolvimento
-     e para apontar o simulado, mas aceitar URL arbitrária fazia a página buscar
-     os snapshots de onde o link mandasse: `?dados=https://terceiro/` renderiza
-     números de outra pessoa com a marca, o layout e o domínio do site. Numa
-     noite de apuração isso é resultado forjado publicado como se fosse nosso —
-     não é leitura indevida, é falsificação, e some da barra de endereços.
-
-     Caminho relativo continua livre: serve snapshot local sem sair da origem. */
-  const ORIGENS_OK = [
-    'https://raw.githubusercontent.com/Franzisquin/Observatorio/'
-  ];
-
+  /* `?dados=` existe para desenvolvimento, e só aceita caminho relativo, dentro
+     da própria origem. Aceitar URL arbitrária fazia a página buscar os snapshots
+     de onde o link mandasse: `?dados=https://terceiro/` renderiza números de
+     outra pessoa com a marca, o layout e o domínio do site. Numa noite de
+     apuração isso é resultado forjado publicado como se fosse nosso — não é
+     leitura indevida, é falsificação, e some da barra de endereços. */
   function baseSegura(bruta) {
     if (!bruta) return PUBLICADO;
-    /* Relativo e dentro da própria origem. Recusa "//host" (protocol-relative,
-       que sai do site) e qualquer coisa com esquema. */
+    /* Recusa "//host" (protocol-relative, que sai do site) e qualquer coisa com
+       esquema. */
     if (/^[\w.-]+(\/[\w.-]+)*\/$/.test(bruta) && !bruta.startsWith('//')) return bruta;
-    if (ORIGENS_OK.some((o) => bruta.startsWith(o))) return bruta;
     console.warn('[apuracao] origem de dados recusada, usando a publicada:', bruta);
     return PUBLICADO;
   }
@@ -246,8 +241,9 @@ const APU = (function () {
 
   /* ------------------------------------------------------------------ rede */
 
-  /* O snapshot muda a cada volta do plantão; sem burlar o cache, o
-     raw.githubusercontent devolve a versão anterior por minutos. */
+  /* O snapshot muda a cada volta do plantão: nenhum cache do caminho pode
+     devolver a versão anterior. O Worker ignora este parâmetro na chave do seu
+     cache de borda, que dura poucos segundos. */
   function comBust(url) {
     return url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
   }

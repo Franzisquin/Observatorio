@@ -20,6 +20,11 @@
 # e a configuracao do deploy: nao tem por que estar publica.
 wrangler.jsonc
 
+# Codigo do Worker (vai como script pelo `main`, nao como arquivo publico) e os
+# segredos de teste local do wrangler, que nunca podem virar asset.
+worker/
+.dev.vars*
+
 # --- geracao de dados: insumo e script, nada disso o navegador busca ---
 scripts/
 external_scripts/

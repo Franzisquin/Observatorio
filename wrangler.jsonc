@@ -1,10 +1,10 @@
 {
   // Hospedagem do ElectoMaps em Workers + Static Assets.
   //
-  // Sem `main`: nao ha codigo de Worker, so arquivos estaticos. A Cloudflare
-  // recomenda Workers em vez de Pages para projetos novos, e requisicoes a
-  // asset estatico sao gratuitas e ilimitadas -- o que importa na noite da
-  // apuracao.
+  // O site e asset estatico: requisicao a asset e gratuita e ilimitada. O unico
+  // codigo de Worker (worker/apuracao.js) atende so /dados/*, os snapshots da
+  // apuracao ao vivo, que o plantao grava no R2 -- ver run_worker_first abaixo.
+  // Cada chamada a ele conta no plano Workers Paid (10 mi/mes incluidas).
   //
   // Medido em 17/09/2026: 4.429 arquivos, 1,90 GB, nenhum acima de 25 MiB.
   // Limites do plano Free: 20.000 arquivos por versao, 25 MiB por arquivo.
@@ -20,6 +20,7 @@
   "account_id": "fb3deb1186d822071fe34aabf61f6672",
 
   "name": "electomaps",
+  "main": "worker/apuracao.js",
   "compatibility_date": "2026-09-17",
 
   // URL de teste em workers.dev desligada em 17/09/2026, ate o dominio
@@ -47,6 +48,19 @@
     // "404-page" = serve o 404.html da raiz, com a identidade do site, em vez
     // do 404 pelado da Cloudflare. A pagina foi criada em 17/09/2026; as
     // chaves de traducao dela vivem em js/i18n.js (meta.404.*, e404.*).
-    "not_found_handling": "404-page"
-  }
+    "not_found_handling": "404-page",
+
+    // So os snapshots da apuracao passam pelo Worker. Todo o resto e servido
+    // direto como asset, sem invoca-lo (e sem custo); o que nao existir cai
+    // no Worker, que devolve ao ASSETS, e o 404-page acima continua valendo.
+    "binding": "ASSETS",
+    "run_worker_first": ["/dados/*"]
+  },
+
+  // Onde o plantao grava os snapshots. O R2 precisa estar ativado na conta e o
+  // bucket criado antes do deploy:  npx wrangler r2 bucket create electomaps-apuracao
+  // A chave do plantao e segredo, nunca arquivo:  npx wrangler secret put CHAVE_PLANTAO
+  "r2_buckets": [
+    { "binding": "DADOS", "bucket_name": "electomaps-apuracao" }
+  ]
 }

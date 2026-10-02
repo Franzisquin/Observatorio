@@ -1,37 +1,48 @@
-"""Plantao da noite de apuracao: coleta em ciclo e publica os snapshots.
+"""Plantao da noite de apuracao: coleta do TSE em ciclo e publica no site.
 
-Roda como um job longo, nao como cron. O `schedule` do GitHub Actions tem
-granularidade minima de 5 minutos e atrasa sob carga — justamente o que nao se
-pode ter numa noite de eleicao. Um unico job disparado a mao, com o loop por
-dentro, da cadencia previsivel.
+Le so o ambiente oficial do TSE (resultados.tse.jus.br/oficial) e recusa
+qualquer EA11 que nao esteja em fase oficial. Publica direto no Worker do
+electomaps.com.br (worker/apuracao.js), que guarda no R2 e serve em /dados/ —
+sem GitHub no caminho.
 
-Duas cadencias, porque as camadas custam coisas muito diferentes:
+Duas camadas, com custos muito diferentes:
 
-    camada alta (BR + 27 UFs)   28 arquivos por cargo   -> a cada ~45s
-    camada municipal            5.569 arquivos por cargo -> a cada ~4min
+    camada alta (BR + 27 UFs)   28 arquivos por cargo    -> toda volta (~45s)
+    camada municipal            5.569 arquivos por cargo -> em fatias, a cada volta
 
-    python scripts/apuracao/plantao.py --eleicao 619 --cargos 0011 --uf mg \
-        --minutos 5 --saida scratch/apuracao/plantao
-    python scripts/apuracao/plantao.py --eleicao 999 --cargos 0001,0003,0005 \
-        --minutos 300 --publicar --branch apuracao-data
+A municipal anda em fatias de --fatia-mun segundos depois da camada alta, em vez
+de parar tudo pelos minutos que uma rodada inteira leva: o placar do Brasil e
+dos estados nunca congela enquanto os municipios andam.
+
+    $env:CHAVE_PLANTAO = "<a chave do Worker>"      # PowerShell
+    python scripts/apuracao/plantao.py --publicar https://electomaps.com.br/dados/
+
+Sem --publicar, so grava em --saida (para conferir com --servir).
 """
 
 from __future__ import annotations
 
 import argparse
+import concurrent.futures as cf
+import hashlib
+import http.client
 import http.server
 import json
-import subprocess
+import os
+import socket
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from coleta import (acompanhamento, camada_alta, camada_municipal,  # noqa: E402
                     cargos_da_eleicao, eleicoes_ordinarias, eleitos, escolher_ufs,
                     escrever_indice, municipios)
-from tse import BASE, CARGOS, SIM_2026, Cliente, descobrir_ambiente, eleicao_de  # noqa: E402
+from tse import (BASE, CARGOS, CARGOS_COM_UF, CARGOS_PROPORCIONAIS,  # noqa: E402
+                 Cliente, eleicao_de, ufs_do_cargo)
 
 # A projecao precisa de numpy. Sem ele o plantao segue so com os snapshots: a
 # coleta nao pode depender de um extra.
@@ -103,35 +114,66 @@ def saude(caminho: Path, estado: dict) -> None:
                        encoding="utf-8")
 
 
-def git(*args: str, cwd: Path) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+def _put(destino: str, nome: str, corpo: bytes, chave: str, quem: str) -> int:
+    """Um PUT no Worker. Devolve o status, ou 0 se a rede nao respondeu."""
+    req = urllib.request.Request(destino + nome, data=corpo, method="PUT", headers={
+        "Authorization": f"Bearer {chave}", "X-Plantao": quem,
+        "Content-Type": "application/json", "User-Agent": "electomaps-plantao/1.0"})
+    for tentativa in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return resp.status
+        except urllib.error.HTTPError as err:
+            if err.code in (400, 403, 409, 413):  # repetir nao muda a resposta
+                return err.code
+        except (urllib.error.URLError, http.client.HTTPException, OSError):
+            pass
+        time.sleep(2 * (tentativa + 1))
+    return 0
 
 
-def publicar(saida: Path, branch: str, primeira: bool) -> bool:
-    """Empurra o estado atual da pasta para a branch de dados.
+def enviar(saida: Path, destino: str, chave: str, quem: str,
+           enviados: dict[str, str]) -> tuple[int, str]:
+    """Grava no Worker cada snapshot que mudou desde o ultimo envio aceito.
 
-    Depois do primeiro commit, todos os seguintes sao --amend: a branch fica
-    sempre com UM commit. Sem isso, uma noite de 6 horas deixaria centenas de
-    commits de JSON no historico do repositorio.
+    Devolve (quantos foram aceitos, situacao). indice.json e status.json vao por
+    ultimo, depois dos dados que descrevem. O que falhar fica sem marca e vai de
+    novo na volta seguinte; nenhuma falha de rede derruba o plantao.
+
+    409 quer dizer que outro plantao esta no comando: este segue coletando, e o
+    Worker o deixa assumir sozinho se o outro ficar alguns minutos calado.
     """
-    git("add", "-A", cwd=saida)
-    if not git("diff", "--cached", "--quiet", cwd=saida).returncode:
-        return False  # nada mudou desde a ultima publicacao
+    def pendentes(nomes: list[str]) -> list[tuple[str, bytes, str]]:
+        lista = []
+        for nome in nomes:
+            try:
+                corpo = (saida / nome).read_bytes()
+            except OSError:
+                continue
+            marca = hashlib.sha1(corpo).hexdigest()
+            if enviados.get(nome) != marca:
+                lista.append((nome, corpo, marca))
+        return lista
 
-    marca = time.strftime("%Y-%m-%d %H:%M:%S")
-    if primeira:
-        commit = git("commit", "-m", f"apuracao {marca}", cwd=saida)
-    else:
-        commit = git("commit", "--amend", "--no-edit", "-m", f"apuracao {marca}", cwd=saida)
-    if commit.returncode:
-        print(f"  ! commit falhou: {commit.stderr.strip()[:200]}", flush=True)
-        return False
-
-    envio = git("push", "--force", "origin", f"HEAD:{branch}", cwd=saida)
-    if envio.returncode:
-        print(f"  ! push falhou: {envio.stderr.strip()[:200]}", flush=True)
-        return False
-    return True
+    todos = sorted(p.name for p in saida.glob("*.json"))
+    fim = [n for n in ("indice.json", "status.json") if n in todos]
+    aceitos, situacao = 0, "ok"
+    with cf.ThreadPoolExecutor(max_workers=8) as pool:
+        for lote in (pendentes([n for n in todos if n not in fim]), pendentes(fim)):
+            codigos = pool.map(lambda item: _put(destino, item[0], item[1], chave, quem), lote)
+            for (nome, _, marca), codigo in zip(lote, codigos):
+                if codigo == 204:
+                    enviados[nome] = marca
+                    aceitos += 1
+                elif codigo == 409:
+                    situacao = "em espera (outro plantao no comando)"
+                elif codigo == 403:
+                    situacao = "CHAVE RECUSADA pelo Worker"
+                elif situacao == "ok":
+                    situacao = f"falha ({codigo or 'sem rede'}) em {nome}; vai de novo"
+            if situacao != "ok" and not situacao.startswith("falha"):
+                break
+    return aceitos, situacao
 
 
 def main() -> int:
@@ -152,39 +194,54 @@ def main() -> int:
                     help="codigos separados por virgula, ou apelidos: " + ", ".join(CARGOS))
     ap.add_argument("--uf", nargs="*", default=[],
                     help="UFs separadas por espaco (padrao: todas as da eleicao)")
-    ap.add_argument("--ambiente", default="auto",
-                    help="pasta de ambiente no CDN; 'auto' sonda os lugares conhecidos "
-                         "e prefere o que estiver em fase simulada")
-    ap.add_argument("--base", default=BASE,
-                    help="host do CDN; o simulado de 2026 usa " + SIM_2026)
-    ap.add_argument("--minutos", type=float, default=300, help="duracao do plantao")
+    ap.add_argument("--ambiente", default="oficial", help="pasta de ambiente no CDN")
+    ap.add_argument("--base", default=BASE, help="host do CDN")
+    ap.add_argument("--minutos", type=float, default=720,
+                    help="duracao do plantao (padrao: 12 horas, a noite inteira)")
     ap.add_argument("--intervalo-alto", type=float, default=45)
-    ap.add_argument("--intervalo-mun", type=float, default=240)
+    ap.add_argument("--intervalo-mun", type=float, default=0,
+                    help="pausa entre uma rodada municipal completa e a proxima")
+    ap.add_argument("--fatia-mun", type=float, default=30,
+                    help="segundos de camada municipal por volta, depois da camada alta")
     ap.add_argument("--taxa", type=float, default=60.0,
                     help="requisicoes/s; o teto do TSE e 100 por IP e a folga e de proposito")
     ap.add_argument("--paralelo", type=int, default=24,
                     help="requisicoes simultaneas; o teto real e --taxa")
     ap.add_argument("--saida", type=Path, default=RAIZ / "scratch" / "apuracao" / "plantao")
-    ap.add_argument("--publicar", action="store_true", help="commita e empurra a cada volta")
-    ap.add_argument("--branch", default="apuracao-data")
+    ap.add_argument("--publicar", metavar="URL",
+                    help="endereco do Worker, ex.: https://electomaps.com.br/dados/ "
+                         "(a chave vem da variavel de ambiente CHAVE_PLANTAO)")
+    ap.add_argument("--nome", default=socket.gethostname(),
+                    help="como este plantao se identifica ao Worker (padrao: o nome "
+                         "da maquina); dois plantoes precisam de nomes diferentes")
     args = ap.parse_args()
+
+    chave = os.environ.get("CHAVE_PLANTAO", "")
+    destino = (args.publicar or "").rstrip("/") + "/"
+    if args.publicar and not chave:
+        print("--publicar precisa da chave em CHAVE_PLANTAO.", flush=True)
+        return 1
 
     cargos = [CARGOS.get(c.strip(), c.strip()) for c in args.cargos.split(",") if c.strip()]
     saida: Path = args.saida
     saida.mkdir(parents=True, exist_ok=True)
 
-    base, ambiente, config = args.base, args.ambiente, None
-    if ambiente in ("auto", "descobrir"):
-        print("sondando os lugares conhecidos (1 requisicao para cada):", flush=True)
-        base, ambiente, config = descobrir_ambiente(por_segundo=args.taxa)
-        if not ambiente:
-            print("nenhum ambiente respondeu — nao ha o que coletar.", flush=True)
-            return 1
-
+    base, ambiente = args.base, args.ambiente
     cli = Cliente(ambiente=ambiente, por_segundo=args.taxa, base=base)
-    config = config or cli.config_eleicoes()
+    config = cli.config_eleicoes()
+    # O EA11 diz a fase em que foi gerado: "o" e resultado de verdade. Qualquer
+    # outra coisa e dado de teste, e publicar dado de teste como apuracao e o
+    # pior erro possivel da noite.
+    if config.get("f") != "o":
+        print(f"EA11 em fase '{config.get('f')}' em {base}/{ambiente}: nao e o ambiente "
+              "oficial — nada sera coletado.", flush=True)
+        return 1
     if args.eleicao.strip().lower() in ("auto", "todas"):
-        eleicoes = eleicoes_ordinarias(config, cargos)
+        # So 1o turno: o site e do 1o turno, e o 2o turno entra no EA11 assim que
+        # o 1o acaba — religar o plantao de madrugada passaria a pedir arquivos
+        # de 2o turno que ainda nao existem, e 404 em serie bloqueia.
+        eleicoes = [e for e in eleicoes_ordinarias(config, cargos)
+                    if str(eleicao_de(config, e).get("t", "")) == "1"]
         print(f"eleicoes descobertas no EA11: {', '.join(eleicoes) or '(nenhuma)'}",
               flush=True)
         if not eleicoes:
@@ -221,7 +278,10 @@ def main() -> int:
     fim = time.monotonic() + args.minutos * 60
     partida = time.time()
     proxima_municipal = 0.0
-    primeira_publicacao = True
+    # Rodada municipal em andamento, (eleicao, cargo, uf), consumida em fatias.
+    fila: list[tuple[str, str, str]] = []
+    enviados: dict[str, str] = {}  # arquivo -> sha1 do ultimo envio aceito
+    situacao = ""
     volta = 0
     # Cargos cuja totalizacao final ja foi vista: o EA10 daquele cargo passa a
     # existir e vale reler a cada volta municipal. Antes disso e 404 em serie.
@@ -236,6 +296,7 @@ def main() -> int:
         # rede, disco, um campo novo do TSE — encerraria a cobertura em silencio, e
         # o unico aviso seria a tela parada no ultimo boletim.
         municipal = False
+        aceitos = 0
         try:
             for eleicao, do_pleito in plano.items():
                 alvos = escolher_ufs(mapas[eleicao], args.uf)
@@ -253,27 +314,43 @@ def main() -> int:
             for eleicao in plano:
                 ab = acompanhamento(cli, config, eleicao, saida, silencioso=True) or ab
 
-            municipal = time.monotonic() >= proxima_municipal
-            if municipal:
-                for eleicao, do_pleito in plano.items():
-                    alvos = escolher_ufs(mapas[eleicao], args.uf)
-                    for cargo in do_pleito:
-                        camada_municipal(cli, config, eleicao, cargo, alvos, mapas[eleicao],
-                                         saida, paralelo=args.paralelo, silencioso=True)
-                        projetar_rodada(saida, eleicao, cargo,
-                                        str(eleicao_de(config, eleicao).get("t", "1")))
-                        # Prefeito nao tem camada alta: a totalizacao final aparece no
-                        # snapshot municipal, entao ela e lida aqui.
-                        if (eleicao, cargo) not in finalizados:
-                            pacote = saida / f"{eleicao}-{cargo}-{alvos[0]}.json"
-                            if pacote.exists():
-                                try:
-                                    dados = json.loads(pacote.read_text(encoding="utf-8"))
-                                    if any(e.get("tf") == "s"
-                                           for e in dados.get("abr", {}).values()):
-                                        finalizados.add((eleicao, cargo))
-                                except (ValueError, OSError):
-                                    pass
+            # O placar novo vai ao ar antes da fatia municipal.
+            if args.publicar:
+                aceitos, situacao = enviar(saida, destino, chave, args.nome, enviados)
+
+            if not fila and time.monotonic() >= proxima_municipal:
+                # Deputado nao tem mapa por municipio: a pagina de deputados le so
+                # a camada alta e as listas (lista-{uf}). No simulado de 15/09 eles
+                # eram 2 dos 5 cargos de uma rodada municipal de ~13 min, e
+                # atrasavam o mapa municipal e a projecao do resto. Vereador fica:
+                # e cargo municipal, sem camada alta.
+                fila = [(eleicao, cargo, uf)
+                        for eleicao, do_pleito in plano.items()
+                        for cargo in do_pleito
+                        if not (cargo in CARGOS_COM_UF and cargo in CARGOS_PROPORCIONAIS)
+                        for uf in ufs_do_cargo(cargo, escolher_ufs(mapas[eleicao], args.uf))]
+            limite = time.monotonic() + args.fatia_mun
+            while fila and time.monotonic() < limite:
+                eleicao, cargo, uf = fila.pop(0)
+                municipal = True
+                camada_municipal(cli, config, eleicao, cargo, [uf], mapas[eleicao],
+                                 saida, paralelo=args.paralelo, silencioso=True)
+                if fila and fila[0][:2] == (eleicao, cargo):
+                    continue
+                # Ultima UF deste cargo na rodada: a projecao le o pais inteiro.
+                projetar_rodada(saida, eleicao, cargo,
+                                str(eleicao_de(config, eleicao).get("t", "1")))
+                # Prefeito nao tem camada alta: a totalizacao final aparece no
+                # snapshot municipal, entao ela e lida aqui.
+                pacote = saida / f"{eleicao}-{cargo}-{uf}.json"
+                if (eleicao, cargo) not in finalizados and pacote.exists():
+                    try:
+                        dados = json.loads(pacote.read_text(encoding="utf-8"))
+                        if any(e.get("tf") == "s" for e in dados.get("abr", {}).values()):
+                            finalizados.add((eleicao, cargo))
+                    except (ValueError, OSError):
+                        pass
+            if municipal and not fila:
                 for eleicao, cargo in sorted(finalizados):
                     eleitos(cli, config, eleicao, cargo,
                             escolher_ufs(mapas[eleicao], args.uf), saida, silencioso=True)
@@ -292,6 +369,8 @@ def main() -> int:
                 "intervalo_mun": args.intervalo_mun,
                 "taxa": args.taxa,
                 "municipal": municipal,
+                "fila_municipal": len(fila),
+                "publicacao": situacao,
                 "req": dict(cli.contador),
                 "taxa_medida": round(cli.contador["get"] / max(1.0, time.time() - partida), 1),
                 "bloqueado_por": round(cli.bloqueio_restante()),
@@ -304,16 +383,16 @@ def main() -> int:
             print(f"  ! volta {volta} falhou ({type(err).__name__}: {err}); "
                   f"seguindo para a proxima", flush=True)
 
-        enviado = False
         if args.publicar:
-            enviado = publicar(saida, args.branch, primeira_publicacao)
-            primeira_publicacao = primeira_publicacao and not enviado
+            mais, situacao = enviar(saida, destino, chave, args.nome, enviados)
+            aceitos += mais
 
         gasto = time.monotonic() - inicio
-        print(f"  volta {volta:>4} | {gasto:6.1f}s | municipal={'sim' if municipal else 'nao'} | "
-              f"{cli.contador['get']} gets, {cli.contador['304']} 304, "
-              f"{cli.contador['404']} 404, {cli.contador['bytes'] / 1e6:.0f} MB"
-              f"{' | publicado' if enviado else ''}", flush=True)
+        print(f"  volta {volta:>4} | {gasto:6.1f}s | municipal={'sim' if municipal else 'nao'}"
+              f" (faltam {len(fila)} UFs) | {cli.contador['get']} gets, "
+              f"{cli.contador['304']} 304, {cli.contador['404']} 404, "
+              f"{cli.contador['bytes'] / 1e6:.0f} MB"
+              + (f" | {aceitos} enviados, {situacao}" if args.publicar else ""), flush=True)
 
         # Se uma volta demorou mais que o intervalo, segue direto: o atraso ja
         # e o sinal de que o gargalo e a rede, nao a espera.

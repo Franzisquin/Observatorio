@@ -393,66 +393,6 @@ class Cliente:
         return modelo
 
 
-# Onde procurar, como pares (host, ambiente). O simulado de 2026 nao esta no
-# host oficial: fica em resultados-sim.tse.jus.br, e o seu "ambiente" tem DOIS
-# segmentos — `simulado/simulado2026`. Foi o proprio aplicativo Resultados do TSE
-# que entregou isso: a raiz do host redireciona para
-# /simulado/simulado2026/app/index.html, e o bundle do app traz a base e o
-# ambiente em claro. No host oficial, `/simulado` responde com conexao cortada,
-# nao com 404 — procurar so por la nao acharia nada.
-SIM_2026 = "https://resultados-sim.tse.jus.br"
-
-AMBIENTES = [
-    (SIM_2026, "simulado/simulado2026"),   # simulados de setembro/2026
-    (BASE, "oficial"),                     # a eleicao de verdade
-    (SIM_2026, "simulado/teste"),          # ambientes de ensaio do proprio TSE
-    (BASE, "simulado"),
-]
-
-
-def descobrir_ambiente(candidatos: list[tuple[str, str]] | None = None,
-                       por_segundo: float = 80.0, preferir_simulado: bool = True
-                       ) -> tuple[str, str, dict] | tuple[None, None, None]:
-    """Sonda os pares (host, ambiente) conhecidos e devolve o escolhido com o EA11.
-
-    Sondagem curta e de uma vez so: cada candidato custa UMA requisicao a
-    `comum/config/ele-c.json`. Nao e varredura de diretorio — e a lista fechada de
-    lugares que o TSE ja usou ou documentou. Ainda assim, 404 conta para o
-    bloqueio, entao isto nunca deve entrar no laco do plantao: roda na abertura e
-    o que for encontrado vale para a sessao inteira.
-
-    Sonda todos antes de escolher, em vez de parar no primeiro que responde: o
-    `oficial` existe sempre, e parar nele faria a descoberta nunca achar o
-    simulado — que e justamente o que se quer numa janela de teste. Com
-    `preferir_simulado`, ganha o primeiro cuja fase seja `s`.
-    """
-    achados: list[tuple[str, str, dict]] = []
-    for base, ambiente in (candidatos or AMBIENTES):
-        rotulo = f"{base.split('//')[-1]}/{ambiente}"
-        cli = Cliente(ambiente=ambiente, por_segundo=por_segundo, tentativas=1, base=base)
-        try:
-            dados = cli.json_de(cli.url_config(), cache=False)
-        except Exception as err:  # conexao recusada/cortada tambem e "nao existe"
-            print(f"  {rotulo:48s} {type(err).__name__}", flush=True)
-            continue
-        if not dados:
-            print(f"  {rotulo:48s} ausente", flush=True)
-            continue
-        fase = "simulada" if dados.get("f") == "s" else "oficial"
-        print(f"  {rotulo:48s} OK — fase {dados.get('f')} ({fase}), gerado "
-              f"{dados.get('dg')} {dados.get('hg')} idg {dados.get('idg') or '-'}",
-              flush=True)
-        achados.append((base, ambiente, dados))
-
-    if not achados:
-        return None, None, None
-    if preferir_simulado:
-        for achado in achados:
-            if achado[2].get("f") == "s":
-                return achado
-    return achados[0]
-
-
 def e6(codigo) -> str:
     """Formata codigo de eleicao no padrao e<ELEICA>: 6 digitos com zeros."""
     return f"e{int(codigo):06d}"

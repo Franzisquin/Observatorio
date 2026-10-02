@@ -29,8 +29,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cadeiras import distribuir  # noqa: E402
 from tse import (BASE, CARGOS, CARGOS_COM_BR, CARGOS_COM_ELEITOS,  # noqa: E402
-                 CARGOS_COM_UF, CARGOS_PROPORCIONAIS, SIM_2026, TIPOS_ELEICAO,
-                 TIPOS_ORDINARIAS, Cliente, ciclo_de, descobrir_ambiente, e6,
+                 CARGOS_COM_UF, CARGOS_PROPORCIONAIS, TIPOS_ELEICAO,
+                 TIPOS_ORDINARIAS, Cliente, ciclo_de, e6,
                  eleicao_de, inteiro, num, texto, tipo_eleicao, ufs_do_cargo)
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
@@ -919,11 +919,8 @@ def verificar(cli: Cliente, config: dict, eleicao: str, cargo: str, uf: str,
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--ambiente", default="oficial",
-                    help="pasta de ambiente do CDN: oficial, ou a do simulado "
-                         "(pode ter mais de um segmento: simulado/simulado2026)")
-    ap.add_argument("--base", default=BASE,
-                    help="host do CDN; o simulado de 2026 usa " + SIM_2026)
+    ap.add_argument("--ambiente", default="oficial", help="pasta de ambiente do CDN")
+    ap.add_argument("--base", default=BASE, help="host do CDN")
     ap.add_argument("--eleicao", help="codigo da eleicao (ver --listar)")
     ap.add_argument("--cargo", default="0001",
                     help="codigo do cargo ou apelido: " + ", ".join(CARGOS))
@@ -931,9 +928,6 @@ def main() -> int:
                     help="UFs separadas por espaco (padrao: as da eleicao)")
     ap.add_argument("--listar", action="store_true",
                     help="lista as eleicoes disponiveis no CDN e sai")
-    ap.add_argument("--descobrir", action="store_true",
-                    help="sonda os nomes de pasta de ambiente conhecidos e sai; o "
-                         "ambiente dos simulados e divulgado as vesperas")
     ap.add_argument("--check", action="store_true",
                     help="confere soma dos filhos contra o arquivo do pai e sai")
     ap.add_argument("--destino", type=Path, default=DESTINO)
@@ -945,27 +939,8 @@ def main() -> int:
 
     cargo = CARGOS.get(args.cargo, args.cargo)
 
-    if args.descobrir:
-        print("sondando os lugares conhecidos (1 requisicao para cada):")
-        base, ambiente, _ = descobrir_ambiente(por_segundo=args.taxa)
-        print("")
-        print(f"  usar: --base {base} --ambiente {ambiente}" if ambiente
-              else "  nenhum ambiente respondeu.")
-        return 0 if ambiente else 1
-
-    # 'auto' vale aqui tambem, para que o mesmo valor sirva ao plantao e a esta
-    # CLI: numa janela de simulado, trocar o nome do ambiente em dois lugares e
-    # uma chance a mais de errar.
-    config = None
-    if args.ambiente in ("auto", "descobrir"):
-        print("sondando os lugares conhecidos (1 requisicao para cada):")
-        args.base, args.ambiente, config = descobrir_ambiente(por_segundo=args.taxa)
-        if not args.ambiente:
-            print("  nenhum ambiente respondeu.")
-            return 1
-
     cli = Cliente(ambiente=args.ambiente, por_segundo=args.taxa, base=args.base)
-    config = config or cli.config_eleicoes()
+    config = cli.config_eleicoes()
     print(f"EA11: ciclo {ciclo_de(config) or '(por pleito)'} | fase {config.get('f')} | "
           f"gerado {config.get('dg')} {config.get('hg')}")
 

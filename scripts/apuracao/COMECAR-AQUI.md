@@ -1,149 +1,98 @@
-# Acompanhar o simulado do TSE — instruções de operação
+# Noite de 04/10/2026 — instruções de operação da apuração
 
-Escrito para quem (ou qual agente) for operar uma janela de teste sem ter
-acompanhado o desenvolvimento. Leia até o fim antes de rodar: a primeira seção
-desfaz uma expectativa errada que custa a janela inteira.
-
----
-
-## A pergunta mais importante: os dados vêm sozinhos?
-
-**Não.** Abrir o arquivo HTML no navegador não traz dado nenhum do TSE.
-
-O navegador nunca fala com o TSE. Quem fala é um coletor em Python, que roda na
-sua máquina, lê os arquivos do TSE e grava um resumo em disco; a página lê esse
-resumo. Se o coletor não estiver rodando, a tela abre vazia e **não diz por quê**.
-
-Isso não é limitação de preguiça. Uma noite de apuração são 5.755 municípios por
-cargo; o navegador faria dezenas de milhares de requisições, esbarraria no CORS e
-seria bloqueado pelo TSE em segundos. O coletor junta tudo em um arquivo por
-camada e respeita os limites do tribunal.
-
-**O que vem sozinho, uma vez que o coletor esteja rodando:**
-
-- a página se atualiza a cada 20 segundos, sem recarregar nada na mão;
-- o coletor relê o TSE a cada 20 segundos (camada nacional) e a cada 4 minutos
-  (camada municipal);
-- se o TSE ainda não começou a publicar às 14h, o coletor continua tentando e a
-  tela se preenche sozinha no instante em que os arquivos aparecerem.
+Escrito para quem (ou qual agente) for operar a noite do 1º turno sem ter
+acompanhado o desenvolvimento. Leia até o fim antes de rodar.
 
 ---
 
-## O comando
-
-Um só. Ele descobre o ambiente do simulado, descobre os códigos das eleições,
-começa a coletar e sobe o servidor da página:
-
-```bash
-cd <pasta do repositório>
-python scripts/apuracao/plantao.py --ambiente auto --minutos 200 --servir 8777
-```
-
-Não precisa instalar nada: o coletor usa só a biblioteca padrão do Python (3.10
-ou mais novo).
-
-Ele imprime, logo no começo, os endereços prontos. Abra o primeiro:
+## Como os dados chegam ao site
 
 ```
-  mapa presidencial  http://127.0.0.1:8777/apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/plantao/
-  governadores       http://127.0.0.1:8777/apuracao-governador.html?dados=...
-  senado             http://127.0.0.1:8777/apuracao-senado.html?dados=...
-  um estado          http://127.0.0.1:8777/apuracao-uf.html?uf=sp&cargo=0003&dados=...
-  deputados          http://127.0.0.1:8777/apuracao-deputados.html?cargo=0006&dados=...
+TSE (resultados.tse.jus.br/oficial)
+  → plantão (Python, numa máquina nossa)
+  → Worker do electomaps.com.br (/dados/, guarda no R2 do Cloudflare)
+  → páginas da apuração (releem a cada 20 s)
 ```
 
-A pagina de deputados (federal e estadual; no DF, a Camara Legislativa, cargo
-0008) le as listas abertas que o coletor grava por UF em
-`{eleicao}-{cargo}-lista-{uf}.json`. As cadeiras sao as do TSE (`vag`, que ele
-refaz a cada totalizacao, segundo o EA20); numa UF em que o TSE ainda nao
-distribuiu vaga nenhuma, valem as da conta do coletor (`cad`, `cadeiras.py`: 10%
-do QE no quociente, 80/20 nas sobras e a 3a fase aberta pelo STF). Ate 100% das
-secoes totalizadas tudo aparece como projecao, tracejado; firme (solido), so o
-que o TSE ja distribuiu: as vagas dele com 100% totalizado, ou o eleito que ele
-declarou (`e`, `st`). A conta do coletor nunca fica firme.
-`python scripts/apuracao/testar_cadeiras.py` confere essa conta contra 2022.
+Nada passa pelo GitHub. O navegador do visitante nunca fala com o TSE: quem
+fala é o plantão, que respeita os limites do tribunal e publica um resumo por
+camada. **Se nenhum plantão estiver rodando, o site congela no último boletim.**
 
-Antes do primeiro boletim do TSE a pagina mostra os partidos e as listas
-registrados, com 0 voto e em ordem alfabetica, de
-`resultados_geo/candidatos_2026/deputados/` — escritos por
-`python scripts/apuracao/candidatos.py --cargos 6 7 8` (rode de novo quando o
-registro mudar; `--cargos 1 3 5` faz o mesmo para presidente, governador e
-senado). Essa pasta esta no `.assetsignore` junto com a apuracao: ao publicar a
-apuracao, tire a linha `resultados_geo/candidatos_2026/` tambem.
+O plantão lê só o ambiente **oficial**, e se recusa a coletar se o arquivo de
+configuração do TSE (EA11) não estiver em fase oficial (`f = "o"`). Os códigos
+do 1º turno saem desse arquivo sozinhos (`--eleicao auto`, o padrão): **6257**
+(presidente) e **6259** (governador, senador, deputados federal, estadual e
+distrital). A 6261 (Conselho Distrital do DF) fica de fora. Conferido em
+02/10/2026, com os arquivos oficiais já no ar, zerados desde 29/09: uma volta do
+país inteiro, 17.041 requisições, 0 respostas 404, 0 bloqueios.
 
-### Comparacao com 2022 (pagina presidencial)
+---
 
-A pagina presidencial compara 2026 com o 1o turno de 2022 pelo numero de urna:
-Lula (13) com Lula, Flavio Bolsonaro (22) com Jair. Bloco na lateral e, no botao
-"Variacao 2022" do mapa, uma seta por estado ou municipio, no estilo do NYT. A
-base ja esta em `resultados_geo/comparacao/presidente_2022_t1.json`; so precisa
-ser refeita se mudar a malha ou o acervo:
+## Antes de domingo (uma vez só)
 
-```bash
-python scripts/apuracao/comparacao_2022.py
+Quem tem o login do Cloudflare:
+
+1. Assinar o **Workers Paid** e ativar o **R2** no painel.
+2. Criar o bucket e a chave do plantão:
+   ```bash
+   npx wrangler r2 bucket create electomaps-apuracao
+   python -c "import secrets; print(secrets.token_urlsafe(32))"   # gera a chave
+   npx wrangler secret put CHAVE_PLANTAO                            # cola a chave
+   ```
+   Guarde a chave fora do repositório. Ela vai para quem roda o plantão.
+3. Tirar do `.assetsignore` o bloco da apuração (deixe `locais.*` se locais
+   continuar fora) e publicar: `npx wrangler deploy`.
+4. Conferir no ar: `/apuracao` redireciona para `/apuracao-presidente`, e
+   `https://electomaps.com.br/dados/indice.json` responde 404 "ainda não
+   publicado".
+
+---
+
+## No domingo
+
+A partir das 16h. Os arquivos oficiais existem desde 29/09, então ligar cedo não
+gera 404; o resultado de presidente só é liberado pelo TSE às 17h.
+
+PowerShell, na pasta do repositório:
+
+```powershell
+$env:CHAVE_PLANTAO = "<a chave>"
+python scripts/apuracao/plantao.py --publicar https://electomaps.com.br/dados/ --nome casa
 ```
 
-Para ver a comparacao em acao sem eleicao, `simular2026.py` grava uma apuracao
-presidencial de 2026 inventada (2022 municipio a municipio, levado a Flavio 48%,
-Lula 41%, Renan, Cury, Caiado e Zema; `--semente` troca o sorteio):
+Roda 12 horas (até de madrugada) sem mais nada. Não precisa instalar nada além do
+Python 3.10+; com `numpy` instalado, sai também a projeção presidencial.
 
-```bash
-python scripts/apuracao/simular2026.py
-# apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/sim2026/
-```
-
-### Ensaio com 2022, todos os cargos, sem o TSE no ar
-
-Para testar as paginas sem simulado do TSE, `ensaio_2022.py` toca a apuracao
-real de 2022 — presidente, governador, senador e deputados federal, estadual e
-distrital — a partir do acervo local do site, e escreve os mesmos arquivos que
-o plantao escreve (inclusive a projecao e o andamento por UF):
-
-```bash
-python scripts/apuracao/ensaio_2022.py --tocar --duracao 10 --passo 8
-python scripts/apuracao/ensaio_2022.py --turno 2 --tocar
-python scripts/apuracao/ensaio_2022.py --instante 0.4
-```
-
-`--instante` congela a noite numa fracao (0 a 1) e sai; `--ufs sp rj` limita as
-UFs; `--cargos 0006,0007` limita os cargos. As paginas leem de
-`dados=scratch/apuracao/ensaio2022-t1/` (ou `-t2/`). Os nomes, votos, vagas e a
-situacao final sao os de 2022; a ordem em que as urnas chegam e de ensaio.
-
-Deixe o terminal aberto. Fechar o terminal para a coleta, e a tela congela no
-último boletim.
-
-### Não chumbe o código da eleição
-
-`--ambiente auto` e o padrão `--eleicao auto` existem por um motivo: **o nome da
-pasta de ambiente e os códigos das eleições mudam a cada janela**, e o TSE só os
-divulga na véspera. Em 15/09 eram 21270 (federal) e 21272 (estadual), no ambiente
-`simulado/simulado2026` do host `resultados-sim.tse.jus.br`. Nada disso é estável.
-
-Passar código na mão é a forma mais fácil de chegar às 14h com a tela vazia.
+- **A máquina não pode dormir.** Energia: suspensão "Nunca" enquanto estiver na
+  tomada. Deixe o terminal aberto.
+- **Reserva**: o mesmo comando, em **outra casa, outra internet**, com
+  `--nome reserva`. Só o plantão no comando grava; a reserva fica coletando e,
+  se o principal ficar 3 minutos sem gravar (luz, internet, bloqueio), assume
+  sozinha. Quando o principal volta, vira a reserva.
+- **Nunca dois plantões na mesma internet**: o limite do TSE é por IP, e dois
+  na mesma conexão passam dele.
 
 ---
 
 ## Como saber que está funcionando
 
-**No terminal**, uma linha por volta:
+No terminal, uma linha por volta (a cada ~45 s):
 
 ```
-  volta   12 |    3.1s | municipal=nao | 31503 gets, 27357 304, 0 404, 2822 MB
+  volta   12 |   41.0s | municipal=sim (faltam 31 UFs) | 31503 gets, 27357 304, 0 404, 822 MB | 45 enviados, ok
 ```
 
-- `404` deve ficar em **zero**. Se começar a subir a cada volta, algo está sendo
-  pedido onde não existe — pare e avise, porque 404 repetido bloqueia o acesso.
-- `304` alto é bom: é o servidor confirmando "não mudou", quase sem tráfego.
+- `404` deve ficar em **zero**. Se subir a cada volta, algo está sendo pedido onde
+  não existe — pare e avise, porque 404 repetido bloqueia o acesso.
+- `304` alto é bom: é o TSE confirmando "não mudou", quase sem tráfego.
+- `enviados, ok` é o site recebendo. `em espera (outro plantão no comando)` é
+  normal na reserva. `CHAVE RECUSADA` é chave errada em `CHAVE_PLANTAO`.
+- A camada municipal anda em fatias de 30 s por volta, depois do placar do Brasil
+  e dos estados; uma rodada do país leva uns 10 minutos.
 
-**No `status.json`** da pasta de saída (`scratch/apuracao/plantao/status.json`)
-ficam a taxa média contra o teto de 100 requisições por segundo, os bloqueios e
-os 404 da sessão. A página pública não mostra mais esse quadro: é instrumento de
-quem opera, não notícia.
-
-**O selo amarelo "SIMULADO"** no topo tem de estar aceso. Ele vem do campo `f`
-dentro do próprio arquivo do TSE, não de configuração nossa. Se você está numa
-janela de teste e ele **não** aparece, pare: o dado não é de teste.
+De qualquer lugar: `https://electomaps.com.br/dados/status.json` mostra a volta,
+as requisições, os 404, se há bloqueio (`bloqueado_por`) e a situação da
+publicação.
 
 ---
 
@@ -151,49 +100,78 @@ janela de teste e ele **não** aparece, pare: o dado não é de teste.
 
 | sintoma | o que é | o que fazer |
 |---|---|---|
-| tela vazia, terminal parado | o coletor não está rodando | rode o comando acima |
-| tela vazia, terminal rodando | o TSE ainda não publicou | espere; ele preenche sozinho |
-| `nenhum ambiente respondeu` | o simulado não está no ar, ou mudou de nome | rode `python scripts/apuracao/coleta.py --descobrir` e veja o que responde |
-| `404` subindo a cada volta | pedido a caminho inexistente | pare o coletor e avise |
-| `!! HTTP 403` ou `429` | o TSE bloqueou | **não reinicie**; ele já se pausa sozinho por 11 minutos, e insistir renova a punição |
-| a página congelou | veja se o terminal ainda imprime voltas | se parou, rode o comando de novo |
+| site parado, terminal parado | o plantão caiu | rode o comando de novo; a reserva cobre enquanto isso |
+| `nao e o ambiente oficial` | o TSE não está em fase oficial | não force; avise |
+| `404` subindo a cada volta | pedido a caminho inexistente | pare o plantão e avise |
+| `!! HTTP 403` ou `429` | o TSE bloqueou este IP | **não reinicie**; ele já pausa sozinho por 11 min e a reserva assume |
+| `CHAVE RECUSADA` | chave errada | confira `$env:CHAVE_PLANTAO` |
+| `falha (sem rede) ... vai de novo` | internet oscilou | nada; o que falhou vai na volta seguinte |
 
 ### A regra que não pode ser quebrada
 
 O TSE bloqueia por **10 minutos, renováveis**, quem passar de 100 requisições por
-segundo — e 404 repetido conta igual. O coletor trabalha a 60/s e tem um disjuntor
-que para tudo ao primeiro sinal de punição.
-
-Isso só vale se houver **um** coletor. Não rode dois ao mesmo tempo contra o mesmo
-TSE, e não aumente `--taxa`.
+segundo — e 404 repetido e 304 contam igual. O plantão trabalha a 60/s e tem um
+disjuntor que para tudo ao primeiro sinal de punição. Não aumente `--taxa`.
 
 ---
 
 ## Conferir antes, se sobrar tempo
 
 ```bash
-python scripts/apuracao/coleta.py --descobrir      # que ambientes respondem
-python scripts/apuracao/coleta.py --ambiente auto --listar   # que eleições existem
-python scripts/apuracao/testar_limites.py          # defesas contra bloqueio
-node scripts/apuracao/testar_front.js              # leitura dos dados na tela
+python scripts/apuracao/coleta.py --listar     # 6257 e 6259 com data 04/10/2026
+python scripts/apuracao/testar_limites.py      # defesas contra bloqueio
+node scripts/apuracao/testar_worker.mjs        # chave, cache e troca de comando do Worker
+node scripts/apuracao/testar_front.js          # leitura dos dados na tela
 ```
 
-Os dois últimos devem terminar com `tudo certo`.
+Para ver as páginas com dados de verdade sem publicar nada, rode o plantão sem
+`--publicar` e com `--servir 8777`: ele imprime os endereços locais.
 
 ---
 
-## O que observar nesta janela
+## As páginas
 
-O simulado reproduz a apuração de 0 % a 100 %, com totalização final. Vale olhar:
+A página de deputados (federal e estadual; no DF, a Câmara Legislativa, cargo
+0008) lê as listas abertas que o plantão grava por UF em
+`{eleicao}-{cargo}-lista-{uf}.json`. As cadeiras são as do TSE (`vag`, que ele
+refaz a cada totalização, segundo o EA20); numa UF em que o TSE ainda não
+distribuiu vaga nenhuma, valem as da conta do plantão (`cad`, `cadeiras.py`: 10%
+do QE no quociente, 80/20 nas sobras e a 3ª fase aberta pelo STF). Até 100% das
+seções totalizadas tudo aparece como projeção, tracejado; firme (sólido), só o
+que o TSE já distribuiu: as vagas dele com 100% totalizado, ou o eleito que ele
+declarou (`e`, `st`). A conta do plantão nunca fica firme.
+`python scripts/apuracao/testar_cadeiras.py` confere essa conta contra 2022.
 
-- o percentual de cada candidato bate com o que o TSE publica no arquivo (a base
-  é `vvc`, não os votos válidos — divergem quando há voto anulado);
-- os selos de **eleito** e **2º turno**: sólido quando o TSE declarou, tracejado
-  quando ainda é leitura nossa das vagas do cargo. A legenda explica, embaixo de
-  cada grade;
-- o Senado marca **dois** eleitos por estado, porque 2026 renova dois terços;
-- a seção "Onde ainda se está contando", com as unidades por estágio.
+Antes do primeiro boletim, a página mostra os partidos e as listas registrados,
+com 0 voto e em ordem alfabética, de `resultados_geo/candidatos_2026/deputados/`
+— escritos por `python scripts/apuracao/candidatos.py --cargos 6 7 8` (`--cargos
+1 3 5` faz o mesmo para presidente, governador e senado).
 
-Achado novo, comportamento estranho ou erro no terminal: registre em
-`DIARIO-SIMULADO-2026.md`, na mesma pasta, com o horário. É esse arquivo que
-evita redescobrir a mesma coisa em outubro.
+### Comparação com 2022 (página presidencial)
+
+A página presidencial compara 2026 com o 1º turno de 2022 pelo número de urna:
+Lula (13) com Lula, Flávio Bolsonaro (22) com Jair. Bloco na lateral e, no botão
+"Variação 2022" do mapa, uma seta por estado ou município, no estilo do NYT. A
+base está em `resultados_geo/comparacao/presidente_2022_t1.json`; só precisa ser
+refeita se mudar a malha ou o acervo: `python scripts/apuracao/comparacao_2022.py`.
+
+Para ver a comparação em ação sem eleição, `simular2026.py` grava uma apuração
+presidencial de 2026 inventada, só local (2022 município a município, levado a
+Flávio 48%, Lula 41%, Renan, Cury, Caiado e Zema; `--semente` troca o sorteio):
+
+```bash
+python scripts/apuracao/simular2026.py
+# apuracao-presidente.html?cargo=0001&dados=scratch/apuracao/sim2026/
+```
+
+### Ensaio com 2022, todos os cargos, sem o TSE
+
+`ensaio_2022.py` toca a apuração real de 2022 a partir do acervo local do site e
+escreve os mesmos arquivos que o plantão escreve:
+
+```bash
+python scripts/apuracao/ensaio_2022.py --tocar --duracao 10 --passo 8
+python scripts/apuracao/ensaio_2022.py --instante 0.4
+```
+
+As páginas leem de `dados=scratch/apuracao/ensaio2022-t1/`.
