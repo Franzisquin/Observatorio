@@ -221,6 +221,77 @@ def area_m2(poly):
     return poly.area * (111320.0 ** 2) * math.cos(math.radians(poly.centroid.y))
 
 
+# Enclaves e exclaves errados, so nas cidades conferidas uma a uma (a limpeza
+# geral desmontava cidades onde a zona e de fato descontigua). Pedaco solto
+# menor que ENCLAVE_MAX da propria zona e conferido com os locais de votacao de
+# 2026 que caem dentro dele.
+ENCLAVE_CIDADES = {
+    '3143302',  # Montes Claros
+    '2611101',  # Petrolina
+    '3170206',  # Uberlandia
+    '2918407',  # Juazeiro: dois enclaves rurais da 47 dentro da 48 (a 48 segue
+                # descontigua: a parte de 44 km2 tem 25 locais dela)
+    '1504208',  # Maraba: dois enclaves rurais da 100 dentro da 23
+}
+ENCLAVE_MAX = 0.20
+
+
+def desenclavar(zonas, pontos):
+    """Cada zona fica com o seu pedaco maior. Cada outro pedaco pequeno:
+      - com locais de votacao dentro: vai para a zona da maioria deles — se for
+        a propria, o pedaco e real e fica;
+      - sem local: encostado em outra zona, vai para a vizinha de maior
+        fronteira (e fecha o furo que fazia nela); solto, fica se estiver dentro
+        do contorno da cidade (as ilhas do Sao Francisco, em Petrolina) e sai se
+        estiver fora.
+    Devolve as zonas e a lista do que foi decidido, pedaco a pedaco."""
+    from shapely.ops import unary_union
+    geom = {z: unary_union(ps) for z, ps in zonas.items() if ps}
+    decisoes = []
+    principais = [max(poligonos(g), key=lambda q: q.area) for g in geom.values()]
+    contorno = unary_union(principais).convex_hull.buffer(1e-4)
+    for z in sorted(geom, key=lambda k: -geom[k].area):
+        partes = sorted(poligonos(geom[z]), key=lambda q: -q.area)
+        if len(partes) < 2:
+            continue
+        total = sum(q.area for q in partes)
+        fica = [partes[0]]
+        for parte in partes[1:]:
+            km2 = area_m2(parte) / 1e6
+            if parte.area >= ENCLAVE_MAX * total:
+                fica.append(parte)
+                continue
+            zm, n, tot = maioria(parte, pontos)
+            if zm is not None:
+                destino = f'{zm:04d}'
+                if destino == z or destino not in geom:
+                    fica.append(parte)
+                    decisoes.append(f'{km2:.2f} km2 da zona {int(z)}: {n} de {tot} locais sao dela — fica')
+                else:
+                    geom[destino] = unary_union([geom[destino], parte])
+                    decisoes.append(f'{km2:.2f} km2 da zona {int(z)}: {n} de {tot} locais sao da '
+                                    f'{zm} — foi para a {zm}')
+                continue
+            melhor, maior = None, 0.0
+            for w, gw in geom.items():
+                if w == z:
+                    continue
+                junto = parte.exterior.intersection(gw.buffer(1e-6)).length
+                if junto > maior:
+                    melhor, maior = w, junto
+            if melhor is not None:
+                geom[melhor] = unary_union([geom[melhor], parte])
+                decisoes.append(f'{km2:.2f} km2 da zona {int(z)}, sem local: encosta na {int(melhor)} '
+                                f'— foi para ela')
+            elif parte.within(contorno):
+                fica.append(parte)
+            else:
+                decisoes.append(f'{km2:.2f} km2 da zona {int(z)}, sem local e fora do contorno da '
+                                f'cidade — saiu')
+        geom[z] = unary_union(fica)
+    return {z: poligonos(g) for z, g in geom.items()}, decisoes
+
+
 def limpar(geoms):
     """Tira os pedacos e furos minusculos que a dissolucao dos setores deixa."""
     saida = []
@@ -413,6 +484,9 @@ def main() -> int:
             tse = ibge_para_tse.get(ibge, '')
             if not tse:
                 problemas.append(f'{ibge} {nm}: sem codigo TSE na ponte')
+            if ibge in ENCLAVE_CIDADES:
+                zonas, decisoes = desenclavar(zonas, locais.get(ibge))
+                problemas += [f'{uf.upper()} {nm}: {d}' for d in decisoes]
             linha, v = escrever_cidade(ibge, tse, uf, nm, 2026, FONTE_SETORES, zonas)
             indice.append(linha)
             total_v += v

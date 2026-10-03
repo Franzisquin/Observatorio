@@ -34,7 +34,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261002r" />
+  <link rel="stylesheet" href="apuracao.css?v=20261002x" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -132,11 +132,17 @@
         <div>
           <div class="apu-maphead">
             <span class="apu-maptitle">Liderança por zona eleitoral</span>
+            <!-- Resultado (a cor de quem lidera) ou margem em círculos. -->
+            <div class="apu-levels" id="modoMapa" role="group" aria-label="O que o mapa mostra">
+              <button class="apu-level is-on" type="button" data-modo="resultado" aria-pressed="true">Resultado</button>
+              <button class="apu-level" type="button" data-modo="margem" aria-pressed="false">Margem</button>
+            </div>
             <span class="apu-progress-lab" id="mapaNota"></span>
           </div>
 
           <div class="apu-mapwrap is-quadrado">
             <svg class="apu-map" id="mapaZonas" role="img" aria-label="Mapa da cidade por zona eleitoral"></svg>
+            <div class="apu-faixas apu-margem-legenda" id="legendaMargem" hidden></div>
           </div>
         </div>
 
@@ -151,11 +157,21 @@
             <h3 id="rotuloParticipacao" style="margin-top:18px">Participação</h3>
             <div class="apu-stats" id="participacao"></div>
 
-            <div id="maisResultado"></div>
           </div>
         </aside>
       </div>
     </div>
+
+    <!-- Com a cidade a 100%: como a apuração andou, uma linha por candidato e
+         um ponto por totalização (APUUI.graficoHistorico). -->
+    <section class="apu-top-sec apu-hist-sec" id="historico" hidden>
+      <div class="wrap">
+        <div class="apu-top-head">
+          <h2 class="apu-top-title">Como foi a apuração</h2>
+        </div>
+        <div id="historicoGrafico"></div>
+      </div>
+    </section>
 
     <section class="apu-table-sec" id="zonas" hidden>
       <div class="wrap">
@@ -164,15 +180,14 @@
           <span class="apu-progress-lab" id="notaTabela"></span>
         </div>
         <div class="apu-table-wrap">
-          <table class="apu-table">
+          <table class="apu-table" id="tabelaZonasTab">
             <thead>
               <tr>
                 <th>Zona</th>
-                <th>Liderança</th>
+                <th>Margem</th>
                 <th class="num">%</th>
-                <th class="num">Margem</th>
                 <th class="num">Votos</th>
-                <th class="num">Apurado</th>
+                <th class="num apu-col-apurado">Apurado</th>
               </tr>
             </thead>
             <tbody id="tabelaZonas"></tbody>
@@ -198,9 +213,9 @@
     </div>
   </footer>
 
-  <script src="js/apuracao-dados.js?v=20261002c"></script>
-  <script src="js/apuracao-ui.js?v=20261002i"></script>
-  <script src="js/apuracao-zonas.js?v=20261002k"></script>
+  <script src="js/apuracao-dados.js?v=20261002d"></script>
+  <script src="js/apuracao-ui.js?v=20261002o"></script>
+  <script src="js/apuracao-zonas.js?v=20261002q"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

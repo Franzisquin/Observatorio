@@ -8,6 +8,8 @@ navegador faca 1 requisicao em vez de 5.569:
     snapshot/<eleicao>-<cargo>-<uf>.json  todos os municipios daquela UF
     snapshot/<eleicao>-<cargo>-lista-<uf>.json  deputados: a lista aberta de
                                           cada bloco daquela UF, com votos
+    snapshot/<eleicao>-<cargo>-hist.json  a apuracao ponto a ponto: o Brasil e
+                                          cada UF a cada totalizacao do TSE
 
 Uso (os dados de 2024 continuam no ar ate 04/04/2028, entao da para provar o
 pipeline inteiro hoje, sem esperar 2026):
@@ -579,6 +581,55 @@ def escrever(destino: Path, nome: str, conteudo: dict) -> Path:
     return caminho
 
 
+# Candidato abaixo disto em um ponto do historico nao entra nele: o grafico
+# mostra os quatro primeiros (ou quem passa de 10%), e guardar todo mundo, a
+# cada totalizacao, multiplicaria o arquivo por dois ou tres.
+HIST_MINIMO = 0.5
+
+
+def historico(destino: Path, eleicao: str, cargo: str, entradas: dict[str, dict],
+              nome: str = "hist") -> bool:
+    """<eleicao>-<cargo>-hist.json: como a apuracao andou em cada abrangencia
+    (o Brasil e cada UF), um ponto por totalizacao do TSE —
+
+        {"br": [[pst, st, "dd/mm/aaaa hh:mm:ss", {sq: % dos votos}], ...],
+         "sp": [...], ...}
+
+    Ponto novo so quando o numero de secoes totalizadas (`st`) muda: e o que
+    marca uma totalizacao nova. Se `st` volta para tras, e outra apuracao (o
+    ensaio reiniciado, outro turno no mesmo arquivo) e a serie recomeca. O
+    percentual e sobre os votos a votaveis concorrentes, a mesma base do placar.
+    So majoritario: proporcional nao tem candidato na camada alta."""
+    if cargo in CARGOS_PROPORCIONAIS:
+        return False
+    caminho = destino / f"{eleicao}-{cargo}-{nome}.json"
+    try:
+        hist = json.loads(caminho.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        hist = {}
+    mudou = False
+    for abr, e in entradas.items():
+        if not e:
+            continue
+        base = e.get("vvc") or e.get("vv") or 0
+        st = int(e.get("st") or 0)
+        if not base or not st:
+            continue
+        serie = hist.setdefault(abr, [])
+        if serie and st == serie[-1][1]:
+            continue
+        if serie and st < serie[-1][1]:
+            serie.clear()
+        cand = {sq: round(100 * v / base, 2) for sq, v in (e.get("cand") or {}).items()
+                if v and 100 * v / base >= HIST_MINIMO}
+        serie.append([round(float(e.get("pst") or 0), 2), st,
+                      f"{e.get('dt', '')} {e.get('ht', '')}".strip(), cand])
+        mudou = True
+    if mudou:
+        escrever(destino, caminho.name, hist)
+    return mudou
+
+
 def camada_alta(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[str],
                 destino: Path, silencioso: bool = False) -> dict:
     """Brasil + 27 UFs: 28 arquivos. E a camada que atualiza a cada volta.
@@ -600,10 +651,11 @@ def camada_alta(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[
 
     br = (cli.json_de(url_resultado(cli, config, eleicao, cargo, "br"))
           if cargo in CARGOS_COM_BR else None)
+    entrada_br = resumo(br, cargo, com_candidatos, completo=True) if br else None
     if br:
         escrever(destino, f"{eleicao}-{cargo}-br.json",
                  {"meta": meta(br, cargo),
-                  "abr": {"br": resumo(br, cargo, com_candidatos, completo=True)},
+                  "abr": {"br": entrada_br},
                   **({"agrem": agremiacoes(br)} if not com_candidatos else {}),
                   "cand": dicionario_cand(br) if com_candidatos else {}})
         if not silencioso:
@@ -642,6 +694,9 @@ def camada_alta(cli: Cliente, config: dict, eleicao: str, cargo: str, ufs: list[
                   **({"agrem": bancadas} if bancadas else {})})
         if not silencioso:
             print(f"  uf: {len(porta_uf)} unidades")
+
+    # O historico da noite: o grafico que a pagina mostra ao chegar a 100%.
+    historico(destino, eleicao, cargo, {**({"br": entrada_br} if entrada_br else {}), **porta_uf})
 
     fonte = br or next((p for _, p in payloads if p), None) or {}
     return {
@@ -730,6 +785,7 @@ def camada_zonas(cli: Cliente, config: dict, eleicao: str, cargo: str,
         por_zona = dict(zip(((muni["cd"], z) for _, muni, z in pedidos),
                             pool.map(lambda p: baixar(*p), pedidos)))
 
+    historicos = {}
     for uf, muni, total in abertas:
         pacote = {"meta": meta(total, cargo), "total": resumo(total, cargo, True, completo=True),
                   "abr": {}, "cand": dicionario_cand(total),
@@ -741,10 +797,13 @@ def camada_zonas(cli: Cliente, config: dict, eleicao: str, cargo: str,
             pacote["abr"][z] = resumo(payload, cargo, True, completo=True)
             pacote["cand"].update(dicionario_cand(payload))
         caminho = escrever(destino, f"{eleicao}-{cargo}-zonas-{muni['ibge']}.json", pacote)
+        historicos[str(muni["ibge"])] = pacote["total"]
         escritos += 1
         if not silencioso:
             print(f"  zonas {uf}/{muni['nm']}: {len(pacote['abr'])}/{len(muni.get('zonas', []))} "
                   f"-> {caminho.name} ({caminho.stat().st_size / 1024:.0f} KB)")
+    # O historico de cada cidade, para o grafico da pagina de zonas ao fim.
+    historico(destino, eleicao, cargo, historicos, nome="hist-zonas")
     return escritos
 
 

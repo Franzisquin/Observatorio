@@ -641,6 +641,22 @@ const APU = (function () {
     return _preUrna[k];
   }
 
+  /* Eleitorado de 2026 por Brasil, UF, município e zona, dos locais de votação
+     (scripts/apuracao/eleitorado_2026.py): a participação da lateral mostra o
+     eleitorado antes da primeira urna, quando o arquivo do TSE ainda não traz. */
+  var _eleitorado = null;
+
+  async function eleitorado2026() {
+    if (_eleitorado !== null) return _eleitorado;
+    try {
+      var r = await fetch('resultados_geo/eleitorado_2026.json', { cache: 'no-cache' });
+      _eleitorado = r.ok ? await r.json() : {};
+    } catch (e) {
+      _eleitorado = {};
+    }
+    return _eleitorado;
+  }
+
   /* Manifesto das fotos existentes. Sem ele, a página não pede foto nenhuma —
      tentar e cair no onerror enchia o console de 404 e gastava uma requisição
      por candidato. O importador escreve este arquivo junto com as imagens. */
@@ -1119,7 +1135,7 @@ const APU = (function () {
   return {
     cfg, CARGOS, PROPORCIONAIS, UF_NOMES, ESTAGIOS, EXTERIOR, intervaloDe,
     cor, fmt, nomeProprio, snapshot, malha, ranking, lider, agregar,
-    candidaturas, preUrna, rankingZerado, fotosDisponiveis, temFoto,
+    candidaturas, preUrna, rankingZerado, fotosDisponiveis, temFoto, eleitorado2026,
     simulado, carimbo, arquivo, acompanhamento, eleitos,
     bloqueado, definicao, indice, eleicaoDe, segundoTurnoDe,
     marcar, ROTULO_MARCA,

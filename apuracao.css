@@ -1078,6 +1078,10 @@ a.apu-more { text-align: center; text-decoration: none; }
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  /* A barra de rolagem tem lugar próprio, ao lado da lista: sem isto ela
+     passava por cima dos percentuais. */
+  scrollbar-gutter: stable;
+  padding-right: 8px;
 }
 
 /* --------------------------------------------------------- barra de rolagem
@@ -1378,13 +1382,21 @@ html::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
 
 /* Margem na cor do vencedor. No escuro a mesma cor sobe de luminosidade, senao
    as siglas de tom fechado (PSTU, PCO) sumiriam no fundo. */
-.apu-top-table tbody td.apu-top-margin { color: var(--cor-partido, var(--ink)); font-weight: 400; }
-.apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+.apu-top-table tbody td.apu-top-margin,
+.apu-table tbody td.apu-top-margin { color: var(--cor-partido, var(--ink)); font-weight: 400; }
+.apu-top-table tbody td.apu-top-margin.is-vazio,
+.apu-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
 
-:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin {
+:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin,
+:root[data-theme="dark"] .apu-table tbody td.apu-top-margin {
   color: color-mix(in srgb, var(--cor-partido, #ffffff) 74%, #ffffff);
 }
-:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+:root[data-theme="dark"] .apu-top-table tbody td.apu-top-margin.is-vazio,
+:root[data-theme="dark"] .apu-table tbody td.apu-top-margin.is-vazio { color: var(--muted); }
+
+/* Município a município e zona a zona: com a apuração a 100% ali, a coluna
+   de apurado sai — seria 100% em todas as linhas. */
+.apu-table.is-fechada .apu-col-apurado { display: none; }
 
 .apu-top-table tbody td.apu-top-in { color: var(--muted); }
 
@@ -2004,7 +2016,8 @@ body:has(#mapaUF) .apu-aside .apu-results {
   transition: color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
-.apu-dep-uf:first-child { border-left: 0; }
+/* A régua fecha dos dois lados: fio à esquerda do Brasil e à direita do TO. */
+.apu-dep-uf:first-child { border-left: 1px solid var(--line); }
 .apu-dep-uf:last-child { border-right: 1px solid var(--line); }
 .apu-dep-uf:hover { color: var(--ink); background: var(--paper-2); }
 .apu-dep-uf.is-brasil { font-weight: 600; }
@@ -2588,6 +2601,10 @@ body:has(#mapaUF) .apu-aside .apu-results {
 .apu-comp { margin-top: 18px; }
 .apu-comp[hidden] { display: none; }
 .apu-comp-tab { margin-bottom: 10px; }
+.apu-comp-tab thead small { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* Contra qual 2022: o resultado final ou o mesmo ponto da apuração. */
+.apu-comp-modo { display: inline-flex; margin: 2px 0 10px; }
 .apu-comp-tab tbody th .apu-swatch { margin-right: 6px; }
 
 .apu-comp-frase {
@@ -2987,3 +3004,57 @@ body:has(#mapaUF) .apu-aside .apu-results {
 
 .apu-zonas-uf a:hover { background: var(--paper-2); }
 .apu-zonas-uf a span { font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+
+/* ===========================================================================
+   MARGEM EM CÍRCULOS
+
+   O modo "Margem" dos mapas: o território neutro, e um círculo por unidade na
+   cor de quem lidera, com a área proporcional à vantagem em votos. Os círculos
+   não pegam o cursor: o balão continua sendo o do território embaixo.
+   =========================================================================== */
+
+.apu-map.is-margem path[data-chave] { fill: var(--map-vazio) !important; fill-opacity: 1 !important; }
+
+.apu-margens circle {
+  fill-opacity: 0.32;
+  stroke-width: 1;
+  stroke-opacity: 0.95;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.apu-margem-legenda { max-width: 240px; }
+.apu-margem-lideres { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 4px 0 6px; }
+.apu-margem-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+
+.apu-margem-bola {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 1px solid;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+/* Nos mapas em SVG a legenda fica no canto de baixo do quadro do mapa. */
+.apu-mapwrap .apu-margem-legenda { left: 10px; bottom: 10px; }
+
+
+/* ===========================================================================
+   HISTÓRICO DA APURAÇÃO
+
+   O gráfico de linhas que aparece quando a jurisdição chega a 100%: o % de
+   cada candidato a cada totalização do TSE (APUUI.graficoHistorico).
+   =========================================================================== */
+
+.apu-hist-sec[hidden] { display: none; }
+.apu-dock .apu-hist-sec { margin-top: 18px; }
+.apu-hist { display: block; width: 100%; height: auto; overflow: visible; }
+.apu-hist-grade { stroke: var(--line); stroke-width: 1; }
+.apu-hist-eixo { fill: var(--muted); font: 500 10px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.apu-hist-hora { fill: var(--ink-2); font: 600 10px/1 var(--sans); font-variant-numeric: tabular-nums; }
+.apu-hist-linha { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.apu-hist-ponto { stroke: var(--paper); stroke-width: 0.6; }
+.apu-hist-rotulo { font: 600 11px/1 var(--sans); }
+.apu-hist-valor { font-weight: 700; font-variant-numeric: tabular-nums; }

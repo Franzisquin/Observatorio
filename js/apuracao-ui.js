@@ -255,9 +255,11 @@ const APUUI = (function () {
     } else {
       APU.marcar(lista, o.entrada, o.cargo);
     }
-    const limite = o.limite || 4;
+    /* `completa`: a chapa inteira, sempre, sem o botão de "Mostrar mais" — a
+       lateral das páginas de estado e de zonas, que rola por dentro. */
+    const limite = o.completa ? Infinity : (o.limite || 4);
     const chave = (typeof alvo === 'string' ? alvo : el.id) || 'placar';
-    const aberto = !!abertos[chave];
+    const aberto = !!o.completa || !!abertos[chave];
     const mostrar = aberto ? lista : lista.slice(0, limite);
 
     el.innerHTML = mostrar.map((c, i) => {
@@ -294,7 +296,7 @@ const APUUI = (function () {
     if (!casa) return;
     if (casa !== el) casa.innerHTML = '';
 
-    if (lista.length > limite) {
+    if (!o.completa && lista.length > limite) {
       const botao = document.createElement('button');
       botao.type = 'button';
       botao.className = 'apu-more';
@@ -318,13 +320,21 @@ const APUUI = (function () {
     const o = opcoes || {};
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return;
+    /* `sempre`: a participação fica à mostra também antes da primeira urna —
+       o eleitorado (`eleitorado`, dos locais de votação de 2026) e o resto em
+       zero, até o boletim trazer os números do TSE. */
+    if (!entrada && o.sempre) {
+      entrada = { te: o.eleitorado == null ? null : o.eleitorado, comp: 0, abst: 0, vv: 0, vvc: 0,
+        vb: 0, vn: 0, tv: 0, esi: 0 };
+    }
     /* Sem boletim nao ha participacao: esconde o titulo junto, em vez de deixar
        um rotulo sobre nada. */
     const rot = $('rotuloParticipacao');
     if (rot) rot.hidden = !entrada;
     if (!entrada) { el.innerHTML = ''; return; }
 
-    const cel = (v, l) => `<div><div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;
+    const cel = (v, l, oculta) => `<div${oculta ? ' hidden data-registro="nominais"' : ''}>`
+      + `<div class="apu-stat-v">${v}</div><div class="apu-stat-l">${l}</div></div>`;
     const tem = (k) => entrada[k] != null;
     const pc = (parte, total) => APU.fmt.pct(APU.fmt.parte(parte, total));
 
@@ -339,11 +349,13 @@ const APUUI = (function () {
     const baseComp = entrada.esi || entrada.te;
     const baseVot = entrada.vvc || entrada.vv;
     const celulas = [
-      [true, APU.fmt.int(entrada.te), 'Eleitorado'],
+      [true, entrada.te == null ? '—' : APU.fmt.int(entrada.te), 'Eleitorado'],
       [true, APU.fmt.int(entrada.comp), `Comparecimento<br>${pc(entrada.comp, baseComp)}`],
       [true, APU.fmt.int(entrada.abst), `Abstenção<br>${pc(entrada.abst, baseComp)}`],
       [true, APU.fmt.int(entrada.vv), `Votos válidos<br>${pc(entrada.vv, baseVot)}`],
-      [tem('vnom'), APU.fmt.int(entrada.vnom), `Nominais<br>${pc(entrada.vnom, entrada.vv)}`],
+      /* Nominais: registrados na página, mas fora da tela (`oculta`). O número
+         segue no snapshot e no HTML; a lateral mostra só o resto. */
+      [tem('vnom'), APU.fmt.int(entrada.vnom), `Nominais<br>${pc(entrada.vnom, entrada.vv)}`, 'oculta'],
       [tem('vl') && entrada.vl > 0, APU.fmt.int(entrada.vl),
         `De legenda<br>${pc(entrada.vl, entrada.vv)}`],
       [true, APU.fmt.int(entrada.vb), `Brancos<br>${pc(entrada.vb, entrada.tv)}`],
@@ -376,18 +388,19 @@ const APUUI = (function () {
     const visiveis = celulas.filter(([mostrar]) => mostrar);
     const chave = o.seguir || ('participacao:'
       + ((typeof alvo === 'string' ? alvo : el.id) || 'participacao'));
-    const aberto = !!abertos[chave];
+    /* `sempre`: aberta, sem botão — a lateral das páginas de estado e de zonas. */
+    const aberto = !!o.sempre || !!abertos[chave];
 
     if (rot) rot.hidden = !aberto;
-    el.innerHTML = aberto ? visiveis.map(([, v, l]) => cel(v, l)).join('') : '';
-    if (o.seguir) return;
+    el.innerHTML = aberto ? visiveis.map(([, v, l, oculta]) => cel(v, l, oculta)).join('') : '';
+    if (o.seguir || o.sempre) return;
 
     const botao = document.createElement('button');
     botao.type = 'button';
     botao.className = 'apu-more';
     botao.textContent = aberto
       ? 'Mostrar menos'
-      : `Mostrar mais (${visiveis.length})`;
+      : `Mostrar mais (${visiveis.filter((c) => !c[3]).length})`;
     botao.onclick = () => {
       abertos[chave] = !aberto;
       participacao(entrada, alvo, opcoes);
@@ -600,6 +613,184 @@ const APUUI = (function () {
       p.onmousemove = (ev) => tip.mostrar(html, ev);
       p.onmouseleave = () => tip.esconder();
     });
+  }
+
+  /* ------------------------------------------- histórico da apuração */
+
+  /* Como a apuração andou numa jurisdição, depois de chegar a 100%: uma linha
+     por candidato — os quatro mais votados no fim, ou todos com 10% ou mais —,
+     com um ponto em cada totalização do TSE (`serie`, do {ele}-{cargo}-hist.json
+     que o coletor grava: [[pst, st, carimbo, {sq: %}], ...]). No eixo de baixo,
+     o % apurado; no da esquerda, o % de votos. Devolve false sem o que desenhar. */
+  function graficoHistorico(alvo, serie, dicionario, opcoes) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return false;
+    if (!serie || serie.length < 2) { el.innerHTML = ''; return false; }
+    const o = opcoes || {};
+    const fim = serie[serie.length - 1][3] || {};
+    const ordem = Object.entries(fim).sort((a, b) => b[1] - a[1]);
+    const quem = ordem.filter(([, p], i) => i < 4 || p >= 10).map(([sq]) => sq);
+    if (!quem.length) { el.innerHTML = ''; return false; }
+
+    const W = o.largura || 640;
+    const H = o.altura || 280;
+    const m = { e: 34, d: o.rotulos || 130, c: 12, b: 44 };
+    const larg = W - m.e - m.d;
+    const alt = H - m.c - m.b;
+    let maior = 0;
+    serie.forEach(([, , , c]) => quem.forEach((sq) => { maior = Math.max(maior, c[sq] || 0); }));
+    const teto = Math.min(100, Math.ceil((maior + 3) / 10) * 10);
+    const x = (pst) => m.e + (Math.max(0, Math.min(100, pst)) / 100) * larg;
+    const y = (p) => m.c + alt - (p / teto) * alt;
+    const nome = (sq) => APU.nomeProprio((dicionario[sq] && (dicionario[sq].urna || dicionario[sq].nome)) || sq);
+    const corDe = (sq) => APU.cor((dicionario[sq] || {}).partido);
+    const n1 = (v) => v.toFixed(1);
+
+    let svg = '';
+    for (let v = 0; v <= teto; v += 10) {
+      svg += `<line class="apu-hist-grade" x1="${m.e}" x2="${m.e + larg}" y1="${n1(y(v))}" y2="${n1(y(v))}"/>`
+        + `<text class="apu-hist-eixo" x="${m.e - 6}" y="${n1(y(v) + 3.5)}" text-anchor="end">${v}%</text>`;
+    }
+    /* Embaixo de cada marca de % apurado, a hora da totalização que chegou lá
+       primeiro: os principais momentos da noite (no 0%, o primeiro boletim). */
+    const hora = (quando) => {
+      const h = /(\d{1,2}):(\d{2})/.exec(String(quando || ''));
+      return h ? `${h[1].padStart(2, '0')}h${h[2]}` : '';
+    };
+    [0, 25, 50, 75, 100].forEach((v) => {
+      const ponto = serie.find(([pst]) => pst >= v) || null;
+      svg += `<text class="apu-hist-eixo" x="${n1(x(v))}" y="${H - m.b + 16}" text-anchor="middle">${v}%</text>`;
+      const h = ponto ? hora(ponto[2]) : '';
+      if (h) {
+        svg += `<text class="apu-hist-hora" x="${n1(x(v))}" y="${H - m.b + 30}" text-anchor="middle">${h}</text>`;
+      }
+    });
+    svg += `<text class="apu-hist-eixo" x="${m.e + larg}" y="${H - 2}" text-anchor="end">% apurado</text>`;
+
+    /* Linhas de baixo para cima: o mais votado por último, por cima dos outros. */
+    const fins = [];
+    quem.slice().reverse().forEach((sq) => {
+      const cor = corDe(sq);
+      const pts = serie.map(([pst, , quando, c]) => ({ pst, quando, v: c[sq] || 0 }));
+      svg += `<polyline class="apu-hist-linha" style="stroke:${cor}" points="`
+        + pts.map((p) => `${n1(x(p.pst))},${n1(y(p.v))}`).join(' ') + '"/>';
+      svg += pts.map((p) => `<circle class="apu-hist-ponto" cx="${n1(x(p.pst))}" cy="${n1(y(p.v))}" r="1.8" `
+        + `style="fill:${cor}"><title>${esc(nome(sq))}: ${APU.fmt.pct(p.v)} com ${APU.fmt.pct(p.pst)} apurado`
+        + `${p.quando ? ' (' + esc(p.quando) + ')' : ''}</title></circle>`).join('');
+      fins.push({ sq, cor, v: pts[pts.length - 1].v, y: y(pts[pts.length - 1].v) });
+    });
+
+    /* Rótulos no fim de cada linha, afastados um do outro quando se encostam. */
+    fins.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < fins.length; i++) {
+      if (fins[i].y - fins[i - 1].y < 14) fins[i].y = fins[i - 1].y + 14;
+    }
+    fins.forEach((f) => {
+      svg += `<text class="apu-hist-rotulo" x="${m.e + larg + 8}" y="${n1(f.y + 4)}" style="fill:${f.cor}">`
+        + `${esc(nome(f.sq))} <tspan class="apu-hist-valor">${APU.fmt.pct(f.v)}</tspan></text>`;
+    });
+
+    el.innerHTML = `<svg class="apu-hist" viewBox="0 0 ${W} ${H}" role="img" `
+      + `aria-label="Percentual de cada candidato a cada totalização, do início ao fim da apuração">${svg}</svg>`;
+    return true;
+  }
+
+  /* ------------------------------------------------ margem em círculos */
+
+  /* Como o "Margin by county" do NYT: o mapa fica neutro e cada unidade ganha
+     um círculo na cor de quem lidera, com a ÁREA proporcional à vantagem dele,
+     em votos, sobre o segundo colocado. Onde o voto pesa, o círculo é grande;
+     a cidade pequena vira um ponto, por mais folgada que seja a vitória ali. */
+  function margemDe(entrada, dicionario) {
+    if (!entrada || !(entrada.vv > 0)) return null;
+    const r = APU.ranking(entrada, dicionario);
+    if (!r[0] || !(r[0].votos > 0)) return null;
+    return { m: r[0].votos - (r[1] ? r[1].votos : 0), cor: APU.cor(r[0].partido),
+      nome: r[0].urna || r[0].nome, chave: r[0].chave };
+  }
+
+  /* Centro de um path das malhas pré-projetadas ("M x y x y … Z", um anel por
+     M): o centroide do maior anel — a ilha não puxa o círculo para o mar.
+     Guardado no próprio elemento: a malha não muda entre um boletim e outro. */
+  function centroDoPath(p) {
+    if (p._apuCentro !== undefined) return p._apuCentro;
+    let melhor = null;
+    const re = /M([^MZ]+)Z/g;
+    const d = p.getAttribute('d') || '';
+    let m;
+    while ((m = re.exec(d))) {
+      const n = m[1].trim().split(/[\s,]+/).map(Number);
+      let a = 0;
+      let cx = 0;
+      let cy = 0;
+      for (let i = 0; i + 1 < n.length; i += 2) {
+        const j = (i + 2) % n.length;
+        const f = n[i] * n[j + 1] - n[j] * n[i + 1];
+        a += f;
+        cx += (n[i] + n[j]) * f;
+        cy += (n[i + 1] + n[j + 1]) * f;
+      }
+      if (!a) continue;
+      if (!melhor || Math.abs(a) > melhor.a) melhor = { a: Math.abs(a), x: cx / (3 * a), y: cy / (3 * a) };
+    }
+    p._apuCentro = melhor ? [melhor.x, melhor.y] : null;
+    return p._apuCentro;
+  }
+
+  /* Liga ou desliga os círculos num mapa em SVG já pintado (pintarMapa). A
+     escala é fixa durante a noite: uma vantagem de 20% do eleitorado da maior
+     unidade dá o círculo de 10% do lado menor do mapa — os círculos crescem com
+     a apuração, sem a escala mudar sob eles. Devolve os círculos, para a
+     legenda. */
+  function margensNoMapa(svg, entradaDe, dicionario, ligado) {
+    if (!svg) return [];
+    svg.classList.toggle('is-margem', !!ligado);
+    let g = svg.querySelector('g.apu-margens');
+    if (!ligado) {
+      if (g) g.remove();
+      return [];
+    }
+    if (!g) g = noSvg('g', { class: 'apu-margens' });
+    svg.appendChild(g);
+    const vb = (svg.getAttribute('viewBox') || '0 0 1000 1000').split(/\s+/).map(Number);
+    const rmax = Math.min(vb[2] || 1000, vb[3] || 1000) * 0.10;
+    let teMax = 0;
+    const itens = [];
+    svg.querySelectorAll('path[data-chave]').forEach((p) => {
+      const e = entradaDe(p.getAttribute('data-chave'));
+      if (e && Number(e.te) > teMax) teMax = Number(e.te);
+      const mg = margemDe(e, dicionario);
+      const c = mg && centroDoPath(p);
+      if (mg && c) itens.push({ ...mg, x: c[0], y: c[1] });
+    });
+    const ref = Math.max(1, teMax * 0.2);
+    /* Os maiores embaixo: o círculo pequeno não some sob o grande. */
+    itens.sort((a, b) => b.m - a.m);
+    g.innerHTML = itens.map((i) => `<circle cx="${i.x.toFixed(1)}" cy="${i.y.toFixed(1)}" `
+      + `r="${Math.max(0.6, rmax * Math.sqrt(i.m / ref)).toFixed(1)}" style="fill:${i.cor};stroke:${i.cor}"></circle>`).join('');
+    return itens;
+  }
+
+  /* Legenda dos círculos: quem lidera em algum lugar do mapa (os quatro com
+     mais unidades) e uma linha sobre o tamanho. */
+  function legendaMargem(alvo, itens) {
+    const el = typeof alvo === 'string' ? $(alvo) : alvo;
+    if (!el) return;
+    el.hidden = !itens || !itens.length;
+    if (el.hidden) { el.innerHTML = ''; return; }
+    const por = new Map();
+    itens.forEach((i) => {
+      const x = por.get(i.chave) || { nome: i.nome, cor: i.cor, n: 0 };
+      x.n += 1;
+      por.set(i.chave, x);
+    });
+    const lideres = Array.from(por.values()).sort((a, b) => b.n - a.n).slice(0, 4);
+    el.innerHTML = '<p class="apu-faixas-tit">Quem lidera</p>'
+      + '<div class="apu-margem-lideres">' + lideres.map((l) => '<span class="apu-margem-item">'
+        + `<span class="apu-margem-bola" style="background:${l.cor};border-color:${l.cor}"></span>`
+        + `${esc(l.nome)}</span>`).join('') + '</div>'
+      + '<p class="apu-setas-nota">O tamanho do círculo é proporcional à vantagem, em votos, '
+      + 'de quem lidera.</p>';
   }
 
   /* ------------------------------------------------------------ hemiciclo */
@@ -1260,5 +1451,6 @@ const APUUI = (function () {
     foto, esc, icone,
     hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,
     balaoDaClausula, veredictoDaClausula, bandeira, cartaoEstado, paramsDeFonte, UFS_POR_ELEITORADO,
-    hrefDoCargo, seletorDeCargo, barraDeUFs, marcasDaEleicao, comDefinicaoDa };
+    hrefDoCargo, seletorDeCargo, barraDeUFs, marcasDaEleicao, comDefinicaoDa,
+    margemDe, margensNoMapa, legendaMargem, graficoHistorico };
 })();

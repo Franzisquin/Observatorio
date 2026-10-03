@@ -55,7 +55,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261002r" />
+  <link rel="stylesheet" href="apuracao.css?v=20261002x" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -95,14 +95,13 @@
     <!-- ------------------------------------- palco: mapa + painel encostado -->
     <section class="apu-stage">
 
-      <!-- Painel da projeção, à esquerda do mapa. Só aparece enquanto há o que
-           projetar: da primeira urna até o TSE declarar o resultado. Fica com a
-           projeção nacional também quando um estado está aberto no mapa. -->
+      <!-- Painel da projeção, à esquerda do mapa. Aparece com a primeira urna e
+           fica, também depois que o TSE declara o resultado. Fica com a projeção
+           nacional também quando um estado está aberto no mapa. -->
       <aside class="apu-dock apu-dock-proj" id="painelProj" aria-label="Projeção ElectoMaps" hidden>
         <div class="apu-dock-body">
           <!-- Projeção do resultado final: estimativa do ElectoMaps, publicada à parte
-               do número do TSE (scripts/apuracao/projecao.py). Some quando o TSE
-               declara o resultado. -->
+               do número do TSE (scripts/apuracao/projecao.py). -->
           <section class="apu-proj" id="projecao" hidden>
             <div class="apu-proj-head">
               <h3 class="apu-dock-rot">Projeção ElectoMaps</h3>
@@ -143,9 +142,10 @@
         <!-- Resultado ou variação desde 2022 (js/apuracao-nacional.js, comparação):
              na variação, o mapa fica neutro e cada unidade ganha uma seta. -->
         <div class="apu-levels apu-gl-camadas apu-gl-modo" id="modoMapa" role="group"
-          aria-label="O que o mapa mostra" hidden>
+          aria-label="O que o mapa mostra">
           <button class="apu-level is-on" type="button" data-modo="resultado" aria-pressed="true">Resultado</button>
-          <button class="apu-level" type="button" data-modo="variacao" aria-pressed="false">Variação 2022</button>
+          <button class="apu-level" type="button" data-modo="margem" aria-pressed="false">Margem</button>
+          <button class="apu-level" type="button" data-modo="variacao" aria-pressed="false" hidden>Variação 2022</button>
         </div>
 
         <p class="apu-gl-carga" id="mapaCarga" role="status" hidden></p>
@@ -154,6 +154,8 @@
         <div class="apu-faixas" id="legendaFaixas" hidden></div>
         <!-- Legenda das setas, no lugar da de cima quando o mapa mostra a variação. -->
         <div class="apu-faixas apu-setas-legenda" id="legendaSetas" hidden></div>
+        <!-- Legenda dos círculos de margem, no lugar das outras no modo Margem. -->
+        <div class="apu-faixas apu-margem-legenda" id="legendaMargem" hidden></div>
 
         <!-- O globo do voto no exterior, que ficava no oceano do SVG. Entra no
              mapa como marcador preso a uma coordenada a oeste do continente, e é
@@ -221,6 +223,13 @@
           <section class="apu-comp" id="comparacao" hidden>
             <h3 class="apu-dock-rot">Comparação com 2022 · 1º turno</h3>
             <div id="comparacaoCorpo"></div>
+          </section>
+
+          <!-- Com o recorte a 100%: como a apuração andou, uma linha por candidato
+               e um ponto por totalização do TSE (APUUI.graficoHistorico). -->
+          <section class="apu-hist-sec" id="historico" hidden>
+            <h3 class="apu-dock-rot">Como foi a apuração</h3>
+            <div id="historicoGrafico"></div>
           </section>
 
           <p class="apu-progress-lab" id="mapaNota" style="margin-top:14px"></p>
@@ -293,9 +302,9 @@
 
   <div class="apu-tip" id="tip" role="status" aria-live="polite"></div>
 
-  <script src="js/apuracao-dados.js?v=20261002c"></script>
-  <script src="js/apuracao-ui.js?v=20261002i"></script>
-  <script src="js/apuracao-nacional.js?v=20261002d"></script>
+  <script src="js/apuracao-dados.js?v=20261002d"></script>
+  <script src="js/apuracao-ui.js?v=20261002o"></script>
+  <script src="js/apuracao-nacional.js?v=20261002j"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

@@ -10,6 +10,13 @@ MB). Ficam em scratch/bweb/, e o resumo, pequeno, ao lado:
 
     py scripts/apuracao/sequencia_2022.py --baixar            (os dois turnos)
     py scripts/apuracao/sequencia_2022.py --resumir           (gera os resumos)
+    py scripts/apuracao/sequencia_2022.py --curva --turno 1   (a curva presidencial)
+
+Curva: resultados_geo/comparacao/presidente_2022_t1_curva.json — como o 1o turno
+presidencial de 2022 estava a cada 0,5% das secoes apuradas, no Brasil e em
+cada UF: votos validos e os dos numeros 13 e 22, acumulados na ordem em que os
+boletins chegaram. E o que a pagina presidencial usa para comparar 2026 com
+2022 "no mesmo ponto da apuracao" (js/apuracao-nacional.js, comparacao).
 
 Resumo: scratch/bweb/sequencia_2022_t{1,2}.json
     {"zero": "2022-10-02T17:00:00", "locais": {"<mun>_<zona>_<local>":
@@ -98,10 +105,85 @@ def resumir(turno: str) -> None:
     print(f'{len(locais):,} locais -> {resumo_de(turno)}'.replace(',', '.'), flush=True)
 
 
+CURVA = RAIZ / 'resultados_geo' / 'comparacao' / 'presidente_2022_t{turno}_curva.json'
+PASSO_CURVA = 0.5   # em pontos percentuais de secoes apuradas
+NUMEROS = ('13', '22')
+
+
+def curva(turno: str) -> None:
+    """Para cada unidade (o Brasil, cada UF e o exterior): as secoes na ordem de
+    chegada do boletim e, a cada PASSO_CURVA% delas, o acumulado de votos
+    validos e dos dois numeros. Voto valido = nominal (o boletim marca branco e
+    nulo como tipos proprios)."""
+    zero = ZERO[turno]
+    secoes = []   # (uf, minutos, vv, v13, v22)
+    for uf in UFS:
+        arq = PASTA / ARQUIVO[turno].format(UF=uf.upper())
+        inicio = time.time()
+        atual = {}
+        with zipfile.ZipFile(arq) as z:
+            nome = [n for n in z.namelist() if n.lower().endswith('.csv')][0]
+            with z.open(nome) as bruto:
+                texto = io.TextIOWrapper(bruto, encoding='latin-1', newline='')
+                cab = [c.strip('"') for c in texto.readline().rstrip('\r\n').split(';')]
+                col = {c: i for i, c in enumerate(cab)}
+                i_cargo, i_mun, i_zona = col['CD_CARGO_PERGUNTA'], col['CD_MUNICIPIO'], col['NR_ZONA']
+                i_secao, i_hora = col['NR_SECAO'], col['DT_BU_RECEBIDO']
+                i_tipo, i_num, i_votos = col['DS_TIPO_VOTAVEL'], col['NR_VOTAVEL'], col['QT_VOTOS']
+                for linha in texto:
+                    p = linha.split(';')
+                    if p[i_cargo].strip('"') != '1':
+                        continue
+                    chave = (p[i_mun], p[i_zona], p[i_secao])
+                    sec = atual.get(chave)
+                    if sec is None:
+                        t = datetime.strptime(p[i_hora].strip('"'), '%d/%m/%Y %H:%M:%S')
+                        sec = atual[chave] = [(t - zero).total_seconds() / 60.0, 0, 0, 0]
+                    if p[i_tipo].strip('"') != 'Nominal':
+                        continue
+                    v = int(p[i_votos].strip('"'))
+                    sec[1] += v
+                    num = p[i_num].strip('"')
+                    if num == NUMEROS[0]:
+                        sec[2] += v
+                    elif num == NUMEROS[1]:
+                        sec[3] += v
+        secoes += [(uf, *v) for v in atual.values()]
+        print(f'  {uf}: {len(atual):,} secoes, {time.time() - inicio:.0f}s'.replace(',', '.'), flush=True)
+
+    def pontos(lista):
+        lista = sorted(lista, key=lambda x: x[1])
+        n = len(lista)
+        acc, saida, k = [0, 0, 0], [], 0
+        marcos = [round(n * i * PASSO_CURVA / 100) for i in range(int(100 / PASSO_CURVA) + 1)]
+        saida.append([0, 0, 0])
+        for i, (_, _, vv, a, b) in enumerate(lista, start=1):
+            acc[0] += vv
+            acc[1] += a
+            acc[2] += b
+            while k + 1 < len(marcos) and marcos[k + 1] <= i:
+                k += 1
+                saida.append(list(acc))
+        while len(saida) < len(marcos):
+            saida.append(list(acc))
+        return saida
+
+    saida = {'eleicao': f'2022, {turno}o turno', 'numeros': list(NUMEROS), 'passo': PASSO_CURVA,
+             'br': pontos(secoes), 'uf': {}}
+    for uf in UFS:
+        saida['uf'][uf] = pontos([x for x in secoes if x[0] == uf])
+    destino = Path(str(CURVA).format(turno=turno))
+    destino.write_text(json.dumps(saida, separators=(',', ':')), encoding='utf-8')
+    fim = saida['br'][-1]
+    print(f'curva -> {destino} ({destino.stat().st_size / 1024:.0f} KB); Brasil no fim: '
+          f'validos {fim[0]:,}, 13 {fim[1]:,}, 22 {fim[2]:,}'.replace(',', '.'), flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--baixar', action='store_true')
     ap.add_argument('--resumir', action='store_true')
+    ap.add_argument('--curva', action='store_true')
     ap.add_argument('--turno', choices=['1', '2'], nargs='*', default=['1', '2'])
     a = ap.parse_args()
     for turno in a.turno:
@@ -111,6 +193,9 @@ def main() -> int:
         if a.resumir:
             print(f'resumindo o {turno}o turno', flush=True)
             resumir(turno)
+        if a.curva:
+            print(f'curva do {turno}o turno', flush=True)
+            curva(turno)
     return 0
 
 

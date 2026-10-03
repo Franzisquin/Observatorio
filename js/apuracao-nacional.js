@@ -45,6 +45,11 @@
     modo: 'resultado',
     /* Base do 1º turno de 2022 (scripts/apuracao/comparacao_2022.py). */
     base2022: null,
+    /* Como o 1º turno de 2022 estava a cada 0,5% das seções apuradas, no Brasil
+       e em cada UF (scripts/apuracao/sequencia_2022.py --curva), e contra qual
+       2022 a comparação mede: 'final' ou 'ponto' (o mesmo % apurado de agora). */
+    curva2022: null,
+    compModo: 'final',
     /* Acompanhamento do TSE (EA14): onde ainda se está contando. */
     ab: null,
     /* Cidades com mapa por zona eleitoral (APUUI.cidadesComZonas): clicada uma
@@ -207,6 +212,23 @@
         paint: { 'line-color': c.contorno, 'line-width': LARGURA_UF } });
       gl.addLayer({ id: 'mun-sel', type: 'line', ...mun, layout: redondo,
         paint: { 'line-color': c.tinta, 'line-width': 2, 'line-opacity': liga('sel', 1, 0) } });
+      /* Margem em círculos (pintarMargens): um ponto por unidade, no mesmo
+         lugar de onde saem as setas, com a área proporcional à vantagem em
+         votos de quem lidera. O raio dobra a cada nível de zoom, como o mapa:
+         o círculo cobre sempre o mesmo pedaço do território. Os grandes
+         embaixo (circle-sort-key), para o pequeno não sumir sob eles. */
+      gl.addSource('margens', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+      gl.addLayer({ id: 'margens', type: 'circle', source: 'margens',
+        layout: { 'circle-sort-key': ['-', 0, ['get', 'm']], visibility: 'none' },
+        paint: {
+          /* O zoom só pode entrar no interpolate de cima: o raio é a raiz da
+             margem vezes um fator que dobra a cada nível. */
+          'circle-radius': ['interpolate', ['exponential', 2], ['zoom'],
+            2, ['*', ['sqrt', ['get', 'm']], MARGEM_K / 4],
+            12, ['*', ['sqrt', ['get', 'm']], MARGEM_K * 256]],
+          'circle-color': ['get', 'cor'], 'circle-opacity': 0.32,
+          'circle-stroke-color': ['get', 'cor'], 'circle-stroke-width': 1, 'circle-stroke-opacity': 0.95
+        } });
       /* Setas da variação desde 2022, por cima de tudo (pintarSetas). */
       gl.addSource('setas', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       /* A de município encolhe com o país inteiro à vista e cresce ao aproximar,
@@ -241,7 +263,7 @@
   function aplicarTema() {
     const gl = mapa.gl;
     const c = cores();
-    const neutro = estado.modo === 'variacao';
+    const neutro = estado.modo === 'variacao' || estado.modo === 'margem';
     gl.setPaintProperty('fundo', 'background-color', c.fundo);
     gl.setPaintProperty('uf-fill', 'fill-color', neutro ? c.vazio : corDe(c));
     gl.setPaintProperty('mun-fill', 'fill-color', neutro ? c.vazio : corDe(c));
@@ -297,6 +319,7 @@
     APUUI.pintarMapa($('exterior').querySelector('svg'), entradaDe, dic, (chave) => abrir(chave));
     legenda();
     pintarSetas();
+    pintarMargens();
   }
 
   /* Legenda das faixas: uma régua de tons para cada candidato que lidera em
@@ -304,7 +327,8 @@
      Na ordem do placar nacional, para não trocar de lugar a cada boletim. */
   function legenda() {
     legendaSetas();
-    if (!$('legendaSetas').hidden) {
+    if (estado.modo !== 'margem') APUUI.legendaMargem('legendaMargem', null);
+    if (!$('legendaSetas').hidden || estado.modo === 'margem') {
       $('legendaFaixas').hidden = true;
       return;
     }
@@ -348,6 +372,7 @@
     });
     legenda();
     pintarSetas();
+    pintarMargens();
   }
 
   /* ------------------------------------------------------ cursor e clique */
@@ -500,6 +525,7 @@
      (scripts/apuracao/comparacao_2022.py). Só presidente e só 1º turno: contra
      o 2º turno de 2026 a conta seria outra. */
   const BASE_2022 = 'resultados_geo/comparacao/presidente_2022_t1.json';
+  const CURVA_2022 = 'resultados_geo/comparacao/presidente_2022_t1_curva.json';
   const NOME_2022 = { 13: 'Lula', 22: 'Jair Bolsonaro' };
   const pontos = (x) => Math.abs(x).toLocaleString('pt-BR',
     { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -517,6 +543,38 @@
     return uf ? (b.uf[uf] || null) : b.br;
   }
 
+  /* 2022 no mesmo ponto da apuração: o acumulado da curva em `pst` % das
+     seções daquela unidade (o Brasil ou uma UF), interpolado entre os pontos de
+     0,5% em 0,5%. Município não tem curva: null. */
+  function linhaNoPonto(uf, pst) {
+    const c = estado.curva2022;
+    const serie = c && (uf ? c.uf[uf] : c.br);
+    if (!serie) return null;
+    const f = Math.max(0, Math.min(100, Number(pst) || 0)) / c.passo;
+    const i = Math.min(serie.length - 1, Math.floor(f));
+    const j = Math.min(serie.length - 1, i + 1);
+    const t = f - i;
+    return serie[i].map((v, k) => v + (serie[j][k] - v) * t);
+  }
+
+  /* O Brasil no mesmo ponto: a soma de cada UF de 2022 no % apurado que ESSA
+     UF tem agora. O ritmo da apuração muda de uma eleição para outra (um estado
+     que em 2022 já tinha fechado pode estar no meio agora), e a curva nacional
+     de 2022 juntaria estados em proporções que não são as de agora. Sem o
+     andamento das UFs (antes do arquivo de UF), cai na curva nacional. */
+  function brasilNoPonto(pstBrasil) {
+    const c = estado.curva2022;
+    const abr = estado.uf && estado.uf.abr;
+    if (!c || !abr || !Object.keys(abr).length) return linhaNoPonto(null, pstBrasil);
+    const soma = [0, 0, 0];
+    Object.keys(c.uf).forEach((uf) => {
+      const e = abr[uf];
+      const l = linhaNoPonto(uf, e ? e.pst : 0);
+      if (l) l.forEach((v, k) => { soma[k] += v; });
+    });
+    return soma;
+  }
+
   /* Nome e partido de um dos dois números: do placar, se ele já tem voto; senão
      do dicionário ou da chapa registrada; e o de 2022, em último caso. */
   function candidatoDe(par, dic) {
@@ -529,7 +587,7 @@
 
   /* O que a lateral e o balão dizem de uma comparação: as duas linhas e a
      frase da diferença, com a cor e o lado da seta. */
-  function resumoDe(comp, dic) {
+  function resumoDe(comp, dic, quando) {
     const quem = comp.pares.map((p) => ({ ...p, ...candidatoDe(p, dic) }));
     const [a, b] = quem;
     const linhas = quem.map((p) => ({
@@ -547,7 +605,7 @@
     else if (Math.abs(d) < 0.05) frase = 'A diferença entre os dois está igual à de 2022.';
     else {
       frase = `A diferença andou ${pontos(d)} ${Math.abs(d) >= 1.95 ? 'pontos' : 'ponto'} para `
-        + `${d > 0 ? b.nome : a.nome} desde 2022: ${lider(m22, a.nome, NOME_2022[b.numero])} em 2022, `
+        + `${d > 0 ? b.nome : a.nome} desde 2022: ${lider(m22, a.nome, NOME_2022[b.numero])} ${quando || 'em 2022'}, `
         + `${lider(a.agora - b.agora, a.nome, b.nome)} agora.`;
     }
     return { linhas, frase, desvio: d, lado: d === null ? null : (d > 0 ? linhas[1] : linhas[0]) };
@@ -591,18 +649,39 @@
   function comparacao(entrada, dic) {
     const sec = $('comparacao');
     sec.hidden = !comparavel();
-    $('modoMapa').hidden = sec.hidden;
+    /* Resultado e Margem existem sempre; a Variação, só com 2022 para comparar. */
+    $('modoMapa').querySelector('[data-modo="variacao"]').hidden = sec.hidden;
+    if (sec.hidden && estado.modo === 'variacao') trocarModo('resultado');
     if (sec.hidden) return;
-    const linha = estado.sel ? linha2022(null, estado.sel.ibge) : linha2022(estado.foco, null);
+    /* Contra o resultado final de 2022 ou contra 2022 no mesmo ponto da
+       apuração (o % apurado do recorte agora). O ponto só existe para o Brasil e
+       para as UFs: com um município aberto, a comparação é com o final. */
+    const temPonto = !estado.sel && !!linhaNoPonto(estado.foco, 0);
+    const noPonto = temPonto && estado.compModo === 'ponto';
+    const pst = entrada ? Number(entrada.pst) || 0 : 0;
+    const botoes = temPonto
+      ? '<div class="apu-levels apu-comp-modo" role="group" aria-label="Comparar com qual 2022">'
+        + [['final', 'Resultado final'], ['ponto', 'Mesmo % apurado']].map(([m, rot]) =>
+          `<button class="apu-level${estado.compModo === m ? ' is-on' : ''}" type="button" data-comp="${m}"`
+          + ` aria-pressed="${estado.compModo === m}">${rot}</button>`).join('') + '</div>'
+      : '';
+    const linha = noPonto ? (estado.foco ? linhaNoPonto(estado.foco, pst) : brasilNoPonto(pst))
+      : (estado.sel ? linha2022(null, estado.sel.ibge) : linha2022(estado.foco, null));
     const comp = APU.comparar(entrada, dic, linha, estado.base2022.numeros);
     if (!comp) {
-      $('comparacaoCorpo').innerHTML = '<p class="apu-progress-lab">Sem 2022 para comparar: '
-        + 'o município foi instalado depois da eleição.</p>';
+      $('comparacaoCorpo').innerHTML = botoes + '<p class="apu-progress-lab">' + (noPonto
+        ? 'A comparação no mesmo ponto aparece com o primeiro boletim.'
+        : 'Sem 2022 para comparar: o município foi instalado depois da eleição.') + '</p>';
       return;
     }
-    const r = resumoDe(comp, dic);
-    $('comparacaoCorpo').innerHTML = '<table class="apu-proj-tab apu-comp-tab"><thead><tr>'
-      + '<th scope="col"></th><th scope="col" class="num">2022</th><th scope="col" class="num">2026</th>'
+    /* No Brasil, o ponto é o de cada estado (brasilNoPonto): a frase diz isso. */
+    const quando = !noPonto ? 'em 2022'
+      : (estado.foco ? `em 2022 com ${APU.fmt.pct(pst)} apurado` : 'em 2022 com cada estado no ponto de agora');
+    const r = resumoDe(comp, dic, quando);
+    $('comparacaoCorpo').innerHTML = botoes + '<table class="apu-proj-tab apu-comp-tab"><thead><tr>'
+      + '<th scope="col"></th><th scope="col" class="num">'
+      + (noPonto ? `2022 <small>${estado.foco ? APU.fmt.pct(pst) : 'mesmo ponto'}</small>` : '2022') + '</th>'
+      + '<th scope="col" class="num">2026</th>'
       + '<th scope="col" class="num">Var.</th></tr></thead><tbody>'
       + r.linhas.map((l) => `<tr><th scope="row"><span class="apu-swatch" style="background:${l.cor}"></span>`
         + `${APUUI.esc(l.nome)}${l.antes2022 ? `<small>2022: ${APUUI.esc(l.antes2022)}</small>` : ''}</th>`
@@ -733,6 +812,57 @@
     gl.getSource('setas').setData({ type: 'FeatureCollection', features: setas });
   }
 
+  /* Raio do círculo de margem em px, por raiz de voto, no zoom 4 (o Brasil
+     inteiro à vista): São Paulo com 1,6 milhão de votos de vantagem dá uns 30 px. */
+  const MARGEM_K = 0.023;
+  let margensNoQuadro = 0;
+  let margensAntes = '';
+
+  function pintarMargens() {
+    if (!margensNoQuadro) {
+      margensNoQuadro = requestAnimationFrame(() => {
+        margensNoQuadro = 0;
+        desenharMargens();
+      });
+    }
+  }
+
+  /* As mesmas unidades das setas: os municípios das UFs desenhadas, ou os
+     estados quando nenhum município está à mostra. O ponto de cada uma é o de
+     onde sai a seta (a base de 2022: centroide, ou um ponto de dentro). */
+  function desenharMargens() {
+    const gl = mapa.gl;
+    if (!gl || !gl.getSource('margens') || !gl.getLayer('margens')) return;
+    const ligado = estado.modo === 'margem';
+    gl.setLayoutProperty('margens', 'visibility', ligado ? 'visible' : 'none');
+    if (!ligado) return;
+    const base = estado.base2022;
+    const pontos = [];
+    const incluir = (ponto, entrada, dic, nivel) => {
+      const mg = ponto && ponto.length >= 5 ? APUUI.margemDe(entrada, dic) : null;
+      if (!mg) return;
+      pontos.push({ type: 'Feature', geometry: { type: 'Point', coordinates: [ponto[3], ponto[4]] },
+        properties: { m: mg.m, cor: mg.cor, nome: mg.nome, chave: mg.chave, nivel } });
+    };
+    if (base) {
+      const desenhadas = ufsDesenhadas();
+      if (desenhadas.length) {
+        desenhadas.forEach((uf) => {
+          const dic = dicionarioMun(uf);
+          Object.entries(estado.porIbge[uf] || {}).forEach(([ibge, e]) => incluir(base.mun[ibge], e, dic, 'mun'));
+        });
+      } else {
+        const abr = (estado.uf && estado.uf.abr) || {};
+        mapa.ufs.forEach((uf) => incluir(base.uf[uf], abr[uf], dicionario(), 'uf'));
+      }
+    }
+    APUUI.legendaMargem('legendaMargem', pontos.map((f) => f.properties));
+    const assinatura = pontos.map((f) => f.properties.chave + f.properties.m).join('|');
+    if (assinatura === margensAntes) return;
+    margensAntes = assinatura;
+    gl.getSource('margens').setData({ type: 'FeatureCollection', features: pontos });
+  }
+
   function legendaSetas() {
     const el = $('legendaSetas');
     el.hidden = !(estado.modo === 'variacao' && comparavel());
@@ -758,6 +888,7 @@
     });
     if (mapa.gl) aplicarTema();
     pintarSetas();
+    pintarMargens();
     legenda();
   }
 
@@ -841,9 +972,23 @@
     /* A projeção é nacional e tem painel próprio: continua à mostra com um
        estado aberto no mapa. */
     projecao(entradaNacional());
+    historico(entrada);
     comparacao(entrada, dic);
 
     $('mapaNota').textContent = nota();
+  }
+
+  /* ------------------------------------------- histórico da apuração */
+
+  /* O gráfico de como a apuração andou, no recorte aberto (o Brasil ou um
+     estado), quando ele chega a 100% apurado. Município não tem histórico. */
+  function historico(entrada) {
+    const sec = $('historico');
+    const recorte = estado.sel ? null : (estado.foco || 'br');
+    const serie = recorte && estado.hist ? estado.hist[recorte] : null;
+    const pronto = !!entrada && Number(entrada.pst) >= 100 && !!serie;
+    sec.hidden = !(pronto && APUUI.graficoHistorico('historicoGrafico', serie, dicionario(),
+      { largura: 380, altura: 230, rotulos: 112 }));
   }
 
   /* ------------------------------------------------------------ projeção */
@@ -861,16 +1006,15 @@
   const pct1 = (v) => (100 * v).toFixed(1).replace('.', ',');
 
   /* A projeção do resultado final, na visão do Brasil. Não aparece antes da
-     primeira urna, nem depois que o TSE declara o resultado — aí ela não tem
-     mais nada a dizer. Abaixo do mínimo de urnas o bloco diz por que ainda não
-     há número, em vez de sumir.
+     primeira urna; depois que o TSE declara o resultado, continua à mostra com
+     a última projeção da noite. Abaixo do mínimo de urnas o bloco diz por que
+     ainda não há número, em vez de sumir.
 
      A ordem é a das perguntas da noite: a eleição acaba no 1º turno ou vai ao
      2º, e com quem; quem termina em primeiro; e, por último, os votos. */
   function projecao(nacional) {
     const pr = estado.proj;
-    const decidido = !!(nacional && (APU.definicao(nacional) || nacional.tf === 's'));
-    $('projecao').hidden = !nacional || !(nacional.st > 0) || decidido;
+    $('projecao').hidden = !nacional || !(nacional.st > 0);
     mostrarPainelProj(!$('projecao').hidden);
     if ($('projecao').hidden) return;
 
@@ -1132,7 +1276,8 @@
       /* A base de 2022 não muda: lida uma vez. Sem ela a página segue, só sem
          a comparação. */
       if (APU.cfg.cargo === '0001') {
-        estado.base2022 = await fetch(BASE_2022).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+        [estado.base2022, estado.curva2022] = await Promise.all([BASE_2022, CURVA_2022].map((u) =>
+          fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)));
       }
     }
     /* A camada municipal é republicada bem mais devagar que a alta (~4 min no
@@ -1147,6 +1292,12 @@
     if (br) estado.br = br;
     if (uf) estado.uf = uf;
     if (proj) estado.proj = proj;
+    /* O histórico da apuração (APU hist) só interessa a quem já fechou: lido
+       quando o Brasil ou alguma UF chega a 100%. */
+    const fechou = (e) => !!e && Number(e.pst) >= 100;
+    if (fechou(br && br.abr && br.abr.br) || Object.values((uf && uf.abr) || {}).some(fechou)) {
+      estado.hist = (await APU.snapshot('hist')) || estado.hist;
+    }
     if (ab) estado.ab = ab;
     pintar();
     pintarAndamento();
@@ -1180,6 +1331,12 @@
     APUUI.ligarMenu('0001');
 
     $('voltar').onclick = voltar;
+    $('comparacaoCorpo').addEventListener('click', (ev) => {
+      const b = ev.target.closest('[data-comp]');
+      if (!b || b.dataset.comp === estado.compModo) return;
+      estado.compModo = b.dataset.comp;
+      painel();
+    });
     $('camadas').onclick = (ev) => {
       const b = ev.target.closest('[data-camada]');
       if (b) trocarCamada(b.dataset.camada);

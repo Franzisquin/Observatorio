@@ -32,7 +32,9 @@
   const estado = {
     indice: null, cidade: null, malha: null, nomes: {},
     dados: null, sup: null, chapa: null, marcas: new Map(),
-    sel: null, timer: null
+    sel: null, timer: null,
+    /* 'resultado' (a cor de quem lidera) ou 'margem' (APUUI.margensNoMapa). */
+    modo: 'resultado'
   };
 
   const hrefZonas = (ibge, cargo) => 'apuracao-zonas.html'
@@ -195,13 +197,34 @@
     $('voltarZona').hidden = !sel;
     $('rotuloPlacar').textContent = sel ? rotuloZona(sel.chave)
       : (d ? `Resultado em ${c.nm}` : `Candidaturas em ${c.nm}`);
-    const verParticipacao = () => APUUI.participacao(alvo, 'participacao', { seguir: 'placar' });
+    /* A chapa inteira, sempre (a lista rola por dentro do cartão), e a
+       participação aberta embaixo dela. */
     APUUI.placar(lista.length ? lista : zerada, 'placar', {
-      entrada: alvo, cargo: CARGO, marcas: estado.marcas,
-      botao: 'maisResultado', aoAlternar: verParticipacao
+      entrada: alvo, cargo: CARGO, marcas: estado.marcas, completa: true
     });
-    verParticipacao();
+    /* Antes do boletim, o eleitorado de 2026 da cidade ou da zona escolhida. */
+    const el = estado.eleitorado || {};
+    const eleitores = sel ? ((el.zona || {})[c.ibge] || {})[sel.chave] : (el.mun || {})[c.ibge];
+    APUUI.participacao(alvo, 'participacao', { sempre: true, eleitorado: eleitores });
     destacar();
+  }
+
+  /* Os círculos da margem, quando é o que o mapa mostra. */
+  function margens() {
+    const d = estado.dados;
+    const itens = APUUI.margensNoMapa($('mapaZonas'), (z) => (d && d.abr && d.abr[z]) || null,
+      dicionario(), estado.modo === 'margem');
+    APUUI.legendaMargem('legendaMargem', itens);
+  }
+
+  function trocarModo(modo) {
+    if (modo === estado.modo) return;
+    estado.modo = modo;
+    $('modoMapa').querySelectorAll('[data-modo]').forEach((b) => {
+      b.classList.toggle('is-on', b.dataset.modo === modo);
+      b.setAttribute('aria-pressed', String(b.dataset.modo === modo));
+    });
+    margens();
   }
 
   function selecionar(chave) {
@@ -217,7 +240,9 @@
   }
 
   /* Todas as zonas: as do boletim e as do desenho. Zona que só existe num dos
-     dois (criada ou extinta entre a malha e a eleição) aparece igual. */
+     dois (criada ou extinta entre a malha e a eleição) aparece igual. A margem
+     no formato da lista dos mais votados das páginas de estado ("Lula +7", na
+     cor do partido); com a cidade a 100% a coluna de apurado sai. */
   function tabela() {
     const d = estado.dados;
     const dic = dicionario();
@@ -228,26 +253,21 @@
       const r = e && e.vv > 0 ? APU.ranking(e, dic) : [];
       return { z, e, lider: r[0] || null, dif: r[0] ? (r[1] ? r[0].pct - r[1].pct : r[0].pct) : 0 };
     });
+    const total = totalDaCidade();
     $('zonas').hidden = false;
+    $('tabelaZonasTab').classList.toggle('is-fechada', !!total && Number(total.pst) >= 100);
     $('notaTabela').textContent = 'Clique numa zona para ver o resultado dela';
-    $('tabelaZonas').innerHTML = linhas.map(({ z, e, lider, dif }) => {
-      const cor = lider ? APU.cor(lider.partido) : 'var(--line-strong)';
-      return `<tr class="is-click${estado.sel && estado.sel.chave === z ? ' is-sel' : ''}" data-zona="${esc(z)}">
+    $('tabelaZonas').innerHTML = linhas.map(({ z, e, lider, dif }) => `<tr class="is-click${estado.sel && estado.sel.chave === z ? ' is-sel' : ''}" data-zona="${esc(z)}">
         <td><span class="apu-zonas-num">${rotuloZona(z)}</span>`
         + (estado.malha && !(z in estado.nomes)
           ? '<span class="apu-zonas-nome">sem desenho no mapa</span>' : '') + `</td>
-        <td>
-          <span class="apu-lead-cell">
-            <span class="apu-swatch" style="background:${cor}"></span>
-            <span class="apu-lead-name">${lider ? esc(lider.urna || lider.nome) : '—'}</span>
-          </span>
+        <td class="apu-top-margin${lider ? '' : ' is-vazio'}"${lider ? ` style="--cor-partido:${APU.cor(lider.partido)}"` : ''}>
+          ${lider ? esc(lider.urna || lider.nome) + ' ' + margem(dif) : '—'}
         </td>
         <td class="num">${lider ? APU.fmt.pct(lider.pct) : '—'}</td>
-        <td class="num">${lider ? margem(dif) : '—'}</td>
         <td class="num">${e ? APU.fmt.int(e.tv || 0) : '—'}</td>
-        <td class="num">${APU.fmt.pct((e && e.pst) || 0)}</td>
-      </tr>`;
-    }).join('');
+        <td class="num apu-col-apurado">${APU.fmt.pct((e && e.pst) || 0)}</td>
+      </tr>`).join('');
   }
 
   /* -------------------------------------------------------------- desenho */
@@ -269,6 +289,7 @@
     const svg = $('mapaZonas');
     if (d) {
       APUUI.pintarMapa(svg, (z) => (d.abr && d.abr[z]) || null, dicionario(), selecionar);
+      margens();
       const zonas = Object.values(d.abr || {});
       $('mapaNota').textContent = `${zonas.filter((e) => e && e.vv > 0).length} de `
         + `${zonas.length} zonas com votos`;
@@ -277,14 +298,29 @@
       $('mapaNota').textContent = 'aguardando o primeiro boletim';
     }
     lateral();
+    historico();
     tabela();
+  }
+
+  /* O gráfico de como a apuração da cidade andou, quando ela chega a 100%. */
+  function historico() {
+    const total = totalDaCidade();
+    const serie = estado.hist ? estado.hist[estado.cidade.ibge] : null;
+    $('historico').hidden = !(total && Number(total.pst) >= 100 && serie
+      && APUUI.graficoHistorico('historicoGrafico', serie, dicionario(),
+        { largura: 1000, altura: 300, rotulos: 170 }));
   }
 
   /* --------------------------------------------------------------- ciclo */
 
   async function atualizar() {
     if (!estado.cidade) return;
-    if (estado.chapa === null) estado.chapa = await APU.candidaturas(CARGO);
+    if (estado.chapa === null) {
+      /* O manifesto das fotos de urna: sem ele o placar não pede foto nenhuma
+         (APU.temFoto) e fica só com as iniciais. */
+      [estado.chapa, estado.eleitorado] = await Promise.all([
+        APU.candidaturas(CARGO), APU.eleitorado2026(), APU.fotosDisponiveis()]);
+    }
     const [d, sup] = await Promise.all([
       APU.snapshot('zonas-' + estado.cidade.ibge, CARGO),
       APU.snapshot(CARGO === '0001' ? 'br' : 'uf', CARGO)
@@ -292,6 +328,10 @@
     /* Boletim antigo vale mais que tela vazia: só substitui o que chegou. */
     if (d) estado.dados = d;
     if (sup) estado.sup = sup;
+    const total = totalDaCidade();
+    if (total && Number(total.pst) >= 100) {
+      estado.hist = (await APU.snapshot('hist-zonas', CARGO)) || estado.hist;
+    }
     pintar();
   }
 
@@ -325,6 +365,10 @@
       if (ev.target.value) location.href = hrefZonas(ev.target.value, CARGO);
     });
     $('voltarZona').onclick = () => selecionar(null);
+    $('modoMapa').onclick = (ev) => {
+      const b = ev.target.closest('[data-modo]');
+      if (b) trocarModo(b.dataset.modo);
+    };
     $('tabelaZonas').addEventListener('click', (ev) => {
       const tr = ev.target.closest('tr[data-zona]');
       if (!tr) return;

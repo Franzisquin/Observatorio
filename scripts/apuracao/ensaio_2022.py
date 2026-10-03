@@ -63,7 +63,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cadeiras import distribuir, quociente_eleitoral  # noqa: E402
-from coleta import escrever  # noqa: E402
+from coleta import escrever, historico  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent.parent
 GEO = RAIZ / "resultados_geo"
@@ -454,9 +454,12 @@ def somar(entradas: list[dict]) -> dict:
 
 
 def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: float,
-                    volta: int, destino: Path, nomes_mun: dict) -> dict:
+                    volta: int, destino: Path, nomes_mun: dict,
+                    relogio: time.struct_time | None = None) -> dict:
     final = t >= 1.0
-    agora = time.localtime()
+    # A hora do boletim: a da noite de 2022 (com a sequencia real), para o
+    # carimbo e o historico mostrarem 19h34, e nao a hora do ensaio.
+    agora = relogio or time.localtime()
     resumo = {}
     for eleicao, cargos in plano.items():
         acompanha = None
@@ -466,6 +469,7 @@ def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: flo
                 continue
             cab = meta(eleicao, turno, cargo, volta)
             abr_uf, cand_uf, agrem_uf = {}, {}, {}
+            totais_zonas = {}
             for uf, casa in por_uf.items():
                 casa.avancar(t)
                 municipal = {}
@@ -498,16 +502,23 @@ def escrever_quadro(casas: dict, plano: dict[str, list[str]], turno: str, t: flo
                     escrever(destino, f"{eleicao}-{cargo}-{uf}.json",
                              {"meta": cab, "abr": municipal, "mun": mun_nomes, "cand": dic})
                 if cargo in CARGOS_ZONAS:
-                    escrever_zonas(casa, cab, dic, eleicao, cargo, uf, final, agora, destino)
+                    totais_zonas.update(escrever_zonas(casa, cab, dic, eleicao, cargo, uf, final,
+                                                       agora, destino))
 
             escrever(destino, f"{eleicao}-{cargo}-uf.json",
                      {"meta": cab, "abr": abr_uf, "cand": cand_uf,
                       **({"agrem": agrem_uf} if agrem_uf else {})})
+            entradas_hist = dict(abr_uf)
             if cargo == "0001":
                 br = somar(list(abr_uf.values()))
                 definir_md(br, cargo, turno, set().union(*(c.anulados() for c in por_uf.values())))
                 escrever(destino, f"{eleicao}-{cargo}-br.json",
                          {"meta": cab, "cand": cand_uf, "abr": {"br": br}})
+                entradas_hist["br"] = br
+            # O mesmo historico que o coletor grava: um ponto por quadro.
+            historico(destino, eleicao, cargo, entradas_hist)
+            if totais_zonas:
+                historico(destino, eleicao, cargo, totais_zonas, nome="hist-zonas")
             if acompanha is None:
                 acompanha = (cargo, abr_uf, por_uf)
             br = somar(list(abr_uf.values()))
@@ -560,7 +571,9 @@ ZONAS = cidades_com_zonas()
 def escrever_zonas(casa: Casa, cab: dict, dic: dict, eleicao: str, cargo: str, uf: str,
                    final: bool, agora: time.struct_time, destino: Path) -> None:
     """{ele}-{cargo}-zonas-{ibge}.json, como coleta.camada_zonas o escreve: o
-    municipio inteiro em `total` e cada zona em `abr`."""
+    municipio inteiro em `total` e cada zona em `abr`. Devolve os totais, para o
+    historico das cidades."""
+    totais = {}
     for cidade in ZONAS.get(uf, []):
         mun = str(cidade["tse"]).zfill(5)
         if mun not in casa.mun:
@@ -574,6 +587,8 @@ def escrever_zonas(casa: Casa, cab: dict, dic: dict, eleicao: str, cargo: str, u
         escrever(destino, f"{eleicao}-{cargo}-zonas-{cidade['ibge']}.json",
                  {"meta": cab, "total": total, "abr": dict(sorted(zonas.items())), "cand": dic,
                   "mun": {"cd": mun, "ibge": cidade["ibge"], "nm": cidade["nm"], "uf": uf}})
+        totais[str(cidade["ibge"])] = total
+    return totais
 
 
 def escrever_acompanhamento(destino: Path, eleicao: str, turno: str, volta: int,
@@ -722,7 +737,12 @@ def main() -> int:
     })
 
     def quadro(t: float, volta: int) -> None:
-        resumo = escrever_quadro(casas, plano, turno, t, volta, destino, nomes_mun)
+        relogio = None
+        if sequencia:
+            from datetime import datetime, timedelta
+            relogio = (datetime.fromisoformat(sequencia[2])
+                       + timedelta(minutes=t * sequencia[1])).timetuple()
+        resumo = escrever_quadro(casas, plano, turno, t, volta, destino, nomes_mun, relogio)
         proj = "" if args.sem_projecao or "0001" not in casas else " | " + projetar(destino, turno)
         andamento = " ".join(f"{k.split('-')[1]}={v:.1f}%" for k, v in resumo.items())
         hora = ""

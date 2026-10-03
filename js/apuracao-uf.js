@@ -22,6 +22,9 @@
   const estado = {
     uf: null, dados: null, geo: null, geoNivel: null, chapa: null, timer: null,
     nivel: 'municipios', porChave: {}, total: null, sel: null, topAberto: false,
+    /* O que o mapa mostra: 'resultado' (a cor de quem lidera) ou 'margem'
+       (círculos do tamanho da vantagem, APUUI.margensNoMapa). */
+    modo: 'resultado', dic: {},
     /* Entrada do arquivo de UF do TSE. Vale mais que a soma dos municípios: traz
        a anatomia completa do voto e do eleitorado, e é número publicado em vez de
        conta feita aqui. A soma fica como reserva, para quando a camada alta
@@ -153,12 +156,21 @@
       : (estado.dados ? `Resultado em ${nomeUF}` : `Candidaturas em ${nomeUF}`);
     /* Mesmo arranjo da presidencial: a participação abre junto com a lista
        completa de candidaturas, sob o botão único do fim do cartão. */
-    const verParticipacao = () =>
-      APUUI.participacao(alvo, 'participacao', { seguir: 'placar' });
+    /* A chapa inteira, sempre (a lista rola por dentro do cartão), e a
+       participação aberta embaixo dela. */
     APUUI.placar(lista.length ? lista : chapaZerada(), 'placar',
-      { entrada: alvo, cargo: APU.cfg.cargo, marcas: marcasDaEleicao(),
-        botao: 'maisResultado', aoAlternar: verParticipacao });
-    verParticipacao();
+      { entrada: alvo, cargo: APU.cfg.cargo, marcas: marcasDaEleicao(), completa: true });
+    /* Antes do boletim, o eleitorado de 2026: do estado, ou do município
+       escolhido (nas camadas regionais, a soma dos municípios da região). */
+    const el = estado.eleitorado || {};
+    let eleitores = el.uf ? el.uf[estado.uf] : null;
+    if (sel) {
+      const membros = estado.nivel === 'municipios' ? [String(sel.chave)]
+        : ((((estado.geo && estado.geo.p) || []).find(([cd]) => String(cd) === String(sel.chave)) || [])[3] || []);
+      const soma = membros.reduce((s, ibge) => s + ((el.mun || {})[ibge] || 0), 0);
+      eleitores = soma || null;
+    }
+    APUUI.participacao(alvo, 'participacao', { sempre: true, eleitorado: eleitores });
   }
 
   /* Eleito e 2º turno saem do país (presidente) ou do estado (governador,
@@ -169,6 +181,34 @@
   function marcasDaEleicao() {
     return APUUI.marcasDaEleicao(entradaDaEleicao(),
       (presidente() ? estado.candBR : estado.candTSE) || {}, APU.cfg.cargo);
+  }
+
+  /* Os círculos da margem, quando é o que o mapa mostra. */
+  function margens() {
+    const itens = APUUI.margensNoMapa($('mapaUF'), (c) => estado.porChave[c] || null,
+      estado.dic, estado.modo === 'margem');
+    APUUI.legendaMargem('legendaMargem', itens);
+  }
+
+  /* O gráfico de como a apuração do estado andou, quando ela chega a 100%. */
+  function historico() {
+    const ent = estado.ufTSE;
+    const serie = estado.hist ? estado.hist[estado.uf] : null;
+    const dic = (presidente() ? estado.candBR : estado.candTSE) || {};
+    $('historico').hidden = !(ent && Number(ent.pst) >= 100 && serie
+      && APUUI.graficoHistorico('historicoGrafico', serie, dic, { largura: 1000, altura: 300, rotulos: 170 }));
+    /* Apuração terminada: o gráfico toma o lugar dos municípios com mais votos. */
+    if (!$('historico').hidden) $('maisVotos').hidden = true;
+  }
+
+  function trocarModo(modo) {
+    if (modo === estado.modo) return;
+    estado.modo = modo;
+    $('modoMapa').querySelectorAll('[data-modo]').forEach((b) => {
+      b.classList.toggle('is-on', b.dataset.modo === modo);
+      b.setAttribute('aria-pressed', String(b.dataset.modo === modo));
+    });
+    margens();
   }
 
   function selecionar(chave, nome) {
@@ -271,8 +311,10 @@
 
     const proj = await montarMapa(uf);
     estado.porChave = agruparPorChave(dados, proj);
+    estado.dic = dicionario;
     if (proj) {
       APUUI.pintarMapa($('mapaUF'), (c) => estado.porChave[c] || null, dicionario, selecionar);
+      margens();
       const alvos = Object.values(estado.porChave);
       const comApuracao = alvos.filter((e) => e && e.vv > 0).length;
       $('mapaNota').textContent =
@@ -282,6 +324,7 @@
     }
 
     lateral();
+    historico();
     maisVotados(dados, dicionario);
     tabela(dados, dicionario);
   }
@@ -368,32 +411,37 @@
       : APUUI.icone('mais', 13) + ' Mostrar todos';
   }
 
+  /* Município a município, com a margem no mesmo formato da lista dos mais
+     votados ("Lula +7", na cor do partido). Com o estado a 100% a coluna de
+     apurado sai: seria 100% em todas as linhas. */
   function tabela(dados, dicionario) {
     const linhas = Object.entries(dados.abr)
-      .map(([cd, entrada]) => ({
-        cd,
-        nome: (dados.mun && dados.mun[cd] && dados.mun[cd].nm) || cd,
-        entrada,
-        lider: APU.lider(entrada, dicionario)
-      }))
+      .map(([cd, entrada]) => {
+        const lider = APU.lider(entrada, dicionario);
+        const r = lider ? APU.ranking(entrada, dicionario) : [];
+        return {
+          cd,
+          nome: (dados.mun && dados.mun[cd] && dados.mun[cd].nm) || cd,
+          entrada,
+          lider,
+          /* Sem segundo colocado a margem é a própria votação do líder. */
+          dif: lider ? (r[1] ? r[0].pct - r[1].pct : r[0].pct) : 0
+        };
+      })
       .sort((a, b) => b.entrada.te - a.entrada.te);
 
+    const fechado = !!estado.ufTSE && Number(estado.ufTSE.pst) >= 100;
+    $('tabelaMunTab').classList.toggle('is-fechada', fechado);
     $('notaTabela').textContent = 'Ordenado por eleitorado';
-    $('tabelaMun').innerHTML = linhas.map(({ nome, entrada, lider }) => {
-      const cor = lider ? APU.cor(lider.partido) : 'var(--line-strong)';
-      return `<tr>
+    $('tabelaMun').innerHTML = linhas.map(({ nome, entrada, lider, dif }) => `<tr>
         <td>${APUUI.esc(nome)}</td>
-        <td>
-          <span class="apu-lead-cell">
-            <span class="apu-swatch" style="background:${cor}"></span>
-            <span class="apu-lead-name">${lider ? APUUI.esc(lider.urna || lider.nome) : '—'}</span>
-          </span>
+        <td class="apu-top-margin${lider ? '' : ' is-vazio'}"${lider ? ` style="--cor-partido:${APU.cor(lider.partido)}"` : ''}>
+          ${lider ? APUUI.esc(lider.urna || lider.nome) + ' ' + margem(dif) : '—'}
         </td>
         <td class="num">${lider ? APU.fmt.pct(lider.pct) : '—'}</td>
         <td class="num">${lider ? APU.fmt.int(lider.votos) : '—'}</td>
-        <td class="num">${APU.fmt.pct(entrada.pst || 0)}</td>
-      </tr>`;
-    }).join('');
+        <td class="num apu-col-apurado">${APU.fmt.pct(entrada.pst || 0)}</td>
+      </tr>`).join('');
   }
 
   /* --------------------------------------------------------------- ciclo */
@@ -404,6 +452,7 @@
       estado.chapa = await APU.candidaturas();
       await APU.fotosDisponiveis();
       estado.zonas = (await APUUI.cidadesComZonas()).filter((c) => c.uf === estado.uf);
+      estado.eleitorado = await APU.eleitorado2026();
     }
     const [d, alto, br] = await Promise.all([APU.snapshot(estado.uf), APU.snapshot('uf'),
       APU.cfg.cargo === '0001' ? APU.snapshot('br') : null]);
@@ -412,6 +461,10 @@
     if (br && br.cand) estado.candBR = br.cand;
     if (alto && alto.abr && alto.abr[estado.uf]) estado.ufTSE = alto.abr[estado.uf];
     if (alto && alto.cand) estado.candTSE = alto.cand;
+    /* O histórico só interessa com o estado fechado (o gráfico do fim). */
+    if (estado.ufTSE && Number(estado.ufTSE.pst) >= 100) {
+      estado.hist = (await APU.snapshot('hist')) || estado.hist;
+    }
     await pintar();
   }
 
@@ -443,6 +496,10 @@
     $('verTodosMun').onclick = () => {
       estado.topAberto = !estado.topAberto;
       aplicarTopo();
+    };
+    $('modoMapa').onclick = (ev) => {
+      const b = ev.target.closest('[data-modo]');
+      if (b) trocarModo(b.dataset.modo);
     };
     $('niveis').onclick = (ev) => {
       const b = ev.target.closest('[data-nivel]');
