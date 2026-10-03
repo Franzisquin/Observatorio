@@ -2522,6 +2522,65 @@ body:has(#mapaUF) .apu-aside .apu-results {
   border-top: 0;
 }
 
+/* Minimizar: uma alça na borda entre a coluna e o mapa, fora do conteúdo do
+   painel, que fica igual ao que a noite vai mostrar. */
+.apu-dock-proj { position: relative; }
+.apu-proj-frase[hidden] { display: none; }
+
+.apu-proj-min {
+  position: absolute;
+  top: 50%;
+  right: -13px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.apu-proj-min[hidden] { display: none; }
+.apu-proj-min:hover { color: var(--ink); border-color: var(--line-strong); }
+
+/* Minimizada, a coluna vira uma faixa estreita, e a faixa inteira abre de novo. */
+.apu-proj-abrir {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+  padding: 16px 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 700 0.68rem/1 var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.apu-proj-abrir[hidden] { display: none; }
+.apu-proj-abrir span { writing-mode: vertical-rl; transform: rotate(180deg); }
+.apu-proj-abrir:hover { color: var(--ink); background: var(--paper-2); }
+.apu-proj-min:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.apu-proj-abrir:focus-visible { outline: 2px solid var(--ink); outline-offset: -3px; }
+
+@media (min-width: 1081px) {
+  .apu-stage.com-proj.proj-min {
+    grid-template-columns: 40px minmax(0, 1fr) clamp(322px, 26vw, 412px);
+  }
+}
+
+/* Antes da projeção: as candidaturas, com o lugar do número vazio. */
+.apu-proj-linha.is-vazia .apu-proj-num b { color: var(--muted); font-weight: 400; }
+
 /* Na coluna estreita a tabela de chances e as linhas de votos se apertam:
    medidor menor, nome que encolhe com reticências, número sem quebrar. */
 .apu-dock-proj .apu-proj-tab { table-layout: fixed; }
@@ -2564,6 +2623,22 @@ body:has(#mapaUF) .apu-aside .apu-results {
   }
   .apu-dock-proj .apu-dock-body { overflow: visible; }
   .apu-dock-proj .apu-proj { max-width: 760px; }
+}
+
+/* Com a coluna embaixo do mapa (tela média e celular), minimizar a recolhe numa
+   barra: o texto deitado e as setas apontando para cima e para baixo. */
+@media (max-width: 1080px) {
+  .apu-proj-abrir {
+    flex-direction: row;
+    justify-content: flex-start;
+    height: auto;
+    padding: 14px clamp(16px, 1.6vw, 22px);
+  }
+  .apu-proj-abrir span { writing-mode: horizontal-tb; transform: none; }
+  .apu-proj-min { top: 10px; right: 10px; transform: none; }
+  .apu-dock-proj .apu-proj-head { padding-right: 34px; }
+  .apu-proj-abrir svg,
+  .apu-proj-min svg { transform: rotate(90deg); }
 }
 
 /* Celular: tudo em uma coluna — mapa, resultado, projeção. */

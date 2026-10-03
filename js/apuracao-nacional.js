@@ -992,45 +992,77 @@
 
   /* ------------------------------------------------------------ projeção */
 
-  /* Abre ou fecha a coluna da projeção, à esquerda do mapa. O mapa muda de
-     largura junto, e o MapLibre só redesenha no tamanho novo se for avisado. */
-  function mostrarPainelProj(sim) {
-    const painel = $('painelProj');
-    if (painel.hidden === !sim) return;
-    painel.hidden = !sim;
-    painel.closest('.apu-stage').classList.toggle('com-proj', sim);
+  /* Minimiza ou abre a coluna da projeção, à esquerda do mapa. Minimizada, ela
+     vira uma faixa estreita, que é o botão de abrir de novo. O mapa muda de
+     largura junto, e o MapLibre só redesenha no tamanho novo se for avisado. A
+     escolha fica no navegador de quem lê; sem armazenamento, a coluna abre. */
+  const CHAVE_PROJ_MIN = 'electomaps-proj-min';
+
+  function minimizarProj(sim, guardar) {
+    $('painelProj').classList.toggle('is-min', sim);
+    $('painelProj').closest('.apu-stage').classList.toggle('proj-min', sim);
+    $('projCorpo').hidden = sim;
+    $('projMin').hidden = sim;
+    $('projAbrir').hidden = !sim;
+    $('projMin').setAttribute('aria-expanded', String(!sim));
+    $('projAbrir').setAttribute('aria-expanded', String(!sim));
+    if (guardar) {
+      try { localStorage.setItem(CHAVE_PROJ_MIN, sim ? '1' : '0'); } catch (e) { /* sem armazenamento */ }
+    }
     if (mapa.gl) requestAnimationFrame(() => mapa.gl.resize());
+  }
+
+  function ligarMinimizarProj() {
+    let min = false;
+    try { min = localStorage.getItem(CHAVE_PROJ_MIN) === '1'; } catch (e) { /* abre */ }
+    minimizarProj(min, false);
+    $('projMin').onclick = () => { minimizarProj(true, true); $('projAbrir').focus(); };
+    $('projAbrir').onclick = () => { minimizarProj(false, true); $('projMin').focus(); };
   }
 
   const pct1 = (v) => (100 * v).toFixed(1).replace('.', ',');
 
-  /* A projeção do resultado final, na visão do Brasil. Não aparece antes da
-     primeira urna; depois que o TSE declara o resultado, continua à mostra com
-     a última projeção da noite. Abaixo do mínimo de urnas o bloco diz por que
-     ainda não há número, em vez de sumir.
+  /* A projeção do resultado final, na visão do Brasil. Fica à mostra a noite
+     inteira, com os mesmos blocos: antes de 5% das urnas, o título diz que ela
+     começa ali e as candidaturas de 2026 aparecem com o lugar de cada número
+     vazio; depois que o TSE declara o resultado, a última projeção. (O motor
+     também pede voto de 15 estados, projecao.UFS_MIN, mas nas duas noites de
+     2022 os 27 já tinham voto com 3% apurado: quem decide é o 5%.)
 
      A ordem é a das perguntas da noite: a eleição acaba no 1º turno ou vai ao
      2º, e com quem; quem termina em primeiro; e, por último, os votos. */
   function projecao(nacional) {
     const pr = estado.proj;
-    $('projecao').hidden = !nacional || !(nacional.st > 0);
-    mostrarPainelProj(!$('projecao').hidden);
-    if ($('projecao').hidden) return;
-
+    const esc = APUUI.esc;
     const pronta = !!(pr && pr.suficiente && pr.cand);
-    ['projLegenda', 'projSubVotos', 'projChances', 'projDesfecho'].forEach((id) => {
-      $(id).hidden = !pronta;
-    });
+    $('projLegenda').hidden = !pronta;
+    $('projDesfecho').hidden = false;
+    $('projChances').hidden = false;
     if (!pronta) {
-      $('projQuando').textContent = '';
-      $('projFrase').innerHTML = 'A projeção aparece a partir de 5% das urnas apuradas, '
-        + 'com votos de pelo menos 15 estados.<small>Antes disso, qualquer número seria chute.</small>';
-      $('projLista').innerHTML = '';
+      const vazio = '<span class="apu-proj-medidor" aria-hidden="true"></span>—';
+      const chapa = APU.rankingZerado(estado.chapa);
+      $('projQuando').textContent = `com ${APU.fmt.pct(nacional && nacional.st > 0 ? nacional.pst : 0)} das urnas`;
+      $('projFrase').textContent = 'A projeção começa com 5% das urnas apuradas';
+      $('projDesfecho').innerHTML = `
+        <div class="apu-proj-split" aria-hidden="true"></div>
+        <div class="apu-proj-split-rot">
+          <span><b>—</b> vai ao 2º turno</span>
+          <span><b>—</b> termina no 1º turno</span>
+        </div>
+        <p class="apu-proj-par">2º turno mais provável: <b>—</b></p>`;
+      $('projChances').innerHTML = '<thead><tr><th scope="col">Chance de</th>'
+        + '<th scope="col" class="num">Mais votado</th><th scope="col" class="num">Vai ao 2º turno</th></tr></thead>'
+        + '<tbody>' + chapa.map((c) => `<tr><th scope="row">${esc(c.urna)}<small>${esc(c.partido)}</small></th>`
+          + `<td class="num">${vazio}</td><td class="num">${vazio}</td></tr>`).join('') + '</tbody>';
+      $('projLista').innerHTML = chapa.map((c) => `<div class="apu-proj-linha is-vazia">
+          <span class="apu-proj-nome">${esc(c.urna)}<small>${esc(c.partido)}</small></span>
+          <span class="apu-proj-trilho" aria-hidden="true"></span>
+          <span class="apu-proj-num"><b>—</b></span>
+        </div>`).join('');
       return;
     }
 
     const dic = dicionario();
-    const esc = APUUI.esc;
     const nome = (id) => (id === 'outros' ? 'Outros'
       : APU.nomeProprio((dic[id] && (dic[id].urna || dic[id].nome)) || id));
     const sigla = (id) => (id === 'outros' ? '' : ((dic[id] && dic[id].partido) || ''));
@@ -1329,6 +1361,8 @@
   (async function iniciar() {
     document.title = `${nomeDoCargo()} — Apuração ao vivo — ElectoMaps`;
     APUUI.ligarMenu('0001');
+    /* Antes do mapa: a coluna nasce aberta ou minimizada, sem pular depois. */
+    ligarMinimizarProj();
 
     $('voltar').onclick = voltar;
     $('comparacaoCorpo').addEventListener('click', (ev) => {

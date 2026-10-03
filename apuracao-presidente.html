@@ -55,7 +55,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261003b" />
+  <link rel="stylesheet" href="apuracao.css?v=20261003d" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -93,28 +93,45 @@
   <main class="apu-main">
 
     <!-- ------------------------------------- palco: mapa + painel encostado -->
-    <section class="apu-stage">
+    <section class="apu-stage com-proj">
 
-      <!-- Painel da projeção, à esquerda do mapa. Aparece com a primeira urna e
-           fica, também depois que o TSE declara o resultado. Fica com a projeção
-           nacional também quando um estado está aberto no mapa. -->
-      <aside class="apu-dock apu-dock-proj" id="painelProj" aria-label="Projeção ElectoMaps" hidden>
-        <div class="apu-dock-body">
+      <!-- Painel da projeção, à esquerda do mapa, sempre à mostra: antes de haver
+           projeção, as candidaturas de 2026 e quando ela aparece. Minimiza numa
+           faixa estreita (a escolha fica guardada no navegador de quem lê). Fica
+           com a projeção nacional também quando um estado está aberto no mapa. -->
+      <aside class="apu-dock apu-dock-proj" id="painelProj" aria-label="Projeção ElectoMaps">
+        <!-- Minimizado: a faixa inteira é o botão que abre de novo. -->
+        <button class="apu-proj-abrir" id="projAbrir" type="button" aria-controls="projCorpo"
+          aria-expanded="false" hidden>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" /></svg>
+          <span>Projeção</span>
+        </button>
+        <!-- Aberta: a alça na borda com o mapa, fora do conteúdo do painel. -->
+        <button class="apu-proj-min" id="projMin" type="button" aria-controls="projCorpo"
+          aria-expanded="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" /></svg>
+          <span class="sr-only">Minimizar a projeção</span>
+        </button>
+        <div class="apu-dock-body" id="projCorpo">
           <!-- Projeção do resultado final: estimativa do ElectoMaps, publicada à parte
                do número do TSE (scripts/apuracao/projecao.py). -->
-          <section class="apu-proj" id="projecao" hidden>
+          <section class="apu-proj" id="projecao">
             <div class="apu-proj-head">
               <h3 class="apu-dock-rot">Projeção ElectoMaps</h3>
               <span class="apu-proj-quando" id="projQuando"></span>
             </div>
-            <p class="apu-proj-frase" id="projFrase"></p>
+            <p class="apu-proj-frase" id="projFrase">A projeção começa com 5% das urnas apuradas</p>
             <!-- 1º turno: termina agora ou vai ao 2º, e com quem -->
             <div class="apu-proj-desfecho" id="projDesfecho" hidden></div>
             <!-- chances por candidato: mais votado, vai ao 2º turno (ou vence, no 2º) -->
             <table class="apu-proj-tab" id="projChances" hidden></table>
-            <h4 class="apu-proj-sub" id="projSubVotos" hidden>Votos válidos projetados</h4>
+            <h4 class="apu-proj-sub" id="projSubVotos">Votos válidos projetados</h4>
             <div class="apu-proj-lista" id="projLista"></div>
-            <p class="apu-proj-legenda" id="projLegenda">
+            <p class="apu-proj-legenda" id="projLegenda" hidden>
               <span class="apu-proj-leg-ponto"></span> projeção
               <span class="apu-proj-leg-faixa"></span> faixa com 95% de chance
               <span class="apu-proj-leg-apurado"></span> apurado agora
@@ -306,7 +323,7 @@
 
   <script src="js/apuracao-dados.js?v=20261002d"></script>
   <script src="js/apuracao-ui.js?v=20261003b"></script>
-  <script src="js/apuracao-nacional.js?v=20261003b"></script>
+  <script src="js/apuracao-nacional.js?v=20261003e"></script>
   <script src="js/consent.js" defer></script>
 </body>
 
