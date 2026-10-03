@@ -103,6 +103,18 @@ INFLACAO = 1.6
 # em todos os 22 marcos; sem ele, so em 8.
 TAU_NAC = 0.05
 
+# Desvio a priori (escala logit) entre o que ja foi apurado num municipio e o
+# que falta dele, o mesmo no pais inteiro. Dentro da cidade a urna nao chega em
+# ordem aleatoria: no 1o turno de 2022, com a noite toda nos boletins de urna,
+# o resto de cada cidade votou mais em Lula do que o comeco dela, e a projecao,
+# que copiava o comeco para o resto, ficou abaixo dele com faixa estreita no fim
+# da noite — quando quase tudo o que falta e resto de cidade ja comecada. A faixa
+# de 95% de Lula continha o resultado final em 4 dos 10 marcos publicaveis.
+# Valor das duas noites reais (testar_projecao.py --real, duas sementes): o menor
+# que poe Lula, Bolsonaro, Tebet e Ciro dentro da faixa em todos os marcos do 1o
+# turno, e Lula e Bolsonaro em todos os do 2o. Com 0,08, Lula escapa em um.
+TAU_DENTRO = 0.10
+
 # Minimo para publicar; menos que isso, qualquer numero seria chute.
 PCT_MIN = 5.0
 UFS_MIN = 15
@@ -292,6 +304,7 @@ def projetar(unidades: list[dict], base: dict, cenarios: int = CENARIOS,
     vivos = np.flatnonzero(R > 0.5)
     Xv, gv = X[vivos], g_de[vivos]
     obs_v = (V[vivos] / np.maximum(vv[vivos], 1)[:, None]).astype(np.float32)
+    y_v = y[vivos].astype(np.float32)        # o ja apurado, em logit (suavizado)
     wobs = peso_obs[vivos]
     wobs_v = wobs.astype(np.float32)[None, :, None]
     falta_elei = (te * (1 - f))[vivos]
@@ -325,7 +338,15 @@ def projetar(unidades: list[dict], base: dict, cenarios: int = CENARIOS,
             eta[:, :, k] = sortear(aj, S, TAU_NAC)
         p = expit(eta)
         p /= p.sum(axis=2, keepdims=True)
-        s = wobs_v * obs_v[None, :, :] + (1 - wobs_v) * p
+        if TAU_DENTRO:
+            # o resto de cada cidade: o comeco dela, deslocado pelo mesmo desvio
+            # no pais inteiro, sorteado por cenario e candidato
+            o = expit(y_v[None, :, :] + (inflacao * TAU_DENTRO)
+                      * rng.standard_normal((S, 1, K)).astype(np.float32))
+            o /= o.sum(axis=2, keepdims=True)
+        else:
+            o = obs_v[None, :, :]
+        s = wobs_v * o + (1 - wobs_v) * p
         rho_s = wobs[None, :] * rho_obs0[vivos][None, :] + \
             (1 - wobs[None, :]) * rho_ref[vivos][None, :] * np.exp(sortear(ajuste_t, S))
         falta = (falta_elei[None, :] * rho_s)[:, :, None] * s             # S x vivos x K

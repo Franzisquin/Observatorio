@@ -7,10 +7,11 @@ dentro da pagina da apuracao presidencial de verdade (apuracao-presidente.html):
 a pagina pede os snapshots de sempre, e o tocador responde com os da noite
 naquele instante, montados em memoria. Nada vai para o disco alem deste arquivo.
 
-  1o turno  ordem de chegada sorteada e calibrada (testar_projecao.py); base, o
-            1o turno de 2018 — como em 2026 a base sera o 1o turno de 2022
-  2o turno  ordem de chegada real, a hora em que cada boletim de urna chegou ao
-            TSE (noite_2022.py); base, o 1o turno de 2022, a de producao
+Os dois turnos na ordem de chegada real, a hora em que cada boletim de urna
+chegou ao TSE (noite_2022.py, dos parquets de sequencia_2022.py --converter):
+
+  1o turno  base, o 1o turno de 2018 — como em 2026 a base sera o de 2022
+  2o turno  base, o 1o turno de 2022, a de producao
 
 Por marco: o que mudou em cada municipio desde o marco anterior (secoes e votos)
 e a projecao rodada sobre o acumulado, com os mesmos municipios e as mesmas
@@ -31,9 +32,8 @@ import numpy as np
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from base_projecao import de_locais, votos_por_local  # noqa: E402
-from projecao import CENARIOS, carregar_base, projetar  # noqa: E402
-from testar_projecao import RAIZ, ordem_de_chegada  # noqa: E402
+from projecao import CENARIOS, projetar  # noqa: E402
+from testar_projecao import RAIZ, base_da_noite, casar_chaves  # noqa: E402
 
 SNAP = RAIZ / 'scratch' / 'apuracao' / '2022'
 DESTINO = RAIZ / 'scratch' / 'nowcast-2022' / 'noite.json'
@@ -57,68 +57,28 @@ def ibge_de(ele: str) -> dict:
     return saida
 
 
-def primeiro_turno():
-    """Locais de 2022 numa ordem sorteada. As secoes de cada municipio (do
-    snapshot) sao repartidas entre os locais pelo voto; no exterior, que vem por
-    pais, as do exterior inteiro."""
-    locais = votos_por_local(2022, 1)
-    chaves = list(locais)
-    ufs = np.array([k[0] for k in chaves])
-    munis = np.array([k[1] for k in chaves])
-    nums = sorted({n for v in locais.values() for n in v},
-                  key=lambda n: -sum(v.get(n, 0) for v in locais.values()))
-    V = np.array([[locais[k].get(n, 0) for n in nums] for k in chaves], dtype=float)
-    ordem = ordem_de_chegada(ufs, munis, V, nums, np.random.default_rng(1000), 0.0)
-
-    cds, mi = np.unique(munis, return_inverse=True)
-    uf_de = dict(zip(munis, ufs))
-    tot = np.bincount(mi, weights=V.sum(axis=1), minlength=len(cds))
-    abr = {}
-    for arq in SNAP.glob('544-0001-*.json'):
-        uf = arq.stem.rsplit('-', 1)[1]
-        if len(uf) == 2 and uf not in ('br', 'uf', 'zz'):
-            abr.update(json.loads(arq.read_text(encoding='utf-8'))['abr'])
-    zz = snapshot('544', 'uf')['abr']['zz']
-    tot_zz = tot[[uf_de[c] == 'zz' for c in cds]].sum()
-    ibge = ibge_de('544')
-    mun = []
-    for j, cd in enumerate(cds):
-        if uf_de[cd] == 'zz':
-            ts, te = max(round(zz['ts'] * tot[j] / tot_zz), 1), zz['te'] * tot[j] / tot_zz
-        else:
-            e = abr[cd.zfill(5)]
-            ts, te = e['ts'], e['te']
-        # cd sem o zero: e a chave da base de 2018 (base_projecao.de_locais)
-        mun.append({'cd': cd, 'uf': uf_de[cd], 'ibge': ibge.get(cd.zfill(5), ''), 'ts': ts, 'te': te})
-    # local sem voto valido (pais em que os poucos eleitores anularam) ainda tem
-    # secao: sem isto ela nunca chegava, e a noite nao fechava em 100%
-    n_loc = np.bincount(mi, minlength=len(cds))
-    parte = np.where(tot[mi] > 0, V.sum(axis=1) / np.maximum(tot[mi], 1), 1.0 / n_loc[mi])
-    sec = np.array([mun[j]['ts'] for j in mi]) * parte
-    return {'ele': '544', 'nums': nums, 'mun': mun, 'mi': mi, 'sec': sec, 'V': V,
-            'ordem': ordem, 't': None, 'base': de_locais(2018, 1, ('13', '17'))}
-
-
-def segundo_turno():
-    """Urnas do 2o turno de 2022 na ordem em que os boletins chegaram ao TSE."""
+def da_noite(turno: int):
+    """Urnas de 2022 na ordem em que os boletins chegaram ao TSE (noite_2022.py),
+    com a base de testar_projecao.base_da_noite: 2018 no 1o turno, 2022 no 2o."""
     from noite_2022 import carregar as carregar_noite
 
-    d = carregar_noite()
-    munis = np.char.zfill(d['muni'], 5)
-    cds, mi = np.unique(munis, return_inverse=True)
-    uf_de = dict(zip(munis, d['uf']))
+    base = base_da_noite(turno)
+    d = carregar_noite(str(turno))
+    cds, mi = np.unique(d['muni'], return_inverse=True)
+    chaves = casar_chaves(cds, base)
+    uf_de = dict(zip(d['muni'], d['uf']))
     ts = np.bincount(mi, minlength=len(cds))
     te = np.bincount(mi, weights=d['aptos'], minlength=len(cds))
-    ibge = ibge_de('545')
-    mun = [{'cd': cd, 'uf': str(uf_de[cd]), 'ibge': ibge.get(cd, ''), 'ts': int(ts[j]), 'te': float(te[j])}
-           for j, cd in enumerate(cds)]
-    V = np.column_stack([d['v13'], d['v22']]).astype(float)
-    return {'ele': '545', 'nums': ['13', '22'], 'mun': mun, 'mi': mi, 'sec': np.ones(len(mi)), 'V': V,
-            'ordem': np.argsort(d['t'], kind='stable'), 't': np.maximum(d['t'], 0.0), 'base': carregar_base()}
+    ele = '544' if turno == 1 else '545'
+    ibge = ibge_de(ele)
+    mun = [{'cd': chaves[j], 'uf': str(uf_de[cd]), 'ibge': ibge.get(cd, ''), 'ts': int(ts[j]),
+            'te': float(te[j])} for j, cd in enumerate(cds)]
+    return {'ele': ele, 'nums': d['numeros'], 'mun': mun, 'mi': mi, 'sec': np.ones(len(mi)), 'V': d['V'],
+            'ordem': np.argsort(d['t'], kind='stable'), 't': np.maximum(d['t'], 0.0), 'base': base}
 
 
 def noite(turno: int, cenarios: int) -> dict:
-    n = primeiro_turno() if turno == 1 else segundo_turno()
+    n = da_noite(turno)
     ele, nums, mun, mi, V, ordem = n['ele'], n['nums'], n['mun'], n['mi'], n['V'], n['ordem']
     M, K = len(mun), len(nums)
     acum = np.cumsum(n['sec'][ordem])

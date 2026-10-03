@@ -215,3 +215,17 @@ python scripts/apuracao/ensaio_2022.py --instante 0.4
 ```
 
 As páginas leem de `dados=scratch/apuracao/ensaio2022-t1/`.
+
+Para o ensaio tocar a noite na ordem e no ritmo reais de 2022, rode uma vez:
+
+```bash
+python scripts/apuracao/sequencia_2022.py --converter --totalizacao --resumir
+python scripts/apuracao/sequencia_2022.py --conferir    # boletins x placar oficial, hora a hora
+```
+
+`--converter` baixa os boletins de urna de 2022 (Dados Abertos do TSE) um
+estado por vez, guarda em `scratch/bweb/2022_t{1,2}/` só parquets pequenos (as
+seções, com a hora de chegada do boletim, e os votos de presidente, governador e
+senador) e apaga o zip e o CSV na hora. `--totalizacao` guarda o histórico
+oficial da totalização presidencial: o placar que o TSE publicou a cada
+totalização da noite.

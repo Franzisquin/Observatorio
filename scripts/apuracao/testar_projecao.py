@@ -126,34 +126,47 @@ def virada(ordem, M, numeros):
     return 100.0 * tot[atras[-1]] / tot[-1] if len(atras) else 0.0
 
 
-def noite_de_verdade():
-    """(em, real): em(pct) da os municipios da noite real do 2o turno de 2022
-    com `pct` por cento das urnas chegadas, e a hora; real e o % final de Lula."""
+def base_da_noite(turno: int) -> dict:
+    """A base com que a noite real e projetada. 1o turno: o 1o turno de 2018, como
+    no domingo sera o de 2022. 2o turno: a de producao, o 1o turno de 2022."""
+    return de_locais(2018, 1, ('13', '17')) if turno == 1 else carregar_base()
+
+
+def casar_chaves(cds, base: dict) -> list:
+    """O codigo do municipio como a base o guarda: a de producao (snapshots do
+    coletor) com o zero a esquerda, a de 2018 (base_projecao.de_locais) sem ele.
+    Errar isto deixa todo municipio sem base, e o teste passa sem medir nada."""
+    com = sum(c in base for c in cds)
+    sem = sum(c.lstrip('0') in base for c in cds)
+    return list(cds) if com >= sem else [c.lstrip('0') for c in cds]
+
+
+def noite_de_verdade(turno: int, base: dict):
+    """(em, real): em(pct) da os municipios da noite real de 2022 com `pct` por
+    cento das urnas chegadas, e a hora; real e o % final de cada numero."""
     from noite_2022 import carregar as carregar_noite
 
-    d = carregar_noite()
+    d = carregar_noite(str(turno))
     ordem = np.argsort(d['t'], kind='stable')
-    # o boletim de urna traz o codigo sem o zero a esquerda; a base e o
-    # snapshot do coletor, com ele — sem isto nenhum municipio achava a base
-    d['muni'] = np.char.zfill(d['muni'], 5)
     cds, idx = np.unique(d['muni'], return_inverse=True)
+    chaves = casar_chaves(cds, base)
     uf_de = dict(zip(d['muni'], d['uf']))
     ts = np.bincount(idx)
     te = np.bincount(idx, weights=d['aptos'])
+    nums, V = d['numeros'], d['V']
 
     def em(pct):
-        k = int(len(ordem) * pct / 100)
-        chegou = np.zeros(len(ordem), dtype=bool)
-        chegou[ordem[:k]] = True
+        chegou = ordem[:int(len(ordem) * pct / 100)]
         st = np.bincount(idx[chegou], minlength=len(cds))
-        a13 = np.bincount(idx[chegou], weights=d['v13'][chegou], minlength=len(cds))
-        a22 = np.bincount(idx[chegou], weights=d['v22'][chegou], minlength=len(cds))
-        unid = [{'cd': cd, 'uf': uf_de[cd], 'te': te[j], 'st': int(st[j]), 'ts': int(ts[j]),
-                 'vv': a13[j] + a22[j], 'cand': {'13': a13[j], '22': a22[j]}}
+        ap = np.zeros((len(cds), len(nums)))
+        np.add.at(ap, idx[chegou], V[chegou])
+        unid = [{'cd': chaves[j], 'uf': uf_de[cd], 'te': te[j], 'st': int(st[j]), 'ts': int(ts[j]),
+                 'vv': float(ap[j].sum()), 'cand': {n: float(v) for n, v in zip(nums, ap[j]) if v}}
                 for j, cd in enumerate(cds)]
-        return unid, float(d['t'][ordem[max(k - 1, 0)]])
+        return unid, float(d['t'][ordem[max(len(chegou) - 1, 0)]])
 
-    return em, d['v13'].sum() / (d['v13'].sum() + d['v22'].sum())
+    total = V.sum(axis=0)
+    return em, {n: float(v / total.sum()) for n, v in zip(nums, total)}
 
 
 def gravar(turno: int, pct: float, destino: Path, sorteio: int = 0, real: bool = False) -> None:
@@ -164,7 +177,7 @@ def gravar(turno: int, pct: float, destino: Path, sorteio: int = 0, real: bool =
 
     if real:
         turno = 2
-        em, _ = noite_de_verdade()
+        em, _ = noite_de_verdade(2, carregar_base())
         fonte = lambda p: em(p)[0]  # noqa: E731
     else:
         ufs, munis, numeros, M, te = carregar(turno)
@@ -223,28 +236,53 @@ def gravar(turno: int, pct: float, destino: Path, sorteio: int = 0, real: bool =
     print(f'gravado em {destino}')
 
 
-def noite_real(inflacao: float, cenarios: int, sementes: int = 3) -> None:
-    """A projecao na ordem de chegada de verdade do 2o turno de 2022 (os boletins
-    de urna do TSE, ver noite_2022.py), com a base de producao."""
-    em, real = noite_de_verdade()
-    base = carregar_base()
-    print(f'\n=== noite real do 2o turno de 2022 | inflacao {inflacao}')
-    print(f'verdade: Lula {100 * real:.2f}%')
-    print(' apurado |  hora  | placar Lula | projecao Lula (faixa 95%)  | erro  | P(Lula > 50%)')
+NOMES = {'13': 'Lula', '22': 'Bolsonaro', '15': 'Tebet', '12': 'Ciro'}
+
+
+def noite_real(turno: int, inflacao: float, cenarios: int, sementes: int = 1) -> None:
+    """A projecao na ordem de chegada de verdade de 2022 (os boletins de urna do
+    TSE, ver noite_2022.py). Cada linha: o placar, a projecao e a faixa de 95% de
+    cada candidato — com ! quando a faixa nao contem o resultado final."""
+    base = base_da_noite(turno)
+    em, real = noite_de_verdade(turno, base)
+    alvos = sorted(real, key=lambda n: -real[n])[:4 if turno == 1 else 2]
+    print(f'\n=== noite real do {turno}o turno de 2022 | base {"2018 1T" if turno == 1 else "2022 1T"}'
+          f' | inflacao {inflacao}')
+    print('verdade: ' + '  '.join(f'{NOMES.get(n, n)} {100 * real[n]:.2f}%' for n in alvos))
+    print(' apurado |  hora | ' + ' | '.join(f'{NOMES.get(n, n):>9}: placar  projecao (faixa)  '
+                                              for n in alvos)
+          + '| ' + ('P(2T Lula x Bolsonaro)' if turno == 1 else 'P(Lula > 50%)'))
+    cobre, linhas = {n: 0 for n in alvos}, 0
     for p in MARCOS:
         unid, hora = em(p)
         for s in range(sementes):
             r = projetar(unid, base, cenarios=cenarios, semente=s, inflacao=inflacao)
-            c = r['cand']['13']
-            print(f'  {p:>4}%  | {17 + int(hora // 60)}h{int(hora % 60):02d} |   {100 * c["apurado"]:5.2f}%   |'
-                  f'  {100 * c["media"]:5.2f}% ({100 * c["p025"]:5.2f} a {100 * c["p975"]:5.2f}) |'
-                  f' {100 * (c["media"] - real):+5.2f} |   {100 * c["p_maioria"]:5.1f}%')
+            if not r.get('cand'):
+                continue
+            linhas += 1
+            celulas = []
+            for n in alvos:
+                c = r['cand'][n]
+                dentro = c['p025'] <= real[n] <= c['p975']
+                cobre[n] += dentro
+                celulas.append(f'{" " * (len(NOMES.get(n, n)) - 2)}{100 * c["apurado"]:6.2f}  {100 * c["media"]:6.2f} '
+                               f'({100 * c["p025"]:5.2f}-{100 * c["p975"]:5.2f}){" " if dentro else "!"}')
+            if turno == 1:
+                par = (r.get('desfecho') or {}).get('segundo_turno') or []
+                chance = next((x['p'] for x in par if sorted(x['par']) == ['13', '22']), 0)
+            else:
+                chance = r['cand']['13'].get('p_maioria', 0)
+            h = max(hora, 0)
+            print(f'  {p:>4}%  | {17 + int(h // 60)}h{int(h % 60):02d} | ' + ' | '.join(celulas)
+                  + f' | {100 * chance:5.1f}%' + ('' if r.get('suficiente') else '  (nao publica ainda)'))
+    print('a faixa de 95% contem o resultado final: '
+          + ', '.join(f'{NOMES.get(n, n)} {cobre[n]} de {linhas}' for n in alvos))
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--real', action='store_true',
-                    help='a noite de verdade do 2o turno de 2022 (precisa de noite_2022.py)')
+                    help='a noite de verdade de 2022 (precisa de sequencia_2022.py --converter)')
     ap.add_argument('--turno', type=int, choices=[1, 2])
     ap.add_argument('--sorteios', type=int, default=8)
     ap.add_argument('--vies', type=float, default=0.0)
@@ -258,7 +296,8 @@ def main() -> int:
         gravar(args.turno or 2, args.gravar, args.destino, real=args.real)
         return 0
     if args.real:
-        noite_real(args.inflacao, args.cenarios, sementes=1)
+        for turno in ([args.turno] if args.turno else [1, 2]):
+            noite_real(turno, args.inflacao, args.cenarios)
         return 0
 
     for turno in ([args.turno] if args.turno else [1, 2]):
