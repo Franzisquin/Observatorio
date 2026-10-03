@@ -3044,12 +3044,15 @@ body:has(#mapaUF) .apu-aside .apu-results {
 /* ===========================================================================
    HISTÓRICO DA APURAÇÃO
 
-   O gráfico de linhas que aparece quando a jurisdição chega a 100%: o % de
-   cada candidato a cada totalização do TSE (APUUI.graficoHistorico).
+   A curva da apuração, ao vivo: o % de cada candidato a cada totalização do
+   TSE (APUUI.graficoHistorico) — o Brasil na lateral da presidencial, cada
+   estado e cada cidade com zona na página dele.
    =========================================================================== */
 
 .apu-hist-sec[hidden] { display: none; }
 .apu-dock .apu-hist-sec { margin-top: 18px; }
+/* No lugar do gráfico, antes de haver dois boletins para ligar. */
+.apu-hist-vazio { margin: 0; font-size: 0.76rem; line-height: 1.45; color: var(--ink-2); }
 .apu-hist { display: block; width: 100%; height: auto; overflow: visible; }
 .apu-hist-grade { stroke: var(--line); stroke-width: 1; }
 .apu-hist-eixo { fill: var(--muted); font: 500 10px/1 var(--sans); font-variant-numeric: tabular-nums; }

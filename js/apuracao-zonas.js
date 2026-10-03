@@ -302,13 +302,13 @@
     tabela();
   }
 
-  /* O gráfico de como a apuração da cidade andou, quando ela chega a 100%. */
+  /* A curva da cidade, ao vivo (APUUI.graficoHistorico): um ponto por rodada
+     das zonas no plantão. Antes de dois boletins, o aviso no lugar. */
   function historico() {
-    const total = totalDaCidade();
-    const serie = estado.hist ? estado.hist[estado.cidade.ibge] : null;
-    $('historico').hidden = !(total && Number(total.pst) >= 100 && serie
-      && APUUI.graficoHistorico('historicoGrafico', serie, dicionario(),
-        { largura: 1000, altura: 300, rotulos: 170 }));
+    $('historico').hidden = false;
+    const desenhou = APUUI.graficoHistorico('historicoGrafico', estado.hist, dicionario(),
+      { largura: 1000, altura: 300, rotulos: 170 });
+    $('historicoVazio').hidden = desenhou;
   }
 
   /* --------------------------------------------------------------- ciclo */
@@ -328,9 +328,11 @@
     /* Boletim antigo vale mais que tela vazia: só substitui o que chegou. */
     if (d) estado.dados = d;
     if (sup) estado.sup = sup;
+    /* A curva da cidade (hist-zonas-<ibge>), relida a cada boletim desde o
+       primeiro voto até o ponto de 100%. */
     const total = totalDaCidade();
-    if (total && Number(total.pst) >= 100) {
-      estado.hist = (await APU.snapshot('hist-zonas', CARGO)) || estado.hist;
+    if (total && Number(total.vvc || total.vv) > 0 && !APUUI.historicoCompleto(estado.hist)) {
+      estado.hist = (await APU.snapshot('hist-zonas-' + estado.cidade.ibge, CARGO)) || estado.hist;
     }
     pintar();
   }

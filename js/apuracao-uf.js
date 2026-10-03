@@ -191,14 +191,16 @@
   }
 
   /* O gráfico de como a apuração do estado andou, quando ela chega a 100%. */
+  /* A curva do estado, ao vivo (APUUI.graficoHistorico). Antes de dois
+     boletins, o aviso no lugar. */
   function historico() {
     const ent = estado.ufTSE;
-    const serie = estado.hist ? estado.hist[estado.uf] : null;
     const dic = (presidente() ? estado.candBR : estado.candTSE) || {};
-    $('historico').hidden = !(ent && Number(ent.pst) >= 100 && serie
-      && APUUI.graficoHistorico('historicoGrafico', serie, dic, { largura: 1000, altura: 300, rotulos: 170 }));
+    const desenhou = APUUI.graficoHistorico('historicoGrafico', estado.hist, dic,
+      { largura: 1000, altura: 300, rotulos: 170 });
+    $('historicoVazio').hidden = desenhou;
     /* Apuração terminada: o gráfico toma o lugar dos municípios com mais votos. */
-    if (!$('historico').hidden) $('maisVotos').hidden = true;
+    if (desenhou && ent && Number(ent.pst) >= 100) $('maisVotos').hidden = true;
   }
 
   function trocarModo(modo) {
@@ -461,9 +463,11 @@
     if (br && br.cand) estado.candBR = br.cand;
     if (alto && alto.abr && alto.abr[estado.uf]) estado.ufTSE = alto.abr[estado.uf];
     if (alto && alto.cand) estado.candTSE = alto.cand;
-    /* O histórico só interessa com o estado fechado (o gráfico do fim). */
-    if (estado.ufTSE && Number(estado.ufTSE.pst) >= 100) {
-      estado.hist = (await APU.snapshot('hist')) || estado.hist;
+    /* A curva do estado (hist-<uf>), relida a cada boletim desde o primeiro
+       voto até o ponto de 100%. */
+    const ent = estado.ufTSE;
+    if (ent && Number(ent.vvc || ent.vv) > 0 && !APUUI.historicoCompleto(estado.hist)) {
+      estado.hist = (await APU.snapshot('hist-' + estado.uf)) || estado.hist;
     }
     await pintar();
   }

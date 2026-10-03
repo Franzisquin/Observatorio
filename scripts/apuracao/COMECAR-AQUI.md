@@ -42,7 +42,8 @@ Quem tem o login do Cloudflare:
    Guarde a chave fora do repositório. Ela vai para quem roda o plantão.
 3. Tirar do `.assetsignore` o bloco da apuração, inclusive a página de zonas
    (`apuracao-zonas.html`, `js/apuracao-zonas.js`) e as malhas
-   `resultados_geo/zonas_svg/`. Ficam: `locais.*`, se locais continuar fora, e
+   `resultados_geo/zonas_svg/`, e o `resultados_geo/eleitorado_2026.json` (a
+   participação antes do primeiro boletim). Ficam: `locais.*`, se locais continuar fora, e
    `resultados_geo/zonas_eleitorais/` (fontes brutas, nunca sobem). Publicar:
    `npx wrangler deploy`.
 4. Conferir no ar: `/apuracao` redireciona para `/apuracao-presidente`, e
@@ -124,6 +125,7 @@ disjuntor que para tudo ao primeiro sinal de punição. Não aumente `--taxa`.
 python scripts/apuracao/coleta.py --listar     # 6257 e 6259 com data 04/10/2026
 python scripts/apuracao/testar_limites.py      # defesas contra bloqueio
 node scripts/apuracao/testar_worker.mjs        # chave, cache e troca de comando do Worker
+python scripts/apuracao/testar_historico.py    # a curva da apuração
 node scripts/apuracao/testar_front.js          # leitura dos dados na tela
 ```
 
@@ -162,6 +164,28 @@ oficial: 917 requisições, 0 respostas 404.
 Clicar numa dessas cidades — no mapa nacional (presidente) ou no mapa do estado
 (presidente, governador, senador) — mostra no painel o link "Ver as N zonas
 eleitorais de …", que abre `apuracao-zonas.html?mun=<ibge>` no mesmo cargo.
+
+### Curva da apuração
+
+A cada totalização do TSE, o plantão acrescenta um ponto (% apurado, hora da
+totalização, % de cada candidato) à curva de cada recorte, num arquivo por
+recorte (`coleta.historico`): `{eleicao}-{cargo}-hist-br.json` e
+`-hist-<uf>.json` (presidente, governador, senador) e, a cada rodada das zonas,
+`-hist-zonas-<ibge>.json`.
+
+A curva é ao vivo: a do Brasil fica na lateral da página presidencial, embaixo,
+com qualquer recorte aberto no mapa; a de cada estado, na página do estado; a de
+cada cidade com zona, na página de zonas. Antes de dois boletins, um aviso no
+lugar. Cada página baixa só o arquivo do seu recorte, a cada boletim, até o
+ponto de 100%.
+
+Leitura atrasada da CDN do TSE (`st` menor que o do último ponto) é ignorada,
+não apaga a série. Conferido em 03/10 contra o TSE oficial com a suplementar de
+governador de Roraima (eleição 6278, encerrada): o ponto saiu com 100%, 1.483
+seções e a hora da totalização, 21/06/2026 20:27:39.
+
+**Cada plantão grava a curva que viu.** Se a reserva começar tarde e assumir,
+o gráfico no ar perde o começo da noite: ligue os dois juntos, às 16h.
 
 ### Comparação com 2022 (página presidencial)
 

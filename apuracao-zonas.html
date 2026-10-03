@@ -34,7 +34,7 @@
   <script src="js/apuracao-tema.js?v=20260930a"></script>
 
   <link rel="stylesheet" href="portal.css?v=20260930b" />
-  <link rel="stylesheet" href="apuracao.css?v=20261002x" />
+  <link rel="stylesheet" href="apuracao.css?v=20261003b" />
   <link rel="stylesheet" href="consent.css" />
 </head>
 
@@ -162,14 +162,16 @@
       </div>
     </div>
 
-    <!-- Com a cidade a 100%: como a apuração andou, uma linha por candidato e
-         um ponto por totalização (APUUI.graficoHistorico). -->
+    <!-- A curva da cidade, ao vivo: uma linha por candidato e um ponto por
+         rodada das zonas (APUUI.graficoHistorico). Escondida na lista de
+         cidades; aparece com uma cidade aberta. -->
     <section class="apu-top-sec apu-hist-sec" id="historico" hidden>
       <div class="wrap">
         <div class="apu-top-head">
-          <h2 class="apu-top-title">Como foi a apuração</h2>
+          <h2 class="apu-top-title">Curva da apuração</h2>
         </div>
         <div id="historicoGrafico"></div>
+        <p class="apu-hist-vazio" id="historicoVazio">A curva começa com os primeiros boletins do TSE.</p>
       </div>
     </section>
 
@@ -214,8 +216,8 @@
   </footer>
 
   <script src="js/apuracao-dados.js?v=20261002d"></script>
-  <script src="js/apuracao-ui.js?v=20261002o"></script>
-  <script src="js/apuracao-zonas.js?v=20261002q"></script>
+  <script src="js/apuracao-ui.js?v=20261003b"></script>
+  <script src="js/apuracao-zonas.js?v=20261003b"></script>
   <script src="js/consent.js" defer></script>
 </body>
 

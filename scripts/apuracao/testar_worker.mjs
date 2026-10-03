@@ -61,6 +61,9 @@ ok(lido.status === 200 && (await lido.text()) === '{"v":1}', 'GET devolve o que 
 ok(lido.headers.get('Cache-Control') === 'no-store', 'navegador não guarda (a página relê a cada 20 s)');
 ok(memoria.has('https://electomaps.com.br/dados/6257-0001-br.json'),
   'o cache de borda ignora o ?_= da página');
+ok((await gravar('6257-0001-hist-br.json', '[]')).status === 204
+  && (await gravar('6257-0001-hist-zonas-3550308.json', '[]')).status === 204,
+  'as curvas da apuração (Brasil, UF, cidade) passam pelo Worker');
 
 ok((await gravar('6257-0001-br.json', '{"v":2}', 'reserva')).status === 409,
   'a reserva espera enquanto a casa está no comando');

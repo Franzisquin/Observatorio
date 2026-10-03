@@ -8,8 +8,9 @@ navegador faca 1 requisicao em vez de 5.569:
     snapshot/<eleicao>-<cargo>-<uf>.json  todos os municipios daquela UF
     snapshot/<eleicao>-<cargo>-lista-<uf>.json  deputados: a lista aberta de
                                           cada bloco daquela UF, com votos
-    snapshot/<eleicao>-<cargo>-hist.json  a apuracao ponto a ponto: o Brasil e
-                                          cada UF a cada totalizacao do TSE
+    snapshot/<eleicao>-<cargo>-hist-<abr>.json  a curva da apuracao, um ponto
+                                          por totalizacao do TSE: br e cada UF
+                                          (e hist-zonas-<ibge> nas cidades com zona)
 
 Uso (os dados de 2024 continuam no ar ate 04/04/2028, entao da para provar o
 pipeline inteiro hoje, sem esperar 2026):
@@ -589,24 +590,30 @@ HIST_MINIMO = 0.5
 
 def historico(destino: Path, eleicao: str, cargo: str, entradas: dict[str, dict],
               nome: str = "hist") -> bool:
-    """<eleicao>-<cargo>-hist.json: como a apuracao andou em cada abrangencia
-    (o Brasil e cada UF), um ponto por totalizacao do TSE —
+    """A curva da apuracao: como ela andou em cada abrangencia, um ponto por
+    totalizacao do TSE, num arquivo por abrangencia —
 
-        {"br": [[pst, st, "dd/mm/aaaa hh:mm:ss", {sq: % dos votos}], ...],
-         "sp": [...], ...}
+        <eleicao>-<cargo>-<nome>-<abr>.json   (abr: br, a UF, o IBGE da cidade)
+        [[pst, st, "dd/mm/aaaa hh:mm:ss", {sq: % dos votos}], ...]
+
+    Um arquivo por abrangencia, e nao um com todas: a pagina mostra a curva
+    durante a contagem e rele a cada boletim so a do recorte aberto. O de todas
+    as UFs juntas passaria de 1 MB no fim da noite, baixado a cada 20 s.
 
     Ponto novo so quando o numero de secoes totalizadas (`st`) muda: e o que
-    marca uma totalizacao nova. Se `st` volta para tras, e outra apuracao (o
-    ensaio reiniciado, outro turno no mesmo arquivo) e a serie recomeca. O
-    percentual e sobre os votos a votaveis concorrentes, a mesma base do placar.
-    So majoritario: proporcional nao tem candidato na camada alta."""
+    marca uma totalizacao nova. Com o mesmo `st` e outros numeros (retotalizacao),
+    o ultimo ponto e substituido, para o fim do grafico bater com o placar.
+
+    `st` menor que o do ultimo ponto quase sempre e copia atrasada da CDN: o TSE
+    avisa que cada arquivo chega a borda num momento proprio, e uma leitura pode
+    trazer a versao de um minuto atras. Esse ponto e ignorado — apagar a serie
+    por causa dele levaria a noite inteira do grafico. So uma queda para menos da
+    metade e outra apuracao (o ensaio reiniciado), e ai a serie recomeca.
+
+    O percentual e sobre os votos a votaveis concorrentes, a mesma base do
+    placar. So majoritario: proporcional nao tem candidato na camada alta."""
     if cargo in CARGOS_PROPORCIONAIS:
         return False
-    caminho = destino / f"{eleicao}-{cargo}-{nome}.json"
-    try:
-        hist = json.loads(caminho.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        hist = {}
     mudou = False
     for abr, e in entradas.items():
         if not e:
@@ -615,18 +622,28 @@ def historico(destino: Path, eleicao: str, cargo: str, entradas: dict[str, dict]
         st = int(e.get("st") or 0)
         if not base or not st:
             continue
-        serie = hist.setdefault(abr, [])
-        if serie and st == serie[-1][1]:
-            continue
-        if serie and st < serie[-1][1]:
-            serie.clear()
+        caminho = destino / f"{eleicao}-{cargo}-{nome}-{abr}.json"
+        try:
+            serie = json.loads(caminho.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            serie = []
+        ultimo = serie[-1][1] if serie else 0
+        if st < ultimo:
+            if 2 * st >= ultimo:
+                continue  # copia atrasada da CDN
+            serie.clear()  # outra apuracao
         cand = {sq: round(100 * v / base, 2) for sq, v in (e.get("cand") or {}).items()
                 if v and 100 * v / base >= HIST_MINIMO}
-        serie.append([round(float(e.get("pst") or 0), 2), st,
-                      f"{e.get('dt', '')} {e.get('ht', '')}".strip(), cand])
+        ponto = [round(float(e.get("pst") or 0), 2), st,
+                 f"{e.get('dt', '')} {e.get('ht', '')}".strip(), cand]
+        if serie and st == ultimo:
+            if ponto == serie[-1]:
+                continue
+            serie[-1] = ponto
+        else:
+            serie.append(ponto)
+        escrever(destino, caminho.name, serie)
         mudou = True
-    if mudou:
-        escrever(destino, caminho.name, hist)
     return mudou
 
 

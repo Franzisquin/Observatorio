@@ -617,11 +617,18 @@ const APUUI = (function () {
 
   /* ------------------------------------------- histórico da apuração */
 
-  /* Como a apuração andou numa jurisdição, depois de chegar a 100%: uma linha
-     por candidato — os quatro mais votados no fim, ou todos com 10% ou mais —,
-     com um ponto em cada totalização do TSE (`serie`, do {ele}-{cargo}-hist.json
+  /* A série já chegou ao ponto de 100%? Daí em diante a curva não muda, e a
+     página para de reler o arquivo dela. */
+  function historicoCompleto(serie) {
+    return !!serie && serie.length > 0 && serie[serie.length - 1][0] >= 100;
+  }
+
+  /* A curva da apuração numa jurisdição, ao vivo: uma linha por candidato — os
+     quatro mais votados no último ponto, ou todos com 10% ou mais —, com um
+     ponto em cada totalização do TSE (`serie`, do {ele}-{cargo}-hist-<abr>.json
      que o coletor grava: [[pst, st, carimbo, {sq: %}], ...]). No eixo de baixo,
-     o % apurado; no da esquerda, o % de votos. Devolve false sem o que desenhar. */
+     o % apurado; no da esquerda, o % de votos. Devolve false sem o que desenhar
+     (menos de dois pontos). */
   function graficoHistorico(alvo, serie, dicionario, opcoes) {
     const el = typeof alvo === 'string' ? $(alvo) : alvo;
     if (!el) return false;
@@ -1452,5 +1459,5 @@ const APUUI = (function () {
     hemiciclo, destacarBloco, mosaico, ligarMenu, balaoDoCandidato, situacaoDoCandidato,
     balaoDaClausula, veredictoDaClausula, bandeira, cartaoEstado, paramsDeFonte, UFS_POR_ELEITORADO,
     hrefDoCargo, seletorDeCargo, barraDeUFs, marcasDaEleicao, comDefinicaoDa,
-    margemDe, margensNoMapa, legendaMargem, graficoHistorico };
+    margemDe, margensNoMapa, legendaMargem, graficoHistorico, historicoCompleto };
 })();

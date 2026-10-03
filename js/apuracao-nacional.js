@@ -972,23 +972,22 @@
     /* A projeção é nacional e tem painel próprio: continua à mostra com um
        estado aberto no mapa. */
     projecao(entradaNacional());
-    historico(entrada);
+    historico();
     comparacao(entrada, dic);
 
     $('mapaNota').textContent = nota();
   }
 
-  /* ------------------------------------------- histórico da apuração */
+  /* ---------------------------------------------- curva da apuração */
 
-  /* O gráfico de como a apuração andou, no recorte aberto (o Brasil ou um
-     estado), quando ele chega a 100% apurado. Município não tem histórico. */
-  function historico(entrada) {
-    const sec = $('historico');
-    const recorte = estado.sel ? null : (estado.foco || 'br');
-    const serie = recorte && estado.hist ? estado.hist[recorte] : null;
-    const pronto = !!entrada && Number(entrada.pst) >= 100 && !!serie;
-    sec.hidden = !(pronto && APUUI.graficoHistorico('historicoGrafico', serie, dicionario(),
-      { largura: 380, altura: 230, rotulos: 112 }));
+  /* A curva do Brasil, ao vivo: uma linha por candidato, um ponto por
+     totalização do TSE (APUUI.graficoHistorico), redesenhada a cada boletim.
+     Fica na lateral com qualquer recorte aberto no mapa; a de cada estado está
+     na página dele. Antes de dois boletins, o aviso no lugar. */
+  function historico() {
+    const desenhou = APUUI.graficoHistorico('historicoGrafico', estado.hist, dicionario(),
+      { largura: 380, altura: 230, rotulos: 112 });
+    $('historicoVazio').hidden = desenhou;
   }
 
   /* ------------------------------------------------------------ projeção */
@@ -1292,11 +1291,12 @@
     if (br) estado.br = br;
     if (uf) estado.uf = uf;
     if (proj) estado.proj = proj;
-    /* O histórico da apuração (APU hist) só interessa a quem já fechou: lido
-       quando o Brasil ou alguma UF chega a 100%. */
-    const fechou = (e) => !!e && Number(e.pst) >= 100;
-    if (fechou(br && br.abr && br.abr.br) || Object.values((uf && uf.abr) || {}).some(fechou)) {
-      estado.hist = (await APU.snapshot('hist')) || estado.hist;
+    /* A curva do Brasil (hist-br), relida a cada boletim desde o primeiro voto
+       no país até o ponto de 100%. Antes do voto ela não existe: pedi-la seria
+       só 404. */
+    const pais = estado.br && estado.br.abr && estado.br.abr.br;
+    if (pais && Number(pais.vvc || pais.vv) > 0 && !APUUI.historicoCompleto(estado.hist)) {
+      estado.hist = (await APU.snapshot('hist-br')) || estado.hist;
     }
     if (ab) estado.ab = ab;
     pintar();
